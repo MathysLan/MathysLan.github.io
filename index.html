@@ -4,13 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mathys Langiny — Développeur Logiciel</title>
-<meta name="description" content="Portfolio de Mathys Langiny, développeur logiciel chez AgiLab — projets SAE, engagement associatif et passions.">
+<meta name="description" content="Portfolio de Mathys Langiny, développeur logiciel chez AgiLab - projets SAE, engagement associatif et passions.">
 
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=3">
 </head>
 <body class="antialiased">
 
@@ -21,32 +21,41 @@
 
   <!-- NAV : pilule de verre flottante -->
   <header id="navbar" class="fixed top-4 inset-x-0 z-50 px-4">
-    <nav class="max-w-3xl mx-auto px-6 py-3 flex items-center justify-between rounded-full transition-all duration-300">
+    <nav class="max-w-3xl mx-auto px-5 py-3 flex items-center justify-between rounded-full transition-all duration-300">
       <a href="#hero" class="font-mono font-semibold text-lg">
-        <span class="text-white">M</span><span class="text-violet-400">L</span><span class="text-emerald-400">.</span>
+        <span class="heading">M</span><span class="text-violet-400">L</span><span class="text-emerald-400">.</span>
       </a>
-      <ul class="hidden md:flex items-center gap-7 text-sm text-gray-300 font-mono">
-        <li><a href="#projects" class="nav-link hover:text-white transition-colors">Projets</a></li>
-        <li><a href="#assos" class="nav-link hover:text-white transition-colors">Assos</a></li>
-        <li><a href="#passions" class="nav-link hover:text-white transition-colors">Passions</a></li>
-        <li><a href="#games" class="nav-link hover:text-white transition-colors">Jeux</a></li>
-        <li><a href="#contact" class="nav-link hover:text-white transition-colors">Contact</a></li>
+      <ul class="hidden md:flex items-center gap-6 text-sm text-gray-300 font-mono">
+        <li><a href="#projects" class="nav-link hover:text-white transition-colors" data-i18n="nav.projects">Projets</a></li>
+        <li><a href="#timeline" class="nav-link hover:text-white transition-colors" data-i18n="nav.timeline">Parcours</a></li>
+        <li><a href="#assos" class="nav-link hover:text-white transition-colors" data-i18n="nav.assos">Assos</a></li>
+        <li><a href="#passions" class="nav-link hover:text-white transition-colors" data-i18n="nav.passions">Passions</a></li>
+        <li><a href="#games" class="nav-link hover:text-white transition-colors" data-i18n="nav.games">Jeux</a></li>
+        <li><a href="#contact" class="nav-link hover:text-white transition-colors" data-i18n="nav.contact">Contact</a></li>
       </ul>
-      <button id="burger" aria-label="Ouvrir le menu" class="md:hidden relative w-8 h-8 flex flex-col justify-center items-center gap-1.5 z-50">
-        <span class="burger-line block w-6 h-0.5 bg-white rounded transition-all duration-300"></span>
-        <span class="burger-line block w-6 h-0.5 bg-white rounded transition-all duration-300"></span>
-        <span class="burger-line block w-6 h-0.5 bg-white rounded transition-all duration-300"></span>
-      </button>
+      <div class="flex items-center gap-2">
+        <button id="theme-toggle" class="ctrl-btn" aria-label="Changer de thème">
+          <svg id="icon-sun" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+          <svg id="icon-moon" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        </button>
+        <button id="lang-toggle" class="ctrl-btn" aria-label="Switch language">EN</button>
+        <button id="burger" aria-label="Ouvrir le menu" class="md:hidden relative w-8 h-8 flex flex-col justify-center items-center gap-1.5 z-50 ml-1">
+          <span class="burger-line block w-6 h-0.5 bg-current rounded transition-all duration-300"></span>
+          <span class="burger-line block w-6 h-0.5 bg-current rounded transition-all duration-300"></span>
+          <span class="burger-line block w-6 h-0.5 bg-current rounded transition-all duration-300"></span>
+        </button>
+      </div>
     </nav>
   </header>
 
   <!-- Menu mobile (hors header : un backdrop-filter ancêtre piègerait ce fixed) -->
-  <div id="mobile-menu" class="md:hidden fixed inset-0 z-40 bg-[#0a0a12]/97 backdrop-blur-xl flex flex-col items-center justify-center gap-8 text-2xl font-display transition-all duration-300 opacity-0 pointer-events-none">
-    <a href="#projects" class="mobile-link hover:text-violet-400 transition-colors">Projets</a>
-    <a href="#assos" class="mobile-link hover:text-emerald-400 transition-colors">Assos</a>
-    <a href="#passions" class="mobile-link hover:text-amber-400 transition-colors">Passions</a>
-    <a href="#games" class="mobile-link hover:text-violet-400 transition-colors">Jeux</a>
-    <a href="#contact" class="mobile-link hover:text-emerald-400 transition-colors">Contact</a>
+  <div id="mobile-menu" class="md:hidden fixed inset-0 z-40 backdrop-blur-xl flex flex-col items-center justify-center gap-8 text-2xl font-display transition-all duration-300 opacity-0 pointer-events-none">
+    <a href="#projects" class="mobile-link hover:text-violet-400 transition-colors" data-i18n="nav.projects">Projets</a>
+    <a href="#timeline" class="mobile-link hover:text-violet-400 transition-colors" data-i18n="nav.timeline">Parcours</a>
+    <a href="#assos" class="mobile-link hover:text-emerald-400 transition-colors" data-i18n="nav.assos">Assos</a>
+    <a href="#passions" class="mobile-link hover:text-amber-400 transition-colors" data-i18n="nav.passions">Passions</a>
+    <a href="#games" class="mobile-link hover:text-violet-400 transition-colors" data-i18n="nav.games">Jeux</a>
+    <a href="#contact" class="mobile-link hover:text-emerald-400 transition-colors" data-i18n="nav.contact">Contact</a>
   </div>
 
   <!-- ============ HERO ============ -->
@@ -55,18 +64,18 @@
     <div class="max-w-6xl mx-auto px-6 w-full pt-28 pb-16 relative z-10">
       <div class="flex items-center gap-3 mb-8 reveal">
         <span class="font-mono text-xs px-3 py-1.5 rounded-full glass text-emerald-300">
-          <span class="live-dot inline-block w-2 h-2 rounded-full bg-emerald-400 mr-1.5 align-middle"></span>CDI @ AgiLab
+          <span class="live-dot inline-block w-2 h-2 rounded-full bg-emerald-400 mr-1.5 align-middle"></span><span data-i18n="hero.status">CDI @ AgiLab</span>
         </span>
-        <span class="font-mono text-xs px-3 py-1.5 rounded-full glass text-gray-400">Reims, France</span>
+        <span class="font-mono text-xs px-3 py-1.5 rounded-full glass muted" data-i18n="hero.location">Reims, France</span>
       </div>
 
       <h1 id="hero-title" class="font-display text-6xl sm:text-7xl md:text-9xl font-bold tracking-tight leading-[0.95] reveal reveal-delay-1">
         Mathys<br>Langiny
       </h1>
 
-      <p class="mt-8 max-w-xl text-lg md:text-xl text-gray-400 leading-relaxed reveal reveal-delay-2">
+      <p class="mt-8 max-w-xl text-lg md:text-xl muted leading-relaxed reveal reveal-delay-2" data-i18n="hero.tagline">
         Développeur logiciel le jour, streameur et central au volley le soir.
-        Je construis des outils qui automatisent, fiabilisent — et parfois amusent.
+        Je construis des outils qui automatisent, fiabilisent - et parfois amusent.
       </p>
 
       <div class="mt-6 glass rounded-xl px-5 py-3.5 max-w-xl font-mono text-sm text-gray-300 reveal reveal-delay-2">
@@ -75,10 +84,10 @@
 
       <div class="mt-10 flex flex-wrap items-center gap-4 reveal reveal-delay-3">
         <a href="#projects" class="btn-glow inline-flex items-center gap-2 text-white font-semibold px-7 py-3.5 rounded-full">
-          Voir mes projets
+          <span data-i18n="hero.cta">Voir mes projets</span>
           <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         </a>
-        <a href="#contact" class="font-mono text-sm text-gray-400 hover:text-white transition-colors px-2 py-3.5">me contacter ↓</a>
+        <a href="#contact" class="font-mono text-sm muted hover:text-white transition-colors px-2 py-3.5" data-i18n="hero.contact">me contacter ↓</a>
       </div>
     </div>
   </section>
@@ -96,14 +105,72 @@
     <div class="section-halo halo-violet"></div>
     <div class="max-w-6xl mx-auto px-6 relative z-10">
       <div class="reveal mb-14">
-        <p class="font-mono text-xs text-violet-400 tracking-widest uppercase mb-3">01 — Projets</p>
-        <h2 class="font-display text-3xl md:text-5xl font-bold">Galerie des projets<span class="text-violet-400">.</span></h2>
-        <p class="text-gray-400 mt-4 max-w-lg">Du BUT à l'entreprise — clique sur une carte pour ouvrir sa galerie de captures.</p>
+        <p class="font-mono text-xs text-violet-400 tracking-widest uppercase mb-3" data-i18n="projects.kicker">01 - Projets</p>
+        <h2 class="font-display text-3xl md:text-5xl font-bold heading" data-i18n="projects.title">Galerie des projets<span class="text-violet-400">.</span></h2>
+        <p class="muted mt-4 max-w-lg" data-i18n="projects.sub">Du BUT à l'entreprise - clique sur une carte pour ouvrir sa galerie de captures.</p>
       </div>
       <div id="projects-grid" class="grid sm:grid-cols-2 gap-6"></div>
       <p class="reveal mt-8 text-sm text-gray-500 font-mono">
-        → tous mes dépôts publics : <a href="https://github.com/MathysLan?tab=repositories" target="_blank" rel="noopener noreferrer" class="text-violet-400 hover:text-violet-300 underline underline-offset-4 transition-colors">github.com/MathysLan</a>
+        <span data-i18n="projects.repos">→ tous mes dépôts publics :</span>
+        <a href="https://github.com/MathysLan?tab=repositories" target="_blank" rel="noopener noreferrer" class="text-violet-400 hover:text-violet-300 underline underline-offset-4 transition-colors">github.com/MathysLan</a>
       </p>
+    </div>
+  </section>
+
+  <!-- ============ PARCOURS / TIMELINE ============ -->
+  <section id="timeline" class="relative py-24 md:py-32 overflow-hidden border-t border-white/5">
+    <div class="section-halo halo-violet"></div>
+    <div class="max-w-6xl mx-auto px-6 relative z-10">
+      <div class="reveal mb-14">
+        <p class="font-mono text-xs text-violet-400 tracking-widest uppercase mb-3" data-i18n="timeline.kicker">02 - Parcours</p>
+        <h2 class="font-display text-3xl md:text-5xl font-bold heading" data-i18n="timeline.title">Mon parcours<span class="text-violet-400">.</span></h2>
+      </div>
+
+      <div class="timeline max-w-2xl">
+        <div id="timeline-line"></div>
+        <ol class="space-y-12">
+          <li class="tl-item reveal">
+            <span class="tl-dot"></span>
+            <p class="font-mono text-xs muted mb-1" data-i18n="timeline.bac.date">2023 - Lycée Pierre Bayle</p>
+            <h3 class="font-display text-lg font-semibold heading" data-i18n="timeline.bac.title">Baccalauréat, mention Bien</h3>
+            <p class="muted mt-1 text-sm leading-relaxed" data-i18n="timeline.bac.desc">
+              Spécialités NSI, SI et Mathématiques, option Latin. Les premières lignes de code sérieuses.
+            </p>
+          </li>
+          <li class="tl-item reveal reveal-delay-1">
+            <span class="tl-dot"></span>
+            <p class="font-mono text-xs muted mb-1" data-i18n="timeline.but.date">2023 - 2026 - IUT de Reims</p>
+            <h3 class="font-display text-lg font-semibold heading" data-i18n="timeline.but.title">BUT Informatique</h3>
+            <p class="muted mt-1 text-sm leading-relaxed" data-i18n="timeline.but.desc">
+              Développement, bases de données, gestion de projet agile et travail en équipe.
+            </p>
+          </li>
+          <li class="tl-item reveal reveal-delay-1">
+            <span class="tl-dot"></span>
+            <p class="font-mono text-xs muted mb-1" data-i18n="timeline.stage.date">avril 2025 - AgiLab</p>
+            <h3 class="font-display text-lg font-semibold heading" data-i18n="timeline.stage.title">Stage</h3>
+            <p class="muted mt-1 text-sm leading-relaxed" data-i18n="timeline.stage.desc">
+              Découverte du support en entreprise : correction de bugs clients et documentation des correctifs.
+            </p>
+          </li>
+          <li class="tl-item reveal reveal-delay-2">
+            <span class="tl-dot"></span>
+            <p class="font-mono text-xs muted mb-1" data-i18n="timeline.alt.date">sept. 2025 - juin 2026 - AgiLab</p>
+            <h3 class="font-display text-lg font-semibold heading" data-i18n="timeline.alt.title">Alternance</h3>
+            <p class="muted mt-1 text-sm leading-relaxed" data-i18n="timeline.alt.desc">
+              Conception et industrialisation d'un système d'automatisation des tests qualité, en parallèle de la 3e année.
+            </p>
+          </li>
+          <li class="tl-item reveal reveal-delay-3">
+            <span class="tl-dot"></span>
+            <p class="font-mono text-xs text-emerald-400 mb-1" data-i18n="timeline.cdi.date">2026 - aujourd'hui - AgiLab</p>
+            <h3 class="font-display text-lg font-semibold heading" data-i18n="timeline.cdi.title">CDI - Développeur logiciel</h3>
+            <p class="muted mt-1 text-sm leading-relaxed" data-i18n="timeline.cdi.desc">
+              Poursuite des missions d'automatisation et d'outillage qualité, en équipe.
+            </p>
+          </li>
+        </ol>
+      </div>
     </div>
   </section>
 
@@ -112,19 +179,19 @@
     <div class="section-halo halo-mint"></div>
     <div class="max-w-6xl mx-auto px-6 relative z-10">
       <div class="reveal mb-14">
-        <p class="font-mono text-xs text-emerald-400 tracking-widest uppercase mb-3">02 — Engagement associatif</p>
-        <h2 class="font-display text-3xl md:text-5xl font-bold">Les Jeunes Capucins<span class="text-emerald-400">.</span></h2>
+        <p class="font-mono text-xs text-emerald-400 tracking-widest uppercase mb-3" data-i18n="assos.kicker">03 - Engagement associatif</p>
+        <h2 class="font-display text-3xl md:text-5xl font-bold heading" data-i18n="assos.title">Les Jeunes Capucins<span class="text-emerald-400">.</span></h2>
       </div>
 
       <div class="grid md:grid-cols-2 gap-10 items-start">
         <div class="reveal space-y-5">
           <div class="glass rounded-2xl p-7">
-            <p class="font-mono text-xs text-emerald-300 mb-2">rôle actuel</p>
-            <h3 class="font-display text-2xl md:text-3xl font-bold text-white mb-3">Vice-président</h3>
-            <p class="text-gray-400 leading-relaxed text-sm">
+            <p class="font-mono text-xs text-emerald-300 mb-2" data-i18n="assos.role.kicker">rôle actuel</p>
+            <h3 class="font-display text-2xl md:text-3xl font-bold heading mb-3" data-i18n="assos.role.title">Vice-président</h3>
+            <p class="muted leading-relaxed text-sm" data-i18n="assos.role.desc">
               Avec le président, je pilote la <span class="text-white">logistique</span> et le choix des événements
               de l'association. Notre plus belle réussite : grâce aux fonds récoltés sur nos événements,
-              nous avons emmené <span class="text-white">toute l'association à Europa-Park</span> —
+              nous avons emmené <span class="text-white">toute l'association à Europa-Park</span> -
               la preuve concrète que cet investissement collectif paie.
             </p>
           </div>
@@ -132,57 +199,57 @@
           <div class="grid grid-cols-3 gap-4">
             <div class="glass rounded-2xl p-5 text-center">
               <p class="font-display text-4xl font-bold text-emerald-300"><span data-count="4">0</span><span class="text-xl">+</span></p>
-              <p class="font-mono text-[11px] text-gray-500 mt-1">années d'engagement</p>
+              <p class="font-mono text-[11px] text-gray-500 mt-1" data-i18n="assos.stat.years">années d'engagement</p>
             </div>
             <div class="glass rounded-2xl p-5 text-center">
               <p class="font-display text-4xl font-bold text-emerald-300"><span data-count="300">0</span></p>
-              <p class="font-mono text-[11px] text-gray-500 mt-1">visiteurs au marché artisanal</p>
+              <p class="font-mono text-[11px] text-gray-500 mt-1" data-i18n="assos.stat.visitors">visiteurs au marché artisanal</p>
             </div>
             <div class="glass rounded-2xl p-5 text-center">
               <p class="font-display text-4xl font-bold text-emerald-300"><span data-count="7">0</span><span class="text-xl">+</span></p>
-              <p class="font-mono text-[11px] text-gray-500 mt-1">événements récurrents</p>
+              <p class="font-mono text-[11px] text-gray-500 mt-1" data-i18n="assos.stat.events">événements récurrents</p>
             </div>
           </div>
 
           <p class="text-sm text-gray-500">
-            Suivez-nous :
+            <span data-i18n="assos.follow">Suivez-nous :</span>
             <a href="https://www.lesjeunescapucins.com" target="_blank" rel="noopener noreferrer" class="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 transition-colors">lesjeunescapucins.com</a>
             ·
             <a href="https://www.facebook.com/profile.php?id=61566526067016" target="_blank" rel="noopener noreferrer" class="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 transition-colors">Facebook</a>
           </p>
         </div>
 
-        <!-- Polaroids des événements -->
+        <!-- Polaroids des événements (vraies affiches quand disponibles) -->
         <div class="reveal reveal-delay-1 grid grid-cols-2 gap-5 sm:gap-6">
           <div class="polaroid rounded-sm" style="transform: rotate(-2.5deg)">
-            <div class="h-24 rounded-sm bg-gradient-to-br from-orange-500/80 to-purple-700/80 flex items-center justify-center text-4xl">🎃</div>
-            <p class="font-mono text-xs mt-2.5 font-medium">Halloween</p>
-            <p class="font-mono text-[10px] text-neutral-500">animations pour petits &amp; grands</p>
+            <img src="assets/assos/carnaval-2023.jpg" alt="Affiche du Carnaval 2023" loading="lazy" class="rounded-sm">
+            <p class="font-mono text-xs mt-2.5 font-medium">Carnaval</p>
+            <p class="font-mono text-[10px] text-neutral-500" data-i18n="assos.p.carnaval">défilé, brûlage de la poupée & Mario</p>
           </div>
           <div class="polaroid rounded-sm" style="transform: rotate(2deg)">
-            <div class="h-24 rounded-sm bg-gradient-to-br from-sky-500/80 to-red-500/80 flex items-center justify-center text-4xl">🎆</div>
-            <p class="font-mono text-xs mt-2.5 font-medium">14 Juillet</p>
-            <p class="font-mono text-[10px] text-neutral-500">avec les assos du village</p>
+            <img src="assets/assos/marche-artisanal.jpg" alt="Affiche du marché artisanal" loading="lazy" class="rounded-sm">
+            <p class="font-mono text-xs mt-2.5 font-medium" data-i18n="assos.p.marche.title">Marché artisanal</p>
+            <p class="font-mono text-[10px] text-neutral-500" data-i18n="assos.p.marche">complet - 300 visiteurs</p>
           </div>
           <div class="polaroid rounded-sm" style="transform: rotate(1.5deg)">
-            <div class="h-24 rounded-sm bg-gradient-to-br from-pink-500/80 to-yellow-500/80 flex items-center justify-center text-4xl">🎭</div>
-            <p class="font-mono text-xs mt-2.5 font-medium">Carnaval</p>
-            <p class="font-mono text-[10px] text-neutral-500">costumes, musique &amp; danse</p>
+            <div class="h-24 rounded-sm bg-gradient-to-br from-orange-500/80 to-purple-700/80 flex items-center justify-center text-4xl">🎃</div>
+            <p class="font-mono text-xs mt-2.5 font-medium">Halloween</p>
+            <p class="font-mono text-[10px] text-neutral-500" data-i18n="assos.p.halloween">animations pour petits & grands</p>
           </div>
           <div class="polaroid rounded-sm" style="transform: rotate(-1.8deg)">
             <div class="h-24 rounded-sm bg-gradient-to-br from-emerald-500/80 to-teal-700/80 flex items-center justify-center text-4xl">🎄</div>
-            <p class="font-mono text-xs mt-2.5 font-medium">Marché de Noël</p>
-            <p class="font-mono text-[10px] text-neutral-500">stands &amp; ambiance festive</p>
+            <p class="font-mono text-xs mt-2.5 font-medium" data-i18n="assos.p.noel.title">Marché de Noël</p>
+            <p class="font-mono text-[10px] text-neutral-500" data-i18n="assos.p.noel">stands & ambiance festive</p>
           </div>
           <div class="polaroid rounded-sm" style="transform: rotate(2.2deg)">
             <div class="h-24 rounded-sm bg-gradient-to-br from-amber-500/80 to-rose-600/80 flex items-center justify-center text-4xl">🧸</div>
-            <p class="font-mono text-xs mt-2.5 font-medium">Bourse aux jouets</p>
-            <p class="font-mono text-[10px] text-neutral-500">événement solidaire</p>
+            <p class="font-mono text-xs mt-2.5 font-medium" data-i18n="assos.p.jouets.title">Bourse aux jouets</p>
+            <p class="font-mono text-[10px] text-neutral-500" data-i18n="assos.p.jouets">événement solidaire</p>
           </div>
           <div class="polaroid rounded-sm" style="transform: rotate(-2deg)">
             <div class="h-24 rounded-sm bg-gradient-to-br from-violet-500/80 to-fuchsia-600/80 flex items-center justify-center text-4xl">🎢</div>
-            <p class="font-mono text-xs mt-2.5 font-medium">Sorties bénévoles</p>
-            <p class="font-mono text-[10px] text-neutral-500">Walygator · Astérix · Europa-Park</p>
+            <p class="font-mono text-xs mt-2.5 font-medium" data-i18n="assos.p.sorties.title">Sorties bénévoles</p>
+            <p class="font-mono text-[10px] text-neutral-500" data-i18n="assos.p.sorties">Walygator · Astérix · Europa-Park</p>
           </div>
         </div>
       </div>
@@ -194,57 +261,57 @@
     <div class="section-halo halo-amber"></div>
     <div class="max-w-6xl mx-auto px-6 relative z-10">
       <div class="reveal mb-14">
-        <p class="font-mono text-xs text-amber-400 tracking-widest uppercase mb-3">03 — En dehors du code</p>
-        <h2 class="font-display text-3xl md:text-5xl font-bold">Backstage<span class="text-amber-400">.</span></h2>
+        <p class="font-mono text-xs text-amber-400 tracking-widest uppercase mb-3" data-i18n="passions.kicker">04 - En dehors du code</p>
+        <h2 class="font-display text-3xl md:text-5xl font-bold heading" data-i18n="passions.title">Backstage<span class="text-amber-400">.</span></h2>
       </div>
 
-      <!-- Sport : fiche joueur volley + karaté -->
+      <!-- Sport : volley + karaté -->
       <div class="grid md:grid-cols-2 gap-6 mb-6">
         <div class="reveal glass net-pattern rounded-2xl p-7 relative overflow-hidden">
           <div class="absolute top-4 right-6 jersey-number font-display font-bold select-none">24</div>
-          <p class="font-mono text-xs text-amber-300 mb-2">volley-ball</p>
-          <h3 class="font-display text-2xl font-bold text-white mb-1">Central</h3>
-          <p class="font-mono text-xs text-gray-500 mb-4">SUAPS de Reims → club à la rentrée</p>
-          <p class="text-gray-400 text-sm leading-relaxed max-w-sm">
+          <p class="font-mono text-xs text-amber-300 mb-2" data-i18n="passions.volley.kicker">volley-ball</p>
+          <h3 class="font-display text-2xl font-bold heading mb-1" data-i18n="passions.volley.title">Central</h3>
+          <p class="font-mono text-xs text-gray-500 mb-4" data-i18n="passions.volley.sub">SUAPS de Reims → club à la rentrée</p>
+          <p class="muted text-sm leading-relaxed max-w-sm" data-i18n="passions.volley.desc">
             6 h par semaine sur le terrain. Le poste de central, c'est de la lecture de jeu,
-            du timing au contre et beaucoup de communication — exactement ce que je ramène
+            du timing au contre et beaucoup de communication - exactement ce que je ramène
             dans le travail d'équipe au quotidien.
           </p>
           <div class="flex gap-2 mt-5">
-            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-gray-400">contre</span>
-            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-gray-400">attaque rapide</span>
-            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-gray-400">beach</span>
+            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md chip" data-i18n="passions.volley.t1">contre</span>
+            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md chip" data-i18n="passions.volley.t2">attaque rapide</span>
+            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md chip" data-i18n="passions.volley.t3">beach</span>
           </div>
         </div>
 
         <div class="reveal reveal-delay-1 glass rounded-2xl p-7 relative overflow-hidden">
           <div class="absolute top-4 right-6 text-6xl opacity-20 select-none">🥋</div>
-          <p class="font-mono text-xs text-amber-300 mb-2">karaté — 10 ans de pratique</p>
-          <h3 class="font-display text-2xl font-bold text-white mb-1">Vice-champion de France</h3>
-          <p class="font-mono text-xs text-gray-500 mb-4">full contact</p>
-          <p class="text-gray-400 text-sm leading-relaxed max-w-sm">
+          <p class="font-mono text-xs text-amber-300 mb-2" data-i18n="passions.karate.kicker">karaté - 10 ans de pratique</p>
+          <h3 class="font-display text-2xl font-bold heading mb-1" data-i18n="passions.karate.title">Vice-champion de France</h3>
+          <p class="font-mono text-xs text-gray-500 mb-4" data-i18n="passions.karate.sub">full contact</p>
+          <p class="muted text-sm leading-relaxed max-w-sm" data-i18n="passions.karate.desc">
             Dix ans de tatami avant le filet. Le full contact m'a appris la discipline,
-            la gestion de la pression et le goût du travail long — jusqu'à une finale nationale.
+            la gestion de la pression et le goût du travail long - jusqu'à une finale nationale.
           </p>
           <div class="flex gap-2 mt-5">
-            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-300">🥈 podium national</span>
-            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-gray-400">discipline</span>
+            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-300" data-i18n="passions.karate.t1">🥈 podium national</span>
+            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md chip" data-i18n="passions.karate.t2">discipline</span>
           </div>
         </div>
       </div>
 
-      <!-- Stream : console de mixage -->
+      <!-- Stream -->
       <div class="reveal glass rounded-2xl p-7 mb-6 relative overflow-hidden">
         <div class="flex flex-col md:flex-row md:items-center gap-8">
           <div class="flex-1">
             <div class="flex items-center gap-3 mb-2">
-              <p class="font-mono text-xs text-amber-300">stream &amp; audiovisuel</p>
+              <p class="font-mono text-xs text-amber-300" data-i18n="passions.stream.kicker">stream & audiovisuel</p>
               <span class="font-mono text-[11px] px-2.5 py-0.5 rounded-full bg-red-500/15 border border-red-500/40 text-red-400">
                 <span class="live-dot inline-block w-1.5 h-1.5 rounded-full bg-red-500 mr-1 align-middle"></span>LIVE
               </span>
             </div>
-            <h3 class="font-display text-2xl font-bold text-white mb-3">Régie de stream maison</h3>
-            <p class="text-gray-400 text-sm leading-relaxed max-w-lg">
+            <h3 class="font-display text-2xl font-bold heading mb-3" data-i18n="passions.stream.title">Régie de stream maison</h3>
+            <p class="muted text-sm leading-relaxed max-w-lg" data-i18n="passions.stream.desc">
               Je stream sur Twitch et je conçois toute ma régie moi-même : scènes OBS,
               routage audio VoiceMeeter, et overlays sur mesure en HTML / Tailwind
               intégrés directement dans OBS.
@@ -255,12 +322,11 @@
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z"/></svg>
                 twitch.tv/nimu_08
               </a>
-              <span class="font-mono text-[11px] px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-gray-400">OBS</span>
-              <span class="font-mono text-[11px] px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-gray-400">VoiceMeeter</span>
-              <span class="font-mono text-[11px] px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-gray-400">overlays HTML</span>
+              <span class="font-mono text-[11px] px-2.5 py-1 rounded-md chip">OBS</span>
+              <span class="font-mono text-[11px] px-2.5 py-1 rounded-md chip">VoiceMeeter</span>
+              <span class="font-mono text-[11px] px-2.5 py-1 rounded-md chip">overlays HTML</span>
             </div>
           </div>
-          <!-- Faders décoratifs -->
           <div class="hidden md:flex items-end gap-3 h-36 pr-4" aria-hidden="true">
             <div class="fader h-full" style="--lvl:62%; --d:0s"></div>
             <div class="fader h-full" style="--lvl:40%; --d:.3s"></div>
@@ -275,29 +341,29 @@
       <!-- Culture : tickets -->
       <div class="grid md:grid-cols-2 gap-6">
         <div class="reveal">
-          <p class="font-mono text-xs text-gray-500 uppercase tracking-widest mb-4">— concerts &amp; festivals</p>
+          <p class="font-mono text-xs text-gray-500 uppercase tracking-widest mb-4" data-i18n="passions.concerts">- concerts & festivals</p>
           <div class="space-y-4">
             <div class="ticket p-5 flex items-center gap-5">
               <div class="font-display text-3xl font-bold text-amber-400">VALD</div>
               <div class="flex-1 border-l-2 border-dashed border-white/15 pl-5">
-                <p class="text-sm text-gray-300">Mon premier concert en arène</p>
-                <p class="font-mono text-[11px] text-gray-500 mt-1">rap FR · pit</p>
+                <p class="text-sm text-gray-300" data-i18n="passions.vald">Mon premier concert en arène</p>
+                <p class="font-mono text-[11px] text-gray-500 mt-1" data-i18n="passions.vald.sub">rap FR · fosse</p>
               </div>
               <div class="barcode w-14 text-gray-400" aria-hidden="true"></div>
             </div>
             <div class="ticket p-5 flex items-center gap-5">
               <div class="font-display text-xl font-bold text-amber-400">Damso<br>Orelsan</div>
               <div class="flex-1 border-l-2 border-dashed border-white/15 pl-5">
-                <p class="text-sm text-gray-300">Les gros shows d'arène</p>
-                <p class="font-mono text-[11px] text-gray-500 mt-1">+ Cabaret Vert en festival</p>
+                <p class="text-sm text-gray-300" data-i18n="passions.damso">Les gros shows d'arène</p>
+                <p class="font-mono text-[11px] text-gray-500 mt-1" data-i18n="passions.damso.sub">+ Cabaret Vert en festival</p>
               </div>
               <div class="barcode w-14 text-gray-400" aria-hidden="true"></div>
             </div>
             <div class="ticket p-5 flex items-center gap-5 opacity-80">
               <div class="font-display text-lg font-bold text-amber-400">BIGFLO<br>&amp; OLI</div>
               <div class="flex-1 border-l-2 border-dashed border-white/15 pl-5">
-                <p class="text-sm text-gray-300">Prochain sur la liste</p>
-                <p class="font-mono text-[11px] text-emerald-400 mt-1">à venir ✦</p>
+                <p class="text-sm text-gray-300" data-i18n="passions.bigflo">Prochain sur la liste</p>
+                <p class="font-mono text-[11px] text-emerald-400 mt-1" data-i18n="passions.bigflo.sub">à venir ✦</p>
               </div>
               <div class="barcode w-14 text-gray-400" aria-hidden="true"></div>
             </div>
@@ -305,7 +371,7 @@
         </div>
 
         <div class="reveal reveal-delay-1">
-          <p class="font-mono text-xs text-gray-500 uppercase tracking-widest mb-4">— séances cultes</p>
+          <p class="font-mono text-xs text-gray-500 uppercase tracking-widest mb-4" data-i18n="passions.movies">- séances cultes</p>
           <div class="space-y-4">
             <div class="ticket p-5 flex items-center gap-5">
               <div class="text-3xl">🥁</div>
@@ -342,22 +408,22 @@
     <div class="section-halo halo-violet"></div>
     <div class="max-w-6xl mx-auto px-6 relative z-10">
       <div class="reveal mb-14">
-        <p class="font-mono text-xs text-violet-400 tracking-widest uppercase mb-3">04 — Jeux</p>
-        <h2 class="font-display text-3xl md:text-5xl font-bold">Les jeux de la CACABOX<span class="text-violet-400">.</span></h2>
+        <p class="font-mono text-xs text-violet-400 tracking-widest uppercase mb-3" data-i18n="games.kicker">05 - Jeux</p>
+        <h2 class="font-display text-3xl md:text-5xl font-bold heading" data-i18n="games.title">Les jeux de la CACABOX<span class="text-violet-400">.</span></h2>
       </div>
 
       <div class="reveal glass arcade-border rounded-3xl p-10 md:p-16 text-center relative overflow-hidden">
         <p class="font-mono text-xs tracking-[0.3em] text-violet-300 mb-6 insert-coin">▸ INSERT COIN ◂</p>
-        <h3 class="font-display text-2xl md:text-4xl font-bold text-white mb-4 max-w-2xl mx-auto">
+        <h3 class="font-display text-2xl md:text-4xl font-bold heading mb-4 max-w-2xl mx-auto" data-i18n="games.h3">
           Bientôt : des jeux web jouables directement dans le navigateur
         </h3>
-        <p class="text-gray-400 max-w-xl mx-auto leading-relaxed">
-          Des jeux pensés pour la CACABOX — aucune installation, aucun téléchargement :
+        <p class="muted max-w-xl mx-auto leading-relaxed" data-i18n="games.desc">
+          Des jeux pensés pour la CACABOX - aucune installation, aucun téléchargement :
           ouvre la page et joue.
         </p>
-        <div class="mt-8 inline-flex items-center gap-2 font-mono text-xs px-4 py-2 rounded-full bg-white/5 border border-white/10 text-gray-500">
+        <div class="mt-8 inline-flex items-center gap-2 font-mono text-xs px-4 py-2 rounded-full chip">
           <span class="live-dot inline-block w-2 h-2 rounded-full bg-amber-400"></span>
-          en développement
+          <span data-i18n="games.wip">en développement</span>
         </div>
       </div>
     </div>
@@ -368,10 +434,10 @@
     <div class="section-halo halo-mint"></div>
     <div class="max-w-6xl mx-auto px-6 relative z-10">
       <div class="reveal text-center max-w-2xl mx-auto mb-14">
-        <p class="font-mono text-xs text-emerald-400 tracking-widest uppercase mb-3">05 — Contact</p>
-        <h2 class="font-display text-3xl md:text-5xl font-bold mb-5">On se capte ?</h2>
-        <p class="text-gray-400 leading-relaxed">
-          Une idée, une opportunité, ou simplement envie d'échanger — écris-moi.
+        <p class="font-mono text-xs text-emerald-400 tracking-widest uppercase mb-3" data-i18n="contact.kicker">06 - Contact</p>
+        <h2 class="font-display text-3xl md:text-5xl font-bold heading mb-5" data-i18n="contact.title">On se capte ?</h2>
+        <p class="muted leading-relaxed" data-i18n="contact.desc">
+          Une idée, une opportunité, ou simplement envie d'échanger - écris-moi.
         </p>
         <a href="mailto:mathys.langiny@gmail.com" class="btn-glow mt-8 inline-flex items-center gap-2 text-white font-semibold px-8 py-4 rounded-full font-mono text-sm">
           mathys.langiny@gmail.com
@@ -380,42 +446,43 @@
 
       <div class="reveal flex items-center justify-center gap-5 mb-14">
         <a href="https://github.com/MathysLan" target="_blank" rel="noopener noreferrer" aria-label="GitHub"
-           class="w-12 h-12 rounded-full glass flex items-center justify-center text-gray-400 hover:text-white hover:border-violet-500/60 transition-all">
+           class="w-12 h-12 rounded-full glass flex items-center justify-center muted-icon hover:border-violet-500/60 transition-all">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55 0-.27-.01-1-.02-1.96-3.2.7-3.87-1.54-3.87-1.54-.53-1.33-1.29-1.69-1.29-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.56-.29-5.26-1.28-5.26-5.71 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.47.11-3.06 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.64 1.59.24 2.77.12 3.06.74.8 1.18 1.83 1.18 3.09 0 4.44-2.7 5.42-5.28 5.7.42.36.78 1.07.78 2.16 0 1.56-.02 2.82-.02 3.2 0 .31.21.67.79.55A10.51 10.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"/></svg>
         </a>
         <a href="https://www.linkedin.com/in/mathys-langiny" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn"
-           class="w-12 h-12 rounded-full glass flex items-center justify-center text-gray-400 hover:text-white hover:border-sky-500/60 transition-all">
+           class="w-12 h-12 rounded-full glass flex items-center justify-center muted-icon hover:border-sky-500/60 transition-all">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.02-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.36V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.38-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.11 20.45H3.56V9h3.55v11.45z"/></svg>
         </a>
         <a href="https://www.twitch.tv/nimu_08" target="_blank" rel="noopener noreferrer" aria-label="Twitch"
-           class="w-12 h-12 rounded-full glass flex items-center justify-center text-gray-400 hover:text-white hover:border-purple-500/60 transition-all">
+           class="w-12 h-12 rounded-full glass flex items-center justify-center muted-icon hover:border-purple-500/60 transition-all">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z"/></svg>
         </a>
         <a href="mailto:mathys.langiny@gmail.com" aria-label="Email"
-           class="w-12 h-12 rounded-full glass flex items-center justify-center text-gray-400 hover:text-white hover:border-emerald-500/60 transition-all">
+           class="w-12 h-12 rounded-full glass flex items-center justify-center muted-icon hover:border-emerald-500/60 transition-all">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 6l-10 7L2 6"/><path d="M2 6h20v12H2z"/></svg>
         </a>
       </div>
 
       <div class="text-center text-xs text-gray-600 font-mono border-t border-white/5 pt-8">
-        © <span id="year"></span> Mathys Langiny — conçu &amp; codé avec soin.
+        © <span id="year"></span> Mathys Langiny - <span data-i18n="footer.credit">conçu & codé avec soin.</span>
       </div>
     </div>
   </footer>
 
   <!-- Lightbox -->
   <div id="lightbox" role="dialog" aria-modal="true" aria-label="Galerie d'images">
-    <button id="lightbox-close" aria-label="Fermer" class="absolute top-5 right-6 text-gray-300 hover:text-white text-3xl font-light">✕</button>
-    <button id="lightbox-prev" aria-label="Image précédente" class="absolute left-3 md:left-8 top-1/2 -translate-y-1/2 text-gray-300 hover:text-white text-4xl font-light px-3">‹</button>
+    <button id="lightbox-close" aria-label="Fermer" class="absolute top-5 right-6 hover:text-white text-3xl font-light">✕</button>
+    <button id="lightbox-prev" aria-label="Image précédente" class="absolute left-3 md:left-8 top-1/2 -translate-y-1/2 hover:text-white text-4xl font-light px-3">‹</button>
     <img id="lightbox-img" src="" alt="">
-    <p id="lightbox-cap" class="mt-4 text-sm text-gray-300 text-center max-w-xl px-6"></p>
-    <p id="lightbox-count" class="mt-1 font-mono text-xs text-gray-500"></p>
-    <button id="lightbox-next" aria-label="Image suivante" class="absolute right-3 md:right-8 top-1/2 -translate-y-1/2 text-gray-300 hover:text-white text-4xl font-light px-3">›</button>
+    <p id="lightbox-cap" class="mt-4 text-sm text-center max-w-xl px-6"></p>
+    <p id="lightbox-count" class="mt-1 font-mono text-xs"></p>
+    <button id="lightbox-next" aria-label="Image suivante" class="absolute right-3 md:right-8 top-1/2 -translate-y-1/2 hover:text-white text-4xl font-light px-3">›</button>
   </div>
 
-  <script src="data/projects.js?v=2"></script>
-  <script src="js/lightbox.js"></script>
-  <script src="js/tilt.js"></script>
-  <script src="js/main.js"></script>
+  <script src="data/projects.js?v=3"></script>
+  <script src="js/i18n.js?v=1"></script>
+  <script src="js/lightbox.js?v=2"></script>
+  <script src="js/tilt.js?v=2"></script>
+  <script src="js/main.js?v=3"></script>
 </body>
 </html>
