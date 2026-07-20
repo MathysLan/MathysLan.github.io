@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mathys Langiny — Développeur Logiciel</title>
+<meta name="description" content="Portfolio de Mathys Langiny, développeur logiciel — projets, parcours et contact.">
+
+<!-- Tailwind via CDN -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          cream: '#faf8f4',
+          paper: '#ffffff',
+          ink: '#1c1b18',
+          soft: '#6b675f',
+          accent: '#c2410c',
+        },
+        fontFamily: {
+          sans: ['"Inter"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+          display: ['"Fraunces"', 'Georgia', 'serif'],
+          mono: ['"JetBrains Mono"', 'monospace'],
+        },
+      },
+    },
+  };
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  html { background:#faf8f4; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background-color: #faf8f4;
+    color: #1c1b18;
+    -webkit-font-smoothing: antialiased;
+  }
+  .font-display { font-family: 'Fraunces', Georgia, serif; }
+  .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+  ::selection { background: #1c1b18; color: #faf8f4; }
+
+  ::-webkit-scrollbar { width: 10px; }
+  ::-webkit-scrollbar-track { background: #faf8f4; }
+  ::-webkit-scrollbar-thumb { background: #d9d4ca; border-radius: 8px; }
+  ::-webkit-scrollbar-thumb:hover { background: #c4beb2; }
+
+  /* Reveal on scroll */
+  .reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity .8s cubic-bezier(.16,.8,.3,1), transform .8s cubic-bezier(.16,.8,.3,1);
+  }
+  .reveal.is-visible { opacity: 1; transform: translateY(0); }
+  .reveal-delay-1 { transition-delay: .08s; }
+  .reveal-delay-2 { transition-delay: .16s; }
+  .reveal-delay-3 { transition-delay: .24s; }
+
+  .nav-link { position: relative; }
+  .nav-link::after {
+    content: '';
+    position: absolute;
+    left: 0; bottom: -3px;
+    width: 0%;
+    height: 1.5px;
+    background: #1c1b18;
+    transition: width .3s ease;
+  }
+  .nav-link:hover::after { width: 100%; }
+
+  .card-hover {
+    transition: transform .35s cubic-bezier(.16,.8,.3,1), box-shadow .35s ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 18px 40px -18px rgba(28,27,24,0.18);
+  }
+
+  .grain::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    opacity: .35;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.02 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  #progress-bar { transform-origin: left; }
+
+  .btn-ink {
+    background: #1c1b18;
+    color: #faf8f4;
+    transition: transform .3s ease, box-shadow .3s ease;
+  }
+  .btn-ink:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px -12px rgba(28,27,24,0.45);
+  }
+
+  .construction {
+    background:
+      repeating-linear-gradient(45deg, transparent, transparent 14px, rgba(28,27,24,0.035) 14px, rgba(28,27,24,0.035) 28px);
+  }
+</style>
+</head>
+<body class="antialiased grain">
+
+  <!-- Scroll progress -->
+  <div class="fixed top-0 left-0 w-full h-[3px] z-[60]">
+    <div id="progress-bar" class="h-full w-full scale-x-0 bg-ink"></div>
+  </div>
+
+  <!-- NAV -->
+  <header id="navbar" class="fixed top-0 inset-x-0 z-50 transition-all duration-300">
+    <nav class="max-w-5xl mx-auto px-6 py-5 flex items-center justify-between">
+      <a href="#hero" class="font-display text-xl font-semibold tracking-tight">Mathys<span class="text-accent">.</span></a>
+
+      <ul class="hidden md:flex items-center gap-8 text-sm text-soft">
+        <li><a href="#about" class="nav-link hover:text-ink transition-colors">À propos</a></li>
+        <li><a href="#projects" class="nav-link hover:text-ink transition-colors">Projets</a></li>
+        <li><a href="#games" class="nav-link hover:text-ink transition-colors flex items-center gap-1.5">
+          Jeux
+          <span class="font-mono text-[10px] px-1.5 py-0.5 rounded-full border border-accent/40 text-accent">soon</span>
+        </a></li>
+        <li><a href="#contact" class="nav-link hover:text-ink transition-colors">Contact</a></li>
+      </ul>
+
+      <a href="mailto:mathys.langiny@gmail.com" class="hidden md:inline-block text-sm px-4 py-2 rounded-full border border-ink/15 hover:border-ink hover:bg-ink hover:text-cream transition-all">
+        Me contacter
+      </a>
+
+      <button id="burger" aria-label="Ouvrir le menu" class="md:hidden relative w-8 h-8 flex flex-col justify-center items-center gap-1.5 z-50">
+        <span class="burger-line block w-6 h-0.5 bg-ink rounded transition-all duration-300"></span>
+        <span class="burger-line block w-6 h-0.5 bg-ink rounded transition-all duration-300"></span>
+        <span class="burger-line block w-6 h-0.5 bg-ink rounded transition-all duration-300"></span>
+      </button>
+    </nav>
+  </header>
+
+  <!-- Mobile menu (outside header: ancestor backdrop-filter would trap this fixed element) -->
+  <div id="mobile-menu" class="md:hidden fixed inset-0 bg-cream z-40 flex flex-col items-center justify-center gap-8 text-2xl font-display transition-all duration-300 opacity-0 pointer-events-none -translate-y-2">
+    <a href="#about" class="mobile-link hover:text-accent transition-colors">À propos</a>
+    <a href="#projects" class="mobile-link hover:text-accent transition-colors">Projets</a>
+    <a href="#games" class="mobile-link hover:text-accent transition-colors">Jeux</a>
+    <a href="#contact" class="mobile-link hover:text-accent transition-colors">Contact</a>
+  </div>
+
+  <!-- HERO -->
+  <section id="hero" class="relative min-h-screen flex items-center">
+    <div class="max-w-5xl mx-auto px-6 w-full pt-24">
+      <p class="reveal font-mono text-sm text-soft mb-6 tracking-wide">Reims, France — disponible pour échanger</p>
+      <h1 class="reveal reveal-delay-1 font-display text-5xl sm:text-6xl md:text-8xl font-medium leading-[1.02] tracking-tight">
+        Mathys<br>Langiny<span class="text-accent">.</span>
+      </h1>
+      <p class="reveal reveal-delay-2 mt-8 text-xl md:text-2xl text-soft max-w-xl leading-relaxed">
+        Développeur logiciel chez <span class="text-ink font-medium">AgiLab</span>.
+        J'automatise, je fiabilise, et je construis des outils utiles — du test qualité aux overlays de stream.
+      </p>
+      <div class="reveal reveal-delay-3 mt-10 flex flex-wrap items-center gap-4">
+        <a href="#projects" class="btn-ink inline-flex items-center gap-2 font-medium px-7 py-3.5 rounded-full">
+          Découvrir mes projets
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+        <a href="#about" class="text-sm text-soft hover:text-ink transition-colors px-2 py-3.5">en savoir plus ↓</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ABOUT -->
+  <section id="about" class="py-24 md:py-32 border-t border-ink/10">
+    <div class="max-w-5xl mx-auto px-6">
+      <div class="reveal mb-14">
+        <p class="font-mono text-xs text-accent tracking-widest uppercase mb-3">01 — À propos</p>
+        <h2 class="font-display text-3xl md:text-5xl font-medium">Qui suis-je&nbsp;?</h2>
+      </div>
+
+      <div class="grid md:grid-cols-5 gap-12">
+        <div class="reveal md:col-span-2 space-y-5 text-soft leading-relaxed">
+          <p>
+            Diplômé d'un <span class="text-ink font-medium">BUT Informatique</span> à l'IUT de Reims,
+            je travaille aujourd'hui comme <span class="text-ink font-medium">développeur logiciel chez AgiLab</span>,
+            où j'ai fait mon stage puis mon alternance avant de signer en CDI.
+          </p>
+          <p>
+            Au quotidien, je conçois des outils d'automatisation et d'audit autour
+            d'<span class="text-ink font-medium">Oracle APEX</span>, de PL/SQL et de Python.
+            Sur mon temps libre, je crée des <span class="text-ink font-medium">overlays de stream</span>
+            et des petits jeux web.
+          </p>
+          <p>
+            À côté du code : le <span class="text-ink font-medium">volley-ball</span> (au poste de bloqueur,
+            6h par semaine au SUAPS de Reims) et les <span class="text-ink font-medium">jeux vidéo</span>
+            — de Minecraft au surf/bhop, une passion qui remonte à la DS et à la Wii.
+          </p>
+
+          <div class="flex flex-wrap gap-2 pt-3">
+            <span class="font-mono text-xs px-3 py-1.5 rounded-full bg-paper border border-ink/10">Oracle APEX</span>
+            <span class="font-mono text-xs px-3 py-1.5 rounded-full bg-paper border border-ink/10">PL/SQL</span>
+            <span class="font-mono text-xs px-3 py-1.5 rounded-full bg-paper border border-ink/10">Python</span>
+            <span class="font-mono text-xs px-3 py-1.5 rounded-full bg-paper border border-ink/10">PHP</span>
+            <span class="font-mono text-xs px-3 py-1.5 rounded-full bg-paper border border-ink/10">SQL / MySQL</span>
+            <span class="font-mono text-xs px-3 py-1.5 rounded-full bg-paper border border-ink/10">HTML / CSS</span>
+            <span class="font-mono text-xs px-3 py-1.5 rounded-full bg-paper border border-ink/10">Monday.com API</span>
+            <span class="font-mono text-xs px-3 py-1.5 rounded-full bg-paper border border-ink/10">OBS</span>
+          </div>
+        </div>
+
+        <div class="md:col-span-3">
+          <ol class="relative border-l border-ink/15 ml-2 space-y-11">
+            <li class="reveal relative pl-8">
+              <span class="absolute -left-[7px] top-1.5 w-3 h-3 rounded-full bg-cream border-2 border-ink/40"></span>
+              <p class="font-mono text-xs text-soft mb-1">2023 — 2026</p>
+              <h3 class="font-medium text-lg">BUT Informatique — IUT de Reims</h3>
+              <p class="text-soft mt-1 text-sm leading-relaxed">
+                Conception, réalisation et mise en œuvre de solutions informatiques : développement,
+                bases de données, gestion de projet agile et travail en équipe.
+              </p>
+            </li>
+            <li class="reveal reveal-delay-1 relative pl-8">
+              <span class="absolute -left-[7px] top-1.5 w-3 h-3 rounded-full bg-cream border-2 border-ink/40"></span>
+              <p class="font-mono text-xs text-soft mb-1">avril 2025</p>
+              <h3 class="font-medium text-lg">Stage — AgiLab</h3>
+              <p class="text-soft mt-1 text-sm leading-relaxed">
+                Découverte du support en entreprise : correction de bugs sur des projets clients,
+                co-organisation de réunions support et documentation des correctifs.
+              </p>
+            </li>
+            <li class="reveal reveal-delay-2 relative pl-8">
+              <span class="absolute -left-[7px] top-1.5 w-3 h-3 rounded-full bg-cream border-2 border-ink/40"></span>
+              <p class="font-mono text-xs text-soft mb-1">sept. 2025 — juin 2026</p>
+              <h3 class="font-medium text-lg">Alternance — AgiLab</h3>
+              <p class="text-soft mt-1 text-sm leading-relaxed">
+                Conception, développement et industrialisation d'un système d'automatisation
+                des tests de qualité logicielle, en parallèle de la 3ᵉ année de BUT.
+              </p>
+            </li>
+            <li class="reveal reveal-delay-3 relative pl-8">
+              <span class="absolute -left-[7px] top-1.5 w-3 h-3 rounded-full bg-accent border-2 border-accent"></span>
+              <p class="font-mono text-xs text-accent mb-1">2026 — aujourd'hui</p>
+              <h3 class="font-medium text-lg">CDI — Développeur logiciel chez AgiLab</h3>
+              <p class="text-soft mt-1 text-sm leading-relaxed">
+                Poursuite des missions d'automatisation et d'outillage qualité en CDI.
+              </p>
+            </li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROJECTS -->
+  <section id="projects" class="py-24 md:py-32 border-t border-ink/10">
+    <div class="max-w-5xl mx-auto px-6">
+      <div class="reveal mb-14">
+        <p class="font-mono text-xs text-accent tracking-widest uppercase mb-3">02 — Projets</p>
+        <h2 class="font-display text-3xl md:text-5xl font-medium">Ce que j'ai construit</h2>
+      </div>
+
+      <div class="grid sm:grid-cols-2 gap-5">
+
+        <!-- Entreprise (confidentiel) -->
+        <article class="reveal card-hover rounded-2xl bg-paper border border-ink/10 p-7 sm:col-span-2">
+          <div class="flex items-start justify-between gap-4 mb-4">
+            <span class="font-mono text-xs px-3 py-1 rounded-full bg-cream border border-ink/10 text-soft">AgiLab — entreprise</span>
+            <span class="font-mono text-[11px] px-2.5 py-1 rounded-full bg-ink text-cream">confidentiel</span>
+          </div>
+          <h3 class="font-display text-2xl font-medium mb-2">Automatisation de tests qualité</h3>
+          <p class="text-soft text-sm leading-relaxed max-w-2xl">
+            Conception et industrialisation d'un système d'automatisation de tests de qualité logicielle,
+            déployé sur plusieurs environnements clients, avec synchronisation automatisée du suivi
+            dans un outil de gestion de projet. Les détails du projet sont confidentiels.
+          </p>
+          <div class="flex flex-wrap gap-2 mt-5">
+            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md bg-cream border border-ink/10 text-soft">Oracle APEX</span>
+            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md bg-cream border border-ink/10 text-soft">PL/SQL</span>
+            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md bg-cream border border-ink/10 text-soft">Python</span>
+            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md bg-cream border border-ink/10 text-soft">Monday.com</span>
+          </div>
+        </article>
+
+        <!-- SAE3-01 Hospital -->
+        <article class="reveal card-hover rounded-2xl bg-paper border border-ink/10 p-7 flex flex-col">
+          <div class="flex items-start justify-between gap-4 mb-4">
+            <span class="font-mono text-xs px-3 py-1 rounded-full bg-cream border border-ink/10 text-soft">BUT — SAE</span>
+            <a href="https://github.com/MathysLan/SAE3-01" target="_blank" rel="noopener noreferrer" aria-label="Voir sur GitHub" class="text-soft hover:text-ink transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55 0-.27-.01-1-.02-1.96-3.2.7-3.87-1.54-3.87-1.54-.53-1.33-1.29-1.69-1.29-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.56-.29-5.26-1.28-5.26-5.71 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.47.11-3.06 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.64 1.59.24 2.77.12 3.06.74.8 1.18 1.83 1.18 3.09 0 4.44-2.7 5.42-5.28 5.7.42.36.78 1.07.78 2.16 0 1.56-.02 2.82-.02 3.2 0 .31.21.67.79.55A10.51 10.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"/></svg>
+            </a>
+          </div>
+          <h3 class="font-display text-xl font-medium mb-2">Gestion de plannings hospitaliers</h3>
+          <p class="text-soft text-sm leading-relaxed flex-1">
+            Application web centralisée pour remplacer une gestion Excel dans un service hospitalier :
+            analyse des besoins, maquettes Figma, méthodologie agile (MoSCoW) et développement itératif en équipe.
+          </p>
+          <div class="flex flex-wrap gap-2 mt-5">
+            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md bg-cream border border-ink/10 text-soft">PHP</span>
+            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md bg-cream border border-ink/10 text-soft">MySQL</span>
+            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md bg-cream border border-ink/10 text-soft">Figma</span>
+            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md bg-cream border border-ink/10 text-soft">Agile</span>
+          </div>
+        </article>
+
+        <!-- Series app -->
+        <article class="reveal reveal-delay-1 card-hover rounded-2xl bg-paper border border-ink/10 p-7 flex flex-col">
+          <div class="flex items-start justify-between gap-4 mb-4">
+            <span class="font-mono text-xs px-3 py-1 rounded-full bg-cream border border-ink/10 text-soft">BUT — projet</span>
+            <a href="https://github.com/MathysLan/ApplicationWeb-Serie-television" target="_blank" rel="noopener noreferrer" aria-label="Voir sur GitHub" class="text-soft hover:text-ink transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55 0-.27-.01-1-.02-1.96-3.2.7-3.87-1.54-3.87-1.54-.53-1.33-1.29-1.69-1.29-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.56-.29-5.26-1.28-5.26-5.71 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.47.11-3.06 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.64 1.59.24 2.77.12 3.06.74.8 1.18 1.83 1.18 3.09 0 4.44-2.7 5.42-5.28 5.7.42.36.78 1.07.78 2.16 0 1.56-.02 2.82-.02 3.2 0 .31.21.67.79.55A10.51 10.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"/></svg>
+            </a>
+          </div>
+          <h3 class="font-display text-xl font-medium mb-2">Consultation de séries TV</h3>
+          <p class="text-soft text-sm leading-relaxed flex-1">
+            Application web mobile-first affichant le détail de séries télévisées — saisons, épisodes,
+            édition et suppression via formulaires. Réalisée en binôme sur trois jours.
+          </p>
+          <div class="flex flex-wrap gap-2 mt-5">
+            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md bg-cream border border-ink/10 text-soft">PHP</span>
+            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md bg-cream border border-ink/10 text-soft">MySQL</span>
+            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md bg-cream border border-ink/10 text-soft">HTML / CSS</span>
+          </div>
+        </article>
+
+        <!-- Puissance 4 -->
+        <article class="reveal card-hover rounded-2xl bg-paper border border-ink/10 p-7 flex flex-col">
+          <div class="flex items-start justify-between gap-4 mb-4">
+            <span class="font-mono text-xs px-3 py-1 rounded-full bg-cream border border-ink/10 text-soft">BUT — projet</span>
+            <a href="https://github.com/MathysLan/Puissance-4" target="_blank" rel="noopener noreferrer" aria-label="Voir sur GitHub" class="text-soft hover:text-ink transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55 0-.27-.01-1-.02-1.96-3.2.7-3.87-1.54-3.87-1.54-.53-1.33-1.29-1.69-1.29-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.56-.29-5.26-1.28-5.26-5.71 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.47.11-3.06 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.64 1.59.24 2.77.12 3.06.74.8 1.18 1.83 1.18 3.09 0 4.44-2.7 5.42-5.28 5.7.42.36.78 1.07.78 2.16 0 1.56-.02 2.82-.02 3.2 0 .31.21.67.79.55A10.51 10.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"/></svg>
+            </a>
+          </div>
+          <h3 class="font-display text-xl font-medium mb-2">Puissance 4</h3>
+          <p class="text-soft text-sm leading-relaxed flex-1">
+            Jeu de Puissance 4 en Python développé en une semaine : détection des victoires,
+            chute des jetons, et un mode étendu où l'on peut pousser les jetons depuis les côtés de la grille.
+          </p>
+          <div class="flex flex-wrap gap-2 mt-5">
+            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md bg-cream border border-ink/10 text-soft">Python</span>
+          </div>
+        </article>
+
+        <!-- A Maze in Python -->
+        <article class="reveal reveal-delay-1 card-hover rounded-2xl bg-paper border border-ink/10 p-7 flex flex-col">
+          <div class="flex items-start justify-between gap-4 mb-4">
+            <span class="font-mono text-xs px-3 py-1 rounded-full bg-cream border border-ink/10 text-soft">BUT — projet</span>
+          </div>
+          <h3 class="font-display text-xl font-medium mb-2">A Maze in Python</h3>
+          <p class="text-soft text-sm leading-relaxed flex-1">
+            Labyrinthe auto-généré avec cinq algorithmes de génération différents et trois méthodes
+            de résolution automatique affichées visuellement. Réalisé en binôme sur deux semaines.
+          </p>
+          <div class="flex flex-wrap gap-2 mt-5">
+            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md bg-cream border border-ink/10 text-soft">Python</span>
+            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md bg-cream border border-ink/10 text-soft">Algorithmique</span>
+          </div>
+        </article>
+
+        <!-- SAE S5 data -->
+        <article class="reveal reveal-delay-2 card-hover rounded-2xl bg-paper border border-ink/10 p-7 flex flex-col">
+          <div class="flex items-start justify-between gap-4 mb-4">
+            <span class="font-mono text-xs px-3 py-1 rounded-full bg-cream border border-ink/10 text-soft">BUT — SAE</span>
+          </div>
+          <h3 class="font-display text-xl font-medium mb-2">Radars &amp; accidents — analyse de données</h3>
+          <p class="text-soft text-sm leading-relaxed flex-1">
+            Projet data en équipe de quatre : les radars automatiques réduisent-ils vraiment les accidents ?
+            Nettoyage et normalisation des données, base relationnelle et visualisations pour y répondre.
+          </p>
+          <div class="flex flex-wrap gap-2 mt-5">
+            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md bg-cream border border-ink/10 text-soft">SQL</span>
+            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md bg-cream border border-ink/10 text-soft">Adminer</span>
+            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md bg-cream border border-ink/10 text-soft">Data viz</span>
+          </div>
+        </article>
+
+        <!-- Overlays stream -->
+        <article class="reveal reveal-delay-3 card-hover rounded-2xl bg-paper border border-ink/10 p-7 flex flex-col">
+          <div class="flex items-start justify-between gap-4 mb-4">
+            <span class="font-mono text-xs px-3 py-1 rounded-full bg-cream border border-ink/10 text-soft">Perso</span>
+          </div>
+          <h3 class="font-display text-xl font-medium mb-2">Overlays de stream sur mesure</h3>
+          <p class="text-soft text-sm leading-relaxed flex-1">
+            Overlays personnalisés pour le streaming en direct : mise en page HTML / Tailwind,
+            animations légères et intégration fluide dans OBS.
+          </p>
+          <div class="flex flex-wrap gap-2 mt-5">
+            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md bg-cream border border-ink/10 text-soft">HTML</span>
+            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md bg-cream border border-ink/10 text-soft">Tailwind CSS</span>
+            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md bg-cream border border-ink/10 text-soft">OBS</span>
+          </div>
+        </article>
+
+      </div>
+
+      <p class="reveal mt-8 text-sm text-soft">
+        Tous mes dépôts publics sont sur
+        <a href="https://github.com/MathysLan?tab=repositories" target="_blank" rel="noopener noreferrer" class="underline underline-offset-4 hover:text-ink transition-colors">github.com/MathysLan</a>.
+      </p>
+    </div>
+  </section>
+
+  <!-- JEUX CACABOX -->
+  <section id="games" class="py-24 md:py-32 border-t border-ink/10">
+    <div class="max-w-5xl mx-auto px-6">
+      <div class="reveal mb-14">
+        <p class="font-mono text-xs text-accent tracking-widest uppercase mb-3">03 — Jeux</p>
+        <h2 class="font-display text-3xl md:text-5xl font-medium">Les jeux de la CACABOX</h2>
+      </div>
+
+      <div class="reveal construction rounded-3xl border border-ink/15 p-10 md:p-16 text-center">
+        <span class="font-mono text-xs tracking-widest px-4 py-1.5 rounded-full border border-accent/40 text-accent inline-block mb-6">
+          🚧 EN CONSTRUCTION
+        </span>
+        <h3 class="font-display text-2xl md:text-4xl font-medium mb-4 max-w-2xl mx-auto">
+          Bientôt ici : les jeux de la CACABOX, jouables directement dans le navigateur
+        </h3>
+        <p class="text-soft max-w-xl mx-auto leading-relaxed">
+          Aucune installation, aucun téléchargement — ouvre la page et joue.
+          Au programme, entre autres : un clone de <span class="text-ink font-medium">Codenames</span>.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTACT / FOOTER -->
+  <footer id="contact" class="border-t border-ink/10 pt-24 pb-10">
+    <div class="max-w-5xl mx-auto px-6">
+      <div class="reveal text-center max-w-2xl mx-auto mb-14">
+        <p class="font-mono text-xs text-accent tracking-widest uppercase mb-3">04 — Contact</p>
+        <h2 class="font-display text-3xl md:text-5xl font-medium mb-5">Travaillons ensemble</h2>
+        <p class="text-soft leading-relaxed">
+          Une idée, une opportunité, ou simplement envie d'échanger ? Écris-moi.
+        </p>
+        <a href="mailto:mathys.langiny@gmail.com" class="btn-ink mt-8 inline-flex items-center gap-2 font-medium px-8 py-4 rounded-full">
+          mathys.langiny@gmail.com
+        </a>
+      </div>
+
+      <div class="reveal flex items-center justify-center gap-5 mb-14">
+        <a href="https://github.com/MathysLan" target="_blank" rel="noopener noreferrer" aria-label="GitHub"
+           class="w-11 h-11 rounded-full border border-ink/15 flex items-center justify-center text-soft hover:text-ink hover:border-ink transition-all">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55 0-.27-.01-1-.02-1.96-3.2.7-3.87-1.54-3.87-1.54-.53-1.33-1.29-1.69-1.29-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.56-.29-5.26-1.28-5.26-5.71 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.47.11-3.06 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.64 1.59.24 2.77.12 3.06.74.8 1.18 1.83 1.18 3.09 0 4.44-2.7 5.42-5.28 5.7.42.36.78 1.07.78 2.16 0 1.56-.02 2.82-.02 3.2 0 .31.21.67.79.55A10.51 10.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"/></svg>
+        </a>
+        <a href="https://www.linkedin.com/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn"
+           class="w-11 h-11 rounded-full border border-ink/15 flex items-center justify-center text-soft hover:text-ink hover:border-ink transition-all">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.02-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.36V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.38-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.11 20.45H3.56V9h3.55v11.45z"/></svg>
+        </a>
+        <a href="mailto:mathys.langiny@gmail.com" aria-label="Email"
+           class="w-11 h-11 rounded-full border border-ink/15 flex items-center justify-center text-soft hover:text-ink hover:border-ink transition-all">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 6l-10 7L2 6"/><path d="M2 6h20v12H2z"/></svg>
+        </a>
+      </div>
+
+      <div class="text-center text-xs text-soft font-mono border-t border-ink/10 pt-8">
+        © <span id="year"></span> Mathys Langiny — conçu &amp; codé avec soin.
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    const progressBar = document.getElementById('progress-bar');
+    function updateProgress() {
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      progressBar.style.transform = `scaleX(${docHeight > 0 ? window.scrollY / docHeight : 0})`;
+    }
+    window.addEventListener('scroll', updateProgress, { passive: true });
+    updateProgress();
+
+    const navbar = document.getElementById('navbar');
+    function updateNavbar() {
+      if (window.scrollY > 20) {
+        navbar.classList.add('bg-cream/85', 'backdrop-blur-md', 'border-b', 'border-ink/10');
+      } else {
+        navbar.classList.remove('bg-cream/85', 'backdrop-blur-md', 'border-b', 'border-ink/10');
+      }
+    }
+    window.addEventListener('scroll', updateNavbar, { passive: true });
+    updateNavbar();
+
+    const burger = document.getElementById('burger');
+    const mobileMenu = document.getElementById('mobile-menu');
+    const burgerLines = document.querySelectorAll('.burger-line');
+    let menuOpen = false;
+
+    function toggleMenu() {
+      menuOpen = !menuOpen;
+      if (menuOpen) {
+        mobileMenu.classList.remove('opacity-0', 'pointer-events-none', '-translate-y-2');
+        burgerLines[0].style.transform = 'translateY(8px) rotate(45deg)';
+        burgerLines[1].style.opacity = '0';
+        burgerLines[2].style.transform = 'translateY(-8px) rotate(-45deg)';
+        document.body.style.overflow = 'hidden';
+      } else {
+        mobileMenu.classList.add('opacity-0', 'pointer-events-none', '-translate-y-2');
+        burgerLines[0].style.transform = '';
+        burgerLines[1].style.opacity = '1';
+        burgerLines[2].style.transform = '';
+        document.body.style.overflow = '';
+      }
+    }
+    burger.addEventListener('click', toggleMenu);
+    document.querySelectorAll('.mobile-link').forEach(link => {
+      link.addEventListener('click', () => { if (menuOpen) toggleMenu(); });
+    });
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+          e.preventDefault();
+          const top = target.getBoundingClientRect().top + window.scrollY - 70;
+          window.scrollTo({ top, behavior: 'smooth' });
+        }
+      });
+    });
+
+    const revealEls = document.querySelectorAll('.reveal');
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15, rootMargin: '0px 0px -60px 0px' });
+    revealEls.forEach(el => observer.observe(el));
+  </script>
+</body>
+</html>
