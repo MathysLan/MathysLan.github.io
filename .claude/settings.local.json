@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh --version)",
+      "Bash(gh api *)",
+      "Bash(curl -s \"https://api.github.com/users/MathysLan/repos?per_page=100&sort=updated\" -H \"Accept: application/vnd.github+json\")",
+      "Bash(curl -s \"https://api.github.com/users/MathysLan/repos?per_page=100&sort=updated\")",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s \"https://api.github.com/users/MathysLan/repos?per_page=100&sort=updated\" -o /tmp/repos.json)",
+      "Bash(curl -s 'https://api.github.com/users/MathysLan/repos?per_page=100&sort=updated' -o 'C:\\\\Users\\\\Mathys/repos.json')",
+      "Read(//tmp/**)",
+      "Bash(node -e ' *)",
+      "Bash(curl -s \"https://api.github.com/users/MathysLan/repos?per_page=100&sort=updated\" -o \"C:/Users/Mathys/AppData/Local/Temp/claude/E--downloadh-portfolio/93a4663e-d5b1-4a37-8dde-a4b5efd9fbc4/scratchpad/repos.json\")",
+      "Bash(python -c ' *)"
+    ]
+  }
+}

@@ -1,0 +1,274 @@
+/* ============ Thème « Studio / Scène » ============ */
+:root {
+  --bg: #0a0a12;
+  --text: #e7e5f4;
+  --muted: #9b98ad;
+  --violet: #8b5cf6;
+  --amber: #f59e0b;
+  --mint: #34d399;
+  --glass: rgba(255, 255, 255, 0.055);
+  --glass-border: rgba(255, 255, 255, 0.1);
+}
+
+html { background: var(--bg); scroll-behavior: smooth; }
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+.font-display { font-family: 'Space Grotesk', sans-serif; }
+.font-mono { font-family: 'JetBrains Mono', monospace; }
+
+::selection { background: var(--violet); color: #fff; }
+::-webkit-scrollbar { width: 10px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: #26243a; border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: #37344f; }
+
+/* ---- Halos de projecteur par section ---- */
+.section-halo {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.section-halo::before {
+  content: '';
+  position: absolute;
+  width: 900px; height: 900px;
+  border-radius: 9999px;
+  filter: blur(140px);
+  opacity: .14;
+  left: 50%; top: -30%;
+  transform: translateX(-50%);
+  background: var(--halo, var(--violet));
+}
+.halo-violet { --halo: #8b5cf6; }
+.halo-mint   { --halo: #34d399; }
+.halo-amber  { --halo: #f59e0b; }
+
+/* ---- Verre ---- */
+.glass {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+/* ---- Hero spotlight qui suit la souris ---- */
+#hero-title {
+  background:
+    radial-gradient(240px circle at var(--mx, 50%) var(--my, 40%),
+      #ffffff 0%, #cabdfd 35%, #55506e 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.title-outline {
+  color: transparent;
+  -webkit-text-stroke: 1.5px rgba(231, 229, 244, 0.4);
+}
+
+/* ---- Terminal ---- */
+.terminal-caret::after {
+  content: '▍';
+  animation: blink 1s steps(1) infinite;
+  color: var(--mint);
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+/* ---- Reveal on scroll ---- */
+.reveal {
+  opacity: 0;
+  transform: translateY(26px);
+  transition: opacity .8s cubic-bezier(.16,.8,.3,1), transform .8s cubic-bezier(.16,.8,.3,1);
+}
+.reveal.is-visible { opacity: 1; transform: translateY(0); }
+.reveal-delay-1 { transition-delay: .08s; }
+.reveal-delay-2 { transition-delay: .16s; }
+.reveal-delay-3 { transition-delay: .24s; }
+
+/* ---- Cartes projets (tilt) ---- */
+.tilt-card {
+  transform-style: preserve-3d;
+  transition: transform .18s ease-out, box-shadow .3s ease;
+  will-change: transform;
+}
+.tilt-card:hover { box-shadow: 0 24px 60px -24px rgba(139, 92, 246, 0.35); }
+.tilt-card .card-img {
+  transition: transform 1.2s cubic-bezier(.16,.8,.3,1);
+}
+.tilt-card:hover .card-img { transform: scale(1.06); }
+
+/* ---- Nav ---- */
+.nav-link { position: relative; }
+.nav-link::after {
+  content: '';
+  position: absolute;
+  left: 0; bottom: -4px;
+  width: 0%; height: 2px;
+  background: linear-gradient(90deg, var(--violet), var(--mint));
+  transition: width .3s ease;
+}
+.nav-link:hover::after, .nav-link.active::after { width: 100%; }
+
+/* ---- Boutons ---- */
+.btn-glow {
+  background: linear-gradient(90deg, #8b5cf6, #7c3aed);
+  transition: box-shadow .3s ease, transform .3s ease;
+}
+.btn-glow:hover {
+  box-shadow: 0 10px 40px -8px rgba(139, 92, 246, 0.7);
+  transform: translateY(-2px);
+}
+
+/* ---- Marquee technos ---- */
+.marquee {
+  mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+  overflow: hidden;
+}
+.marquee-track {
+  display: flex;
+  gap: 2.5rem;
+  width: max-content;
+  animation: scroll-marquee 28s linear infinite;
+}
+@keyframes scroll-marquee {
+  to { transform: translateX(-50%); }
+}
+
+/* ---- Polaroids (Jeunes Capucins) ---- */
+.polaroid {
+  background: #f5f2ea;
+  color: #201f1b;
+  padding: .8rem .8rem 1rem;
+  box-shadow: 0 14px 30px -14px rgba(0, 0, 0, 0.6);
+  transition: transform .35s cubic-bezier(.16,.8,.3,1), box-shadow .35s ease;
+}
+.polaroid:hover {
+  transform: rotate(0deg) translateY(-6px) scale(1.03) !important;
+  box-shadow: 0 22px 44px -16px rgba(52, 211, 153, 0.35);
+  z-index: 5;
+}
+
+/* ---- Badge LIVE ---- */
+.live-dot {
+  animation: pulse-live 1.6s ease-in-out infinite;
+}
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .35; }
+}
+
+/* ---- Faders décoratifs (carte stream) ---- */
+.fader {
+  width: 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  position: relative;
+  overflow: hidden;
+}
+.fader::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: var(--lvl, 50%);
+  border-radius: 4px;
+  background: linear-gradient(to top, var(--amber), var(--violet));
+  animation: fader-move 2.4s ease-in-out infinite alternate;
+  animation-delay: var(--d, 0s);
+}
+@keyframes fader-move {
+  from { height: calc(var(--lvl, 50%) - 18%); }
+  to   { height: calc(var(--lvl, 50%) + 18%); }
+}
+
+/* ---- Tickets concerts / ciné ---- */
+.ticket {
+  position: relative;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(10px);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: transform .3s ease, border-color .3s ease;
+}
+.ticket:hover { transform: translateY(-4px); border-color: rgba(245, 158, 11, 0.5); }
+.ticket::before, .ticket::after {
+  content: '';
+  position: absolute;
+  width: 22px; height: 22px;
+  background: var(--bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 9999px;
+  top: 50%;
+}
+.ticket::before { left: -12px; transform: translateY(-50%); }
+.ticket::after  { right: -12px; transform: translateY(-50%); }
+.ticket-divider {
+  border-top: 2px dashed rgba(255, 255, 255, 0.15);
+}
+.barcode {
+  background: repeating-linear-gradient(90deg,
+    currentColor 0 2px, transparent 2px 5px,
+    currentColor 5px 6px, transparent 6px 10px,
+    currentColor 10px 13px, transparent 13px 15px);
+  height: 26px;
+  opacity: .5;
+}
+
+/* ---- Arcade / CACABOX ---- */
+.arcade-border {
+  border: 2px dashed rgba(139, 92, 246, 0.4);
+}
+.insert-coin {
+  animation: blink 1.2s steps(1) infinite;
+}
+
+/* ---- Lightbox ---- */
+#lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(6, 6, 12, 0.92);
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .3s ease;
+}
+#lightbox.open { opacity: 1; pointer-events: auto; }
+#lightbox img {
+  max-width: min(92vw, 1100px);
+  max-height: 74vh;
+  object-fit: contain;
+  border-radius: 10px;
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.8);
+}
+
+/* ---- Fiche joueur volley ---- */
+.jersey-number {
+  font-size: clamp(5rem, 10vw, 8rem);
+  line-height: 1;
+  background: linear-gradient(180deg, #fff, rgba(255, 255, 255, 0.15));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.net-pattern {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal { transition: none; opacity: 1; transform: none; }
+  .marquee-track, .fader::after, .live-dot, .insert-coin { animation: none; }
+}
