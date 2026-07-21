@@ -3,7 +3,7 @@
 // ({ action: 'play', index }), le serveur valide et renvoie l'état complet.
 // Le front ne fait que deux choses : afficher l'état, transmettre les clics.
 
-const WS_URL = 'wss://https://morpion-server-eygy.onrender.com'; // en prod : 'wss://ton-serveur.onrender.com'
+const WS_URL = 'wss://morpion-server-eygy.onrender.com';
 
 let ws = null;
 let state = null; // dernier état reçu du serveur - la seule vérité affichée
