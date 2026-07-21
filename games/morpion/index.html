@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Morpion — multijoueur</title>
+<meta name="description" content="Morpion multijoueur en ligne - crée une partie, partage le code, joue.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0a0a12;
+    color: #e7e5f4;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 1.5rem;
+  }
+  main { width: min(420px, 100%); text-align: center; }
+  h1 { font-size: 1.3rem; margin-bottom: .4rem; }
+  h1 .x { color: #8b5cf6; }
+  h1 .o { color: #f59e0b; }
+  .sub { color: #6f6c80; font-size: .75rem; margin-bottom: 2rem; }
+
+  .card {
+    background: rgba(255, 255, 255, 0.045);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    padding: 1.6rem;
+  }
+  button {
+    font: inherit;
+    cursor: pointer;
+    background: #8b5cf6;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: .8rem 1.4rem;
+  }
+  button:hover { background: #7c3aed; }
+  .or { color: #6f6c80; font-size: .75rem; margin: 1.1rem 0; }
+  .join-row { display: flex; gap: .6rem; justify-content: center; }
+  input {
+    font: inherit;
+    width: 7.5rem;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: .3em;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 10px;
+    color: #e7e5f4;
+    padding: .8rem .4rem;
+    outline: none;
+  }
+  input:focus { border-color: #8b5cf6; }
+  .join-row button { background: transparent; border: 1px solid rgba(255, 255, 255, 0.18); color: #e7e5f4; }
+  .join-row button:hover { border-color: #34d399; color: #34d399; background: transparent; }
+
+  .meta { display: flex; justify-content: space-between; font-size: .75rem; color: #9b98ad; margin-bottom: 1.1rem; }
+  .meta b { color: #34d399; letter-spacing: .2em; }
+  #board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .cell {
+    aspect-ratio: 1;
+    font-size: 2.1rem;
+    font-weight: 700;
+    background: #11111c;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    color: #e7e5f4;
+  }
+  .cell:hover { background: #171724; border-color: rgba(139, 92, 246, 0.5); }
+  .cell:disabled { cursor: default; background: #11111c; }
+  .cell.X { color: #8b5cf6; }
+  .cell.O { color: #f59e0b; }
+  .cell.win { border-color: #34d399; box-shadow: 0 0 14px -4px #34d399; }
+
+  #status { margin-top: 1.2rem; font-size: .85rem; color: #9b98ad; min-height: 1.4em; }
+  #error { margin-top: 1rem; font-size: .8rem; color: #ef4444; min-height: 1.2em; }
+  .back { display: inline-block; margin-top: 1.6rem; color: #6f6c80; font-size: .75rem; text-decoration: none; }
+  .back:hover { color: #e7e5f4; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+  <main>
+    <h1>Morpion <span class="x">✕</span><span class="o">◯</span></h1>
+    <p class="sub">multijoueur — le serveur arbitre, le front affiche</p>
+
+    <section id="home" class="card">
+      <button id="host">Créer une partie</button>
+      <p class="or">— ou —</p>
+      <div class="join-row">
+        <input id="code-input" maxlength="4" placeholder="CODE" autocomplete="off" spellcheck="false">
+        <button id="join">Rejoindre</button>
+      </div>
+    </section>
+
+    <section id="game" class="card" hidden>
+      <div class="meta">
+        <span>room <b id="room-code">····</b></span>
+        <span>tu joues <b id="you">·</b></span>
+      </div>
+      <div id="board"></div>
+      <p id="status"></p>
+    </section>
+
+    <p id="error"></p>
+    <a class="back" href="/">← retour au portfolio</a>
+  </main>
+  <script src="net.js"></script>
+</body>
+</html>
