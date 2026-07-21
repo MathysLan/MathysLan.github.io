@@ -306,7 +306,7 @@ html.light #navbar .text-gray-300 { color: #4a4760; }
   opacity: .5;
 }
 
-/* ---- Arcade / CACABOX ---- */
+/* ---- Arcade / Jeux ---- */
 .arcade-border { border: 2px dashed rgba(139, 92, 246, 0.4); }
 .insert-coin { animation: blink 1.2s steps(1) infinite; }
 

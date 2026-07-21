@@ -11,13 +11,13 @@ const I18N = {
 
     'hero.status': 'CDI @ AgiLab',
     'hero.location': 'Reims, France',
-    'hero.tagline': "Développeur logiciel le jour, streameur et central au volley le soir. Je construis des outils qui automatisent, fiabilisent - et parfois amusent.",
+    'hero.tagline': "Data & admin BDD chez AgiLab. Mon job : protéger la donnée, automatiser ce qui doit l'être, et dire non aux usines à gaz. Le soir : central au volley, régie de stream maison, fosse en concert de rap.",
     'hero.cta': 'Voir mes projets',
     'hero.contact': 'me contacter ↓',
 
     'projects.kicker': '01 - Projets',
-    'projects.title': 'Galerie des projets<span class="text-violet-400">.</span>',
-    'projects.sub': "Du BUT à l'entreprise - clique sur une carte pour ouvrir sa galerie de captures.",
+    'projects.title': 'Projets data & dev<span class="text-violet-400">.</span>',
+    'projects.sub': "Pas de vitrine marketing : ce que j'ai construit, avec quoi, et pourquoi. Clique sur une carte pour voir les captures.",
     'projects.repos': '→ tous mes dépôts publics :',
 
     'timeline.kicker': '02 - Parcours',
@@ -35,14 +35,14 @@ const I18N = {
     'timeline.alt.title': 'Alternance',
     'timeline.alt.desc': "Conception et industrialisation d'un système d'automatisation des tests qualité, en parallèle de la 3e année.",
     'timeline.cdi.date': '2026 - aujourd\'hui - AgiLab',
-    'timeline.cdi.title': 'CDI - Développeur logiciel',
-    'timeline.cdi.desc': "Poursuite des missions d'automatisation et d'outillage qualité, en équipe.",
+    'timeline.cdi.title': 'CDI - Data / Admin BDD',
+    'timeline.cdi.desc': "Automatisation, outillage qualité et administration des bases. La donnée client, on la protège.",
 
     'assos.kicker': '03 - Engagement associatif',
     'assos.title': 'Les Jeunes Capucins<span class="text-emerald-400">.</span>',
     'assos.role.kicker': 'rôle actuel',
     'assos.role.title': 'Vice-président',
-    'assos.role.desc': "Avec le président, je pilote la <span class=\"text-white\">logistique</span> et le choix des événements de l'association. Notre plus belle réussite : grâce aux fonds récoltés sur nos événements, nous avons emmené <span class=\"text-white\">toute l'association à Europa-Park</span> - la preuve concrète que cet investissement collectif paie.",
+    'assos.role.desc': "Avec le président, je gère la <span class=\"text-white\">logistique</span> et le choix des événements. Le principe est simple : on organise, on récolte des fonds, on les réinvestit dans le collectif. Résultat concret : <span class=\"text-white\">toute l'association à Europa-Park</span>, payé par nos propres événements. J'y suis depuis le début et j'y reste - on ne lâche pas une équipe qui vous a fait confiance.",
     'assos.stat.years': "années d'engagement",
     'assos.stat.visitors': 'visiteurs au marché artisanal',
     'assos.stat.events': 'événements récurrents',
@@ -87,14 +87,14 @@ const I18N = {
     'passions.bigflo.sub': 'à venir ✦',
 
     'games.kicker': '05 - Jeux',
-    'games.title': 'Les jeux de la CACABOX<span class="text-violet-400">.</span>',
-    'games.h3': 'Bientôt : des jeux web jouables directement dans le navigateur',
-    'games.desc': "Des jeux pensés pour la CACABOX - aucune installation, aucun téléchargement : ouvre la page et joue.",
+    'games.title': 'Jeux web<span class="text-violet-400">.</span>',
+    'games.h3': 'Bientôt ici : des petits jeux web, jouables directement en ligne',
+    'games.desc': "Pas d'installation, pas de téléchargement, pas de compte. Tu ouvres la page dans ton navigateur, tu joues. C'est en cours de dev.",
     'games.wip': 'en développement',
 
     'contact.kicker': '06 - Contact',
     'contact.title': 'On se capte ?',
-    'contact.desc': "Une idée, une opportunité, ou simplement envie d'échanger - écris-moi.",
+    'contact.desc': "Un projet data, une opportunité, ou juste envie d'échanger - écris-moi, je réponds.",
     'footer.credit': 'conçu & codé avec soin.',
   },
 
@@ -108,13 +108,13 @@ const I18N = {
 
     'hero.status': 'Full-time @ AgiLab',
     'hero.location': 'Reims, France',
-    'hero.tagline': "Software developer by day, streamer and volleyball middle blocker by night. I build tools that automate, harden - and sometimes entertain.",
+    'hero.tagline': "Data & database admin at AgiLab. My job: protect the data, automate what needs automating, and say no to over-engineering. After hours: volleyball middle blocker, homemade streaming setup, front row at rap concerts.",
     'hero.cta': 'See my projects',
     'hero.contact': 'contact me ↓',
 
     'projects.kicker': '01 - Projects',
-    'projects.title': 'Project gallery<span class="text-violet-400">.</span>',
-    'projects.sub': 'From uni to industry - click a card to open its screenshot gallery.',
+    'projects.title': 'Data & dev projects<span class="text-violet-400">.</span>',
+    'projects.sub': "No marketing showcase: what I built, with what, and why. Click a card to see the screenshots.",
     'projects.repos': '→ all my public repos:',
 
     'timeline.kicker': '02 - Journey',
@@ -132,14 +132,14 @@ const I18N = {
     'timeline.alt.title': 'Apprenticeship',
     'timeline.alt.desc': 'Designed and industrialized a QA test automation system, alongside the final year of my degree.',
     'timeline.cdi.date': '2026 - today - AgiLab',
-    'timeline.cdi.title': 'Full-time - Software developer',
-    'timeline.cdi.desc': 'Carrying on the automation and QA tooling work, as part of the team.',
+    'timeline.cdi.title': 'Full-time - Data / DB admin',
+    'timeline.cdi.desc': 'Automation, QA tooling and database administration. Client data gets protected, period.',
 
     'assos.kicker': '03 - Community involvement',
     'assos.title': 'Les Jeunes Capucins<span class="text-emerald-400">.</span>',
     'assos.role.kicker': 'current role',
     'assos.role.title': 'Vice-president',
-    'assos.role.desc': 'Together with the president, I handle <span class="text-white">logistics</span> and event planning for the association. Our proudest moment: with the funds raised at our events, we took <span class="text-white">the whole association to Europa-Park</span> - concrete proof that collective effort pays off.',
+    'assos.role.desc': 'Together with the president, I handle <span class="text-white">logistics</span> and event planning. The idea is simple: we organize, we raise funds, we reinvest them in the group. Concrete result: <span class="text-white">the whole association at Europa-Park</span>, paid for by our own events. I\'ve been in since the start and I\'m staying - you don\'t walk out on a team that trusted you.',
     'assos.stat.years': 'years involved',
     'assos.stat.visitors': 'visitors at the craft market',
     'assos.stat.events': 'recurring events',
@@ -184,14 +184,14 @@ const I18N = {
     'passions.bigflo.sub': 'coming up ✦',
 
     'games.kicker': '05 - Games',
-    'games.title': 'CACABOX games<span class="text-violet-400">.</span>',
-    'games.h3': 'Coming soon: web games playable right in your browser',
-    'games.desc': 'Games built for the CACABOX - no install, no download: open the page and play.',
+    'games.title': 'Web games<span class="text-violet-400">.</span>',
+    'games.h3': 'Coming soon: small web games, playable right here online',
+    'games.desc': "No install, no download, no account. Open the page in your browser and play. It's in the works.",
     'games.wip': 'in development',
 
     'contact.kicker': '06 - Contact',
     'contact.title': "Let's talk",
-    'contact.desc': 'An idea, an opportunity, or just up for a chat - drop me a line.',
+    'contact.desc': 'A data project, an opportunity, or just up for a chat - write me, I answer.',
     'footer.credit': 'designed & coded with care.',
   },
 };
@@ -199,14 +199,16 @@ const I18N = {
 // Lignes du terminal du hero, par langue
 const TERM_LINES = {
   fr: [
-    'mathys.role = "Développeur logiciel @ AgiLab"',
-    'mathys.stack = ["Oracle APEX", "PL/SQL", "Python"]',
+    'mathys.role = "Data / Admin BDD @ AgiLab"',
+    'mathys.stack = ["Oracle APEX", "PL/SQL", "SQL", "Python"]',
+    'mathys.regle = "on ne casse pas un modèle de données"',
     'mathys.passions = ["volley #24", "stream", "concerts"]',
     'mathys.status = "CDI signé ✔"',
   ],
   en: [
-    'mathys.role = "Software developer @ AgiLab"',
-    'mathys.stack = ["Oracle APEX", "PL/SQL", "Python"]',
+    'mathys.role = "Data / DB admin @ AgiLab"',
+    'mathys.stack = ["Oracle APEX", "PL/SQL", "SQL", "Python"]',
+    'mathys.rule = "you don\'t break a data model"',
     'mathys.hobbies = ["volleyball #24", "streaming", "concerts"]',
     'mathys.status = "full-time, signed ✔"',
   ],
