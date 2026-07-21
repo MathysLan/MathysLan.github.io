@@ -87,8 +87,27 @@
 
   #stage-title { font-size: 1.05rem; margin-bottom: .3rem; }
   #stage-sub { color: #9b98ad; font-size: .8rem; margin-bottom: .8rem; }
-  #timer { color: #f59e0b; font-size: .9rem; min-height: 1.3em; margin-bottom: .8rem; }
-  #ref-video { width: 100%; max-height: 320px; border-radius: 10px; background: #000; }
+  #ref-video {
+    display: block;
+    width: 100%;
+    height: auto;             /* garde le ratio du clip, quelle que soit la taille */
+    max-height: min(48vh, 400px);
+    object-fit: contain;
+    border-radius: 10px;
+    background: #000;
+  }
+  #wave {
+    display: block;
+    width: 100%;
+    height: 64px;
+    margin-top: .6rem;
+    border-radius: 8px;
+    background: #11111c;
+    border: 1px solid rgba(255,255,255,.08);
+  }
+  #next-btn { margin-top: 1rem; background: #34d399; color: #0a0a12; font-weight: 700; }
+  #next-btn:hover { background: #2cbd87; }
+  #wait-host { color: #6f6c80; font-size: .75rem; margin-top: 1rem; }
 
   #rec-box { margin-top: 1rem; }
   #rec-btn { background: #ef4444; }
@@ -152,8 +171,8 @@
         <div class="stage">
           <p id="stage-title"></p>
           <p id="stage-sub"></p>
-          <p id="timer"></p>
           <video id="ref-video" playsinline controls hidden></video>
+          <canvas id="wave" height="64" hidden></canvas>
           <div id="rec-box" hidden>
             <button id="rec-btn">⏺ enregistrer</button>
             <p id="rec-status"></p>
@@ -169,6 +188,8 @@
             <p id="listen-count"></p>
           </div>
           <ul id="scores" hidden></ul>
+          <button id="next-btn" hidden></button>
+          <p id="wait-host" hidden>en attente du host…</p>
           <button id="back-lobby" hidden>← retour au lobby</button>
         </div>
       </div>
