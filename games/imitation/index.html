@@ -88,9 +88,16 @@
   #room-code:hover { color: #6ee7b7; }
   #code-hint { color: #6f6c80; font-size: .7rem; margin-bottom: 1.1rem; }
 
-  #ready-btn { background: #11111c; border: 1px solid rgba(255,255,255,.18); color: #e7e5f4; margin-top: 1.1rem; }
-  #ready-btn:hover { border-color: #34d399; background: #11111c; }
-  #ready-btn.is-ready { background: #12241d; border-color: #34d399; color: #34d399; }
+  #ready-btn, #rec-ready-btn { background: #11111c; border: 1px solid rgba(255,255,255,.18); color: #e7e5f4; margin-top: 1.1rem; }
+  #ready-btn:hover, #rec-ready-btn:hover { border-color: #34d399; background: #11111c; }
+  #ready-btn.is-ready, #rec-ready-btn.is-ready { background: #12241d; border-color: #34d399; color: #34d399; }
+  #rec-ready-btn { margin-left: .6rem; }
+  #relisten-btn {
+    background: #11111c; border: 1px solid rgba(255,255,255,.18); color: #e7e5f4;
+    margin-top: .9rem; font-size: .85rem;
+  }
+  #relisten-btn:hover { border-color: #8b5cf6; background: #171724; }
+  .pick-hint { color: #9b98ad; font-size: .75rem; margin-bottom: .5rem; }
   #host-config {
     margin-top: 1.2rem; padding-top: 1.2rem;
     border-top: 1px solid rgba(255,255,255,.08);
@@ -184,6 +191,7 @@
     <!-- accueil -->
     <section id="home">
       <input id="name-input" maxlength="16" placeholder="ton pseudo" autocomplete="off" spellcheck="false">
+      <p class="pick-hint">choisis ton icône :</p>
       <div id="avatar-row"></div>
       <button id="host">Créer une partie</button>
       <p class="or">— ou —</p>
@@ -230,6 +238,7 @@
           <div id="rec-box" hidden>
             <button id="rec-btn">⏺ enregistrer</button>
             <button id="replay-btn" hidden>▶ réécouter ma prise</button>
+            <button id="rec-ready-btn">j'ai fini !</button>
             <p id="rec-status"></p>
           </div>
           <div id="listen-box" hidden>
@@ -240,6 +249,7 @@
               <button class="rate" data-v="1">👍</button>
               <button class="rate" data-v="-1">👎</button>
             </div>
+            <button id="relisten-btn">↺ réécouter l'imitation</button>
             <p id="listen-count"></p>
           </div>
           <ul id="scores" hidden></ul>

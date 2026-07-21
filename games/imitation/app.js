@@ -59,8 +59,8 @@ function ensureAudioGraph() {
 
 const plug = (node, on) => {
   if (!node) return;
+  try { node.disconnect(analyser); } catch { /* pas branché */ }
   if (on) node.connect(analyser);
-  else { try { node.disconnect(analyser); } catch { /* déjà débranché */ } }
 };
 function vizMic(on) {
   ensureAudioGraph();
@@ -70,9 +70,15 @@ function vizMic(on) {
 const vizPlayback = (on) => { ensureAudioGraph(); plug(playbackNode, on); };
 const vizVideo = (on) => { ensureAudioGraph(); plug(videoNode, on); };
 
+// Le tracé garde TOUT l'historique : plus la prise avance, plus on « dézoome »
+// pour voir le waveform en entier. `vizFrozen` fige le tracé quand la source se
+// termine, plutôt que de continuer à dessiner du silence (la ligne plate à droite).
+let vizFrozen = false;
+
 function startViz() {
   $('wave').hidden = false;
   history.length = 0;
+  vizFrozen = false;
   if (vizOn) return;
   vizOn = true;
   const data = new Uint8Array(analyser.fftSize);
@@ -81,22 +87,27 @@ function startViz() {
   (function frame() {
     if (!vizOn) return;
     requestAnimationFrame(frame);
+    if (!vizFrozen) {
+      analyser.getByteTimeDomainData(data);
+      let peak = 0;
+      for (const v of data) peak = Math.max(peak, Math.abs(v - 128) / 128);
+      history.push(peak);
+      if (history.length > 6000) history.shift(); // garde-fou, jamais atteint en pratique
+    }
     cv.width = cv.clientWidth;   // suit la largeur réelle (responsive)
-    analyser.getByteTimeDomainData(data);
-    let peak = 0;
-    for (const v of data) peak = Math.max(peak, Math.abs(v - 128) / 128);
-    history.push(peak);
-    const bars = Math.floor(cv.width / 3);
-    if (history.length > bars) history.splice(0, history.length - bars);
-    ctx.clearRect(0, 0, cv.width, cv.height);
     ctx.fillStyle = '#8b5cf6';
     const mid = cv.height / 2;
+    const n = history.length || 1;
+    const step = cv.width / n;
+    const w = Math.max(1, Math.min(2, step * 0.7));
     history.forEach((p, i) => {
       const h = Math.max(2, p * cv.height);
-      ctx.fillRect(i * 3, mid - h / 2, 2, h);
+      ctx.fillRect(i * step, mid - h / 2, w, h);
     });
   })();
 }
+
+const freezeViz = () => { vizFrozen = true; };
 
 function stopViz() {
   vizOn = false;
@@ -168,11 +179,15 @@ async function enter(code) {
 
 // --- lobby : prêt, config du host, code copiable ---------------------------
 
-$('ready-btn').addEventListener('click', () => {
+// Même bouton « prêt » à deux endroits : au lobby, et pendant l'enregistrement
+// (où il veut dire « j'ai fini ma prise » - le serveur le remet à zéro à chaque round).
+function toggleReady() {
   myReady = !myReady;
   NET.send({ action: 'ready', ready: myReady });
   jingle('ready');
-});
+}
+$('ready-btn').addEventListener('click', toggleReady);
+$('rec-ready-btn').addEventListener('click', toggleReady);
 
 $('start').addEventListener('click', () => {
   NET.send({ action: 'start', rounds: +$('rounds-select').value });
@@ -192,7 +207,8 @@ $('next-btn').addEventListener('click', () => NET.send({ action: 'next' }));
 // --- enregistrement : ⏺, stop automatique à la fin du clip, réécoute -------
 
 $('rec-btn').addEventListener('click', () => (activeRec ? stopTake() : startTake()));
-$('ref-video').addEventListener('ended', () => stopTake()); // fin du clip = fin de la prise
+$('ref-video').addEventListener('ended', () => { stopTake(); freezeViz(); }); // fin du clip = fin de prise, tracé figé
+$('playback').addEventListener('ended', () => { freezeViz(); vizPlayback(false); });
 
 function startTake() {
   stopReplay();
@@ -209,6 +225,7 @@ function startTake() {
     v.pause();
     setRecBtn(false);
     vizMic(false);
+    freezeViz(); // on fige le tracé de la prise au lieu de dessiner du silence
     const blob = new Blob(chunks, { type: rec.mimeType });
     if (!blob.size) return;
     try {
@@ -244,7 +261,6 @@ $('replay-btn').addEventListener('click', () => {
   if (activeRec || !lastTakeUrl) return;
   const player = $('playback');
   player.src = lastTakeUrl;
-  player.onended = () => vizPlayback(false);
   player.play().catch(() => {});
   vizPlayback(true);
   startViz();
@@ -261,7 +277,7 @@ function stopReplay() {
 const NEXT_LABELS = {
   watching: '→ passer à l\'enregistrement',
   recording: '→ tout le monde a fini',
-  rating: '→ passer cette imitation',
+  rating: '→ imitation suivante',
   results: '→ round suivant',
 };
 
@@ -290,6 +306,8 @@ NET.on('room', (msg) => {
   const readyCount = msg.players.filter((p) => p.ready).length;
   $('ready-btn').textContent = myReady ? '✔ je suis prêt' : 'je suis prêt !';
   $('ready-btn').classList.toggle('is-ready', myReady);
+  $('rec-ready-btn').textContent = myReady ? '✔ j\'ai fini' : 'j\'ai fini !';
+  $('rec-ready-btn').classList.toggle('is-ready', myReady);
   $('host-config').hidden = !isHost;
   $('start').disabled = msg.players.length < 2;
   $('ready-count').textContent = `${readyCount}/${msg.players.length} prêts`;
@@ -307,12 +325,17 @@ NET.on('hurry', () => stopTake()); // le host a clôturé : la prise en cours pa
 NET.on('listen', (msg) => { pendingListen = msg; });
 
 // La frame binaire qui suit un 'listen' : vidéo muette + la prise par-dessus + waveform.
+// L'imitation joue jusqu'au bout - noter ne coupe rien, et « ↺ » la rejoue.
+let listenUrl = null;   // blob de l'imitation en cours (gardé pour la réécoute)
+let lastListen = null;  // méta de l'imitation en cours (compteur, avancement des votes)
+
 NET.onBinary = (buf) => {
   if (!pendingListen) return;
   const msg = pendingListen;
   pendingListen = null;
 
-  hideStage();
+  hideStage();       // nettoie l'écran (et remet lastListen à null)…
+  lastListen = msg;  // …donc on mémorise la prise APRÈS, pas avant
   $('listen-box').hidden = false;
   const mine = msg.player === you;
   setStage('🎧 écoute & note', mine ? 'ta prise passe - les autres notent' : 'note cette imitation avec les boutons dessous');
@@ -320,25 +343,37 @@ NET.onBinary = (buf) => {
   $('listen-count').textContent = `imitation ${msg.idx}/${msg.of}`;
   for (const b of document.querySelectorAll('.rate')) b.disabled = mine;
 
+  if (listenUrl) URL.revokeObjectURL(listenUrl);
+  listenUrl = URL.createObjectURL(new Blob([buf], { type: msg.mime }));
+  playCurrentListen();
+};
+
+// (Re)joue l'imitation en cours : vidéo muette relancée + audio synchro + waveform.
+function playCurrentListen() {
   const v = $('ref-video');
   v.hidden = false;
   v.muted = true;          // l'image du clip, mais le son : c'est l'imitation
   v.currentTime = 0;
   v.play().catch(() => {});
-
-  const url = URL.createObjectURL(new Blob([buf], { type: msg.mime }));
   const player = $('playback');
-  player.src = url;
-  player.onended = () => URL.revokeObjectURL(url);
+  player.src = listenUrl;
   player.play().catch(() => {});
   vizPlayback(true);
   startViz();
-};
+}
+
+$('relisten-btn').addEventListener('click', () => { if (listenUrl) playCurrentListen(); });
+
+NET.on('rated', (msg) => {
+  if (!lastListen) return;
+  $('listen-count').textContent = `imitation ${lastListen.idx}/${lastListen.of} — ${msg.count}/${msg.of} ont noté`;
+});
 
 for (const btn of document.querySelectorAll('.rate')) {
   btn.addEventListener('click', () => {
     NET.send({ action: 'rate', value: +btn.dataset.v });
     for (const b of document.querySelectorAll('.rate')) b.disabled = true;
+    setStage('🎧 écoute & note', 'note envoyée ✔ — le host passe à la suivante quand tout le monde a noté');
   });
 }
 
@@ -433,6 +468,8 @@ function hideStage() {
   $('scores').hidden = true;
   $('back-lobby').hidden = true;
   $('rec-status').textContent = '';
+  if (listenUrl) { URL.revokeObjectURL(listenUrl); listenUrl = null; }
+  lastListen = null;
   vizVideo(false);
   vizPlayback(false);
   vizMic(false);
