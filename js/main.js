@@ -66,12 +66,24 @@ function renderProjects() {
 function renderFavGames() {
   const grid = document.getElementById('fav-games');
   if (!grid || typeof FAV_GAMES === 'undefined') return;
-  grid.innerHTML = FAV_GAMES.map(g => `
+  grid.innerHTML = FAV_GAMES.map(g => {
+    const src = g.img || (g.steam ? `https://cdn.cloudflare.steamstatic.com/steam/apps/${g.steam}/header.jpg` : '');
+    const style = g.bg ? ` style="background:${g.bg}"` : '';
+    // L'image (object-cover) recouvre l'emoji quand elle charge ; si elle échoue,
+    // onerror la retire et l'emoji reste sur le fond dégradé. Jamais de carte vide.
+    const img = src
+      ? `<img src="${src}" alt="${tr(g, 'name')}" loading="lazy" class="fav-img" onerror="this.remove()">`
+      : '';
+    return `
     <div class="fav-game">
-      <span class="fav-emoji">${g.emoji}</span>
+      <div class="fav-cover"${style}>
+        <span class="fav-emoji">${g.emoji}</span>
+        ${img}
+      </div>
       <p class="fav-name">${tr(g, 'name')}</p>
       <p class="fav-note">${tr(g, 'note')}</p>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 // ============ Interactions globales ============
