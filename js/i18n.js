@@ -77,6 +77,15 @@ const I18N = {
     'passions.stream.kicker': 'stream & audiovisuel',
     'passions.stream.title': 'Régie de stream maison',
     'passions.stream.desc': "Je stream sur Twitch et je conçois toute ma régie moi-même : scènes OBS, routage audio VoiceMeeter, et overlays sur mesure en HTML / Tailwind intégrés directement dans OBS.",
+    'passions.setup.kicker': 'setup gaming & stream',
+    'passions.setup.title': 'Mon poste de combat',
+    'passions.setup.desc': "La tour qui fait tourner le stream, le dev et les parties. Montée pièce par pièce - pas de préfabriqué.",
+    'passions.setup.gpu': 'carte graphique',
+    'passions.setup.cpu': 'processeur',
+    'passions.setup.mic': 'micro',
+    'passions.setup.headset': 'casque',
+    'passions.setup.mouse': 'souris',
+    'passions.setup.keyboard': 'clavier',
     'passions.concerts': '- concerts & festivals',
     'passions.movies': '- séances cultes',
     'passions.vald': 'Mon premier concert en arène',
@@ -88,9 +97,7 @@ const I18N = {
 
     'games.kicker': '05 - Jeux',
     'games.title': 'Jeux web<span class="text-violet-400">.</span>',
-    'games.h3': 'Bientôt ici : des petits jeux web, jouables directement en ligne',
-    'games.desc': "Pas d'installation, pas de téléchargement, pas de compte. Tu ouvres la page dans ton navigateur, tu joues. C'est en cours de dev.",
-    'games.wip': 'en développement',
+    'games.sub': "Des jeux jouables direct dans le navigateur - sans install, sans compte. Front statique, serveur arbitre maison.",
 
     'contact.kicker': '06 - Contact',
     'contact.title': 'On se capte ?',
@@ -174,6 +181,15 @@ const I18N = {
     'passions.stream.kicker': 'streaming & audio',
     'passions.stream.title': 'Homemade streaming setup',
     'passions.stream.desc': 'I stream on Twitch and build my whole setup myself: OBS scenes, VoiceMeeter audio routing, and custom HTML / Tailwind overlays plugged straight into OBS.',
+    'passions.setup.kicker': 'gaming & streaming rig',
+    'passions.setup.title': 'My battle station',
+    'passions.setup.desc': "The tower that runs the stream, the dev work and the games. Built part by part - no prebuilt box.",
+    'passions.setup.gpu': 'graphics card',
+    'passions.setup.cpu': 'processor',
+    'passions.setup.mic': 'mic',
+    'passions.setup.headset': 'headset',
+    'passions.setup.mouse': 'mouse',
+    'passions.setup.keyboard': 'keyboard',
     'passions.concerts': '- concerts & festivals',
     'passions.movies': '- all-time favourites',
     'passions.vald': 'My first arena concert',
@@ -185,9 +201,7 @@ const I18N = {
 
     'games.kicker': '05 - Games',
     'games.title': 'Web games<span class="text-violet-400">.</span>',
-    'games.h3': 'Coming soon: small web games, playable right here online',
-    'games.desc': "No install, no download, no account. Open the page in your browser and play. It's in the works.",
-    'games.wip': 'in development',
+    'games.sub': "Games playable straight in your browser - no install, no account. Static front, homemade referee server.",
 
     'contact.kicker': '06 - Contact',
     'contact.title': "Let's talk",
@@ -228,4 +242,5 @@ function applyLang(lang) {
   const btn = document.getElementById('lang-toggle');
   if (btn) btn.textContent = lang === 'fr' ? 'EN' : 'FR';
   if (typeof renderProjects === 'function') { renderProjects(); initTilt(); }
+  if (typeof renderGames === 'function') renderGames();
 }

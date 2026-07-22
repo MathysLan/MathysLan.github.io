@@ -338,6 +338,59 @@
         </div>
       </div>
 
+      <!-- Setup PC -->
+      <div class="reveal glass rounded-2xl p-7 mb-6 relative overflow-hidden">
+        <p class="font-mono text-xs text-amber-300 mb-2" data-i18n="passions.setup.kicker">setup gaming & stream</p>
+        <h3 class="font-display text-2xl font-bold heading mb-3" data-i18n="passions.setup.title">Mon poste de combat</h3>
+        <p class="muted text-sm leading-relaxed max-w-lg mb-6" data-i18n="passions.setup.desc">
+          La tour qui fait tourner le stream, le dev et les parties. Montée pièce par pièce - pas de préfabriqué.
+        </p>
+        <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div class="spec">
+            <span class="spec-emoji">🎮</span>
+            <div>
+              <p class="spec-label" data-i18n="passions.setup.gpu">carte graphique</p>
+              <p class="spec-val">RTX 3060 · 12 Go</p>
+            </div>
+          </div>
+          <div class="spec">
+            <span class="spec-emoji">🧠</span>
+            <div>
+              <p class="spec-label" data-i18n="passions.setup.cpu">processeur</p>
+              <p class="spec-val">AMD Ryzen</p>
+            </div>
+          </div>
+          <div class="spec">
+            <span class="spec-emoji">🎙️</span>
+            <div>
+              <p class="spec-label" data-i18n="passions.setup.mic">micro</p>
+              <p class="spec-val">TONOR TD520S</p>
+            </div>
+          </div>
+          <div class="spec">
+            <span class="spec-emoji">🎧</span>
+            <div>
+              <p class="spec-label" data-i18n="passions.setup.headset">casque</p>
+              <p class="spec-val">Logitech PRO X 2</p>
+            </div>
+          </div>
+          <div class="spec">
+            <span class="spec-emoji">🖱️</span>
+            <div>
+              <p class="spec-label" data-i18n="passions.setup.mouse">souris</p>
+              <p class="spec-val">Logitech G502</p>
+            </div>
+          </div>
+          <div class="spec">
+            <span class="spec-emoji">⌨️</span>
+            <div>
+              <p class="spec-label" data-i18n="passions.setup.keyboard">clavier</p>
+              <p class="spec-val">Logitech G213 Prodigy</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Culture : tickets -->
       <div class="grid md:grid-cols-2 gap-6">
         <div class="reveal">
@@ -407,37 +460,38 @@
   <section id="games" class="relative py-24 md:py-32 overflow-hidden border-t border-white/5">
     <div class="section-halo halo-violet"></div>
     <div class="max-w-6xl mx-auto px-6 relative z-10">
-      <div class="reveal mb-14">
-        <p class="font-mono text-xs text-violet-400 tracking-widest uppercase mb-3" data-i18n="games.kicker">05 - Jeux</p>
-        <h2 class="font-display text-3xl md:text-5xl font-bold heading" data-i18n="games.title">Jeux web<span class="text-violet-400">.</span></h2>
+      <div class="reveal mb-10 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p class="font-mono text-xs text-violet-400 tracking-widest uppercase mb-3" data-i18n="games.kicker">05 - Jeux</p>
+          <h2 class="font-display text-3xl md:text-5xl font-bold heading" data-i18n="games.title">Jeux web<span class="text-violet-400">.</span></h2>
+          <p class="muted mt-4 max-w-lg" data-i18n="games.sub">Des jeux jouables direct dans le navigateur - sans install, sans compte. Front statique, serveur arbitre maison.</p>
+        </div>
+        <button id="insert-coin" class="font-mono text-xs tracking-[0.3em] text-violet-300 insert-coin shrink-0" title="Une pièce = une partie">▸ INSERT COIN ◂</button>
       </div>
 
-      <div class="reveal glass arcade-border rounded-3xl p-10 md:p-16 text-center relative overflow-hidden">
-        <button id="insert-coin" class="block mx-auto font-mono text-xs tracking-[0.3em] text-violet-300 mb-6 insert-coin" title="Une pièce = une partie">▸ INSERT COIN ◂</button>
-        <h3 class="font-display text-2xl md:text-4xl font-bold heading mb-4 max-w-2xl mx-auto" data-i18n="games.h3">
-          Bientôt ici : des petits jeux web, jouables directement en ligne
-        </h3>
-        <p class="muted max-w-xl mx-auto leading-relaxed" data-i18n="games.desc">
-          Pas d'installation, pas de téléchargement, pas de compte.
-          Tu ouvres la page dans ton navigateur, tu joues. C'est en cours de dev.
-        </p>
-        <div class="mt-8 inline-flex items-center gap-2 font-mono text-xs px-4 py-2 rounded-full chip">
-          <span class="live-dot inline-block w-2 h-2 rounded-full bg-amber-400"></span>
-          <span data-i18n="games.wip">en développement</span>
+      <!-- Carousel des jeux (rendu par js/carousel.js depuis data/games.js) -->
+      <div id="games-carousel" class="reveal relative" tabindex="0" aria-roledescription="carousel" aria-label="Jeux jouables">
+        <div id="games-viewport">
+          <div id="games-track"></div>
         </div>
 
-        <a href="games/morpion/" class="mt-4 block font-mono text-sm text-violet-400 hover:text-violet-300 underline underline-offset-4 transition-colors">
-          ▸ jouer au morpion multijoueur
-        </a>
+        <button id="games-prev" class="game-nav game-nav-prev" aria-label="Jeu précédent">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <button id="games-next" class="game-nav game-nav-next" aria-label="Jeu suivant">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
 
-        <!-- Puissance 4 (caché : INSERT COIN, Ctrl+K ou Konami code) -->
-        <div id="c4-wrap" class="hidden mt-10 max-w-md mx-auto text-left">
-          <div class="flex items-center justify-between mb-3 font-mono text-xs">
-            <span id="c4-status" class="text-violet-300"></span>
-            <button id="c4-reset" class="chip px-2.5 py-1 rounded-md hover:text-white transition-colors">reset</button>
-          </div>
-          <canvas id="c4" width="420" height="360" class="w-full rounded-xl border border-white/10"></canvas>
+        <div id="games-dots" class="flex justify-center gap-2.5 mt-6"></div>
+      </div>
+
+      <!-- Puissance 4 (lancé depuis le carousel, l'INSERT COIN, Ctrl+K ou le Konami) -->
+      <div id="c4-wrap" class="hidden mt-10 max-w-md mx-auto text-left">
+        <div class="flex items-center justify-between mb-3 font-mono text-xs">
+          <span id="c4-status" class="text-violet-300"></span>
+          <button id="c4-reset" class="chip px-2.5 py-1 rounded-md hover:text-white transition-colors">reset</button>
         </div>
+        <canvas id="c4" width="420" height="360" class="w-full rounded-xl border border-white/10"></canvas>
       </div>
     </div>
   </section>
@@ -493,10 +547,12 @@
   </div>
 
   <script src="data/projects.js?v=3"></script>
-  <script src="js/i18n.js?v=1"></script>
+  <script src="data/games.js?v=1"></script>
+  <script src="js/i18n.js?v=2"></script>
   <script src="js/lightbox.js?v=2"></script>
   <script src="js/tilt.js?v=2"></script>
   <script src="js/main.js?v=3"></script>
+  <script src="js/carousel.js?v=1"></script>
   <script src="js/palette.js?v=1"></script>
   <script src="js/connect4.js?v=1"></script>
   <script src="js/easter.js?v=1"></script>
