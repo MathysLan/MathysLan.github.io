@@ -144,12 +144,16 @@
   #wave {
     display: block;
     width: 100%;
-    height: 64px;
+    height: 72px;
     margin-top: .6rem;
     border-radius: 8px;
     background: #11111c;
     border: 1px solid rgba(255,255,255,.08);
   }
+  #wave-legend { margin-top: .4rem; font-size: .7rem; color: #9b98ad; display: flex; gap: 1rem; justify-content: center; }
+  #wave-legend .lg { margin-right: .25rem; }
+  #wave-legend .lg-ref { color: #f59e0b; }
+  #wave-legend .lg-voice { color: #8b5cf6; }
   #next-btn { margin-top: 1rem; background: #34d399; color: #0a0a12; font-weight: 700; }
   #next-btn:hover { background: #2cbd87; }
   #wait-host { color: #6f6c80; font-size: .75rem; margin-top: 1rem; }
@@ -234,7 +238,11 @@
           <p id="stage-title"></p>
           <p id="stage-sub"></p>
           <video id="ref-video" playsinline controls crossorigin="anonymous" hidden></video>
-          <canvas id="wave" height="64" hidden></canvas>
+          <canvas id="wave" height="72" hidden></canvas>
+          <p id="wave-legend" hidden>
+            <span class="lg lg-ref">■</span> son de la vidéo
+            <span class="lg lg-voice">■</span> ta voix
+          </p>
           <div id="rec-box" hidden>
             <button id="rec-btn">⏺ enregistrer</button>
             <button id="replay-btn" hidden>▶ réécouter ma prise</button>

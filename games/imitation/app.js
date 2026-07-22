@@ -37,24 +37,37 @@ async function initMic() {
 }
 
 // --- Web Audio : waveform + jingles ---------------------------------------
-// Un seul graphe, trois sources possibles vers l'analyseur : la vidéo (visionnage),
-// le micro (ta prise), le lecteur (écoute / réécoute). On ne branche que la bonne.
+// Deux analyseurs : `refAnalyser` reçoit TOUJOURS le son de la vidéo (référence),
+// `analyser` reçoit la source dynamique (micro pendant la prise, lecteur en écoute).
+// Le son de la vidéo passe par `videoGain` : à 0 pendant la prise, la vidéo est
+// INAUDIBLE (le micro ne la capte pas) mais reste analysable → on peut afficher
+// son waveform. (Muter l'élément couperait aussi l'analyse : vérifié.)
 
-let actx = null, analyser = null, micNode = null, playbackNode = null, videoNode = null;
+let actx = null, analyser = null, refAnalyser = null;
+let micNode = null, playbackNode = null, videoNode = null, videoGain = null;
 let vizOn = false;
-const history = [];
 
 function ensureAudioGraph() {
   if (!actx) {
     actx = new (window.AudioContext || window.webkitAudioContext)();
-    analyser = actx.createAnalyser();
-    analyser.fftSize = 1024;
+    analyser = actx.createAnalyser(); analyser.fftSize = 1024;
+    refAnalyser = actx.createAnalyser(); refAnalyser.fftSize = 1024;
+
     playbackNode = actx.createMediaElementSource($('playback'));
-    playbackNode.connect(actx.destination);
+    playbackNode.connect(actx.destination); // l'imitation écoutée sort toujours
+
     videoNode = actx.createMediaElementSource($('ref-video'));
-    videoNode.connect(actx.destination); // le son de la vidéo continue de sortir normalement
+    videoGain = actx.createGain();
+    videoNode.connect(videoGain).connect(actx.destination); // sortie audible pilotée
+    videoNode.connect(refAnalyser);                          // analyse toujours dispo
   }
   if (actx.state === 'suspended') actx.resume();
+}
+
+// Rend la vidéo audible (visionnage) ou non (prise / écoute d'imitation).
+function setVideoAudible(on) {
+  ensureAudioGraph();
+  videoGain.gain.value = on ? 1 : 0;
 }
 
 const plug = (node, on) => {
@@ -68,42 +81,49 @@ function vizMic(on) {
   plug(micNode, on);
 }
 const vizPlayback = (on) => { ensureAudioGraph(); plug(playbackNode, on); };
-const vizVideo = (on) => { ensureAudioGraph(); plug(videoNode, on); };
 
-// Le tracé garde TOUT l'historique : plus la prise avance, plus on « dézoome »
-// pour voir le waveform en entier. `vizFrozen` fige le tracé quand la source se
-// termine, plutôt que de continuer à dessiner du silence (la ligne plate à droite).
+// Le tracé garde TOUT l'historique : plus ça avance, plus on « dézoome » pour
+// voir le waveform en entier. `vizFrozen` fige le tracé quand la source se termine
+// (au lieu de tracer du silence). Une ou deux pistes selon la phase : en prise,
+// piste 1 = son de la vidéo (référence, ambre), piste 2 = ta voix (violet), les
+// deux superposées et défilant ensemble pour te caler dessus.
 let vizFrozen = false;
+let vizTracks = []; // [{ an, hist, color, fill }]
+const vizTmp = new Uint8Array(1024);
 
-function startViz() {
-  $('wave').hidden = false;
-  history.length = 0;
+function startViz(trackDefs) {
+  vizTracks = trackDefs.map((t) => ({ ...t, hist: [] }));
   vizFrozen = false;
+  $('wave').hidden = false;
   if (vizOn) return;
   vizOn = true;
-  const data = new Uint8Array(analyser.fftSize);
   const cv = $('wave');
   const ctx = cv.getContext('2d');
   (function frame() {
     if (!vizOn) return;
     requestAnimationFrame(frame);
     if (!vizFrozen) {
-      analyser.getByteTimeDomainData(data);
-      let peak = 0;
-      for (const v of data) peak = Math.max(peak, Math.abs(v - 128) / 128);
-      history.push(peak);
-      if (history.length > 6000) history.shift(); // garde-fou, jamais atteint en pratique
+      for (const t of vizTracks) {
+        t.an.getByteTimeDomainData(vizTmp);
+        let peak = 0;
+        for (const v of vizTmp) peak = Math.max(peak, Math.abs(v - 128) / 128);
+        t.hist.push(peak);
+        if (t.hist.length > 6000) t.hist.shift();
+      }
     }
     cv.width = cv.clientWidth;   // suit la largeur réelle (responsive)
-    ctx.fillStyle = '#8b5cf6';
     const mid = cv.height / 2;
-    const n = history.length || 1;
-    const step = cv.width / n;
-    const w = Math.max(1, Math.min(2, step * 0.7));
-    history.forEach((p, i) => {
-      const h = Math.max(2, p * cv.height);
-      ctx.fillRect(i * step, mid - h / 2, w, h);
-    });
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    for (const t of vizTracks) { // dans l'ordre : la référence d'abord (fond), la voix par-dessus
+      const n = t.hist.length || 1;
+      const step = cv.width / n;
+      const w = t.fill ? Math.max(1, step) : Math.max(1, Math.min(2, step * 0.7));
+      ctx.fillStyle = t.color;
+      t.hist.forEach((p, i) => {
+        const h = Math.max(2, p * cv.height);
+        ctx.fillRect(i * step, mid - h / 2, w, h);
+      });
+    }
   })();
 }
 
@@ -111,8 +131,13 @@ const freezeViz = () => { vizFrozen = true; };
 
 function stopViz() {
   vizOn = false;
+  vizTracks = [];
   $('wave').hidden = true;
 }
+
+// Couleurs des pistes
+const WAVE_VOICE = '#8b5cf6';                 // ta voix / source unique (violet)
+const WAVE_REF = 'rgba(245, 158, 11, 0.45)';  // référence vidéo (ambre translucide, en fond)
 
 // Jingles synthétisés : pas de fichier audio à héberger, juste des oscillateurs.
 function beep(freq, t0, dur, type = 'square', gain = 0.1) {
@@ -210,10 +235,19 @@ $('rec-btn').addEventListener('click', () => (activeRec ? stopTake() : startTake
 $('ref-video').addEventListener('ended', () => { stopTake(); freezeViz(); }); // fin du clip = fin de prise, tracé figé
 $('playback').addEventListener('ended', () => { freezeViz(); vizPlayback(false); });
 
+// Vidéo injoignable (URL R2 fausse, fichier absent, ou CORS non configuré) :
+// on le DIT, au lieu d'un écran noir muet. Le waveform du visionnage exige du
+// CORS propre sur l'hébergeur (crossorigin="anonymous").
+$('ref-video').addEventListener('error', () => {
+  const v = $('ref-video');
+  if (!v.src) return; // pas de source posée : rien à signaler
+  showError('vidéo injoignable — vérifie l\'URL et la config CORS de l\'hébergeur (ouvre l\'URL du clip dans un onglet pour tester)');
+});
+
 function startTake() {
   stopReplay();
   const v = $('ref-video');
-  v.muted = true;          // la vidéo tourne pour la synchro, mais en silence :
+  setVideoAudible(false);  // vidéo inaudible (le micro ne la capte pas) mais analysée
   v.currentTime = 0;       // ton micro n'enregistre que toi
   v.play().catch(() => {});
 
@@ -242,8 +276,10 @@ function startTake() {
   activeRec = rec;
   setRecBtn(true);
   vizMic(true);
-  startViz();
-  $('rec-status').textContent = 'ça tourne… la prise s\'arrête toute seule à la fin du clip';
+  // Deux pistes superposées : référence (son vidéo, ambre en fond) + ta voix (violet).
+  startViz([{ an: refAnalyser, color: WAVE_REF, fill: true }, { an: analyser, color: WAVE_VOICE }]);
+  $('wave-legend').hidden = false;
+  $('rec-status').textContent = 'ça tourne… cale ta voix (violet) sur la référence (ambre) — stop auto en fin de clip';
 }
 
 function stopTake() {
@@ -263,7 +299,7 @@ $('replay-btn').addEventListener('click', () => {
   player.src = lastTakeUrl;
   player.play().catch(() => {});
   vizPlayback(true);
-  startViz();
+  startViz([{ an: analyser, color: WAVE_VOICE }]);
 });
 
 function stopReplay() {
@@ -352,14 +388,14 @@ NET.onBinary = (buf) => {
 function playCurrentListen() {
   const v = $('ref-video');
   v.hidden = false;
-  v.muted = true;          // l'image du clip, mais le son : c'est l'imitation
+  setVideoAudible(false);  // l'image du clip, mais le son qu'on entend : c'est l'imitation
   v.currentTime = 0;
   v.play().catch(() => {});
   const player = $('playback');
   player.src = listenUrl;
   player.play().catch(() => {});
   vizPlayback(true);
-  startViz();
+  startViz([{ an: analyser, color: WAVE_VOICE }]); // waveform de l'imitation écoutée
 }
 
 $('relisten-btn').addEventListener('click', () => { if (listenUrl) playCurrentListen(); });
@@ -392,12 +428,11 @@ const PHASES = {
     setStage(`round ${msg.round}/${msg.of} — 👀 regarde`, 'écoute bien : après, ce sera à toi de l\'imiter');
     const v = $('ref-video');
     v.hidden = false;
-    v.muted = false;                                       // premier visionnage : avec le son
+    setVideoAudible(true);                                 // premier visionnage : avec le son
     v.src = msg.url || 'videos/' + msg.video + '.mp4';     // CDN Pages, ou hébergement externe
     v.currentTime = 0;
     v.play().catch(() => {});                              // autoplay bloqué → l'utilisateur a les contrôles
-    vizVideo(true);                                        // le waveform suit le son du clip
-    startViz();
+    startViz([{ an: refAnalyser, color: WAVE_VOICE }]);    // waveform du son du clip
   },
 
   recording() {
@@ -405,7 +440,7 @@ const PHASES = {
     $('ref-video').hidden = false;          // la vidéo reste à l'écran, prête à tourner
     $('rec-box').hidden = false;
     $('replay-btn').hidden = !lastTakeUrl;
-    setStage('🎙 à toi', 'clique sur ⏺ : la vidéo repart (en muet) et tu imites en rythme');
+    setStage('🎙 à toi', 'clique sur ⏺ : la vidéo repart et tu cales ta voix sur son waveform');
     $('rec-status').textContent = 'la prise s\'arrête toute seule à la fin du clip — refais-la autant que tu veux';
   },
 
@@ -467,10 +502,11 @@ function hideStage() {
   $('listen-box').hidden = true;
   $('scores').hidden = true;
   $('back-lobby').hidden = true;
+  $('wave-legend').hidden = true;
   $('rec-status').textContent = '';
   if (listenUrl) { URL.revokeObjectURL(listenUrl); listenUrl = null; }
   lastListen = null;
-  vizVideo(false);
+  setVideoAudible(false);
   vizPlayback(false);
   vizMic(false);
   stopViz();
