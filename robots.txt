@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /404.html
+Disallow: /data/
+Disallow: /js/
+Disallow: /css/
+Disallow: /games/
