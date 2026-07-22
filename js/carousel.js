@@ -1,10 +1,17 @@
-// Carousel des jeux : rend les cartes depuis data/games.js et gère la navigation
-// (flèches, points, clavier, swipe tactile, auto-défilement doux). Vanilla, léger.
+// Carousel 3D « coverflow » des jeux : les cartes tournent autour d'un point fixe.
+// La carte au centre est nette et opaque ; les latérales reculent, tournent et
+// s'estompent ; la plus lointaine passe derrière le centre avant de revenir.
+// Rendu depuis data/games.js. Flèches, points, clavier, swipe, auto-rotation.
 (function () {
   let index = 0;
   let autoTimer = null;
-  const AUTO_MS = 6000;
+  const AUTO_MS = 4500;
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Réglages visuels du coverflow
+  const SPACING = 60;   // décalage horizontal par cran (% de largeur de carte)
+  const DEPTH = 190;    // recul en profondeur par cran (px)
+  const ROT = 42;       // rotation Y par cran (deg)
 
   const trAcc = { violet: 'text-violet-400', amber: 'text-amber-300', mint: 'text-emerald-300' };
   const g = (obj, f) => (window.LANG === 'en' && obj[f + '_en'] !== undefined ? obj[f + '_en'] : obj[f]);
@@ -58,9 +65,6 @@
     track.innerHTML = GAMES.map(slideHTML).join('');
     dots.innerHTML = GAMES.map((_, i) =>
       `<button class="game-dot" data-i="${i}" aria-label="${(en ? 'Game ' : 'Jeu ') + (i + 1)}"></button>`).join('');
-
-    track.querySelectorAll('[data-action="connect4"]').forEach((b) =>
-      b.addEventListener('click', () => window.launchConnect4 && window.launchConnect4()));
     dots.querySelectorAll('.game-dot').forEach((d) =>
       d.addEventListener('click', () => { go(+d.dataset.i); restartAuto(); }));
 
@@ -68,10 +72,40 @@
     update();
   }
 
+  // Place chaque carte sur l'anneau selon son écart circulaire à la carte active.
   function update() {
     const track = document.getElementById('games-track');
     if (!track) return;
-    track.style.transform = `translateX(-${index * 100}%)`;
+    const slides = track.querySelectorAll('.game-slide');
+    const N = slides.length;
+
+    slides.forEach((slide, i) => {
+      let o = ((i - index) % N + N) % N;   // 0..N-1
+      if (o > N / 2) o -= N;               // ramène dans [-N/2, N/2]
+      const a = Math.abs(o);
+      const backmost = (N % 2 === 0) && (a === N / 2); // pile derrière le centre
+
+      let x, z, ry, s, op, zi;
+      if (backmost) {
+        x = 0; z = -DEPTH * 2.4; ry = 0; s = 0.78; op = 0.12; zi = 1;
+      } else {
+        const oc = Math.max(-2, Math.min(2, o)); // borne l'écartement visuel
+        x = oc * SPACING;
+        z = -Math.abs(oc) * DEPTH;
+        ry = -oc * ROT;
+        s = 1 - Math.abs(oc) * 0.13;
+        op = a === 0 ? 1 : (a === 1 ? 0.55 : 0.25);
+        zi = 100 - a;
+      }
+
+      slide.style.transform =
+        `translateX(calc(-50% + ${x}%)) translateY(-50%) translateZ(${z}px) rotateY(${ry}deg) scale(${s})`;
+      slide.style.opacity = op;
+      slide.style.zIndex = zi;
+      slide.classList.toggle('is-active', o === 0);
+      slide.setAttribute('aria-hidden', o === 0 ? 'false' : 'true');
+    });
+
     document.querySelectorAll('#games-dots .game-dot').forEach((d, i) =>
       d.classList.toggle('active', i === index));
   }
@@ -94,6 +128,18 @@
     document.getElementById('games-prev').addEventListener('click', () => { prev(); restartAuto(); });
     document.getElementById('games-next').addEventListener('click', () => { next(); restartAuto(); });
 
+    // Clic sur une carte : si elle n'est pas au centre, on la ramène au centre
+    // (et on bloque son lien) ; au centre, ses boutons/liens fonctionnent.
+    const track = document.getElementById('games-track');
+    track.addEventListener('click', (e) => {
+      const slide = e.target.closest('.game-slide');
+      if (!slide) return;
+      const i = [...track.children].indexOf(slide);
+      if (i !== index) { e.preventDefault(); go(i); restartAuto(); return; }
+      const action = e.target.closest('[data-action="connect4"]');
+      if (action) window.launchConnect4 && window.launchConnect4();
+    });
+
     // clavier quand le carousel a le focus
     root.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowLeft') { prev(); restartAuto(); }
@@ -111,7 +157,7 @@
       x0 = null;
     });
 
-    // pause l'auto-défilement au survol / focus
+    // pause l'auto-rotation au survol / focus
     root.addEventListener('mouseenter', () => clearInterval(autoTimer));
     root.addEventListener('mouseleave', restartAuto);
     root.addEventListener('focusin', () => clearInterval(autoTimer));
@@ -120,7 +166,7 @@
     restartAuto();
   }
 
-  // rerender quand la langue change (applyLang appelle renderProjects ; on s'accroche au même flux)
+  // rerender quand la langue change (applyLang déclenche renderGames)
   window.renderGames = render;
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

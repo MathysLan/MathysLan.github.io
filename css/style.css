@@ -456,20 +456,37 @@ body.crt::after {
 #insert-coin { cursor: pointer; }
 #insert-coin:hover { color: var(--mint); }
 
-/* ---- Carousel des jeux ---- */
-#games-carousel { outline: none; }
-#games-viewport { overflow: hidden; border-radius: 1.5rem; }
-#games-track {
-  display: flex;
-  transition: transform .6s cubic-bezier(.16, .8, .3, 1);
-  will-change: transform;
+/* ---- Carousel 3D « coverflow » des jeux ---- */
+#games-carousel { outline: none; --vp-h: 440px; }
+#games-viewport {
+  position: relative;
+  height: var(--vp-h);
+  perspective: 1300px;
+  overflow: hidden;
+  border-radius: 1.5rem;
 }
-.game-slide { flex: 0 0 100%; min-width: 0; padding: 2px; }
-.game-slide > .glass { min-height: 340px; }
+#games-track {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+.game-slide {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: min(400px, 84vw);
+  transform: translate(-50%, -50%);
+  transition: transform .65s cubic-bezier(.16, .8, .3, 1), opacity .55s ease;
+  backface-visibility: hidden;
+  will-change: transform, opacity;
+  cursor: pointer;
+}
+.game-slide.is-active { cursor: default; }
+.game-slide > .glass { height: 100%; min-height: 360px; }
 .game-emoji {
   font-size: 2.6rem; line-height: 1;
   filter: drop-shadow(0 6px 16px rgba(139, 92, 246, .35));
 }
+@media (max-width: 640px) { #games-carousel { --vp-h: 480px; } }
 .game-cta { padding: .7rem 1.5rem; border-radius: 9999px; font-size: .9rem; }
 .game-cta-soon {
   display: inline-flex; align-items: center; gap: .5rem;
@@ -477,7 +494,7 @@ body.crt::after {
   background: var(--chip-bg); border: 1px solid var(--chip-border); color: var(--muted);
 }
 .game-nav {
-  position: absolute; top: calc(50% - 1.4rem); transform: translateY(-50%);
+  position: absolute; top: calc(var(--vp-h) / 2); transform: translateY(-50%);
   width: 2.6rem; height: 2.6rem;
   display: flex; align-items: center; justify-content: center;
   border-radius: 9999px;
@@ -506,5 +523,5 @@ body.crt::after {
   .marquee-track, .fader::after, .live-dot, .insert-coin { animation: none; }
   #timeline-line { transition: none; }
   body.crt { animation: none; }
-  #games-track { transition: none; }
+  .game-slide { transition: none; }
 }
