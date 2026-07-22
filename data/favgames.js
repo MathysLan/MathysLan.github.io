@@ -43,4 +43,14 @@ const FAV_GAMES = [
     note: "L'époque prime, la vraie.",
     note_en: 'The prime era, the real one.',
   },
+  {
+    name: 'Your Only Move Is HUSTLE', emoji: '🥊', steam: 2212330,
+    note: 'Baston au tour par tour, chaque frame compte.',
+    note_en: 'Turn-based fighting, every frame counts.',
+  },
+  {
+    name: 'SCP: Secret Laboratory', emoji: '🧪', steam: 700330,
+    note: 'Confinement, chaos et trahisons en équipe.',
+    note_en: 'Containment, chaos and team betrayals.',
+  },
 ];
