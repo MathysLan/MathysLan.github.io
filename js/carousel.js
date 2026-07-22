@@ -1,17 +1,18 @@
 // Carousel 3D « coverflow » des jeux : les cartes tournent autour d'un point fixe.
 // La carte au centre est nette et opaque ; les latérales reculent, tournent et
-// s'estompent ; la plus lointaine passe derrière le centre avant de revenir.
-// Rendu depuis data/games.js. Flèches, points, clavier, swipe, auto-rotation.
+// s'estompent ; la plus lointaine passe derrière avant de revenir. On peut faire
+// glisser à la souris/au doigt (suivi en direct puis snap). Rendu depuis data/games.js.
 (function () {
-  let index = 0;
+  let index = 0;       // carte cible (entier)
   let autoTimer = null;
   const AUTO_MS = 4500;
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // Réglages visuels du coverflow
-  const SPACING = 60;   // décalage horizontal par cran (% de largeur de carte)
-  const DEPTH = 190;    // recul en profondeur par cran (px)
-  const ROT = 42;       // rotation Y par cran (deg)
+  const SPACING = 84;   // écartement horizontal par cran (% de largeur de carte) — le « rayon »
+  const DEPTH = 210;    // recul en profondeur par cran (px)
+  const ROT = 46;       // rotation Y par cran (deg)
+  const FADE = 0.58;    // vitesse d'estompage des cartes latérales
 
   const trAcc = { violet: 'text-violet-400', amber: 'text-amber-300', mint: 'text-emerald-300' };
   const g = (obj, f) => (window.LANG === 'en' && obj[f + '_en'] !== undefined ? obj[f + '_en'] : obj[f]);
@@ -43,16 +44,16 @@
 
     return `
     <div class="game-slide" role="group" aria-roledescription="${en ? 'slide' : 'diapositive'}" aria-label="${g(game, 'title')}">
-      <div class="glass rounded-3xl p-8 md:p-10 h-full flex flex-col">
-        <div class="flex items-start justify-between gap-4 mb-5">
+      <div class="glass rounded-3xl p-7 md:p-9 h-full flex flex-col">
+        <div class="flex items-start justify-between gap-4 mb-4">
           <div class="game-emoji">${game.emoji}</div>
           <span class="font-mono text-xs ${accent} tracking-widest uppercase">${g(game, 'tagline')}</span>
         </div>
-        <h3 class="font-display text-3xl md:text-4xl font-bold heading mb-3">${g(game, 'title')}</h3>
-        <p class="muted text-sm md:text-base leading-relaxed flex-1">${g(game, 'desc')}</p>
-        <div class="flex flex-wrap gap-2 mt-5">${tags}</div>
-        ${stack ? `<div class="flex flex-wrap gap-2 mt-3 opacity-80">${stack}</div>` : ''}
-        <div class="mt-7">${cta}</div>
+        <h3 class="font-display text-2xl md:text-3xl font-bold heading mb-3">${g(game, 'title')}</h3>
+        <p class="muted text-sm leading-relaxed game-desc">${g(game, 'desc')}</p>
+        <div class="flex flex-wrap gap-2 mt-4">${tags}</div>
+        ${stack ? `<div class="flex flex-wrap gap-2 mt-2 opacity-80">${stack}</div>` : ''}
+        <div class="mt-6">${cta}</div>
       </div>
     </div>`;
   }
@@ -72,44 +73,38 @@
     update();
   }
 
-  // Place chaque carte sur l'anneau selon son écart circulaire à la carte active.
-  function update() {
+  // Place les cartes pour une position `p` (fractionnaire pendant un glissement).
+  function applyLayout(p) {
     const track = document.getElementById('games-track');
     if (!track) return;
     const slides = track.querySelectorAll('.game-slide');
     const N = slides.length;
 
     slides.forEach((slide, i) => {
-      let o = ((i - index) % N + N) % N;   // 0..N-1
-      if (o > N / 2) o -= N;               // ramène dans [-N/2, N/2]
+      let o = ((i - p) % N + N) % N;   // 0..N
+      if (o > N / 2) o -= N;           // -N/2 .. N/2
       const a = Math.abs(o);
-      const backmost = (N % 2 === 0) && (a === N / 2); // pile derrière le centre
+      const aCap = Math.min(a, 2);
 
-      let x, z, ry, s, op, zi;
-      if (backmost) {
-        x = 0; z = -DEPTH * 2.4; ry = 0; s = 0.78; op = 0.12; zi = 1;
-      } else {
-        const oc = Math.max(-2, Math.min(2, o)); // borne l'écartement visuel
-        x = oc * SPACING;
-        z = -Math.abs(oc) * DEPTH;
-        ry = -oc * ROT;
-        s = 1 - Math.abs(oc) * 0.13;
-        op = a === 0 ? 1 : (a === 1 ? 0.55 : 0.25);
-        zi = 100 - a;
-      }
+      const x = Math.sign(o) * Math.min(a, 1.5) * SPACING; // écartement, plafonné
+      const z = -aCap * DEPTH;                              // recul
+      const ry = -Math.max(-2, Math.min(2, o)) * ROT;
+      const s = 1 - aCap * 0.13;
+      const op = Math.max(0.08, 1 - a * FADE);             // le centre ressort
 
       slide.style.transform =
         `translateX(calc(-50% + ${x}%)) translateY(-50%) translateZ(${z}px) rotateY(${ry}deg) scale(${s})`;
       slide.style.opacity = op;
-      slide.style.zIndex = zi;
-      slide.classList.toggle('is-active', o === 0);
-      slide.setAttribute('aria-hidden', o === 0 ? 'false' : 'true');
+      slide.style.zIndex = 200 - Math.round(a * 10);
+      slide.classList.toggle('is-active', a < 0.5);
     });
 
+    const activeDot = ((Math.round(p) % N) + N) % N;
     document.querySelectorAll('#games-dots .game-dot').forEach((d, i) =>
-      d.classList.toggle('active', i === index));
+      d.classList.toggle('active', i === activeDot));
   }
 
+  const update = () => applyLayout(index);
   const go = (i) => { index = (i + GAMES.length) % GAMES.length; update(); };
   const next = () => go(index + 1);
   const prev = () => go(index - 1);
@@ -128,9 +123,46 @@
     document.getElementById('games-prev').addEventListener('click', () => { prev(); restartAuto(); });
     document.getElementById('games-next').addEventListener('click', () => { next(); restartAuto(); });
 
-    // Clic sur une carte : si elle n'est pas au centre, on la ramène au centre
-    // (et on bloque son lien) ; au centre, ses boutons/liens fonctionnent.
     const track = document.getElementById('games-track');
+    const vp = document.getElementById('games-viewport');
+
+    // --- glisser (souris + tactile via Pointer Events), suivi en direct puis snap ---
+    let down = false, moved = false, suppressClick = false, x0 = 0, posStart = 0;
+    const unit = () => vp.clientWidth * 0.55; // pixels pour avancer d'une carte
+
+    vp.addEventListener('pointerdown', (e) => {
+      down = true; moved = false; x0 = e.clientX; posStart = index;
+      clearInterval(autoTimer);
+      root.classList.add('dragging'); // coupe les transitions pour un suivi direct
+      try { vp.setPointerCapture(e.pointerId); } catch (_) { /* ok */ }
+    });
+    vp.addEventListener('pointermove', (e) => {
+      if (!down) return;
+      const dx = e.clientX - x0;
+      if (Math.abs(dx) > 5) moved = true;
+      applyLayout(posStart - dx / unit()); // glissement fluide
+    });
+    function endDrag(e) {
+      if (!down) return;
+      down = false;
+      root.classList.remove('dragging');
+      const dx = (e.clientX ?? x0) - x0;
+      if (moved) {
+        suppressClick = true; // le clic qui suit un glissement ne doit pas agir
+        index = ((Math.round(posStart - dx / unit()) % GAMES.length) + GAMES.length) % GAMES.length;
+      }
+      update();          // snap avec transition
+      restartAuto();
+    }
+    vp.addEventListener('pointerup', endDrag);
+    vp.addEventListener('pointercancel', endDrag);
+
+    // avale le clic parasite émis juste après un glissement (capture, avant les liens)
+    track.addEventListener('click', (e) => {
+      if (suppressClick) { suppressClick = false; e.preventDefault(); e.stopPropagation(); }
+    }, true);
+
+    // clic simple (pas un glissement) : carte latérale → au centre ; carte active → ses liens
     track.addEventListener('click', (e) => {
       const slide = e.target.closest('.game-slide');
       if (!slide) return;
@@ -144,17 +176,6 @@
     root.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowLeft') { prev(); restartAuto(); }
       else if (e.key === 'ArrowRight') { next(); restartAuto(); }
-    });
-
-    // swipe tactile
-    let x0 = null;
-    const vp = document.getElementById('games-viewport');
-    vp.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; }, { passive: true });
-    vp.addEventListener('touchend', (e) => {
-      if (x0 === null) return;
-      const dx = e.changedTouches[0].clientX - x0;
-      if (Math.abs(dx) > 40) { dx < 0 ? next() : prev(); restartAuto(); }
-      x0 = null;
     });
 
     // pause l'auto-rotation au survol / focus

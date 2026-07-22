@@ -457,14 +457,17 @@ body.crt::after {
 #insert-coin:hover { color: var(--mint); }
 
 /* ---- Carousel 3D « coverflow » des jeux ---- */
-#games-carousel { outline: none; --vp-h: 440px; }
+#games-carousel { outline: none; --vp-h: 500px; --card-h: 460px; }
 #games-viewport {
   position: relative;
   height: var(--vp-h);
-  perspective: 1300px;
+  perspective: 1400px;
   overflow: hidden;
   border-radius: 1.5rem;
+  cursor: grab;
+  touch-action: pan-y;      /* le scroll vertical de la page reste possible */
 }
+#games-carousel.dragging #games-viewport { cursor: grabbing; }
 #games-track {
   position: absolute;
   inset: 0;
@@ -473,20 +476,37 @@ body.crt::after {
 .game-slide {
   position: absolute;
   left: 50%; top: 50%;
-  width: min(400px, 84vw);
+  width: min(400px, 86vw);
+  height: var(--card-h);       /* hauteur fixe → cartes uniformes, jamais rognées */
   transform: translate(-50%, -50%);
-  transition: transform .65s cubic-bezier(.16, .8, .3, 1), opacity .55s ease;
+  transition: transform .6s cubic-bezier(.16, .8, .3, 1), opacity .5s ease;
   backface-visibility: hidden;
   will-change: transform, opacity;
-  cursor: pointer;
+  user-select: none;
 }
-.game-slide.is-active { cursor: default; }
-.game-slide > .glass { height: 100%; min-height: 360px; }
+/* pendant le glissement : suivi direct, sans transition qui traîne */
+#games-carousel.dragging .game-slide { transition: none; }
+.game-slide > .glass { height: 100%; }
+/* la description occupe l'espace restant et se tronque proprement si trop longue */
+.game-desc {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
+  -webkit-box-orient: vertical;
+}
+/* la carte de devant se détache par un halo, pour bien la lire */
+.game-slide.is-active > .glass {
+  border-color: rgba(139, 92, 246, .4);
+  box-shadow: 0 30px 70px -28px rgba(139, 92, 246, .55);
+}
 .game-emoji {
   font-size: 2.6rem; line-height: 1;
   filter: drop-shadow(0 6px 16px rgba(139, 92, 246, .35));
 }
-@media (max-width: 640px) { #games-carousel { --vp-h: 480px; } }
+@media (max-width: 640px) { #games-carousel { --vp-h: 540px; --card-h: 500px; } }
 .game-cta { padding: .7rem 1.5rem; border-radius: 9999px; font-size: .9rem; }
 .game-cta-soon {
   display: inline-flex; align-items: center; gap: .5rem;
