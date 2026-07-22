@@ -70,7 +70,8 @@ Les serveurs vivent dans leurs propres dépôts (`morpion-server`, `imitation-se
 ├── css/style.css       thème « studio / scène », clair & sombre
 ├── data/
 │   ├── projects.js     les projets
-│   └── games.js        les jeux du carrousel
+│   ├── games.js        les jeux du carrousel
+│   └── favgames.js     mes jeux vidéo préférés
 ├── js/
 │   ├── main.js         rendu projets + interactions globales
 │   ├── carousel.js     carrousel des jeux
@@ -105,4 +106,4 @@ Ce projet et ses micro-services serveurs ont été conçus et codés en binôme 
 
 ## Contact
 
-[mathys.langiny@gmail.com](mailto:mathys.langiny@gmail.com) · [LinkedIn](https://www.linkedin.com/in/mathys-langiny) · [GitHub](https://github.com/MathysLan) · [Twitch](https://www.twitch.tv/nimu_08)
+[mathys.langiny@gmail.com](mailto:mathys.langiny@gmail.com) · [LinkedIn](https://www.linkedin.com/in/mathys-langiny) · [GitHub](https://github.com/MathysLan) · [Twitch](https://www.twitch.tv/nimu_08) · [Steam](https://steamcommunity.com/id/mathys08)

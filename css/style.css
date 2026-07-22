@@ -262,6 +262,20 @@ html.light #navbar .text-gray-300 { color: #4a4760; }
 .spec-label { font-family: 'JetBrains Mono', monospace; font-size: .68rem; color: var(--muted-2); text-transform: uppercase; letter-spacing: .1em; }
 .spec-val { color: var(--heading); font-weight: 600; font-size: .9rem; margin-top: .1rem; }
 
+/* ---- Jeux vidéo préférés ---- */
+.fav-game {
+  background: var(--chip-bg);
+  border: 1px solid var(--chip-border);
+  border-radius: 12px;
+  padding: 1.1rem 1rem;
+  text-align: center;
+  transition: border-color .25s ease, transform .25s ease;
+}
+.fav-game:hover { border-color: rgba(56, 189, 248, .45); transform: translateY(-2px); }
+.fav-emoji { font-size: 1.9rem; line-height: 1; }
+.fav-name { color: var(--heading); font-weight: 600; font-size: .95rem; margin-top: .5rem; }
+.fav-note { font-family: 'JetBrains Mono', monospace; font-size: .68rem; color: var(--muted-2); margin-top: .25rem; }
+
 /* ---- Badge LIVE ---- */
 .live-dot { animation: pulse-live 1.6s ease-in-out infinite; }
 @keyframes pulse-live { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }

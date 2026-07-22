@@ -62,6 +62,18 @@ function renderProjects() {
   });
 }
 
+// ============ Jeux vidéo préférés (data/favgames.js) ============
+function renderFavGames() {
+  const grid = document.getElementById('fav-games');
+  if (!grid || typeof FAV_GAMES === 'undefined') return;
+  grid.innerHTML = FAV_GAMES.map(g => `
+    <div class="fav-game">
+      <span class="fav-emoji">${g.emoji}</span>
+      <p class="fav-name">${tr(g, 'name')}</p>
+      <p class="fav-note">${tr(g, 'note')}</p>
+    </div>`).join('');
+}
+
 // ============ Interactions globales ============
 document.addEventListener('DOMContentLoaded', () => {
   // Thème (persisté)

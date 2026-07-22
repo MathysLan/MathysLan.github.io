@@ -82,10 +82,15 @@ const I18N = {
     'passions.setup.desc': "La tour qui fait tourner le stream, le dev et les parties. Montée pièce par pièce - pas de préfabriqué.",
     'passions.setup.gpu': 'carte graphique',
     'passions.setup.cpu': 'processeur',
+    'passions.setup.ram': 'mémoire',
     'passions.setup.mic': 'micro',
     'passions.setup.headset': 'casque',
     'passions.setup.mouse': 'souris',
     'passions.setup.keyboard': 'clavier',
+    'passions.games.kicker': 'manette en main',
+    'passions.games.title': 'Mes jeux préférés',
+    'passions.games.desc': "Compétiteur dans l'âme, autant sur un serveur que manette en main. Ma bibliothèque complète est sur Steam.",
+    'passions.games.steam': 'mon profil Steam',
     'passions.concerts': '- concerts & festivals',
     'passions.movies': '- séances cultes',
     'passions.vald': 'Mon premier concert en arène',
@@ -186,10 +191,15 @@ const I18N = {
     'passions.setup.desc': "The tower that runs the stream, the dev work and the games. Built part by part - no prebuilt box.",
     'passions.setup.gpu': 'graphics card',
     'passions.setup.cpu': 'processor',
+    'passions.setup.ram': 'memory',
     'passions.setup.mic': 'mic',
     'passions.setup.headset': 'headset',
     'passions.setup.mouse': 'mouse',
     'passions.setup.keyboard': 'keyboard',
+    'passions.games.kicker': 'controller in hand',
+    'passions.games.title': 'My favorite games',
+    'passions.games.desc': "A competitor at heart, on a server as much as with a controller. My full library is on Steam.",
+    'passions.games.steam': 'my Steam profile',
     'passions.concerts': '- concerts & festivals',
     'passions.movies': '- all-time favourites',
     'passions.vald': 'My first arena concert',
@@ -243,4 +253,5 @@ function applyLang(lang) {
   if (btn) btn.textContent = lang === 'fr' ? 'EN' : 'FR';
   if (typeof renderProjects === 'function') { renderProjects(); initTilt(); }
   if (typeof renderGames === 'function') renderGames();
+  if (typeof renderFavGames === 'function') renderFavGames();
 }
