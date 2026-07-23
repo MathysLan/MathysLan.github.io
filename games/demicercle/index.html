@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Demi-Cercle — multijoueur</title>
+<meta name="description" content="Le Jeu du Demi-Cercle : un Guide donne un indice, les autres placent leur curseur sur le spectre.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: #0a0a12; color: #e7e5f4;
+    font-family: 'JetBrains Mono', monospace; padding: 1.5rem;
+  }
+  main { width: min(760px, 100%); text-align: center; }
+  h1 { font-family: 'Space Grotesk', sans-serif; font-size: 1.4rem; margin-bottom: .3rem; }
+  h1 .a { color: #8b5cf6; }
+  .sub { color: #6f6c80; font-size: .75rem; margin-bottom: 2rem; }
+
+  section {
+    background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.1);
+    border-radius: 14px; padding: 1.6rem;
+  }
+  #home, #lobby { max-width: 460px; margin: 0 auto; }
+  button {
+    font: inherit; cursor: pointer; background: #8b5cf6; color: #fff;
+    border: none; border-radius: 10px; padding: .8rem 1.4rem;
+  }
+  button:hover { background: #7c3aed; }
+  button:disabled { opacity: .45; cursor: default; }
+  input, select {
+    font: inherit; background: transparent; border: 1px solid rgba(255,255,255,.18);
+    border-radius: 10px; color: #e7e5f4; padding: .8rem 1rem; outline: none; width: 100%;
+  }
+  select { background: #11111c; }
+  input:focus { border-color: #8b5cf6; }
+  .or { color: #6f6c80; font-size: .75rem; margin: 1.1rem 0; }
+  .join-row { display: flex; gap: .6rem; }
+  .join-row input { width: 8rem; text-align: center; text-transform: uppercase; letter-spacing: .3em; }
+  .join-row button { flex: 1; background: transparent; border: 1px solid rgba(255,255,255,.18); color: #e7e5f4; }
+  .join-row button:hover { border-color: #34d399; color: #34d399; background: transparent; }
+  #name-input { margin-bottom: 1.1rem; }
+  .pick-hint { color: #9b98ad; font-size: .75rem; margin-bottom: .5rem; }
+  #avatar-row { display: flex; flex-wrap: wrap; gap: .4rem; justify-content: center; margin-bottom: 1.1rem; }
+  .avatar-pick { font-size: 1.15rem; background: #11111c; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: .45rem .55rem; }
+  .avatar-pick:hover { border-color: #8b5cf6; }
+  .avatar-pick.picked { border-color: #34d399; background: #12241d; }
+
+  #room-code { display: block; font-family: 'Space Grotesk', sans-serif; font-size: 2.4rem; font-weight: 700; letter-spacing: .45em; text-indent: .45em; color: #34d399; cursor: pointer; margin: .3rem 0 .2rem; }
+  #room-code:hover { color: #6ee7b7; }
+  #code-hint { color: #6f6c80; font-size: .7rem; margin-bottom: 1.1rem; }
+  ul { list-style: none; text-align: left; font-size: .85rem; }
+  li { padding: .5rem .2rem; border-bottom: 1px solid rgba(255,255,255,.06); display: flex; align-items: center; gap: .5rem; }
+  .tag { color: #f59e0b; font-size: .7rem; }
+  .pp { margin-right: .2rem; }
+  .pts { color: #9b98ad; margin-left: auto; }
+  #host-config { margin-top: 1.2rem; padding-top: 1.2rem; border-top: 1px solid rgba(255,255,255,.08); display: flex; align-items: center; justify-content: center; gap: .8rem; flex-wrap: wrap; }
+  #host-config label { font-size: .75rem; color: #9b98ad; }
+  #need-players { color: #6f6c80; font-size: .75rem; margin-top: 1rem; }
+
+  /* --- écran de jeu : scoreboard + scène --- */
+  .game-wrap { display: flex; gap: 1.2rem; align-items: flex-start; text-align: left; }
+  #scorepanel { flex: 0 0 170px; background: #11111c; border: 1px solid rgba(255,255,255,.08); border-radius: 12px; padding: 1rem; }
+  .sp-title { font-size: .75rem; color: #9b98ad; margin-bottom: .5rem; }
+  #scores-live li { border: none; padding: .35rem 0; font-size: .8rem; }
+  #scores-live .pts { color: #34d399; font-weight: 700; }
+  #scores-live li.guide { color: #f59e0b; }
+  .stage { flex: 1; min-width: 0; text-align: center; }
+  #stage-title { font-family: 'Space Grotesk', sans-serif; font-size: 1.1rem; margin-bottom: .3rem; }
+  #stage-sub { color: #9b98ad; font-size: .82rem; margin-bottom: .4rem; min-height: 1.2em; }
+  #timer { color: #f59e0b; font-size: .85rem; min-height: 1.2em; margin-bottom: .6rem; }
+
+  /* cadran */
+  #dial-box { position: relative; width: 100%; max-width: 460px; margin: 0 auto; }
+  #dial { width: 100%; height: auto; display: block; touch-action: none; cursor: pointer; }
+  .pole { display: flex; justify-content: space-between; font-size: .72rem; color: #cabdfd; margin-top: -.3rem; padding: 0 .4rem; }
+  .pole b { color: #e7e5f4; font-weight: 700; }
+  #guess-val { font-size: .8rem; color: #8b5cf6; margin-top: .5rem; min-height: 1.2em; }
+
+  /* zone d'action (indice / valider) */
+  #action { margin-top: 1rem; min-height: 2.6rem; }
+  #clue-row { display: flex; gap: .5rem; max-width: 420px; margin: 0 auto; }
+  #clue-input { flex: 1; }
+  .ghost { background: #11111c; border: 1px solid rgba(255,255,255,.18); color: #e7e5f4; }
+  .ghost:hover { border-color: #34d399; background: #11111c; }
+
+  #scores { margin-top: 1rem; }
+  #error { margin-top: 1rem; font-size: .8rem; color: #ef4444; min-height: 1.2em; }
+  .back { display: inline-block; margin-top: 1.6rem; color: #6f6c80; font-size: .75rem; text-decoration: none; }
+  .back:hover { color: #e7e5f4; }
+  [hidden] { display: none !important; }
+  @media (max-width: 640px) { .game-wrap { flex-direction: column; } #scorepanel { width: 100%; flex: none; } }
+</style>
+</head>
+<body>
+  <main>
+    <h1>Demi-Cercle<span class="a">.</span></h1>
+    <p class="sub">un indice, un spectre de 0 à 100 — place ton curseur au bon endroit</p>
+
+    <!-- accueil -->
+    <section id="home">
+      <input id="name-input" maxlength="16" placeholder="ton pseudo" autocomplete="off" spellcheck="false">
+      <p class="pick-hint">choisis ton icône :</p>
+      <div id="avatar-row"></div>
+      <button id="host">Créer une partie</button>
+      <p class="or">— ou —</p>
+      <div class="join-row">
+        <input id="code-input" maxlength="4" placeholder="CODE" autocomplete="off" spellcheck="false">
+        <button id="join">Rejoindre</button>
+      </div>
+    </section>
+
+    <!-- lobby -->
+    <section id="lobby" hidden>
+      <b id="room-code" title="clique pour copier">····</b>
+      <p id="code-hint">clique sur le code pour le copier</p>
+      <ul id="players"></ul>
+      <p id="need-players">il faut au moins 2 joueurs</p>
+      <div id="host-config" hidden>
+        <label for="rounds-select">manches :</label>
+        <select id="rounds-select">
+          <option value="0" selected>1 tour (auto)</option>
+          <option value="3">3</option>
+          <option value="5">5</option>
+          <option value="8">8</option>
+          <option value="12">12</option>
+        </select>
+        <button id="start">Lancer la partie</button>
+      </div>
+    </section>
+
+    <!-- jeu -->
+    <section id="game" hidden>
+      <div class="game-wrap">
+        <aside id="scorepanel">
+          <p class="sp-title">🏆 Scores</p>
+          <ul id="scores-live"></ul>
+        </aside>
+        <div class="stage">
+          <p id="stage-title"></p>
+          <p id="stage-sub"></p>
+          <p id="timer"></p>
+
+          <div id="dial-box">
+            <svg id="dial" viewBox="0 0 400 226" aria-label="cadran demi-cercle">
+              <defs>
+                <linearGradient id="dialSky" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#232042"/>
+                  <stop offset="1" stop-color="#0d0b1a"/>
+                </linearGradient>
+                <radialGradient id="pivotG" cx="0.5" cy="0.5" r="0.5">
+                  <stop offset="0" stop-color="#ff6b6b"/>
+                  <stop offset="1" stop-color="#c0392b"/>
+                </radialGradient>
+              </defs>
+              <!-- fond demi-disque -->
+              <path d="M 15 200 A 185 185 0 0 1 385 200 Z" fill="url(#dialSky)" stroke="rgba(139,92,246,.35)" stroke-width="3"/>
+              <g id="dial-bands"></g>   <!-- bandes de score (target) -->
+              <g id="dial-needles"></g> <!-- aiguilles des votes (results) -->
+              <line id="dial-pointer" x1="200" y1="200" x2="200" y2="25" stroke="#8b5cf6" stroke-width="4" stroke-linecap="round" style="display:none"/>
+              <circle cx="200" cy="200" r="16" fill="url(#pivotG)"/>
+            </svg>
+            <div class="pole"><span id="pole-low">·</span><span id="pole-high">·</span></div>
+            <p id="guess-val"></p>
+          </div>
+
+          <div id="action">
+            <div id="clue-row" hidden>
+              <input id="clue-input" maxlength="80" placeholder="ton indice…" autocomplete="off">
+              <button id="clue-send">Envoyer</button>
+            </div>
+            <button id="guess-send" class="ghost" hidden>Valider mon curseur</button>
+          </div>
+
+          <ul id="scores" hidden></ul>
+        </div>
+      </div>
+    </section>
+
+    <p id="error"></p>
+    <a class="back" href="/">← retour au portfolio</a>
+  </main>
+  <script src="net.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
