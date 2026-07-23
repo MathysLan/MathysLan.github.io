@@ -71,7 +71,10 @@
   .stage { flex: 1; min-width: 0; text-align: center; }
   #stage-title { font-family: 'Space Grotesk', sans-serif; font-size: 1.1rem; margin-bottom: .3rem; }
   #stage-sub { color: #9b98ad; font-size: .82rem; margin-bottom: .4rem; min-height: 1.2em; }
-  #timer { color: #f59e0b; font-size: .85rem; min-height: 1.2em; margin-bottom: .6rem; }
+  #next-btn { background: #34d399; color: #0a0a12; font-weight: 700; }
+  #next-btn:hover { background: #2cbd87; }
+  .wait { color: #6f6c80; font-size: .78rem; }
+  #scores-live li .rd { color: #34d399; margin-left: .3rem; }
 
   /* cadran */
   #dial-box { position: relative; width: 100%; max-width: 460px; margin: 0 auto; }
@@ -142,7 +145,6 @@
         <div class="stage">
           <p id="stage-title"></p>
           <p id="stage-sub"></p>
-          <p id="timer"></p>
 
           <div id="dial-box">
             <svg id="dial" viewBox="0 0 400 226" aria-label="cadran demi-cercle">
@@ -172,7 +174,9 @@
               <input id="clue-input" maxlength="80" placeholder="ton indice…" autocomplete="off">
               <button id="clue-send">Envoyer</button>
             </div>
-            <button id="guess-send" class="ghost" hidden>Valider mon curseur</button>
+            <button id="guess-send" class="ghost" hidden>✔ Je valide mon curseur</button>
+            <button id="next-btn" hidden></button>
+            <p id="wait-host" class="wait" hidden>en attente du MJ…</p>
           </div>
 
           <ul id="scores" hidden></ul>
