@@ -127,32 +127,41 @@
     const vp = document.getElementById('games-viewport');
 
     // --- glisser (souris + tactile via Pointer Events), suivi en direct puis snap ---
-    let down = false, moved = false, suppressClick = false, x0 = 0, posStart = 0;
+    // On ne DÉMARRE le drag (et ne capture le pointeur) qu'après un vrai seuil de
+    // déplacement : un simple clic ne capture rien → le lien « Jouer » fonctionne.
+    let down = false, drag = false, suppressClick = false, x0 = 0, posStart = 0, pid = null;
     const unit = () => vp.clientWidth * 0.55; // pixels pour avancer d'une carte
+    const DRAG_THRESHOLD = 6;
 
     vp.addEventListener('pointerdown', (e) => {
-      down = true; moved = false; x0 = e.clientX; posStart = index;
-      clearInterval(autoTimer);
-      root.classList.add('dragging'); // coupe les transitions pour un suivi direct
-      try { vp.setPointerCapture(e.pointerId); } catch (_) { /* ok */ }
+      down = true; drag = false; suppressClick = false; x0 = e.clientX; posStart = index; pid = e.pointerId;
     });
     vp.addEventListener('pointermove', (e) => {
       if (!down) return;
       const dx = e.clientX - x0;
-      if (Math.abs(dx) > 5) moved = true;
-      applyLayout(posStart - dx / unit()); // glissement fluide
+      if (!drag) {
+        if (Math.abs(dx) < DRAG_THRESHOLD) return; // pas encore un glissement : laisse passer les clics
+        drag = true;
+        clearInterval(autoTimer);
+        root.classList.add('dragging');            // coupe les transitions pour un suivi direct
+        try { vp.setPointerCapture(pid); } catch (_) { /* ok */ }
+      }
+      applyLayout(posStart - dx / unit());          // glissement fluide
     });
     function endDrag(e) {
       if (!down) return;
       down = false;
-      root.classList.remove('dragging');
-      const dx = (e.clientX ?? x0) - x0;
-      if (moved) {
-        suppressClick = true; // le clic qui suit un glissement ne doit pas agir
+      if (drag) { // c'était un vrai glissement → snap, et on avale le clic parasite
+        root.classList.remove('dragging');
+        const dx = (e.clientX ?? x0) - x0;
+        suppressClick = true;
+        setTimeout(() => { suppressClick = false; }, 350); // filet : ne bloque que le clic parasite immédiat
         index = ((Math.round(posStart - dx / unit()) % GAMES.length) + GAMES.length) % GAMES.length;
+        update();
+        restartAuto();
       }
-      update();          // snap avec transition
-      restartAuto();
+      drag = false;
+      // simple clic (pas de glissement) : on ne fait rien ici → le clic natif suit son cours
     }
     vp.addEventListener('pointerup', endDrag);
     vp.addEventListener('pointercancel', endDrag);
