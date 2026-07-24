@@ -292,14 +292,22 @@ function setRecBtn(recording) {
   btn.classList.toggle('armed', recording);
 }
 
-// Réécoute de sa propre prise (localement, sans toucher au serveur).
+// Réécoute de sa propre prise (localement) : on relance AUSSI la vidéo (muette)
+// pour juger la synchro, avec le double waveform référence + voix.
 $('replay-btn').addEventListener('click', () => {
   if (activeRec || !lastTakeUrl) return;
+  const v = $('ref-video');
+  v.hidden = false;
+  setVideoAudible(false);       // image de la vidéo, mais on entend la prise (pas le clip)
+  v.currentTime = 0;
+  v.play().catch(() => {});
   const player = $('playback');
   player.src = lastTakeUrl;
+  player.currentTime = 0;
   player.play().catch(() => {});
   vizPlayback(true);
-  startViz([{ an: analyser, color: WAVE_VOICE }]);
+  // deux pistes : référence (son vidéo, ambre) + ta prise (violet) → tu vois le calage
+  startViz([{ an: refAnalyser, color: WAVE_REF, fill: true }, { an: analyser, color: WAVE_VOICE }]);
 });
 
 function stopReplay() {

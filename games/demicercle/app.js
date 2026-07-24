@@ -9,6 +9,8 @@ let myTarget = null;          // le Guide mémorise SA cible (le serveur ne la r
 let guessVal = 50;
 let locked = false;           // ai-je validé mon vote ?
 const colorById = {};         // id joueur -> couleur (assignée à la réception 'room')
+const avatarById = {};        // id joueur -> avatar
+const nameById = {};          // id joueur -> pseudo
 const liveGuesses = {};       // (côté Guide) id -> valeur live des devineurs
 let lastMoveSent = 0;
 
@@ -120,7 +122,14 @@ async function enter(code) {
   try { await NET.connect(); NET.send(code === undefined ? { action: 'join', name, avatar: myAvatar } : { action: 'join', name, code, avatar: myAvatar }); }
   catch (err) { showError(err.message); }
 }
-$('start').addEventListener('click', () => NET.send({ action: 'start', rounds: +$('rounds-select').value }));
+$('start').addEventListener('click', () => NET.send({ action: 'start', rounds: +$('rounds-select').value, mode: $('mode-select').value }));
+
+$('theme-send').addEventListener('click', () => {
+  const label = $('theme-label').value.trim(), low = $('theme-low').value.trim(), high = $('theme-high').value.trim();
+  if (!label || !low || !high) return showError('remplis le thème et les deux extrémités');
+  NET.send({ action: 'theme', label, low, high });
+  $('theme-row').hidden = true;
+});
 $('room-code').addEventListener('click', async () => { try { await navigator.clipboard.writeText($('room-code').textContent.trim()); $('code-hint').textContent = 'code copié ✔'; setTimeout(() => { $('code-hint').textContent = 'clique sur le code pour le copier'; }, 1500); } catch (_) {} });
 $('next-btn').addEventListener('click', () => NET.send({ action: 'next' }));
 
@@ -144,7 +153,7 @@ $('guess-send').addEventListener('click', () => {
 NET.on('room', (msg) => {
   you = msg.you;
   $('room-code').textContent = msg.code;
-  msg.players.forEach((p, i) => { if (!colorById[p.id]) colorById[p.id] = PALETTE[i % PALETTE.length]; });
+  msg.players.forEach((p, i) => { if (!colorById[p.id]) colorById[p.id] = PALETTE[i % PALETTE.length]; avatarById[p.id] = p.avatar; nameById[p.id] = p.name; });
   const me = msg.players.find((p) => p.id === you);
   isHost = !!(me && me.host);
   $('players').innerHTML = msg.players.map((p) =>
@@ -163,7 +172,7 @@ NET.on('closed', () => { if (you) showError('connexion au serveur perdue'); });
 NET.on('move', (msg) => {
   if (!iAmGuide || phase !== 'guessing') return;
   liveGuesses[msg.id] = msg.value;
-  drawNeedles(Object.entries(liveGuesses).map(([id, value]) => ({ id, value, avatar: '' })));
+  drawNeedles(Object.entries(liveGuesses).map(([id, value]) => ({ id, value, avatar: avatarById[id] || '•' })));
 });
 
 // progression des « prêts »
@@ -178,10 +187,22 @@ NET.on('phase', (msg) => { phase = msg.phase; readyIds = new Set(); (PHASES[msg.
 
 const PHASES = {
   setup(msg) {
-    show('game'); iAmGuide = msg.guide === you; resetStage(); setPoles(msg.theme);
+    show('game'); iAmGuide = msg.guide === you; resetStage();
     if (iAmGuide) myTarget = msg.target;
+
+    // mode custom + je suis le Guide + thème pas encore défini → formulaire
+    if (msg.mode === 'custom' && iAmGuide && !msg.theme) {
+      setStage(`Manche ${msg.round}/${msg.of} — ✍️ Invente ton thème`, 'un sujet + les deux extrémités du spectre');
+      $('theme-row').hidden = false;
+      $('theme-label').value = ''; $('theme-low').value = ''; $('theme-high').value = '';
+      $('theme-label').focus();
+      hostControls(msg, '⏭ Passer (thème au hasard)');
+      return;
+    }
+    setPoles(msg.theme);
     const who = iAmGuide ? 'À toi de guider' : `${esc(msg.guideName)} est le Guide`;
-    setStage(`Manche ${msg.round}/${msg.of} — 🎯 ${esc(msg.theme.label)}`, `${who} · ${esc(msg.theme.low)} ⇄ ${esc(msg.theme.high)}`);
+    const themeTxt = msg.theme ? `🎯 ${esc(msg.theme.label)}` : '⏳ le Guide prépare le thème';
+    setStage(`Manche ${msg.round}/${msg.of} — ${themeTxt}`, msg.theme ? `${who} · ${esc(msg.theme.low)} ⇄ ${esc(msg.theme.high)}` : `${esc(msg.guideName)} invente le thème…`);
     hostControls(msg, '▶ Lancer l\'indice');
   },
 
@@ -203,6 +224,7 @@ const PHASES = {
     if (iAmGuide) {
       drawTarget(myTarget);                       // ← FIX : le Guide garde SA cible affichée
       setStage('🎧 « ' + esc(msg.clue) + ' »', 'les autres placent leur curseur — tu les vois bouger en direct');
+      showLegend(msg.guide);                       // qui est quelle couleur
     } else {
       setStage('🎯 « ' + esc(msg.clue) + ' »', 'place ton curseur, puis valide quand tu es prêt');
       guessVal = 50; locked = false; setPointer(50);
@@ -249,12 +271,20 @@ function hostControls(msg, label) {
 function setStage(t, s) { $('stage-title').innerHTML = t; $('stage-sub').innerHTML = s; }
 function setPoles(theme) { if (theme) { $('pole-low').innerHTML = '◀ <b>' + esc(theme.low) + '</b>'; $('pole-high').innerHTML = '<b>' + esc(theme.high) + '</b> ▶'; } }
 
+// légende couleur → joueur (affichée chez le Guide en guessing)
+function showLegend(guideId) {
+  const others = lastScores.filter((p) => p.id !== guideId);
+  $('dial-legend').innerHTML = others.map((p) =>
+    `<span class="lg"><span class="dot" style="background:${colorById[p.id] || '#fff'}"></span>${esc(p.avatar || '🙂')} ${esc(p.name)}</span>`).join('');
+  $('dial-legend').hidden = others.length === 0;
+}
+
 let lastScores = [];
 function resetStage() {
   clearTarget(); clearNeedles(); hidePointer();
   for (const k in liveGuesses) delete liveGuesses[k];
-  $('clue-row').hidden = true; $('guess-send').hidden = true; $('scores').hidden = true;
-  $('next-btn').hidden = true; $('wait-host').hidden = true;
+  $('clue-row').hidden = true; $('theme-row').hidden = true; $('guess-send').hidden = true; $('scores').hidden = true;
+  $('next-btn').hidden = true; $('wait-host').hidden = true; $('dial-legend').hidden = true;
   armDial(false); dragging = false; locked = false;
 }
 function renderScores(list) { lastScores = [...list]; renderScoresLive(); }

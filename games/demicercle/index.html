@@ -82,11 +82,17 @@
   .pole { display: flex; justify-content: space-between; font-size: .72rem; color: #cabdfd; margin-top: -.3rem; padding: 0 .4rem; }
   .pole b { color: #e7e5f4; font-weight: 700; }
   #guess-val { font-size: .8rem; color: #8b5cf6; margin-top: .5rem; min-height: 1.2em; }
+  #dial-legend { display: flex; flex-wrap: wrap; gap: .4rem .9rem; justify-content: center; margin-top: .4rem; font-size: .72rem; color: #9b98ad; }
+  #dial-legend .lg { display: inline-flex; align-items: center; gap: .3rem; }
+  #dial-legend .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 
   /* zone d'action (indice / valider) */
   #action { margin-top: 1rem; min-height: 2.6rem; }
   #clue-row { display: flex; gap: .5rem; max-width: 420px; margin: 0 auto; }
   #clue-input { flex: 1; }
+  #theme-row { max-width: 460px; margin: 0 auto; display: flex; flex-direction: column; gap: .5rem; }
+  #theme-row .theme-poles { display: flex; gap: .5rem; }
+  #theme-row .theme-poles input { flex: 1; }
   .ghost { background: #11111c; border: 1px solid rgba(255,255,255,.18); color: #e7e5f4; }
   .ghost:hover { border-color: #34d399; background: #11111c; }
 
@@ -131,6 +137,11 @@
           <option value="8">8</option>
           <option value="12">12</option>
         </select>
+        <label for="mode-select">thèmes :</label>
+        <select id="mode-select">
+          <option value="auto" selected>catalogue</option>
+          <option value="custom">le Guide invente</option>
+        </select>
         <button id="start">Lancer la partie</button>
       </div>
     </section>
@@ -167,9 +178,18 @@
             </svg>
             <div class="pole"><span id="pole-low">·</span><span id="pole-high">·</span></div>
             <p id="guess-val"></p>
+            <div id="dial-legend" hidden></div>
           </div>
 
           <div id="action">
+            <div id="theme-row" hidden>
+              <input id="theme-label" maxlength="40" placeholder="le thème (ex : une ville)" autocomplete="off">
+              <div class="theme-poles">
+                <input id="theme-low" maxlength="24" placeholder="gauche (0) — ex : village">
+                <input id="theme-high" maxlength="24" placeholder="droite (100) — ex : mégalopole">
+              </div>
+              <button id="theme-send">Valider le thème</button>
+            </div>
             <div id="clue-row" hidden>
               <input id="clue-input" maxlength="80" placeholder="ton indice…" autocomplete="off">
               <button id="clue-send">Envoyer</button>
