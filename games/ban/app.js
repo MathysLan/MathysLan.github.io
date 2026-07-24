@@ -37,7 +37,6 @@ function loadVideo(id) {
   if (curVideoId !== id) { curVideoId = id; v.src = videoUrl(id); v.load(); }
 }
 function stopRaf() { if (rafId) cancelAnimationFrame(rafId); rafId = 0; }
-const showTimer = () => { $('big-timer').textContent = V().currentTime.toFixed(2) + 's'; };
 
 // autoplay bloqué (rare après un clic) : on laisse toucher la vidéo pour lancer
 function tryPlay() {
@@ -52,6 +51,7 @@ function tryPlay() {
 function resetStage() {
   $('stop-btn').hidden = true; $('to-lobby').hidden = true; $('wait-turn').hidden = true; $('scores').hidden = true;
   $('video-box').classList.remove('live');
+  $('big-timer').textContent = '';   // aucun chrono : c'est un jeu d'instinct
 }
 
 // --- accueil ---------------------------------------------------------------
@@ -157,7 +157,8 @@ const PHASES = {
     $('stop-btn').hidden = !youActive;
     $('wait-turn').hidden = youActive;
     if (!youActive) $('wait-turn').textContent = `c'est le tour de ${esc(msg.activeName)}…`;
-    const start = () => { v.currentTime = msg.from || 0; v.muted = false; tryPlay(); runTimer(); };
+    // pas de chrono affiché : on lit juste la vidéo, l'instinct fait le reste
+    const start = () => { v.currentTime = msg.from || 0; v.muted = false; tryPlay(); };
     if (v.readyState >= 1) start();
     else v.addEventListener('loadedmetadata', start, { once: true });
   },
@@ -189,20 +190,15 @@ const PHASES = {
   },
 };
 
-// Boucle d'affichage du chrono. En preview, on coupe à `until` ; en jeu, on
-// laisse tourner (le serveur gère la fin).
+// Preview : on surveille juste la lecture pour COUPER à `until` (avant le mot).
+// Aucun chrono affiché — ni ici ni pendant les tours : c'est un jeu d'instinct.
 function guardUntil(until) {
   stopRaf();
   const v = V();
   const loop = () => {
-    if (v.currentTime >= until) { v.pause(); showTimer(); rafId = 0; return; }
-    showTimer(); rafId = requestAnimationFrame(loop);
+    if (v.currentTime >= until) { v.pause(); rafId = 0; return; }
+    rafId = requestAnimationFrame(loop);
   };
-  rafId = requestAnimationFrame(loop);
-}
-function runTimer() {
-  stopRaf();
-  const loop = () => { showTimer(); rafId = requestAnimationFrame(loop); };
   rafId = requestAnimationFrame(loop);
 }
 
