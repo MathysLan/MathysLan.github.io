@@ -29,6 +29,7 @@ contexte**. Si tu débarques : lis-le en entier avant de toucher quoi que ce soi
 |-----|-------|---------|-------|
 | **Demi-Cercle** | `games/demicercle/` | `demicercle-server` (Render) | Cadran SVG, un Guide donne un indice, les autres placent un curseur 0–100. Mode `auto` (thèmes catalogue) ou `custom` (le Guide invente thème + extrémités, mais PAS la cible). |
 | **Imitation** | `games/imitation/` | serveur dédié (Render) | Enregistrement voix (MediaRecorder + Web Audio), vidéos de référence sur **Cloudflare R2** (CORS requis). Double waveform référence (ambre) + voix (violet) pour juger la synchro. |
+| **Le Jeu du Ban** | `games/ban/` | `ban-server` (Render) | Une vidéo (CDN R2) cache un mot interdit à `fatal` (secondes, connu du serveur SEUL). Chacun son tour, on stoppe au plus tard sans dépasser. Serveur : `setTimeout` pour le rythme + filet anti-blocage, temps recoupé à l'horloge serveur (anti-triche), ordre de passage aléatoire par vidéo. `fatal` jamais envoyé avant `results`. |
 | **Puissance 4** | `games/` + `launchConnect4` | serveur dédié | lancé via bouton du carousel. |
 
 Le **carousel des jeux** (`js/carousel.js`) est un coverflow 3D ; le drag ne
@@ -66,4 +67,10 @@ démarre qu'après un seuil de 6 px pour que le lien « Jouer » reste cliquable
   le vote. Serveur : `onTheme`, `mode` par room, thèmes élargis à ~28 axes.
 - Imitation : le bouton « réécouter ma prise » relance maintenant AUSSI la vidéo
   (muette) pour vérifier la synchro, avec le double waveform.
-- Idées de nouveaux jeux à discuter avec Mathys (à venir).
+- **Le Jeu du Ban** (nouveau) : back `ban-server` livré à part (moteur pur
+  `engine-ban.js` + `server.js` avec `setTimeout`/filet, `videos.js` = catalogue
+  `{id, fatal, startAt?}`, catalogue surchargeable par `VIDEOS_JSON`). Front
+  `games/ban/` branché sur `wss://ban-server-68h9.onrender.com` + bucket R2
+  `pub-427c946793104d1f8e39fbf6d5584ba9.r2.dev`. Convention : fichier nommé
+  `<id>.mp4` à la racine du bucket. `?server=` et `?cdn=` pour tester en local.
+  Testé : moteur 26/26, ws e2e 16/16, front e2e 12/12.
