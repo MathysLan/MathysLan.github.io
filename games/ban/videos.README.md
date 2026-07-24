@@ -20,11 +20,21 @@ partie** (cache de 10 s). Donc pour ajouter/modifier une vidéo :
 - **`id`** — sert à nommer le fichier (`<id>.mp4`) sur R2. Le front construit
   l'URL à partir de là.
 - **`fatal`** — l'instant EXACT où le mot interdit **commence**, en secondes
-  (décimales OK). Pour le trouver : ouvre la vidéo, mets pause juste avant le
-  mot, et en console : `document.querySelector('video').currentTime`.
-- **`startAt`** *(optionnel, défaut 0)* — le « run-up » : au tour de chaque
-  joueur, la vidéo repart de là. Mets-le quelques secondes avant `fatal` pour
+  (décimales OK). ⚠️ **C'est LA valeur à régler** : si elle est fausse, la
+  preview coupe au mauvais endroit et le jeu déclare « dépassé » trop tôt.
+  Pour la trouver facilement : ouvre **`/games/ban/calibrate.html`**, charge ta
+  vidéo, avance jusqu'au mot, et copie le temps affiché.
+- **`startAt`** *(optionnel, défaut 0)* — là où la vidéo **démarre** (preview ET
+  tours). Mets 0 pour partir du début, ou quelques secondes avant `fatal` pour
   des passages courts et tendus.
+
+## Vérifier ce que le serveur a chargé
+
+Ouvre la racine du serveur dans le navigateur :
+`https://ban-server-68h9.onrender.com/` → il renvoie un JSON avec le catalogue
+**réellement utilisé** (source + `fatal` de chaque vidéo). Si tu y vois l'ancien
+`fatal` ou `catalogueSource: "repli (videos.js)"`, c'est que ton `videos.json`
+n'a pas été pris en compte (pas encore déployé sur Pages, ou serveur pas à jour).
 
 ## ⚠️ Note
 
