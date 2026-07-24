@@ -12,29 +12,21 @@
   * { margin: 0; box-sizing: border-box; }
   body {
     min-height: 100vh; display: flex; align-items: center; justify-content: center;
-    background: #0a0a12; color: #e7e5f4;
-    font-family: 'JetBrains Mono', monospace; padding: 1.5rem;
+    background: #0a0a12; color: #e7e5f4; font-family: 'JetBrains Mono', monospace; padding: 1.5rem;
   }
-  main { width: min(780px, 100%); text-align: center; }
+  main { width: min(880px, 100%); text-align: center; }
   h1 { font-family: 'Space Grotesk', sans-serif; font-size: 1.4rem; margin-bottom: .3rem; }
   h1 .a { color: #ef4444; }
   .sub { color: #6f6c80; font-size: .75rem; margin-bottom: 2rem; }
 
-  section {
-    background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.1);
-    border-radius: 14px; padding: 1.6rem;
-  }
+  section { background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.1); border-radius: 14px; padding: 1.6rem; }
   #home, #lobby { max-width: 460px; margin: 0 auto; }
-  button {
-    font: inherit; cursor: pointer; background: #ef4444; color: #fff;
-    border: none; border-radius: 10px; padding: .8rem 1.4rem;
-  }
+  button { font: inherit; cursor: pointer; background: #ef4444; color: #fff; border: none; border-radius: 10px; padding: .8rem 1.4rem; }
   button:hover { background: #dc2626; }
   button:disabled { opacity: .45; cursor: default; }
-  input, select {
-    font: inherit; background: transparent; border: 1px solid rgba(255,255,255,.18);
-    border-radius: 10px; color: #e7e5f4; padding: .8rem 1rem; outline: none; width: 100%;
-  }
+  .ghost { background: #11111c; border: 1px solid rgba(255,255,255,.18); color: #e7e5f4; }
+  .ghost:hover { border-color: #34d399; background: #11111c; }
+  input, select { font: inherit; background: transparent; border: 1px solid rgba(255,255,255,.18); border-radius: 10px; color: #e7e5f4; padding: .8rem 1rem; outline: none; width: 100%; }
   select { background: #11111c; }
   input:focus { border-color: #ef4444; }
   .or { color: #6f6c80; font-size: .75rem; margin: 1.1rem 0; }
@@ -48,51 +40,90 @@
   .avatar-pick { font-size: 1.15rem; background: #11111c; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: .45rem .55rem; }
   .avatar-pick:hover { border-color: #ef4444; }
   .avatar-pick.picked { border-color: #34d399; background: #12241d; }
-
   #room-code { display: block; font-family: 'Space Grotesk', sans-serif; font-size: 2.4rem; font-weight: 700; letter-spacing: .45em; text-indent: .45em; color: #34d399; cursor: pointer; margin: .3rem 0 .2rem; }
   #room-code:hover { color: #6ee7b7; }
   #code-hint { color: #6f6c80; font-size: .7rem; margin-bottom: 1.1rem; }
   ul { list-style: none; text-align: left; font-size: .85rem; }
-  li { padding: .5rem .2rem; border-bottom: 1px solid rgba(255,255,255,.06); display: flex; align-items: center; gap: .5rem; }
+  #players li { padding: .5rem .2rem; border-bottom: 1px solid rgba(255,255,255,.06); display: flex; align-items: center; gap: .5rem; }
   .tag { color: #f59e0b; font-size: .7rem; }
   .pp { margin-right: .2rem; }
-  .pts { color: #9b98ad; margin-left: auto; }
   #host-config { margin-top: 1.2rem; padding-top: 1.2rem; border-top: 1px solid rgba(255,255,255,.08); display: flex; align-items: center; justify-content: center; gap: .8rem; flex-wrap: wrap; }
   #host-config label { font-size: .75rem; color: #9b98ad; }
   #need-players { color: #6f6c80; font-size: .75rem; margin-top: 1rem; }
 
-  /* --- écran de jeu : scoreboard + scène --- */
-  .game-wrap { display: flex; gap: 1.2rem; align-items: flex-start; text-align: left; }
-  #scorepanel { flex: 0 0 170px; background: #11111c; border: 1px solid rgba(255,255,255,.08); border-radius: 12px; padding: 1rem; }
-  .sp-title { font-size: .75rem; color: #9b98ad; margin-bottom: .5rem; }
-  #scores-live li { border: none; padding: .35rem 0; font-size: .8rem; }
-  #scores-live .pts { color: #34d399; font-weight: 700; }
-  .stage { flex: 1; min-width: 0; text-align: center; }
-  #stage-title { font-family: 'Space Grotesk', sans-serif; font-size: 1.1rem; margin-bottom: .3rem; }
-  #stage-sub { color: #9b98ad; font-size: .82rem; margin-bottom: .6rem; min-height: 1.2em; }
+  /* ---------- écran de jeu ---------- */
+  #game { padding: 1.2rem; }
+  #turn-title { font-family: 'Space Grotesk', sans-serif; font-size: 1.15rem; margin-bottom: .8rem; }
+  #turn-title b { color: #c084fc; }
 
-  /* lecteur vidéo */
+  /* ordre de passage */
+  #order-panel { border: 1px solid rgba(255,255,255,.1); border-radius: 12px; padding: .8rem; margin-bottom: 1rem; text-align: left; }
+  .panel-title { font-size: .68rem; letter-spacing: .18em; color: #9b98ad; margin-bottom: .6rem; }
+  #order-chips { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .chip { display: inline-flex; align-items: center; gap: .35rem; font-size: .74rem; padding: .35rem .6rem; border-radius: 8px;
+    border: 1px solid rgba(255,255,255,.14); background: #11111c; color: #cbd5e1; }
+  .chip .num { color: #6f6c80; }
+  .chip .tc { color: #9b98ad; }
+  .chip.done { border-color: rgba(52,211,153,.5); background: #0f1f18; color: #86efac; }
+  .chip.over { border-color: rgba(239,68,68,.5); background: #23121a; color: #fca5a5; }
+  .chip.skip { opacity: .5; }
+  .chip.active { border-color: #c084fc; background: #1c1430; color: #e9d5ff; box-shadow: 0 0 0 1px #c084fc inset; }
+
+  /* vidéo */
   #video-box { position: relative; width: 100%; border-radius: 12px; overflow: hidden; background: #000; }
-  #ban-video { display: block; width: 100%; height: auto; max-height: min(52vh, 440px); object-fit: contain; background: #000; }
+  #ban-video { display: block; width: 100%; height: auto; max-height: min(48vh, 400px); object-fit: contain; background: #000; }
   #phase-badge { position: absolute; top: .6rem; left: .6rem; font-size: .72rem; background: rgba(0,0,0,.55); border: 1px solid rgba(255,255,255,.15); padding: .25rem .6rem; border-radius: 999px; }
-  #big-timer { position: absolute; right: .6rem; bottom: .6rem; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 1.6rem; color: #fff; text-shadow: 0 2px 8px #000; letter-spacing: .04em; }
   #video-box.live { box-shadow: inset 0 0 0 3px #ef4444; }
-  #video-box.live #big-timer { color: #fca5a5; }
 
-  /* zone d'action */
-  #action { margin-top: 1rem; min-height: 3.2rem; display: flex; flex-direction: column; align-items: center; gap: .5rem; }
+  /* timecode */
+  #timecode { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 1.7rem; color: #c084fc; letter-spacing: .05em; margin: .6rem 0 .2rem; }
+
+  /* règle live (tour) */
+  #live-ruler { position: relative; height: 30px; border: 1px solid rgba(255,255,255,.14); border-radius: 8px; background:
+      repeating-linear-gradient(90deg, rgba(255,255,255,.10) 0 1px, transparent 1px 24px); margin-bottom: 1rem; overflow: hidden; }
+  #live-playhead { position: absolute; top: 0; bottom: 0; width: 2px; background: #38bdf8; left: 0; }
+  #live-ruler .mark { position: absolute; top: 4px; bottom: 4px; width: 2px; opacity: .8; }
+
+  /* ---------- résultats ---------- */
+  #results-view { margin: .4rem 0 1rem; }
+  #res-timeline { position: relative; height: 120px; border: 1px solid rgba(255,255,255,.14); border-radius: 10px; margin-bottom: .3rem;
+    background: repeating-linear-gradient(90deg, rgba(255,255,255,.08) 0 1px, transparent 1px 28px); overflow: hidden; }
+  #res-fatal { position: absolute; top: 0; bottom: 0; width: 2px; background: #ef4444; }
+  #res-fatal .flag { position: absolute; top: -2px; left: 50%; transform: translateX(-50%); white-space: nowrap;
+    background: #7f1d1d; color: #fecaca; font-size: .64rem; padding: .15rem .4rem; border-radius: 6px; border: 1px solid #ef4444; }
+  .res-mark { position: absolute; top: 22px; bottom: 8px; width: 2px; }
+  .res-mark .lbl { position: absolute; top: -16px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: .6rem;
+    background: #11111c; border: 1px solid rgba(255,255,255,.2); border-radius: 5px; padding: .05rem .3rem; }
+  .res-out { position: absolute; left: 6px; white-space: nowrap; font-size: .62rem; color: #9b98ad; background: #11111c;
+    border: 1px solid rgba(255,255,255,.15); border-radius: 5px; padding: .08rem .35rem; }
+  #res-bounds { display: flex; justify-content: space-between; font-size: .62rem; color: #6f6c80; margin-bottom: 1rem; }
+  #res-table { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+  .res-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: .8rem; padding: .7rem .9rem;
+    border: 1px solid rgba(255,255,255,.1); border-radius: 10px; background: #11111c; font-size: .82rem; }
+  .res-row .rn { font-weight: 700; }
+  .res-row .rd { color: #9b98ad; font-variant-numeric: tabular-nums; }
+  .res-row .rp { font-weight: 700; min-width: 2.2rem; text-align: right; }
+  .res-row .rp.pos { color: #facc15; }
+  .res-row .rp.zero { color: #6f6c80; }
+  .res-row .rp.neg { color: #fca5a5; }
+  @media (max-width: 620px) { #res-table { grid-template-columns: 1fr; } }
+
+  /* actions + statut */
+  #action { display: flex; flex-direction: column; align-items: center; gap: .5rem; min-height: 2.6rem; margin-top: .4rem; }
+  .host-row { display: flex; gap: .6rem; flex-wrap: wrap; justify-content: center; }
+  #host-play, #host-next { background: #34d399; color: #0a0a12; font-weight: 700; }
+  #host-play:hover, #host-next:hover { background: #2cbd87; }
   #stop-btn { background: #ef4444; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 1.3rem; padding: 1rem 2.6rem; border-radius: 14px; box-shadow: 0 6px 20px rgba(239,68,68,.35); }
-  #stop-btn:hover { background: #dc2626; }
-  #to-lobby { background: #11111c; border: 1px solid rgba(255,255,255,.18); color: #e7e5f4; }
-  #to-lobby:hover { border-color: #34d399; background: #11111c; }
   #wait-turn { color: #6f6c80; font-size: .8rem; }
-
+  #status-bar { margin-top: 1rem; font-size: .72rem; letter-spacing: .12em; color: #9b98ad; }
   #scores { margin-top: 1rem; }
+  #scores li { padding: .5rem .2rem; border-bottom: 1px solid rgba(255,255,255,.06); display: flex; align-items: center; gap: .5rem; }
+  #scores .pts { color: #9b98ad; margin-left: auto; }
+
   #error { margin-top: 1rem; font-size: .8rem; color: #ef4444; min-height: 1.2em; }
   .back { display: inline-block; margin-top: 1.6rem; color: #6f6c80; font-size: .75rem; text-decoration: none; }
   .back:hover { color: #e7e5f4; }
   [hidden] { display: none !important; }
-  @media (max-width: 640px) { .game-wrap { flex-direction: column; } #scorepanel { width: 100%; flex: none; } }
 </style>
 </head>
 <body>
@@ -133,31 +164,47 @@
 
     <!-- jeu -->
     <section id="game" hidden>
-      <div class="game-wrap">
-        <aside id="scorepanel">
-          <p class="sp-title">🏆 Scores</p>
-          <ul id="scores-live"></ul>
-        </aside>
-        <div class="stage">
-          <p id="stage-title"></p>
-          <p id="stage-sub"></p>
+      <p id="turn-title"></p>
 
-          <div id="video-box">
-            <!-- pas de crossorigin : simple lecture, pas besoin de CORS sur le bucket -->
-            <video id="ban-video" playsinline preload="auto"></video>
-            <span id="phase-badge"></span>
-            <span id="big-timer"></span>
-          </div>
-
-          <div id="action">
-            <button id="stop-btn" hidden>⏹ STOP</button>
-            <button id="to-lobby" class="ghost" hidden>↩ retour au lobby</button>
-            <p id="wait-turn" class="wait" hidden></p>
-          </div>
-
-          <ul id="scores" hidden></ul>
-        </div>
+      <div id="order-panel">
+        <p class="panel-title">ORDRE DE PASSAGE</p>
+        <div id="order-chips"></div>
       </div>
+
+      <div id="video-box">
+        <video id="ban-video" playsinline preload="auto"></video>
+        <span id="phase-badge"></span>
+      </div>
+
+      <div id="timecode">0:00.000</div>
+
+      <div id="live-ruler">
+        <div id="live-marks"></div>
+        <div id="live-playhead"></div>
+      </div>
+
+      <div id="results-view" hidden>
+        <div id="res-timeline">
+          <div id="res-fatal"><span class="flag"></span></div>
+          <div id="res-marks"></div>
+        </div>
+        <div id="res-bounds"><span id="res-left"></span><span id="res-right"></span></div>
+        <div id="res-table"></div>
+      </div>
+
+      <div id="action">
+        <div class="host-row">
+          <button id="host-play" hidden>▶ Lancer la vidéo</button>
+          <button id="host-skip" class="ghost" hidden>⏭ Passer</button>
+          <button id="host-next" hidden>→ Suivant</button>
+        </div>
+        <button id="stop-btn" hidden>⏹ STOP</button>
+        <button id="to-lobby" class="ghost" hidden>↩ retour au lobby</button>
+        <p id="wait-turn" hidden></p>
+      </div>
+
+      <p id="status-bar"></p>
+      <ul id="scores" hidden></ul>
     </section>
 
     <p id="error"></p>
