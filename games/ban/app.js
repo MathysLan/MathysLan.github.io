@@ -3,8 +3,9 @@
 // afficher. Elle ne connaît JAMAIS le `fatal` avant la phase results — donc
 // aucun moyen de tricher côté front.
 //
-//   preview      : on lit le contexte, ça coupe AVANT le mot (auto)
-//   player_turn  : la vidéo tourne pour tous ; seul le joueur actif peut STOP
+//   preview      : on lit le contexte JUSQU'AU mot (coupe pile au fatal, auto)
+//   player_turn  : la vidéo tourne LIBREMENT ; seul le joueur actif peut STOP.
+//                  s'il ne clique pas, la vidéo va au bout → stop auto (dépassement)
 //   stopped      : issue d'un tour (temps/points, mot lâché ou pas)
 //   results      : le `fatal` est révélé + classement de la vidéo
 //   end          : podium
@@ -12,8 +13,13 @@
 let you = null, isHost = false, myAvatar = null;
 let phase = 'lobby';
 let youActive = false;
+let turnStopped = false;      // ai-je déjà envoyé mon stop pour ce tour ?
 let curVideoId = null;
 let rafId = 0;
+
+// Debug console : ouvre la console (F12) et renvoie-moi les lignes [ban].
+const DEBUG = true;
+const dbg = (msg, obj) => { if (DEBUG) console.log('[ban] ' + msg, obj !== undefined ? obj : ''); };
 
 // Le serveur ne connaît que l'id ; le front en déduit l'URL du CDN.
 // ?cdn=... permet de tester en local (défaut : le bucket R2 de prod).
@@ -54,6 +60,28 @@ function resetStage() {
   $('big-timer').textContent = '';   // aucun chrono : c'est un jeu d'instinct
 }
 
+// Envoi du stop (clic OU fin de vidéo). On envoie NOTRE currentTime ; le serveur
+// le recoupe à son horloge (anti-triche). Un seul stop par tour.
+function sendStop(t, cause) {
+  if (turnStopped || phase !== 'player_turn' || !youActive) return;
+  turnStopped = true;
+  const time = +Number(t).toFixed(3);
+  V().pause(); stopRaf();
+  $('stop-btn').hidden = true;
+  NET.send({ action: 'stop', time });
+  dbg('STOP envoyé', { time, cause });
+  setStage('✋ Stop !', 'on regarde si tu as tenu…');
+}
+
+// Logs des événements vidéo (chargement, seek, erreurs, fin) — pour le debug.
+(function wireVideoDebug() {
+  const v = V();
+  v.addEventListener('loadedmetadata', () => dbg('vidéo chargée', { duration: +v.duration.toFixed(3), src: v.currentSrc }));
+  v.addEventListener('seeked', () => dbg('seek ok', { currentTime: +v.currentTime.toFixed(3) }));
+  v.addEventListener('ended', () => dbg('vidéo terminée', { at: +v.currentTime.toFixed(3) }));
+  v.addEventListener('error', () => dbg('ERREUR vidéo', { code: v.error && v.error.code, src: v.currentSrc }));
+})();
+
 // --- accueil ---------------------------------------------------------------
 const AVATARS = ['😎', '🤐', '🙊', '🤫', '🦊', '🐼', '🔥', '⚡', '🎬', '🎧', '🍿', '🚫'];
 myAvatar = AVATARS[Math.floor(Math.random() * AVATARS.length)];
@@ -79,16 +107,8 @@ $('room-code').addEventListener('click', async () => { try { await navigator.cli
 // depuis le podium : on revient au lobby (le serveur y est déjà, prêt à relancer)
 $('to-lobby').addEventListener('click', () => { phase = 'lobby'; show('lobby'); });
 
-// STOP : seul le joueur actif, pendant player_turn. On envoie NOTRE currentTime ;
-// le serveur le recoupe avec sa propre horloge (anti-triche).
-$('stop-btn').addEventListener('click', () => {
-  if (!youActive || phase !== 'player_turn') return;
-  const t = V().currentTime;
-  V().pause(); stopRaf();
-  $('stop-btn').hidden = true;
-  NET.send({ action: 'stop', time: +t.toFixed(3) });
-  setStage('✋ Stop !', 'on regarde si tu as tenu…');
-});
+// STOP : seul le joueur actif, pendant player_turn.
+$('stop-btn').addEventListener('click', () => sendStop(V().currentTime, 'clic'));
 
 // --- messages serveur ------------------------------------------------------
 NET.on('room', (msg) => {
@@ -113,6 +133,7 @@ NET.on('error', (msg) => showError(msg.message));
 NET.on('closed', () => { if (you) showError('connexion au serveur perdue'); });
 
 NET.on('stopped', (msg) => {
+  dbg('reçu stopped', msg);
   stopRaf(); V().pause();
   $('stop-btn').hidden = true; $('wait-turn').hidden = true;
   $('video-box').classList.remove('live');
@@ -124,29 +145,32 @@ NET.on('stopped', (msg) => {
   );
 });
 
-NET.on('phase', (msg) => { phase = msg.phase; (PHASES[msg.phase] || (() => {}))(msg); });
+NET.on('phase', (msg) => { phase = msg.phase; dbg('phase → ' + msg.phase, msg); (PHASES[msg.phase] || (() => {}))(msg); });
 
 const PHASES = {
-  // Découverte : on lit de `from` à `until` puis on coupe AVANT le mot.
+  // Découverte : on lit de `from` (startAt) JUSQU'AU mot (`until` = fatal), puis on fige.
   preview(msg) {
     show('game'); resetStage();
     loadVideo(msg.videoId);
     const v = V();
     $('phase-badge').textContent = '👀 découverte';
     setStage(`Vidéo ${msg.round}/${msg.of} — 👀 Découverte`,
-      'on regarde le contexte… ça coupe juste avant le mot interdit');
-    const start = () => { v.currentTime = msg.from || 0; v.muted = false; tryPlay(); guardUntil(msg.until); };
+      'on regarde le contexte, jusqu\'au mot interdit');
+    const start = () => {
+      v.currentTime = msg.from || 0; v.muted = false; tryPlay(); guardUntil(msg.until);
+      dbg('preview start', { videoId: msg.videoId, from: msg.from, until: msg.until });
+    };
     if (v.readyState >= 1) start();
     else v.addEventListener('loadedmetadata', start, { once: true });
   },
 
-  // Tour d'un joueur : la vidéo tourne pour tous, SANS auto-stop. Seul l'actif
-  // a le bouton. S'il ne clique pas, elle dépasse → tout le monde entend le mot,
-  // et le serveur tranche (timeout).
+  // Tour d'un joueur : la vidéo tourne LIBREMENT (aucune coupe auto). Seul l'actif
+  // a le bouton STOP. S'il ne clique pas, la vidéo va au bout → stop auto = dépassement.
   player_turn(msg) {
     show('game'); resetStage();
     loadVideo(msg.videoId);
     youActive = !!msg.youActive;
+    turnStopped = false;
     const v = V();
     $('phase-badge').textContent = '🔴 en jeu';
     $('video-box').classList.add('live');
@@ -157,8 +181,13 @@ const PHASES = {
     $('stop-btn').hidden = !youActive;
     $('wait-turn').hidden = youActive;
     if (!youActive) $('wait-turn').textContent = `c'est le tour de ${esc(msg.activeName)}…`;
+    // fin naturelle : si l'actif ne clique pas, la vidéo va au bout → stop auto (dépassement)
+    if (youActive) v.addEventListener('ended', () => sendStop(V().currentTime, 'fin de vidéo'), { once: true });
     // pas de chrono affiché : on lit juste la vidéo, l'instinct fait le reste
-    const start = () => { v.currentTime = msg.from || 0; v.muted = false; tryPlay(); };
+    const start = () => {
+      v.currentTime = msg.from || 0; v.muted = false; tryPlay();
+      dbg('player_turn start', { videoId: msg.videoId, from: msg.from, youActive });
+    };
     if (v.readyState >= 1) start();
     else v.addEventListener('loadedmetadata', start, { once: true });
   },
