@@ -142,7 +142,18 @@
   #chrono.masked { color: #2c2c33; }
 
   /* ---------- REVEAL ---------- */
+  /* gros score en haut à droite (façon dialed.gg) */
+  #score-block { position: absolute; top: 1.9rem; right: 1.2rem; left: 1.2rem; text-align: right; }
+  #rv-score { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 3.6rem; line-height: .95;
+    letter-spacing: -.03em; color: #fff; }
+  #rv-score small { font-size: 1.2rem; color: var(--dim); }
+  #rv-quip { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: .92rem; color: #6a6a74; margin-top: .35rem; }
+
   #reveal-view { position: absolute; inset: 0; padding: 3.4rem 1.2rem 5rem; overflow-y: auto; }
+  /* quand la scène reste visible derrière (superposition des formes), le
+     classement passe en panneau bas translucide au lieu de tout recouvrir */
+  #reveal-view.sheet { top: auto; bottom: 0; max-height: 46%; padding: 1.2rem 1.2rem 4.6rem;
+    background: linear-gradient(to bottom, transparent, #0b0b0ce6 18%, #0b0b0c 40%); }
   .rv-compare { display: flex; gap: 1rem; justify-content: center; align-items: flex-end; margin-bottom: 1.1rem; flex-wrap: wrap; }
   .swatch { width: 96px; height: 66px; border-radius: 12px; border: 1px solid rgba(255,255,255,.18); }
   .rv-lbl { font-size: .6rem; color: var(--dim); text-align: center; margin-top: .3rem; letter-spacing: .1em; }
@@ -230,8 +241,8 @@
                   <stop offset=".7" stop-color="#f0abfc"/><stop offset="1" stop-color="#fb923c"/>
                 </linearGradient>
               </defs>
-              <polygon id="tri-ghost" points="0,-10 8.66,5 -8.66,5" fill="none" stroke="#ffffff55" stroke-width=".7" stroke-dasharray="2 1.6" style="display:none"/>
-              <polygon id="tri" points="0,-10 8.66,5 -8.66,5" fill="url(#triGrad)"/>
+              <path id="tri-ghost" d="" fill="none" stroke="#ffffff55" stroke-width=".7" stroke-dasharray="2 1.6" style="display:none"/>
+              <path id="tri" d="" fill="url(#triGrad)"/>
               <line id="h-link" class="hlink" x1="0" y1="0" x2="0" y2="0" style="display:none"/>
             </svg>
             <!-- poignées en HTML : elles restent rondes même si le SVG est étiré -->
@@ -276,8 +287,8 @@
         <div id="reveal-view" hidden>
           <div class="rv-compare" id="rv-compare"></div>
           <svg id="rv-shape" viewBox="0 0 100 100" hidden>
-            <polygon id="rv-tri-target" points="0,-10 8.66,5 -8.66,5" fill="none" stroke="#ffffff77" stroke-width=".7" stroke-dasharray="2 1.6"/>
-            <polygon id="rv-tri-mine" points="0,-10 8.66,5 -8.66,5" fill="url(#triGrad)" opacity=".85"/>
+            <path id="rv-tri-target" d="" fill="none" stroke="#ffffff77" stroke-width=".7" stroke-dasharray="2 1.6"/>
+            <path id="rv-tri-mine" d="" fill="url(#triGrad)" opacity=".85"/>
           </svg>
           <div id="rv-list"></div>
           <ul id="scores" hidden></ul>
@@ -291,6 +302,10 @@
         <div class="bl" id="hud-bl">
           <p id="freq-big" hidden>440.00<small>Hz</small></p>
           <p id="chrono" hidden>0.000</p>
+        </div>
+        <div id="score-block" hidden>
+          <p id="rv-score">0.0<small>%</small></p>
+          <p id="rv-quip"></p>
         </div>
         <p class="top-hint" id="phase-title"></p>
         <p class="hint" id="phase-sub"></p>

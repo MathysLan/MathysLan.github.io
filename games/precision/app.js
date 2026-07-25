@@ -116,9 +116,31 @@ $('fab').addEventListener('click', () => {
 // On attrape la forme pour la déplacer, la poignée du haut pour tourner,
 // celle du coin pour agrandir. Aucun slider.
 const SHAPE = (() => {
-  const R = 10;                       // rayon du triangle à l'échelle 1
-  let x = 50, y = 50, scale = 1, rot = 0, live = false, mode = null;
+  const R = 10;                       // « rayon » de la forme à l'échelle 1
+  const GAP = 7;                      // les poignées se posent HORS de la figure
+  let x = 50, y = 50, scale = 1, rot = 0, live = false, mode = null, kind = 'triangle';
   let grabAng = 0, grabRot = 0;
+
+  // Géométrie de chaque forme, centrée sur l'origine (chemin SVG en unités locales).
+  const poly = (n, r = R, turn = -90) => {
+    const pts = [];
+    for (let i = 0; i < n; i++) {
+      const a = (turn + i * 360 / n) * Math.PI / 180;
+      pts.push(`${(Math.cos(a) * r).toFixed(2)},${(Math.sin(a) * r).toFixed(2)}`);
+    }
+    return 'M' + pts.join('L') + 'Z';
+  };
+  const rect = (w, h) => `M${-w},${-h}L${w},${-h}L${w},${h}L${-w},${h}Z`;
+  const oval = (rx, ry) => `M${-rx},0a${rx},${ry} 0 1,0 ${rx * 2},0a${rx},${ry} 0 1,0 ${-rx * 2},0`;
+  const PATHS = {
+    triangle: poly(3), pentagone: poly(5), hexagone: poly(6),
+    carre: rect(7.07, 7.07), rectangle: rect(9, 5),
+    cercle: oval(R, R), ovale: oval(12.5, 7),
+  };
+  const pathFor = (k) => PATHS[k] || PATHS.triangle;
+  // « demi-hauteur » visuelle de la forme, pour poser les poignées juste dehors
+  const REACH = { rectangle: 10.3, ovale: 12.5, carre: 10, cercle: 10 };
+  const reachOf = (k) => REACH[k] || R;
 
   const svg = () => $('shape-svg');
   function toSvg(e) {
@@ -128,15 +150,19 @@ const SHAPE = (() => {
   // position des poignées, en unités du viewBox (0..100)
   let hRot = { x: 0, y: 0 }, hScale = { x: 0, y: 0 };
   function paint() {
-    $('tri').setAttribute('transform', `translate(${x} ${y}) rotate(${rot}) scale(${scale})`);
+    const t = $('tri');
+    t.setAttribute('d', pathFor(kind));
+    t.setAttribute('transform', `translate(${x} ${y}) rotate(${rot}) scale(${scale})`);
     const wrap = $('tri-handles'), link = $('h-link');
     setHidden(wrap, !live);
     link.style.display = live ? 'block' : 'none';
     if (!live) return;
     const rad = (a) => (a - 90) * Math.PI / 180;
-    const rr = rad(rot), rs = rad(rot + 130);
-    hRot = { x: x + Math.cos(rr) * (R * scale + 7), y: y + Math.sin(rr) * (R * scale + 7) };
-    hScale = { x: x + Math.cos(rs) * (R * scale), y: y + Math.sin(rs) * (R * scale) };
+    const rr = rad(rot), rs = rad(rot + 135);
+    // les DEUX poignées sont posées à l'extérieur de la figure (jamais dessus)
+    const out = reachOf(kind) * scale + GAP;
+    hRot = { x: x + Math.cos(rr) * out, y: y + Math.sin(rr) * out };
+    hScale = { x: x + Math.cos(rs) * out, y: y + Math.sin(rs) * out };
     // les poignées sont en HTML : on les place en % (même repère que le viewBox)
     $('h-rot').style.left = hRot.x + '%'; $('h-rot').style.top = hRot.y + '%';
     $('h-scale').style.left = hScale.x + '%'; $('h-scale').style.top = hScale.y + '%';
@@ -147,6 +173,7 @@ const SHAPE = (() => {
     const g = $('tri-ghost');
     if (!t) { g.style.display = 'none'; return; }
     g.style.display = 'block';
+    g.setAttribute('d', pathFor(t.kind || kind));
     g.setAttribute('transform', `translate(${t.x} ${t.y}) rotate(${t.rotation}) scale(${t.scale})`);
   }
   const angleTo = (px, py) => Math.atan2(py - y, px - x) * 180 / Math.PI + 90;
@@ -176,15 +203,27 @@ const SHAPE = (() => {
   }
   function apply(px, py) {
     if (mode === 'move') { x = clamp(px, 0, 100); y = clamp(py, 0, 100); }
-    else if (mode === 'scale') { scale = clamp(Math.hypot(px - x, py - y) / R, 0.3, 2); }
+    // la poignée est décalée de GAP vers l'extérieur : on l'enlève avant de convertir
+    else if (mode === 'scale') { scale = clamp((Math.hypot(px - x, py - y) - GAP) / reachOf(kind), 0.3, 2); }
     else if (mode === 'rot') { rot = ((grabRot + (angleTo(px, py) - grabAng)) % 360 + 360) % 360; }
     paint();
   }
   return {
-    showTarget(t) { wire(); live = false; setGhost(null); x = t.x; y = t.y; scale = t.scale; rot = t.rotation; paint(); },
-    reset() { wire(); live = true; setGhost(null); x = 50; y = 50; scale = 1; rot = 0; paint(); },
+    showTarget(t) { wire(); live = false; setGhost(null); kind = t.kind || 'triangle'; x = t.x; y = t.y; scale = t.scale; rot = t.rotation; paint(); },
+    reset(k) { wire(); live = true; setGhost(null); $('tri').style.display = 'block'; if (k) kind = k; x = 50; y = 50; scale = 1; rot = 0; paint(); },
     freeze() { live = false; mode = null; paint(); },
     data() { return { x: +x.toFixed(2), y: +y.toFixed(2), scale: +scale.toFixed(3), rotation: +rot.toFixed(1) }; },
+    // résultats : la cible en pointillés + TA forme pleine, sur la même grille
+    compare(t, mine) {
+      wire(); live = false; mode = null;
+      kind = t.kind || kind;
+      setGhost(t);
+      const m = mine || t;
+      x = m.x; y = m.y; scale = m.scale; rot = m.rotation;
+      $('tri').style.display = mine ? 'block' : 'none';
+      paint();
+    },
+    path: pathFor,
   };
 })();
 
@@ -375,6 +414,7 @@ function showStage(g) {
   $('reveal-view').hidden = true;
 }
 function stopAll() {
+  clearTimeout(autoTimer); autoTimer = 0;
   for (const k of Object.keys(GAMES)) { const m = GAMES[k]; if (m.freeze) m.freeze(); if (m.stop) m.stop(); }
   $('freq-big').hidden = true; $('chrono').hidden = true;
 }
@@ -419,16 +459,24 @@ $('room-code').addEventListener('click', async () => {
     $('code-hint').textContent = 'code copié ✔'; setTimeout(() => { $('code-hint').textContent = 'clique sur le code pour le copier'; }, 1500); } catch (_) {}
 });
 
-function doSubmit() {
+let autoTimer = 0;
+function doSubmit(auto) {
   if (submitted || phase !== 'play' || !game) return;
+  clearTimeout(autoTimer); autoTimer = 0;
   const data = GAMES[game].data();
   submitted = true;
   AUDIO.submit();
   GAMES[game].freeze();
   setFab('wait');
   NET.send({ action: 'submit', type: game, data });
-  dbg('tentative envoyée', { game, data });
-  $('phase-sub').textContent = 'validé — en attente des autres…';
+  dbg(auto ? 'temps écoulé → validation automatique' : 'tentative envoyée', { game, data });
+  $('phase-sub').textContent = auto ? 'temps écoulé — ta position a été prise' : 'validé — en attente des autres…';
+}
+// Filet : si le temps s'écoule sans qu'on ait cliqué, on envoie quand même la
+// position en cours (on part un peu avant la fin pour que ça arrive à temps).
+function armAutoSubmit(ms) {
+  clearTimeout(autoTimer);
+  autoTimer = setTimeout(() => doSubmit(true), Math.max(200, ms - 350));
 }
 
 // ============================================================ serveur
@@ -459,6 +507,7 @@ const PHASES = {
     $('phase-title').textContent = HINTS[game].memo;
     $('phase-sub').textContent = 'mémorise…';
     showStage(game); setFab(null); AUDIO.memorize();
+    $('score-block').hidden = true; $('reveal-view').classList.remove('sheet');
     GAMES[game].showTarget(msg.target);
     runBar(msg.ms);
   },
@@ -468,9 +517,11 @@ const PHASES = {
     $('phase-title').textContent = HINTS[game].play;
     $('phase-sub').textContent = 'à toi';
     showStage(game); AUDIO.go();
-    GAMES[game].reset();
+    $('score-block').hidden = true;
+    GAMES[game].reset(msg.kind);        // `kind` : quelle forme dessiner (shape)
     setFab('submit');
     runBar(msg.ms);
+    armAutoSubmit(msg.ms);              // le temps qui s'écoule vaut validation
   },
 
   reveal(msg) {
@@ -490,6 +541,7 @@ const PHASES = {
     $('phase-title').textContent = 'Fin de partie';
     $('phase-sub').textContent = '';
     $('hud-round').textContent = '🏆';
+    $('score-block').hidden = true; $('reveal-view').classList.remove('sheet');
     $('reveal-view').hidden = false;
     $('rv-compare').innerHTML = '<p class="rv-big">🏆 Podium</p>';
     setHidden($('rv-shape'), true); $('rv-list').innerHTML = '';
@@ -506,11 +558,18 @@ const accClass = (a) => a >= 80 ? 'a-hi' : (a >= 45 ? 'a-mid' : 'a-lo');
 function deltaText(g, r) {
   if (!r.submitted) return 'pas validé';
   const d = r.deltas || {};
-  if (g === 'shape') return `pos ${d.pos} · taille ${d.scale} · angle ${d.rot}°`;
+  // un cercle n'a pas d'angle : le serveur renvoie rot = null
+  if (g === 'shape') return `pos ${d.pos} · taille ${d.scale}` + (d.rot === null ? '' : ` · angle ${d.rot}°`);
   if (g === 'color') return `teinte ${d.h}° · sat ${d.s} · lum ${d.l}`;
   if (g === 'sound') return `${d.hz > 0 ? '+' : ''}${d.hz} Hz · ${Math.round(d.cents)} cents`;
   return `${d.ms > 0 ? '+' : ''}${d.ms} ms`;
 }
+
+const QUIPS = [
+  [95, 'Chirurgical.'], [85, 'Très propre.'], [70, 'Bien vu.'],
+  [50, 'Pas mal.'], [30, 'Approximatif.'], [0, 'Aïe.'],
+];
+const quipFor = (a) => (QUIPS.find(([s]) => a >= s) || QUIPS[QUIPS.length - 1])[1];
 
 function renderReveal(msg) {
   const g = msg.game, t = msg.target;
@@ -519,19 +578,28 @@ function renderReveal(msg) {
   const cmp = $('rv-compare'); cmp.innerHTML = '';
   setHidden($('rv-shape'), true); $('scores').hidden = false;
 
+  // gros score + petite phrase (mon résultat à moi)
+  const acc = mine ? mine.accuracy : 0;
+  $('score-block').hidden = false;
+  $('rv-score').innerHTML = acc.toFixed(1) + '<small>%</small>';
+  $('rv-quip').textContent = quipFor(acc);
+  $('phase-title').textContent = '';
+
+  // Forme : on GARDE la grille et on superpose cible (pointillés) + ta forme.
+  // Le classement passe alors en panneau bas pour ne pas cacher le visuel.
+  const overlay = (g === 'shape');
+  $('reveal-view').classList.toggle('sheet', overlay);
+  if (overlay) {
+    showStage('shape');
+    $('reveal-view').hidden = false;
+    SHAPE.compare(t, mine && mine.data);
+    cmp.innerHTML = '<p class="rv-lbl">POINTILLÉS : LA CIBLE · PLEIN : TOI</p>';
+  }
+
   if (g === 'color') {
     const sw = (c, l) => `<div><div class="swatch" style="background:${c}"></div><p class="rv-lbl">${l}</p></div>`;
     cmp.innerHTML = sw(`hsl(${t.h} ${t.s}% ${t.l}%)`, 'LA CIBLE')
       + (mine && mine.data ? sw(`hsl(${mine.data.h} ${mine.data.s}% ${mine.data.l}%)`, 'TOI') : '');
-  } else if (g === 'shape') {
-    setHidden($('rv-shape'), false);
-    $('rv-tri-target').setAttribute('transform', `translate(${t.x} ${t.y}) rotate(${t.rotation}) scale(${t.scale})`);
-    if (mine && mine.data) {
-      const m = mine.data;
-      $('rv-tri-mine').style.display = 'block';
-      $('rv-tri-mine').setAttribute('transform', `translate(${m.x} ${m.y}) rotate(${m.rotation}) scale(${m.scale})`);
-    } else $('rv-tri-mine').style.display = 'none';
-    cmp.innerHTML = '<p class="rv-lbl">POINTILLÉS : LA CIBLE · PLEIN : TOI</p>';
   } else if (g === 'sound') {
     cmp.innerHTML = `<div><p class="rv-lbl">LA CIBLE</p><p class="rv-big">${SOUND.label(t.frequency)}</p></div>`
       + (mine && mine.data ? `<div><p class="rv-lbl">TOI</p><p class="rv-big">${SOUND.label(mine.data.frequency)}</p></div>` : '');
@@ -539,7 +607,7 @@ function renderReveal(msg) {
     btn.className = 'ghost'; btn.textContent = '🔊 réécouter la cible';
     btn.addEventListener('click', () => SOUND.preview(t.frequency, 1300));
     cmp.appendChild(btn);
-  } else {
+  } else if (g === 'time') {
     cmp.innerHTML = `<div><p class="rv-lbl">LA CIBLE</p><p class="rv-big">${TIME.fmt(t.target_ms)} s</p></div>`
       + (mine && mine.data ? `<div><p class="rv-lbl">TOI</p><p class="rv-big">${TIME.fmt(mine.data.ms)} s</p></div>` : '');
   }
