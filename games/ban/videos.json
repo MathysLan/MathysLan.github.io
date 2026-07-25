@@ -1,3 +1,4 @@
 [
-  { "id": "vid_01", "fatal": 15.981, "startAt": 3 }
+  { "id": "vid_01", "fatal": 15.981, "startAt": 3 },
+  { "id": "vid_02", "fatal": 4.524, "startAt": 0 }
 ]
