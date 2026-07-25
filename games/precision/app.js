@@ -125,19 +125,23 @@ const SHAPE = (() => {
     const r = svg().getBoundingClientRect();
     return { px: ((e.clientX - r.left) / r.width) * 100, py: ((e.clientY - r.top) / r.height) * 100 };
   }
+  // position des poignées, en unités du viewBox (0..100)
+  let hRot = { x: 0, y: 0 }, hScale = { x: 0, y: 0 };
   function paint() {
     $('tri').setAttribute('transform', `translate(${x} ${y}) rotate(${rot}) scale(${scale})`);
-    const g = $('tri-handles');
-    g.style.display = live ? 'block' : 'none';
+    const wrap = $('tri-handles'), link = $('h-link');
+    setHidden(wrap, !live);
+    link.style.display = live ? 'block' : 'none';
     if (!live) return;
     const rad = (a) => (a - 90) * Math.PI / 180;
     const rr = rad(rot), rs = rad(rot + 130);
-    const hx = x + Math.cos(rr) * (R * scale + 6), hy = y + Math.sin(rr) * (R * scale + 6);
-    const sx = x + Math.cos(rs) * (R * scale), sy = y + Math.sin(rs) * (R * scale);
-    $('h-rot').setAttribute('cx', hx); $('h-rot').setAttribute('cy', hy);
-    $('h-scale').setAttribute('cx', sx); $('h-scale').setAttribute('cy', sy);
-    $('h-link').setAttribute('x1', x); $('h-link').setAttribute('y1', y);
-    $('h-link').setAttribute('x2', hx); $('h-link').setAttribute('y2', hy);
+    hRot = { x: x + Math.cos(rr) * (R * scale + 7), y: y + Math.sin(rr) * (R * scale + 7) };
+    hScale = { x: x + Math.cos(rs) * (R * scale), y: y + Math.sin(rs) * (R * scale) };
+    // les poignées sont en HTML : on les place en % (même repère que le viewBox)
+    $('h-rot').style.left = hRot.x + '%'; $('h-rot').style.top = hRot.y + '%';
+    $('h-scale').style.left = hScale.x + '%'; $('h-scale').style.top = hScale.y + '%';
+    link.setAttribute('x1', x); link.setAttribute('y1', y);
+    link.setAttribute('x2', hRot.x); link.setAttribute('y2', hRot.y);
   }
   function setGhost(t) {
     const g = $('tri-ghost');
@@ -153,10 +157,14 @@ const SHAPE = (() => {
     b.addEventListener('pointerdown', (e) => {
       if (!live) return;
       const { px, py } = toSvg(e);
-      const near = (cx, cy) => Math.hypot(px - cx, py - cy) < 5;
-      const hr = $('h-rot'), hs = $('h-scale');
-      if (near(+hr.getAttribute('cx'), +hr.getAttribute('cy'))) { mode = 'rot'; grabAng = angleTo(px, py); grabRot = rot; }
-      else if (near(+hs.getAttribute('cx'), +hs.getAttribute('cy'))) mode = 'scale';
+      // hit-test en PIXELS : le viewBox est étiré, une distance en unités
+      // viewBox ne correspondrait pas à ce qu'on voit à l'écran.
+      const r = svg().getBoundingClientRect();
+      const nearPx = (h) => Math.hypot(
+        e.clientX - (r.left + h.x / 100 * r.width),
+        e.clientY - (r.top + h.y / 100 * r.height)) < 24;
+      if (nearPx(hRot)) { mode = 'rot'; grabAng = angleTo(px, py); grabRot = rot; }
+      else if (nearPx(hScale)) mode = 'scale';
       else mode = 'move';
       AUDIO.click();
       try { b.setPointerCapture(e.pointerId); } catch (_) {}
