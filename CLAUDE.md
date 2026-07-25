@@ -30,6 +30,7 @@ contexte**. Si tu débarques : lis-le en entier avant de toucher quoi que ce soi
 | **Demi-Cercle** | `games/demicercle/` | `demicercle-server` (Render) | Cadran SVG, un Guide donne un indice, les autres placent un curseur 0–100. Mode `auto` (thèmes catalogue) ou `custom` (le Guide invente thème + extrémités, mais PAS la cible). |
 | **Imitation** | `games/imitation/` | serveur dédié (Render) | Enregistrement voix (MediaRecorder + Web Audio), vidéos de référence sur **Cloudflare R2** (CORS requis). Double waveform référence (ambre) + voix (violet) pour juger la synchro. |
 | **Le Jeu du Ban** | `games/ban/` | `ban-server` (Render) | Une vidéo (CDN R2) cache un mot interdit à `fatal` (secondes). Chacun son tour, on stoppe au plus tard sans dépasser. Serveur : `setTimeout` pour le rythme + filet anti-blocage, temps recoupé à l'horloge serveur (anti-triche), ordre de passage aléatoire par vidéo. `fatal` jamais envoyé avant `results`. **Catalogue = `games/ban/videos.json` DANS CE REPO** (`{id, fatal, startAt}`) : le serveur le fetch depuis Pages à chaque partie (cache 10 s), donc Mathys édite le JSON + push, aucun redeploy Render. Contrepartie assumée : `fatal` public. |
+| **Précision** | `games/precision/` | `precision-server` (Render) | Party game inspiré de dialed.gg : 4 épreuves (shape/color/sound/time). TOUT LE MONDE joue en même temps. Le serveur génère la cible, tient les timers de phase (`memorize`→`play`, durées selon la difficulté Facile→Impossible) et calcule la précision 0–100 %. Moteur pur `engine-precision.js` (barèmes + scoring : teinte circulaire, symétrie du triangle, cents pour le son). Cible envoyée en `memorize` seulement ; `time` recoupé à l'horloge serveur. |
 | **Puissance 4** | `games/` + `launchConnect4` | serveur dédié | lancé via bouton du carousel. |
 
 Le **carousel des jeux** (`js/carousel.js`) est un coverflow 3D ; le drag ne
@@ -74,3 +75,8 @@ démarre qu'après un seuil de 6 px pour que le lien « Jouer » reste cliquable
   `pub-427c946793104d1f8e39fbf6d5584ba9.r2.dev`. Convention : fichier nommé
   `<id>.mp4` à la racine du bucket. `?server=` et `?cdn=` pour tester en local.
   Testé : moteur 26/26, ws e2e 16/16, front e2e 12/12.
+- **Précision** (nouveau) : back `precision-server` livré à part
+  (`engine-precision.js` pur + `server.js` avec les setTimeout de phase), front
+  `games/precision/` sur `wss://precision-server.onrender.com`. Le MJ choisit
+  difficulté / manches / épreuve. Testé : moteur 60/60, ws e2e 23/23, front
+  e2e 59/59.

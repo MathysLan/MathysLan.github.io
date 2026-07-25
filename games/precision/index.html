@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Précision — party game multijoueur</title>
+<meta name="description" content="Party game de précision : mémorise une forme, une couleur, un son ou un temps… puis reproduis-le au plus juste.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  body {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: #0a0a12; color: #e7e5f4; font-family: 'JetBrains Mono', monospace; padding: 1.5rem;
+  }
+  main { width: min(880px, 100%); text-align: center; }
+  h1 { font-family: 'Space Grotesk', sans-serif; font-size: 1.4rem; margin-bottom: .3rem; }
+  h1 .a { color: #22d3ee; }
+  .sub { color: #6f6c80; font-size: .75rem; margin-bottom: 2rem; }
+
+  section { background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.1); border-radius: 14px; padding: 1.6rem; }
+  #home, #lobby { max-width: 460px; margin: 0 auto; }
+  button { font: inherit; cursor: pointer; background: #22d3ee; color: #06202a; font-weight: 700; border: none; border-radius: 10px; padding: .8rem 1.4rem; }
+  button:hover { background: #0eb8d4; }
+  button:disabled { opacity: .45; cursor: default; }
+  .ghost { background: #11111c; border: 1px solid rgba(255,255,255,.18); color: #e7e5f4; font-weight: 400; }
+  .ghost:hover { border-color: #22d3ee; background: #11111c; }
+  input, select { font: inherit; background: transparent; border: 1px solid rgba(255,255,255,.18); border-radius: 10px; color: #e7e5f4; padding: .8rem 1rem; outline: none; width: 100%; }
+  select { background: #11111c; }
+  input:focus { border-color: #22d3ee; }
+  .or { color: #6f6c80; font-size: .75rem; margin: 1.1rem 0; }
+  .join-row { display: flex; gap: .6rem; }
+  .join-row input { width: 8rem; text-align: center; text-transform: uppercase; letter-spacing: .3em; }
+  .join-row button { flex: 1; background: transparent; border: 1px solid rgba(255,255,255,.18); color: #e7e5f4; font-weight: 400; }
+  .join-row button:hover { border-color: #34d399; color: #34d399; background: transparent; }
+  #name-input { margin-bottom: 1.1rem; }
+  .pick-hint { color: #9b98ad; font-size: .75rem; margin-bottom: .5rem; }
+  #avatar-row { display: flex; flex-wrap: wrap; gap: .4rem; justify-content: center; margin-bottom: 1.1rem; }
+  .avatar-pick { font-size: 1.15rem; background: #11111c; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: .45rem .55rem; font-weight: 400; }
+  .avatar-pick:hover { border-color: #22d3ee; }
+  .avatar-pick.picked { border-color: #34d399; background: #12241d; }
+  #room-code { display: block; font-family: 'Space Grotesk', sans-serif; font-size: 2.4rem; font-weight: 700; letter-spacing: .45em; text-indent: .45em; color: #34d399; cursor: pointer; margin: .3rem 0 .2rem; }
+  #room-code:hover { color: #6ee7b7; }
+  #code-hint { color: #6f6c80; font-size: .7rem; margin-bottom: 1.1rem; }
+  ul { list-style: none; text-align: left; font-size: .85rem; }
+  #players li { padding: .5rem .2rem; border-bottom: 1px solid rgba(255,255,255,.06); display: flex; align-items: center; gap: .5rem; }
+  .tag { color: #f59e0b; font-size: .7rem; }
+  .pp { margin-right: .2rem; }
+  #host-config { margin-top: 1.2rem; padding-top: 1.2rem; border-top: 1px solid rgba(255,255,255,.08); display: grid; grid-template-columns: auto 1fr; gap: .6rem .8rem; align-items: center; text-align: left; }
+  #host-config label { font-size: .75rem; color: #9b98ad; }
+  #host-config button { grid-column: 1 / -1; margin-top: .4rem; }
+  #need-players { color: #6f6c80; font-size: .75rem; margin-top: 1rem; }
+
+  /* ---------- écran de jeu ---------- */
+  #game { padding: 1.2rem; }
+  .hud { display: flex; justify-content: space-between; align-items: center; font-size: .72rem; color: #9b98ad; margin-bottom: .6rem; }
+  .hud .diff { color: #22d3ee; letter-spacing: .12em; }
+  #phase-title { font-family: 'Space Grotesk', sans-serif; font-size: 1.15rem; margin-bottom: .2rem; }
+  #phase-sub { color: #9b98ad; font-size: .8rem; min-height: 1.2em; margin-bottom: .5rem; }
+  #timebar { height: 4px; border-radius: 999px; background: rgba(255,255,255,.1); overflow: hidden; margin-bottom: 1rem; }
+  #timefill { height: 100%; width: 100%; background: linear-gradient(90deg,#22d3ee,#a78bfa); transition: width .1s linear; }
+
+  .stage { position: relative; }
+
+  /* --- SHAPE --- */
+  #shape-board { position: relative; width: 100%; aspect-ratio: 1/1; max-height: 44vh; margin: 0 auto; border-radius: 12px;
+    background: #07070f repeating-linear-gradient(0deg, rgba(255,255,255,.05) 0 1px, transparent 1px 10%),
+      repeating-linear-gradient(90deg, rgba(255,255,255,.05) 0 1px, transparent 1px 10%);
+    border: 1px solid rgba(255,255,255,.12); overflow: hidden; touch-action: none; }
+  #shape-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .sliders { display: grid; gap: .5rem; margin-top: .8rem; }
+  .srow { display: grid; grid-template-columns: 5.5rem 1fr 4rem; align-items: center; gap: .6rem; font-size: .72rem; color: #9b98ad; }
+  .srow input[type=range] { width: 100%; padding: 0; accent-color: #22d3ee; background: transparent; border: none; }
+  .srow .val { font-variant-numeric: tabular-nums; color: #e7e5f4; text-align: right; }
+
+  /* --- COLOR --- */
+  #color-wrap { display: flex; gap: .6rem; height: min(44vh, 340px); }
+  .cbar { position: relative; width: 42px; border-radius: 10px; border: 1px solid rgba(255,255,255,.14); cursor: pointer; touch-action: none; }
+  #bar-h { background: linear-gradient(to bottom,#f00 0%,#ff0 17%,#0f0 33%,#0ff 50%,#00f 67%,#f0f 83%,#f00 100%); }
+  .cbar .knob { position: absolute; left: 50%; width: 20px; height: 20px; border-radius: 50%; background: #fff;
+    border: 2px solid #0a0a12; transform: translate(-50%,-50%); pointer-events: none; box-shadow: 0 2px 6px rgba(0,0,0,.6); }
+  #color-preview { flex: 1; border-radius: 10px; border: 1px solid rgba(255,255,255,.14); }
+
+  /* --- SOUND --- */
+  #sound-wrap { padding: 1rem 0; }
+  #sound-canvas { width: 100%; height: min(30vh, 200px); display: block; }
+  #freq-big { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 2.6rem; letter-spacing: .02em; }
+  #freq-big small { font-size: 1rem; color: #9b98ad; }
+
+  /* --- TIME --- */
+  #time-wrap { padding: 1.4rem 0; }
+  #chrono { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 3.2rem; letter-spacing: .04em; font-variant-numeric: tabular-nums; }
+  #chrono.hidden-run { color: #2b2b3d; }
+  #time-goal { color: #22d3ee; font-size: .9rem; margin-bottom: .6rem; }
+
+  /* --- REVEAL --- */
+  #reveal-view { text-align: left; }
+  .rv-compare { display: flex; gap: .8rem; justify-content: center; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
+  .swatch { width: 92px; height: 62px; border-radius: 10px; border: 1px solid rgba(255,255,255,.2); }
+  .rv-lbl { font-size: .65rem; color: #9b98ad; text-align: center; margin-top: .25rem; }
+  #rv-list { display: grid; gap: .45rem; }
+  .rv-row { display: grid; grid-template-columns: 1.6rem 1fr auto auto; align-items: center; gap: .7rem;
+    padding: .6rem .85rem; border: 1px solid rgba(255,255,255,.1); border-radius: 10px; background: #11111c; font-size: .8rem; }
+  .rv-row .rk { color: #6f6c80; }
+  .rv-row .rd { color: #9b98ad; font-size: .72rem; font-variant-numeric: tabular-nums; }
+  .rv-row .ra { font-weight: 700; min-width: 4rem; text-align: right; }
+  .rv-row.me { border-color: #22d3ee; }
+  .a-hi { color: #34d399; } .a-mid { color: #facc15; } .a-lo { color: #fca5a5; }
+  #rv-canvas { width: 100%; height: 90px; display: block; margin-bottom: .8rem; }
+
+  #action { display: flex; flex-direction: column; align-items: center; gap: .6rem; margin-top: 1rem; min-height: 2.6rem; }
+  #submit-btn { background: #34d399; color: #06202a; font-size: 1.05rem; padding: .9rem 2.2rem; }
+  #submit-btn:hover { background: #2cbd87; }
+  #ready-line { font-size: .72rem; color: #6f6c80; }
+  #scores { margin-top: 1rem; }
+  #scores li { padding: .5rem .2rem; border-bottom: 1px solid rgba(255,255,255,.06); display: flex; align-items: center; gap: .5rem; }
+  #scores .pts { color: #34d399; margin-left: auto; font-weight: 700; }
+
+  #error { margin-top: 1rem; font-size: .8rem; color: #ef4444; min-height: 1.2em; }
+  .back { display: inline-block; margin-top: 1.6rem; color: #6f6c80; font-size: .75rem; text-decoration: none; }
+  .back:hover { color: #e7e5f4; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+  <main>
+    <h1>Précision<span class="a">.</span></h1>
+    <p class="sub">mémorise… puis reproduis au plus juste — forme, couleur, son ou timing</p>
+
+    <!-- accueil -->
+    <section id="home">
+      <input id="name-input" maxlength="16" placeholder="ton pseudo" autocomplete="off" spellcheck="false">
+      <p class="pick-hint">choisis ton icône :</p>
+      <div id="avatar-row"></div>
+      <button id="host">Créer une partie</button>
+      <p class="or">— ou —</p>
+      <div class="join-row">
+        <input id="code-input" maxlength="4" placeholder="CODE" autocomplete="off" spellcheck="false">
+        <button id="join">Rejoindre</button>
+      </div>
+    </section>
+
+    <!-- lobby -->
+    <section id="lobby" hidden>
+      <b id="room-code" title="clique pour copier">····</b>
+      <p id="code-hint">clique sur le code pour le copier</p>
+      <ul id="players"></ul>
+      <p id="need-players"></p>
+      <div id="host-config" hidden>
+        <label for="diff-select">difficulté :</label>
+        <select id="diff-select">
+          <option value="facile">Facile — 5 s / 20 s</option>
+          <option value="moyen" selected>Moyen — 3 s / 15 s</option>
+          <option value="difficile">Difficile — 2 s / 10 s</option>
+          <option value="impossible">Impossible — 1 s / 7 s</option>
+        </select>
+        <label for="rounds-select">manches :</label>
+        <select id="rounds-select">
+          <option value="3">3</option>
+          <option value="5" selected>5</option>
+          <option value="8">8</option>
+          <option value="12">12</option>
+        </select>
+        <label for="game-select">épreuves :</label>
+        <select id="game-select">
+          <option value="" selected>les 4 au hasard</option>
+          <option value="shape">Forme seulement</option>
+          <option value="color">Couleur seulement</option>
+          <option value="sound">Son seulement</option>
+          <option value="time">Timing seulement</option>
+        </select>
+        <button id="start">Lancer la partie</button>
+      </div>
+    </section>
+
+    <!-- jeu -->
+    <section id="game" hidden>
+      <div class="hud">
+        <span id="hud-round">1 / 5</span>
+        <span class="diff" id="hud-diff">MOYEN</span>
+      </div>
+      <p id="phase-title"></p>
+      <p id="phase-sub"></p>
+      <div id="timebar"><div id="timefill"></div></div>
+
+      <div class="stage">
+        <!-- SHAPE -->
+        <div id="stage-shape" hidden>
+          <div id="shape-board">
+            <svg id="shape-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="triGrad" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#22d3ee"/><stop offset=".5" stop-color="#a78bfa"/><stop offset="1" stop-color="#f472b6"/>
+                </linearGradient>
+              </defs>
+              <polygon id="tri-ghost" points="0,-10 8.66,5 -8.66,5" fill="none" stroke="#ffffff55" stroke-width=".6" stroke-dasharray="2 1.5" style="display:none"/>
+              <polygon id="tri" points="0,-10 8.66,5 -8.66,5" fill="url(#triGrad)"/>
+            </svg>
+          </div>
+          <div class="sliders">
+            <div class="srow"><span>taille</span><input id="sh-scale" type="range" min="0.3" max="2" step="0.01" value="1"><span class="val" id="sh-scale-v">1.00</span></div>
+            <div class="srow"><span>rotation</span><input id="sh-rot" type="range" min="0" max="360" step="1" value="0"><span class="val" id="sh-rot-v">0°</span></div>
+          </div>
+        </div>
+
+        <!-- COLOR -->
+        <div id="stage-color" hidden>
+          <div id="color-wrap">
+            <div class="cbar" id="bar-h"><div class="knob" id="knob-h"></div></div>
+            <div class="cbar" id="bar-s"><div class="knob" id="knob-s"></div></div>
+            <div class="cbar" id="bar-l"><div class="knob" id="knob-l"></div></div>
+            <div id="color-preview"></div>
+          </div>
+        </div>
+
+        <!-- SOUND -->
+        <div id="stage-sound" hidden>
+          <div id="sound-wrap">
+            <canvas id="sound-canvas"></canvas>
+            <p id="freq-big">440.00<small>Hz</small></p>
+            <div class="sliders">
+              <div class="srow"><span>fréquence</span><input id="sn-freq" type="range" min="0" max="1000" step="1" value="500"><span class="val" id="sn-note"></span></div>
+            </div>
+            <button id="sn-listen" class="ghost">🔊 écouter mon son</button>
+          </div>
+        </div>
+
+        <!-- TIME -->
+        <div id="stage-time" hidden>
+          <div id="time-wrap">
+            <p id="time-goal"></p>
+            <p id="chrono">0.000</p>
+          </div>
+        </div>
+
+        <!-- REVEAL -->
+        <div id="reveal-view" hidden>
+          <div class="rv-compare" id="rv-compare"></div>
+          <canvas id="rv-canvas" hidden></canvas>
+          <div id="rv-list"></div>
+        </div>
+      </div>
+
+      <div id="action">
+        <button id="submit-btn" hidden>✔ Je valide</button>
+        <button id="next-btn" hidden>→ Manche suivante</button>
+        <button id="to-lobby" class="ghost" hidden>↩ retour au lobby</button>
+        <p id="ready-line"></p>
+      </div>
+
+      <ul id="scores" hidden></ul>
+    </section>
+
+    <p id="error"></p>
+    <a class="back" href="/">← retour au portfolio</a>
+  </main>
+  <script src="net.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
