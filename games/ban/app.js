@@ -1,7 +1,8 @@
 // UI du Jeu du Ban. Le serveur arbitre TOUT ; le MJ pilote le rythme (lance la
 // vidéo, passe, avance). Cette page obéit et affiche.
-//   preview : découverte de startAt jusqu'au mot (auto)
-//   turn    : le MJ lance la vidéo ; seul l'actif peut STOP ; sinon fin auto = dépassement
+//   preview : le MJ lance la découverte (startAt → le mot), timecode visible
+//   turn    : le JOUEUR ACTIF lance sa vidéo, AUCUN timer affiché (instinct) ;
+//             seul lui peut STOP ; sinon fin de vidéo = dépassement
 //   results : timeline zoomée sur le mot + classement (écarts)
 //   end     : podium
 //
@@ -43,7 +44,9 @@ function stopRaf() { if (rafId) cancelAnimationFrame(rafId); rafId = 0; rafMode 
 function startRaf(mode) { rafMode = mode; if (rafId) cancelAnimationFrame(rafId); const loop = () => { tickRaf(); rafId = requestAnimationFrame(loop); }; rafId = requestAnimationFrame(loop); }
 function tickRaf() {
   const v = V(), t = v.currentTime;
-  $('timecode').textContent = fmtClock(t);
+  // AU MOMENT DU JEU, aucun timer : on joue à l'instinct. Le timecode ne tourne
+  // qu'en découverte (et s'affiche figé en résultats).
+  if (rafMode !== 'turn') $('timecode').textContent = fmtClock(t);
   updatePlayhead(t);
   if (rafMode === 'preview' && t >= previewUntil) { v.pause(); dbg('preview coupée au mot', { at: +t.toFixed(3) }); rafMode = 'held'; }
 }
@@ -60,12 +63,12 @@ function parts(p) {
   const inGame = (p === 'preview' || p === 'turn');
   $('order-panel').hidden = !inGame;
   $('video-box').hidden = !inGame;
-  $('timecode').hidden = !inGame;
+  $('timecode').hidden = p !== 'preview';   // timer visible en découverte SEULEMENT (pas pendant le jeu)
   $('live-ruler').hidden = !inGame;
   $('results-view').hidden = p !== 'results';
   $('scores').hidden = p !== 'end';
 }
-function hideHostBtns() { $('host-play').hidden = true; $('host-skip').hidden = true; $('host-next').hidden = true; }
+function hideHostBtns() { $('play-btn').hidden = true; $('host-skip').hidden = true; $('host-next').hidden = true; }
 function showHostBtn(id, label) { const b = $(id); b.hidden = !(isHost && label); if (label) b.textContent = label; }
 
 // --- ordre de passage ------------------------------------------------------
@@ -144,7 +147,7 @@ $('room-code').addEventListener('click', async () => { try { await navigator.cli
 $('to-lobby').addEventListener('click', () => { phase = 'lobby'; show('lobby'); });
 
 // contrôles MJ
-$('host-play').addEventListener('click', () => NET.send({ action: 'play' }));
+$('play-btn').addEventListener('click', () => NET.send({ action: 'play' }));
 $('host-skip').addEventListener('click', () => NET.send({ action: 'skip' }));
 $('host-next').addEventListener('click', () => NET.send({ action: 'next' }));
 // STOP (joueur actif) ou fin de vidéo
@@ -183,14 +186,24 @@ NET.on('room', (msg) => {
 NET.on('error', (msg) => showError(msg.message));
 NET.on('closed', () => { if (you) showError('connexion au serveur perdue'); });
 
-// le MJ a lancé la vidéo du tour
+// lancement de la vidéo : découverte (MJ) ou tour (joueur actif)
 NET.on('play', () => {
-  dbg('play reçu (MJ lance)');
+  dbg('play reçu', { phase });
+  const v = V();
+  $('play-btn').hidden = true;
+  v.currentTime = curFrom || 0; v.muted = false; tryPlay();
+
+  if (phase === 'preview') {                       // découverte : coupe au mot
+    $('phase-badge').textContent = '👀 découverte';
+    startRaf('preview');
+    status(isHost ? 'ensuite : lance les passages' : 'découverte en cours…');
+    return;
+  }
+
+  // tour : la vidéo tourne librement, AUCUN timer affiché (instinct)
   turnPlaying = true;
   $('video-box').classList.add('live');
-  $('host-play').hidden = true;
-  const v = V();
-  v.currentTime = curFrom || 0; v.muted = false; tryPlay();
+  $('phase-badge').textContent = '🔴 en jeu';
   startRaf('turn');
   if (youActive) {
     $('stop-btn').hidden = false;
@@ -207,14 +220,13 @@ NET.on('stopped', (msg) => {
   if (o) { o.done = true; o.time = msg.time; o.overshoot = !!msg.overshoot; o.skipped = !!msg.skipped; o.active = false; }
   renderOrder(curOrder);
   if (msg.id === curActive) { turnStopped = true; stopRaf(); V().pause(); }
-  $('stop-btn').hidden = true;
+  $('stop-btn').hidden = true; $('play-btn').hidden = true; $('host-skip').hidden = true;
   $('video-box').classList.remove('live');
   $('phase-badge').textContent = msg.skipped ? '⏭ passé' : (msg.overshoot ? '💥 mot lâché' : '✅ stoppé');
   const who = msg.id === you ? 'Toi' : esc(msg.name);
   status(msg.skipped ? `${who} passé` : (msg.overshoot ? `💥 ${who} a lâché le mot` : `✅ ${who} a stoppé à ${fmtClock(msg.time)}`));
   if (isHost) {
     const allDone = curOrder.every((x) => x.done);
-    $('host-play').hidden = true; $('host-skip').hidden = true;
     showHostBtn('host-next', allDone ? '→ Résultats' : '→ Joueur suivant');
   }
 });
@@ -230,11 +242,13 @@ const PHASES = {
     $('phase-badge').textContent = '👀 découverte';
     $('video-box').classList.remove('live');
     hideHostBtns(); $('stop-btn').hidden = true; $('wait-turn').hidden = true; $('to-lobby').hidden = true;
+    // PAS d'autoplay : c'est le MJ qui lance la découverte quand il veut.
     const v = V();
-    const start = () => { v.currentTime = curFrom; v.muted = false; tryPlay(); startRaf('preview'); dbg('preview start', { from: curFrom, until: previewUntil }); };
-    if (v.readyState >= 1) start(); else v.addEventListener('loadedmetadata', start, { once: true });
-    showHostBtn('host-next', '▶ Commencer les passages');
-    status(isHost ? 'à toi de lancer les passages quand tu veux' : 'le MJ prépare les passages…');
+    const seek = () => { v.currentTime = curFrom; v.pause(); $('timecode').textContent = fmtClock(curFrom); updatePlayhead(curFrom); };
+    if (v.readyState >= 1) seek(); else v.addEventListener('loadedmetadata', seek, { once: true });
+    showHostBtn('play-btn', '▶ Lancer la découverte');
+    showHostBtn('host-next', '⏭ Passer aux passages');
+    status(isHost ? 'lance la découverte quand tout le monde est prêt' : 'le MJ va lancer la découverte…');
   },
 
   turn(msg) {
@@ -246,11 +260,14 @@ const PHASES = {
     $('video-box').classList.remove('live');
     $('stop-btn').hidden = true; $('wait-turn').hidden = true; $('to-lobby').hidden = true;
     const v = V();
-    const seek = () => { v.currentTime = curFrom; v.pause(); $('timecode').textContent = fmtClock(curFrom); updatePlayhead(curFrom); };
+    const seek = () => { v.currentTime = curFrom; v.pause(); updatePlayhead(curFrom); };
     if (v.readyState >= 1) seek(); else v.addEventListener('loadedmetadata', seek, { once: true });
-    if (isHost) { showHostBtn('host-play', '▶ Lancer la vidéo'); showHostBtn('host-skip', '⏭ Passer'); $('host-next').hidden = true; }
-    else hideHostBtns();
-    status(youActive ? 'prépare-toi… le MJ va lancer la vidéo' : (isHost ? 'lance la vidéo quand tu veux' : `au tour de ${esc(msg.activeName)}`));
+    // C'EST LE JOUEUR ACTIF qui lance sa vidéo (le MJ peut aussi, au cas où).
+    $('play-btn').hidden = !(youActive || isHost);
+    $('play-btn').textContent = youActive ? '▶ Lancer MA vidéo' : '▶ Lancer la vidéo';
+    $('host-skip').hidden = !isHost;
+    $('host-next').hidden = true;
+    status(youActive ? 'à toi : lance ta vidéo quand tu es prêt' : `au tour de ${esc(msg.activeName)}…`);
   },
 
   results(msg) {

@@ -111,8 +111,8 @@
   /* actions + statut */
   #action { display: flex; flex-direction: column; align-items: center; gap: .5rem; min-height: 2.6rem; margin-top: .4rem; }
   .host-row { display: flex; gap: .6rem; flex-wrap: wrap; justify-content: center; }
-  #host-play, #host-next { background: #34d399; color: #0a0a12; font-weight: 700; }
-  #host-play:hover, #host-next:hover { background: #2cbd87; }
+  #play-btn, #host-next { background: #34d399; color: #0a0a12; font-weight: 700; }
+  #play-btn:hover, #host-next:hover { background: #2cbd87; }
   #stop-btn { background: #ef4444; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 1.3rem; padding: 1rem 2.6rem; border-radius: 14px; box-shadow: 0 6px 20px rgba(239,68,68,.35); }
   #wait-turn { color: #6f6c80; font-size: .8rem; }
   #status-bar { margin-top: 1rem; font-size: .72rem; letter-spacing: .12em; color: #9b98ad; }
@@ -194,7 +194,7 @@
 
       <div id="action">
         <div class="host-row">
-          <button id="host-play" hidden>▶ Lancer la vidéo</button>
+          <button id="play-btn" hidden>▶ Lancer la vidéo</button>
           <button id="host-skip" class="ghost" hidden>⏭ Passer</button>
           <button id="host-next" hidden>→ Suivant</button>
         </div>
