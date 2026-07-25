@@ -1,16 +1,17 @@
 // UI du Party Game de Précision. Le serveur génère les cibles, tient les timers
-// de phase (c'est ça, la difficulté) et calcule TOUTES les précisions.
-// Cette page ne fait qu'afficher et envoyer une tentative.
-//   memorize : on montre la cible (pour `time`, juste la consigne)
-//   play     : l'UI repart de ZÉRO, on reproduit, on valide
-//   reveal   : cible + valeurs de tout le monde (superposition)
+// et calcule TOUTES les précisions. Cette page affiche et envoie une tentative.
+//
+// RÈGLE DE DESIGN : on ne montre JAMAIS la réponse en clair.
+//   · son     → aucune fréquence affichée pendant la mémorisation : tu l'entends,
+//               puis tu retrouves la hauteur en tirant l'onde (le son suit en direct)
+//   · couleur → les barres n'apparaissent QU'EN phase de jeu
+//   · timing  → un tempo sonore régulier t'aide à compter, le chrono se cache
+//   · forme   → on attrape la forme (déplacer) et ses poignées (tourner / agrandir)
 //
 // Debug console : ouvre F12 et renvoie-moi les lignes [prec].
 
 let you = null, isHost = false, myAvatar = null;
-let phase = 'lobby', game = null;
-let submitted = false;
-let barTimer = 0, chronoRaf = 0, chronoStart = 0, chronoHideAt = 0, timeGoal = 0;
+let phase = 'lobby', game = null, submitted = false, lastRound = null;
 
 const DEBUG = true;
 const dbg = (m, o) => { if (DEBUG) console.log('[prec] ' + m, o !== undefined ? o : ''); };
@@ -20,15 +21,123 @@ const show = (id) => { for (const s of document.querySelectorAll('main > section
 const showError = (m) => { $('error').textContent = m ? '> ' + m : ''; };
 const esc = (s) => String(s).replace(/[<>&"]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+// `hidden` est une propriété de HTMLElement, PAS de SVGElement : sur un <svg>,
+// `el.hidden = false` ne retire pas l'attribut. On passe donc par l'attribut.
+const setHidden = (el, on) => { on ? el.setAttribute('hidden', '') : el.removeAttribute('hidden'); };
+
+// ============================================================ SON (SFX + tons)
+// Tout est synthétisé : aucun fichier audio à héberger.
+const AUDIO = (() => {
+  let actx = null;
+  function ctx() {
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    return actx;
+  }
+  // petit bip enveloppé (les « clics » de l'interface)
+  function blip(freq, dur = 0.08, type = 'sine', vol = 0.13, delay = 0) {
+    const c = ctx(), t0 = c.currentTime + delay;
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t0);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g).connect(c.destination);
+    o.start(t0); o.stop(t0 + dur + 0.03);
+  }
+  const seq = (notes, type = 'sine', vol = 0.12) =>
+    notes.forEach(([f, t, d]) => blip(f, d || 0.09, type, vol, t));
+
+  return {
+    resume() { try { ctx(); } catch (_) {} },
+    // --- SFX d'interface ---
+    click() { blip(520, 0.05, 'square', 0.06); },
+    pick() { blip(760, 0.06, 'triangle', 0.09); },
+    join() { seq([[440, 0], [660, 0.08]], 'triangle'); },
+    start() { seq([[392, 0], [523, 0.09], [659, 0.18], [784, 0.27]], 'triangle', 0.11); },
+    memorize() { seq([[880, 0], [1174, 0.1]], 'sine', 0.10); },
+    go() { seq([[660, 0], [990, 0.07]], 'square', 0.09); },
+    submit() { seq([[784, 0], [1046, 0.08]], 'triangle', 0.12); },
+    reveal() { seq([[523, 0], [659, 0.1], [784, 0.2]], 'sine', 0.11); },
+    great() { seq([[784, 0], [988, 0.09], [1318, 0.18], [1568, 0.28]], 'triangle', 0.12); },
+    meh() { seq([[392, 0], [330, 0.12]], 'sine', 0.10); },
+    end() { seq([[523, 0], [659, 0.11], [784, 0.22], [1046, 0.33], [1318, 0.44]], 'triangle', 0.12); },
+    tick(strong) { blip(strong ? 1200 : 800, 0.045, 'square', strong ? 0.11 : 0.06); },
+    error() { blip(180, 0.16, 'sawtooth', 0.09); },
+
+    // --- ton continu (jeu du son) : on l'entend pendant qu'on cherche ---
+    tone: (() => {
+      let osc = null, gain = null;
+      return {
+        start(f) {
+          const c = ctx();
+          if (osc) this.stop();
+          osc = c.createOscillator(); gain = c.createGain();
+          osc.type = 'sine'; osc.frequency.setValueAtTime(f, c.currentTime);
+          gain.gain.setValueAtTime(0.0001, c.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.16, c.currentTime + 0.06);
+          osc.connect(gain).connect(c.destination); osc.start();
+        },
+        set(f) { if (osc) osc.frequency.setTargetAtTime(f, ctx().currentTime, 0.015); },
+        stop() {
+          if (!osc) return;
+          const c = ctx(), o = osc, g = gain; osc = null; gain = null;
+          try { g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 0.08); o.stop(c.currentTime + 0.12); } catch (_) {}
+        },
+        playing() { return !!osc; },
+      };
+    })(),
+  };
+})();
+
+// ============================================================ FAB (bouton rond)
+const ICON = {
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l6 6L20 6"/></svg>',
+  arrow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  dots: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>',
+  home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>',
+};
+function setFab(mode) {
+  const b = $('fab');
+  b.dataset.mode = mode || '';
+  if (!mode) { b.hidden = true; return; }
+  b.hidden = false;
+  b.classList.toggle('wait', mode === 'wait');
+  b.innerHTML = mode === 'submit' ? ICON.check : mode === 'next' ? ICON.arrow : mode === 'lobby' ? ICON.home : ICON.dots;
+}
+$('fab').addEventListener('click', () => {
+  const mode = $('fab').dataset.mode;
+  if (mode === 'submit') doSubmit();
+  else if (mode === 'next') { AUDIO.click(); NET.send({ action: 'next' }); }
+  else if (mode === 'lobby') { AUDIO.click(); phase = 'lobby'; show('lobby'); }
+});
 
 // ============================================================ SHAPE
+// On attrape la forme pour la déplacer, la poignée du haut pour tourner,
+// celle du coin pour agrandir. Aucun slider.
 const SHAPE = (() => {
-  let x = 50, y = 50, scale = 1, rot = 0, live = false;
-  const tri = () => $('tri');
+  const R = 10;                       // rayon du triangle à l'échelle 1
+  let x = 50, y = 50, scale = 1, rot = 0, live = false, mode = null;
+  let grabAng = 0, grabRot = 0;
+
+  const svg = () => $('shape-svg');
+  function toSvg(e) {
+    const r = svg().getBoundingClientRect();
+    return { px: ((e.clientX - r.left) / r.width) * 100, py: ((e.clientY - r.top) / r.height) * 100 };
+  }
   function paint() {
-    tri().setAttribute('transform', `translate(${x} ${y}) rotate(${rot}) scale(${scale})`);
-    $('sh-scale-v').textContent = scale.toFixed(2);
-    $('sh-rot-v').textContent = Math.round(rot) + '°';
+    $('tri').setAttribute('transform', `translate(${x} ${y}) rotate(${rot}) scale(${scale})`);
+    const g = $('tri-handles');
+    g.style.display = live ? 'block' : 'none';
+    if (!live) return;
+    const rad = (a) => (a - 90) * Math.PI / 180;
+    const rr = rad(rot), rs = rad(rot + 130);
+    const hx = x + Math.cos(rr) * (R * scale + 6), hy = y + Math.sin(rr) * (R * scale + 6);
+    const sx = x + Math.cos(rs) * (R * scale), sy = y + Math.sin(rs) * (R * scale);
+    $('h-rot').setAttribute('cx', hx); $('h-rot').setAttribute('cy', hy);
+    $('h-scale').setAttribute('cx', sx); $('h-scale').setAttribute('cy', sy);
+    $('h-link').setAttribute('x1', x); $('h-link').setAttribute('y1', y);
+    $('h-link').setAttribute('x2', hx); $('h-link').setAttribute('y2', hy);
   }
   function setGhost(t) {
     const g = $('tri-ghost');
@@ -36,214 +145,237 @@ const SHAPE = (() => {
     g.style.display = 'block';
     g.setAttribute('transform', `translate(${t.x} ${t.y}) rotate(${t.rotation}) scale(${t.scale})`);
   }
-  function fromPointer(e) {
-    const r = $('shape-board').getBoundingClientRect();
-    x = clamp(((e.clientX - r.left) / r.width) * 100, 0, 100);
-    y = clamp(((e.clientY - r.top) / r.height) * 100, 0, 100);
+  const angleTo = (px, py) => Math.atan2(py - y, px - x) * 180 / Math.PI + 90;
+
+  function wire() {
+    const b = $('shape-board');
+    if (b.dataset.wired) return; b.dataset.wired = '1';
+    b.addEventListener('pointerdown', (e) => {
+      if (!live) return;
+      const { px, py } = toSvg(e);
+      const near = (cx, cy) => Math.hypot(px - cx, py - cy) < 5;
+      const hr = $('h-rot'), hs = $('h-scale');
+      if (near(+hr.getAttribute('cx'), +hr.getAttribute('cy'))) { mode = 'rot'; grabAng = angleTo(px, py); grabRot = rot; }
+      else if (near(+hs.getAttribute('cx'), +hs.getAttribute('cy'))) mode = 'scale';
+      else mode = 'move';
+      AUDIO.click();
+      try { b.setPointerCapture(e.pointerId); } catch (_) {}
+      apply(px, py);
+    });
+    b.addEventListener('pointermove', (e) => { if (live && mode) { const p = toSvg(e); apply(p.px, p.py); } });
+    const up = () => { mode = null; };
+    b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up);
+  }
+  function apply(px, py) {
+    if (mode === 'move') { x = clamp(px, 0, 100); y = clamp(py, 0, 100); }
+    else if (mode === 'scale') { scale = clamp(Math.hypot(px - x, py - y) / R, 0.3, 2); }
+    else if (mode === 'rot') { rot = ((grabRot + (angleTo(px, py) - grabAng)) % 360 + 360) % 360; }
     paint();
   }
-  const board = () => $('shape-board');
-  let dragging = false;
-  function wire() {
-    const b = board();
-    if (b.dataset.wired) return; b.dataset.wired = '1';
-    b.addEventListener('pointerdown', (e) => { if (!live) return; dragging = true; try { b.setPointerCapture(e.pointerId); } catch (_) {} fromPointer(e); });
-    b.addEventListener('pointermove', (e) => { if (live && dragging) fromPointer(e); });
-    b.addEventListener('pointerup', () => { dragging = false; });
-    b.addEventListener('pointercancel', () => { dragging = false; });
-    $('sh-scale').addEventListener('input', (e) => { if (!live) return; scale = +e.target.value; paint(); });
-    $('sh-rot').addEventListener('input', (e) => { if (!live) return; rot = +e.target.value; paint(); });
-  }
   return {
-    showTarget(t) {   // memorize : on montre la cible, contrôles gelés
-      wire(); live = false; setGhost(null);
-      x = t.x; y = t.y; scale = t.scale; rot = t.rotation;
-      $('sh-scale').value = scale; $('sh-rot').value = rot;
-      paint();
-    },
-    reset() {         // play : tout revient au neutre
-      wire(); live = true; setGhost(null);
-      x = 50; y = 50; scale = 1; rot = 0;
-      $('sh-scale').value = 1; $('sh-rot').value = 0;
-      paint();
-    },
-    freeze() { live = false; },
+    showTarget(t) { wire(); live = false; setGhost(null); x = t.x; y = t.y; scale = t.scale; rot = t.rotation; paint(); },
+    reset() { wire(); live = true; setGhost(null); x = 50; y = 50; scale = 1; rot = 0; paint(); },
+    freeze() { live = false; mode = null; paint(); },
     data() { return { x: +x.toFixed(2), y: +y.toFixed(2), scale: +scale.toFixed(3), rotation: +rot.toFixed(1) }; },
-    // reveal : la cible en pointillés + ma tentative pleine
-    compare(target, mine) {
-      wire(); live = false; setGhost(target);
-      if (mine) { x = mine.x; y = mine.y; scale = mine.scale; rot = mine.rotation; }
-      paint();
-    },
   };
 })();
 
 // ============================================================ COLOR
+// Les barres n'existent QU'EN phase de jeu : en mémorisation, on ne voit que
+// la couleur en plein écran (sinon la position des curseurs vend la réponse).
 const COLOR = (() => {
   let h = 180, s = 60, l = 50, live = false;
-  const knobs = { h: 'knob-h', s: 'knob-s', l: 'knob-l' };
   function paint() {
     $('bar-s').style.background = `linear-gradient(to bottom, hsl(${h} 100% 50%), hsl(${h} 0% 50%))`;
     $('bar-l').style.background = `linear-gradient(to bottom, hsl(${h} ${s}% 100%), hsl(${h} ${s}% 50%), hsl(${h} ${s}% 0%))`;
     $('color-preview').style.background = `hsl(${h} ${s}% ${l}%)`;
-    place('h', h / 360); place('s', 1 - s / 100); place('l', 1 - l / 100);
+    $('knob-h').style.top = (h / 360 * 100) + '%';
+    $('knob-s').style.top = ((1 - s / 100) * 100) + '%';
+    $('knob-l').style.top = ((1 - l / 100) * 100) + '%';
   }
-  function place(k, frac) { $(knobs[k]).style.top = (clamp(frac, 0, 1) * 100) + '%'; }
   function wireBar(id, setter) {
     const el = $(id);
     if (el.dataset.wired) return; el.dataset.wired = '1';
     const grab = (e) => {
       if (!live) return;
       const r = el.getBoundingClientRect();
-      setter(clamp((e.clientY - r.top) / r.height, 0, 1));
-      paint();
+      setter(clamp((e.clientY - r.top) / r.height, 0, 1)); paint();
     };
-    el.addEventListener('pointerdown', (e) => { if (!live) return; try { el.setPointerCapture(e.pointerId); } catch (_) {} el.dataset.drag = '1'; grab(e); });
+    el.addEventListener('pointerdown', (e) => { if (!live) return; AUDIO.click(); try { el.setPointerCapture(e.pointerId); } catch (_) {} el.dataset.drag = '1'; grab(e); });
     el.addEventListener('pointermove', (e) => { if (el.dataset.drag === '1') grab(e); });
-    el.addEventListener('pointerup', () => { el.dataset.drag = ''; });
-    el.addEventListener('pointercancel', () => { el.dataset.drag = ''; });
+    const up = () => { el.dataset.drag = ''; };
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
   }
-  function wire() {
+  const wire = () => {
     wireBar('bar-h', (f) => { h = f * 360; });
     wireBar('bar-s', (f) => { s = (1 - f) * 100; });
     wireBar('bar-l', (f) => { l = (1 - f) * 100; });
-  }
+  };
+  const bars = (on) => $('color-bars').classList.toggle('on', on);
   return {
-    showTarget(t) { wire(); live = false; h = t.h; s = t.s; l = t.l; paint(); },
-    reset() { wire(); live = true; h = 180; s = 50; l = 50; paint(); },
+    showTarget(t) { wire(); live = false; bars(false); h = t.h; s = t.s; l = t.l; paint(); },
+    reset() { wire(); live = true; bars(true); h = 180; s = 50; l = 50; paint(); },
     freeze() { live = false; },
     data() { return { h: +h.toFixed(1), s: +s.toFixed(1), l: +l.toFixed(1) }; },
+    preview(t) { bars(false); $('color-preview').style.background = `hsl(${t.h} ${t.s}% ${t.l}%)`; },
   };
 })();
 
 // ============================================================ SOUND
+// On N'AFFICHE PAS la fréquence cible : on l'entend. En jeu, on tire l'onde
+// (haut = plus aigu) et le son suit en DIRECT pour se caler à l'oreille.
 const SOUND = (() => {
-  // slider 0..1000 → 150..1200 Hz en LOG (l'oreille est logarithmique)
-  const F_MIN = 150, F_MAX = 1200;
-  const toFreq = (v) => F_MIN * Math.pow(F_MAX / F_MIN, v / 1000);
-  const toSlider = (f) => 1000 * Math.log(f / F_MIN) / Math.log(F_MAX / F_MIN);
+  const F_MIN = 130, F_MAX = 1400;
   const NOTES = ['do', 'do#', 're', 're#', 'mi', 'fa', 'fa#', 'sol', 'sol#', 'la', 'la#', 'si'];
   const noteOf = (f) => { const n = Math.round(12 * Math.log2(f / 440)) + 9; return NOTES[((n % 12) + 12) % 12]; };
+  let freq = 440, live = false, raf = 0, ph = 0, dragging = false, lastY = 0;
 
-  let actx = null, osc = null, gain = null, freq = 440, live = false, raf = 0, phaseAcc = 0;
-  function ensure() {
-    if (!actx) { actx = new (window.AudioContext || window.webkitAudioContext)(); }
-    if (actx.state === 'suspended') actx.resume();
-  }
-  function tone(f, ms = 1200) {
-    ensure(); stopTone();
-    osc = actx.createOscillator(); gain = actx.createGain();
-    osc.type = 'sine'; osc.frequency.value = f;
-    gain.gain.setValueAtTime(0.0001, actx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.18, actx.currentTime + 0.03);
-    gain.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + ms / 1000);
-    osc.connect(gain).connect(actx.destination);
-    osc.start(); osc.stop(actx.currentTime + ms / 1000 + 0.05);
-  }
-  function stopTone() { if (osc) { try { osc.stop(); } catch (_) {} osc = null; } }
   function draw() {
     const cv = $('sound-canvas'); const ctx = cv.getContext('2d');
-    cv.width = cv.clientWidth; cv.height = cv.clientHeight;
-    const w = cv.width, hgt = cv.height, mid = hgt / 2;
+    const w = cv.width = cv.clientWidth, hgt = cv.height = cv.clientHeight;
     ctx.clearRect(0, 0, w, hgt);
-    const cycles = 2 + (freq - F_MIN) / 90;             // plus aigu = plus d'ondulations
-    for (let layer = 0; layer < 5; layer++) {
+    const mid = w / 2;
+    const cycles = 3 + (Math.log2(freq / F_MIN) * 3.2);     // plus aigu = plus serré
+    for (let layer = 0; layer < 16; layer++) {
       ctx.beginPath();
-      const amp = (hgt * 0.32) * (1 - layer * 0.16);
-      for (let px = 0; px <= w; px++) {
-        const u = px / w;
-        const yy = mid + Math.sin(u * cycles * Math.PI * 2 + phaseAcc + layer * 0.5) * amp * Math.sin(u * Math.PI);
-        px === 0 ? ctx.moveTo(px, yy) : ctx.lineTo(px, yy);
+      const amp = (w * 0.20) * (1 - layer / 18);
+      for (let py = 0; py <= hgt; py += 3) {
+        const u = py / hgt;
+        const env = Math.sin(u * Math.PI);
+        const xx = mid + Math.sin(u * cycles * Math.PI * 2 + ph + layer * 0.22) * amp * env;
+        py === 0 ? ctx.moveTo(xx, py) : ctx.lineTo(xx, py);
       }
-      ctx.strokeStyle = `hsla(${185 + layer * 14} 85% 62% / ${0.85 - layer * 0.14})`;
-      ctx.lineWidth = 2 - layer * 0.28;
+      const hue = 170 + layer * 6;
+      ctx.strokeStyle = `hsla(${hue} 80% 65% / ${0.55 - layer * 0.028})`;
+      ctx.lineWidth = 1.3;
       ctx.stroke();
     }
-    phaseAcc += 0.05;
+    ph += 0.035;
   }
   function loop() { draw(); raf = requestAnimationFrame(loop); }
   function startViz() { if (!raf) loop(); }
   function stopViz() { if (raf) cancelAnimationFrame(raf); raf = 0; }
-  function paint() {
-    $('freq-big').innerHTML = freq.toFixed(2) + '<small>Hz</small>';
-    $('sn-note').textContent = noteOf(freq);
-    $('sn-freq').value = Math.round(toSlider(freq));
+  function paintNum(visible) {
+    $('freq-big').hidden = !visible;
+    if (visible) $('freq-big').innerHTML = freq.toFixed(2) + '<small>Hz</small>';
   }
   function wire() {
-    const sl = $('sn-freq');
-    if (sl.dataset.wired) return; sl.dataset.wired = '1';
-    sl.addEventListener('input', (e) => { if (!live) return; freq = toFreq(+e.target.value); paint(); });
-    sl.addEventListener('change', () => { if (live) tone(freq, 700); });
-    $('sn-listen').addEventListener('click', () => tone(freq, 1200));
+    const cv = $('sound-canvas');
+    if (cv.dataset.wired) return; cv.dataset.wired = '1';
+    cv.addEventListener('pointerdown', (e) => {
+      if (!live) return;
+      dragging = true; lastY = e.clientY;
+      try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+    });
+    cv.addEventListener('pointermove', (e) => {
+      if (!live || !dragging) return;
+      const dy = e.clientY - lastY; lastY = e.clientY;
+      freq = clamp(freq * Math.pow(2, -dy / 260), F_MIN, F_MAX);   // vers le haut = plus aigu
+      AUDIO.tone.set(freq); paintNum(true);
+    });
+    const up = () => { dragging = false; };
+    cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
   }
   return {
-    showTarget(t) {                       // memorize : on ENTEND la cible
-      wire(); live = false; freq = t.frequency; paint(); startViz();
-      $('sn-listen').hidden = true; $('sn-freq').disabled = true;
-      tone(freq, 1600);
+    showTarget(t) {                     // on ENTEND la cible, aucun chiffre
+      wire(); live = false; freq = t.frequency; startViz(); paintNum(false);
+      AUDIO.tone.start(freq);
     },
-    reset() {                             // play : slider au milieu, à l'oreille
-      wire(); live = true; freq = 440; paint(); startViz();
-      $('sn-listen').hidden = false; $('sn-freq').disabled = false;
+    reset() {                           // à toi de retrouver la hauteur
+      wire(); live = true; freq = 440; startViz(); paintNum(true);
+      AUDIO.tone.start(freq);
     },
-    freeze() { live = false; stopTone(); },
-    stop() { stopViz(); stopTone(); },
+    freeze() { live = false; dragging = false; AUDIO.tone.stop(); },
+    stop() { stopViz(); AUDIO.tone.stop(); paintNum(false); },
     data() { return { frequency: +freq.toFixed(2) }; },
-    play(f, ms) { tone(f, ms); },
-    label(f) { return f.toFixed(2) + ' Hz (' + noteOf(f) + ')'; },
+    label(f) { return f.toFixed(2) + ' Hz · ' + noteOf(f); },
+    preview(f, ms) { AUDIO.tone.start(f); setTimeout(() => AUDIO.tone.stop(), ms || 1200); },
   };
 })();
 
 // ============================================================ TIME
+// Un tempo sonore régulier (tic à chaque seconde) pour compter à l'oreille,
+// des anneaux qui pulsent au rythme, et le chrono qui se cache en route.
 const TIME = (() => {
-  function fmt(ms) { return (ms / 1000).toFixed(3); }
+  let goal = 0, hideAt = 0, t0 = 0, raf = 0, tickTimer = 0, running = false, beats = 0;
+  const fmt = (ms) => (ms / 1000).toFixed(3);
+
+  function draw() {
+    const cv = $('time-canvas'); const ctx = cv.getContext('2d');
+    const w = cv.width = cv.clientWidth, h = cv.height = cv.clientHeight;
+    ctx.clearRect(0, 0, w, h);
+    const cx = w / 2, cy = h / 2;
+    const el = running ? performance.now() - t0 : 0;
+    const beat = (el % 1000) / 1000;                     // 0..1 dans la seconde
+    for (let i = 0; i < 14; i++) {
+      const p = ((i / 14) + beat) % 1;                    // anneaux qui s'écartent
+      const r = p * Math.min(w, h) * 0.46;
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.strokeStyle = `hsla(${262 + i * 4} 75% 72% / ${(1 - p) * 0.55})`;
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+    }
+    raf = requestAnimationFrame(draw);
+  }
+  function startViz() { if (!raf) draw(); }
+  function stopViz() { if (raf) cancelAnimationFrame(raf); raf = 0; }
+  function startTicks() {
+    clearInterval(tickTimer); beats = 0;
+    AUDIO.tick(true);
+    tickTimer = setInterval(() => { beats++; AUDIO.tick(beats % 4 === 0); }, 1000);
+  }
+  function stopTicks() { clearInterval(tickTimer); tickTimer = 0; }
+
   return {
-    showTarget(t) {                       // memorize : la consigne
-      timeGoal = t.target_ms; chronoHideAt = t.hide_after_ms;
-      $('time-goal').textContent = `arrête le chrono à ${fmt(t.target_ms)} s`;
-      $('chrono').textContent = fmt(0); $('chrono').classList.remove('hidden-run');
+    showTarget(t) {
+      goal = t.target_ms; hideAt = t.hide_after_ms; running = false;
+      $('chrono').hidden = false; $('chrono').classList.remove('masked');
+      $('chrono').textContent = fmt(goal);
+      startViz(); startTicks();                       // le tempo commence dès la consigne
     },
-    reset() {                             // play : le chrono tourne puis se cache
-      $('time-goal').textContent = `objectif : ${fmt(timeGoal)} s`;
-      chronoStart = performance.now();
-      $('chrono').classList.remove('hidden-run');
+    reset() {
+      running = true; t0 = performance.now();
+      $('chrono').hidden = false; $('chrono').classList.remove('masked');
+      startViz(); startTicks();
       const loop = () => {
-        const el = performance.now() - chronoStart;
-        if (el < chronoHideAt) { $('chrono').textContent = fmt(el); }
-        else { $('chrono').textContent = '· · ·'; $('chrono').classList.add('hidden-run'); }
-        chronoRaf = requestAnimationFrame(loop);
+        if (!running) return;
+        const el = performance.now() - t0;
+        if (el < hideAt) $('chrono').textContent = fmt(el);
+        else { $('chrono').textContent = '· · ·'; $('chrono').classList.add('masked'); }
+        requestAnimationFrame(loop);
       };
-      chronoRaf = requestAnimationFrame(loop);
+      requestAnimationFrame(loop);
     },
-    freeze() { if (chronoRaf) cancelAnimationFrame(chronoRaf); chronoRaf = 0; },
-    data() { return { ms: Math.round(performance.now() - chronoStart) }; },
+    freeze() { running = false; stopTicks(); },
+    stop() { running = false; stopTicks(); stopViz(); $('chrono').hidden = true; },
+    data() { return { ms: Math.round(performance.now() - t0) }; },
+    goal() { return goal; },
     fmt,
   };
 })();
 
 const GAMES = { shape: SHAPE, color: COLOR, sound: SOUND, time: TIME };
-const GAME_INFO = {
-  shape: { icon: '△', name: 'Forme', memo: 'mémorise la position, la taille et l\'angle', play: 'replace le triangle au même endroit' },
-  color: { icon: '🎨', name: 'Couleur', memo: 'mémorise cette couleur exacte', play: 'retrouve la teinte, la saturation et la luminosité' },
-  sound: { icon: '🔊', name: 'Son', memo: 'écoute bien cette fréquence', play: 'retrouve la même hauteur à l\'oreille' },
-  time: { icon: '⏱', name: 'Timing', memo: 'retiens le temps à atteindre', play: 'le chrono se cache — valide au bon moment' },
+const HINTS = {
+  shape: { memo: 'Retiens la position, la taille et l\'angle', play: 'Déplace la forme · poignées pour tourner et agrandir' },
+  color: { memo: 'Retiens cette couleur exacte', play: 'Retrouve la teinte, la saturation et la luminosité' },
+  sound: { memo: 'Écoute bien cette hauteur', play: 'Tire l\'onde vers le haut ou le bas pour retrouver le son' },
+  time: { memo: 'Retiens le temps à atteindre', play: 'Le chrono se cache — valide au bon moment' },
 };
 
 function showStage(g) {
   for (const k of Object.keys(GAMES)) $('stage-' + k).hidden = (k !== g);
   $('reveal-view').hidden = true;
 }
-function freezeAll() { for (const k of Object.keys(GAMES)) if (GAMES[k].freeze) GAMES[k].freeze(); }
+function stopAll() {
+  for (const k of Object.keys(GAMES)) { const m = GAMES[k]; if (m.freeze) m.freeze(); if (m.stop) m.stop(); }
+  $('freq-big').hidden = true; $('chrono').hidden = true;
+}
 
-// barre de temps : le serveur donne la durée, on l'anime
+// liseré de temps en haut de la carte
 function runBar(ms) {
-  clearTimeout(barTimer);
-  const fill = $('timefill');
-  fill.style.transition = 'none'; fill.style.width = '100%';
-  requestAnimationFrame(() => {
-    fill.style.transition = `width ${ms}ms linear`;
-    fill.style.width = '0%';
-  });
+  const f = $('timefill');
+  f.style.transition = 'none'; f.style.width = '100%';
+  requestAnimationFrame(() => { f.style.transition = `width ${ms}ms linear`; f.style.width = '0%'; });
 }
 function stopBar() { const f = $('timefill'); f.style.transition = 'none'; f.style.width = '100%'; }
 
@@ -253,7 +385,10 @@ myAvatar = AVATARS[Math.floor(Math.random() * AVATARS.length)];
 for (const em of AVATARS) {
   const b = document.createElement('button');
   b.type = 'button'; b.className = 'avatar-pick' + (em === myAvatar ? ' picked' : ''); b.textContent = em;
-  b.addEventListener('click', () => { myAvatar = em; document.querySelectorAll('.avatar-pick').forEach((x) => x.classList.toggle('picked', x === b)); });
+  b.addEventListener('click', () => {
+    myAvatar = em; AUDIO.pick();
+    document.querySelectorAll('.avatar-pick').forEach((x) => x.classList.toggle('picked', x === b));
+  });
   $('avatar-row').appendChild(b);
 }
 $('host').addEventListener('click', () => enter());
@@ -261,152 +396,151 @@ $('join').addEventListener('click', () => enter($('code-input').value));
 $('code-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') enter($('code-input').value); });
 async function enter(code) {
   const name = $('name-input').value.trim();
-  if (!name) return showError('il te faut un pseudo');
-  if (code !== undefined && !code.trim()) return showError('rentre un code de room');
-  showError('');
+  if (!name) { AUDIO.error(); return showError('il te faut un pseudo'); }
+  if (code !== undefined && !code.trim()) { AUDIO.error(); return showError('rentre un code de room'); }
+  showError(''); AUDIO.resume(); AUDIO.click();
   try { await NET.connect(); NET.send(code === undefined ? { action: 'join', name, avatar: myAvatar } : { action: 'join', name, code, avatar: myAvatar }); }
-  catch (err) { showError(err.message); }
+  catch (err) { AUDIO.error(); showError(err.message); }
 }
-$('start').addEventListener('click', () => NET.send({
-  action: 'start', rounds: +$('rounds-select').value,
-  difficulty: $('diff-select').value, game: $('game-select').value || undefined,
-}));
-$('room-code').addEventListener('click', async () => { try { await navigator.clipboard.writeText($('room-code').textContent.trim()); $('code-hint').textContent = 'code copié ✔'; setTimeout(() => { $('code-hint').textContent = 'clique sur le code pour le copier'; }, 1500); } catch (_) {} });
-$('next-btn').addEventListener('click', () => NET.send({ action: 'next' }));
-$('to-lobby').addEventListener('click', () => { phase = 'lobby'; show('lobby'); });
+$('start').addEventListener('click', () => {
+  AUDIO.start();
+  NET.send({ action: 'start', rounds: +$('rounds-select').value, difficulty: $('diff-select').value, game: $('game-select').value || undefined });
+});
+$('room-code').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText($('room-code').textContent.trim()); AUDIO.pick();
+    $('code-hint').textContent = 'code copié ✔'; setTimeout(() => { $('code-hint').textContent = 'clique sur le code pour le copier'; }, 1500); } catch (_) {}
+});
 
-$('submit-btn').addEventListener('click', () => {
+function doSubmit() {
   if (submitted || phase !== 'play' || !game) return;
   const data = GAMES[game].data();
   submitted = true;
-  $('submit-btn').hidden = true;
-  freezeAll();
+  AUDIO.submit();
+  GAMES[game].freeze();
+  setFab('wait');
   NET.send({ action: 'submit', type: game, data });
   dbg('tentative envoyée', { game, data });
-  $('phase-sub').textContent = 'validé ✔ — en attente des autres…';
-});
+  $('phase-sub').textContent = 'validé — en attente des autres…';
+}
 
 // ============================================================ serveur
 NET.on('room', (msg) => {
   you = msg.you;
   $('room-code').textContent = msg.code;
   const me = msg.players.find((p) => p.id === you);
-  isHost = !!(me && me.host);
+  const wasHost = isHost; isHost = !!(me && me.host);
   $('players').innerHTML = msg.players.map((p) =>
     `<li><span class="pp">${esc(p.avatar || '🙂')}</span>${esc(p.name)}${p.host ? ' <span class="tag">MJ</span>' : ''}</li>`).join('');
   $('host-config').hidden = !isHost;
-  $('need-players').textContent = msg.players.length < 2 ? 'ça marche aussi en solo, mais c\'est plus drôle à plusieurs' : '';
-  if (msg.phase === 'lobby' && phase === 'lobby') show('lobby');
+  $('need-players').textContent = msg.players.length < 2 ? 'ça marche en solo, mais c\'est plus drôle à plusieurs' : '';
+  if (msg.phase === 'lobby' && phase === 'lobby') { show('lobby'); if (!wasHost && !isHost) AUDIO.join(); }
 });
 
-NET.on('error', (msg) => showError(msg.message));
+NET.on('error', (msg) => { AUDIO.error(); showError(msg.message); });
 NET.on('closed', () => { if (you) showError('connexion au serveur perdue'); });
-NET.on('ready', (msg) => { $('ready-line').textContent = `${msg.ids.length}/${msg.of} ont validé`; });
+NET.on('ready', (msg) => {
+  if (phase === 'play' && submitted) $('phase-sub').textContent = `${msg.ids.length}/${msg.of} ont validé`;
+});
 
 NET.on('phase', (msg) => { phase = msg.phase; dbg('phase → ' + msg.phase, msg); (PHASES[msg.phase] || (() => {}))(msg); });
 
 const PHASES = {
-  // --- on montre la cible ---
   memorize(msg) {
-    show('game'); game = msg.game; submitted = false;
+    show('game'); stopAll(); game = msg.game; submitted = false; lastRound = msg;
     $('hud-round').textContent = `${msg.round} / ${msg.of}`;
-    $('hud-diff').textContent = String(msg.difficulty || '').toUpperCase();
-    const gi = GAME_INFO[game];
-    $('phase-title').textContent = `${gi.icon} ${gi.name} — mémorise !`;
-    $('phase-sub').textContent = gi.memo;
-    showStage(game);
-    $('submit-btn').hidden = true; $('next-btn').hidden = true; $('to-lobby').hidden = true;
-    $('scores').hidden = true; $('ready-line').textContent = '';
+    $('phase-title').textContent = HINTS[game].memo;
+    $('phase-sub').textContent = 'mémorise…';
+    showStage(game); setFab(null); AUDIO.memorize();
     GAMES[game].showTarget(msg.target);
     runBar(msg.ms);
   },
 
-  // --- l'UI repart de zéro : à toi de reproduire ---
   play(msg) {
     show('game'); game = msg.game; submitted = false;
-    const gi = GAME_INFO[game];
-    $('phase-title').textContent = `${gi.icon} ${gi.name} — reproduis !`;
-    $('phase-sub').textContent = gi.play;
-    showStage(game);
+    $('phase-title').textContent = HINTS[game].play;
+    $('phase-sub').textContent = 'à toi';
+    showStage(game); AUDIO.go();
     GAMES[game].reset();
-    $('submit-btn').hidden = false; $('next-btn').hidden = true;
-    $('ready-line').textContent = '';
+    setFab('submit');
     runBar(msg.ms);
   },
 
-  // --- cible + valeurs de tout le monde ---
   reveal(msg) {
-    show('game'); stopBar(); freezeAll();
-    if (game === 'time') TIME.freeze();
-    $('phase-title').textContent = `🏁 Résultats — manche ${msg.round}/${msg.of}`;
+    show('game'); stopBar(); stopAll();
+    $('hud-round').textContent = `${msg.round} / ${msg.of}`;
+    $('phase-title').textContent = 'Résultats';
     $('phase-sub').textContent = '';
-    $('submit-btn').hidden = true; $('ready-line').textContent = '';
+    showStage(null);
     renderReveal(msg);
-    $('next-btn').hidden = !isHost;
-    $('next-btn').textContent = msg.round >= msg.of ? '→ Podium' : '→ Manche suivante';
-    $('scores').hidden = false;
-    $('scores').innerHTML = msg.scores.map((p, i) =>
-      `<li>${i + 1}. <span class="pp">${esc(p.avatar || '🙂')}</span>${esc(p.name)}<span class="pts">${p.score}</span></li>`).join('');
+    setFab(isHost ? 'next' : 'wait');
+    const mine = msg.results.find((r) => r.id === you);
+    (mine && mine.accuracy >= 80) ? AUDIO.great() : AUDIO.reveal();
   },
 
   end(msg) {
-    show('game'); stopBar(); freezeAll(); SOUND.stop();
-    showStage(null); $('reveal-view').hidden = true;
-    $('phase-title').textContent = '🏆 Fin de partie';
-    $('phase-sub').textContent = 'le podium';
-    $('submit-btn').hidden = true; $('next-btn').hidden = true; $('to-lobby').hidden = false;
+    show('game'); stopBar(); stopAll(); showStage(null);
+    $('phase-title').textContent = 'Fin de partie';
+    $('phase-sub').textContent = '';
+    $('hud-round').textContent = '🏆';
+    $('reveal-view').hidden = false;
+    $('rv-compare').innerHTML = '<p class="rv-big">🏆 Podium</p>';
+    setHidden($('rv-shape'), true); $('rv-list').innerHTML = '';
     const medals = ['🥇', '🥈', '🥉'];
     $('scores').hidden = false;
     $('scores').innerHTML = msg.podium.map((p, i) =>
-      `<li>${medals[i] || '·'} <span class="pp">${esc(p.avatar || '🙂')}</span>${esc(p.name)}<span class="pts">${p.score} pts</span></li>`).join('');
+      `<li>${medals[i] || '·'} <span class="pp">${esc(p.avatar || '🙂')}</span>${esc(p.name)}<span class="pts">${p.score}</span></li>`).join('');
+    setFab('lobby'); AUDIO.end();
   },
 };
 
-// --- affichage des résultats ------------------------------------------------
+// --- résultats --------------------------------------------------------------
 const accClass = (a) => a >= 80 ? 'a-hi' : (a >= 45 ? 'a-mid' : 'a-lo');
-
 function deltaText(g, r) {
   if (!r.submitted) return 'pas validé';
   const d = r.deltas || {};
-  if (g === 'shape') return `pos ${d.pos}  ·  taille ${d.scale}  ·  angle ${d.rot}°`;
-  if (g === 'color') return `teinte ${d.h}°  ·  sat ${d.s}  ·  lum ${d.l}`;
-  if (g === 'sound') return `${d.hz > 0 ? '+' : ''}${d.hz} Hz  (${Math.round(d.cents)} cents)`;
+  if (g === 'shape') return `pos ${d.pos} · taille ${d.scale} · angle ${d.rot}°`;
+  if (g === 'color') return `teinte ${d.h}° · sat ${d.s} · lum ${d.l}`;
+  if (g === 'sound') return `${d.hz > 0 ? '+' : ''}${d.hz} Hz · ${Math.round(d.cents)} cents`;
   return `${d.ms > 0 ? '+' : ''}${d.ms} ms`;
 }
 
 function renderReveal(msg) {
   const g = msg.game, t = msg.target;
   const mine = msg.results.find((r) => r.id === you);
-  showStage(null);
   $('reveal-view').hidden = false;
   const cmp = $('rv-compare'); cmp.innerHTML = '';
-  $('rv-canvas').hidden = true;
+  setHidden($('rv-shape'), true); $('scores').hidden = false;
 
   if (g === 'color') {
-    const sw = (col, lbl) => `<div><div class="swatch" style="background:${col}"></div><p class="rv-lbl">${lbl}</p></div>`;
-    cmp.innerHTML = sw(`hsl(${t.h} ${t.s}% ${t.l}%)`, 'la cible')
-      + (mine && mine.data ? sw(`hsl(${mine.data.h} ${mine.data.s}% ${mine.data.l}%)`, 'ta couleur') : '');
+    const sw = (c, l) => `<div><div class="swatch" style="background:${c}"></div><p class="rv-lbl">${l}</p></div>`;
+    cmp.innerHTML = sw(`hsl(${t.h} ${t.s}% ${t.l}%)`, 'LA CIBLE')
+      + (mine && mine.data ? sw(`hsl(${mine.data.h} ${mine.data.s}% ${mine.data.l}%)`, 'TOI') : '');
   } else if (g === 'shape') {
-    // on réaffiche le plateau : cible en pointillés + ta forme
-    $('stage-shape').hidden = false;
-    $('reveal-view').hidden = false;
-    SHAPE.compare(t, mine && mine.data);
-    cmp.innerHTML = '<p class="rv-lbl">— pointillés : la cible · plein : ta forme —</p>';
+    setHidden($('rv-shape'), false);
+    $('rv-tri-target').setAttribute('transform', `translate(${t.x} ${t.y}) rotate(${t.rotation}) scale(${t.scale})`);
+    if (mine && mine.data) {
+      const m = mine.data;
+      $('rv-tri-mine').style.display = 'block';
+      $('rv-tri-mine').setAttribute('transform', `translate(${m.x} ${m.y}) rotate(${m.rotation}) scale(${m.scale})`);
+    } else $('rv-tri-mine').style.display = 'none';
+    cmp.innerHTML = '<p class="rv-lbl">POINTILLÉS : LA CIBLE · PLEIN : TOI</p>';
   } else if (g === 'sound') {
-    cmp.innerHTML = `<div><p class="rv-lbl">cible</p><b>${SOUND.label(t.frequency)}</b></div>`
-      + (mine && mine.data ? `<div><p class="rv-lbl">toi</p><b>${SOUND.label(mine.data.frequency)}</b></div>` : '');
+    cmp.innerHTML = `<div><p class="rv-lbl">LA CIBLE</p><p class="rv-big">${SOUND.label(t.frequency)}</p></div>`
+      + (mine && mine.data ? `<div><p class="rv-lbl">TOI</p><p class="rv-big">${SOUND.label(mine.data.frequency)}</p></div>` : '');
     const btn = document.createElement('button');
     btn.className = 'ghost'; btn.textContent = '🔊 réécouter la cible';
-    btn.addEventListener('click', () => SOUND.play(t.frequency, 1200));
+    btn.addEventListener('click', () => SOUND.preview(t.frequency, 1300));
     cmp.appendChild(btn);
   } else {
-    cmp.innerHTML = `<div><p class="rv-lbl">cible</p><b>${TIME.fmt(t.target_ms)} s</b></div>`
-      + (mine && mine.data ? `<div><p class="rv-lbl">toi</p><b>${TIME.fmt(mine.data.ms)} s</b></div>` : '');
+    cmp.innerHTML = `<div><p class="rv-lbl">LA CIBLE</p><p class="rv-big">${TIME.fmt(t.target_ms)} s</p></div>`
+      + (mine && mine.data ? `<div><p class="rv-lbl">TOI</p><p class="rv-big">${TIME.fmt(mine.data.ms)} s</p></div>` : '');
   }
 
   $('rv-list').innerHTML = msg.results.map((r, i) =>
-    `<div class="rv-row${r.id === you ? ' me' : ''}">`
-    + `<span class="rk">${i + 1}</span>`
-    + `<span><span class="pp">${esc(r.avatar || '🙂')}</span>${esc(r.name)}<br><span class="rd">${deltaText(g, r)}</span></span>`
-    + `<span></span><span class="ra ${accClass(r.accuracy)}">${r.accuracy.toFixed(1)} %</span></div>`).join('');
+    `<div class="rv-row${r.id === you ? ' me' : ''}"><span class="rk">${i + 1}</span>`
+    + `<span>${esc(r.avatar || '🙂')} ${esc(r.name)}<br><span class="rd">${deltaText(g, r)}</span></span>`
+    + `<span class="ra ${accClass(r.accuracy)}">${r.accuracy.toFixed(1)}%</span></div>`).join('');
+
+  $('scores').innerHTML = msg.scores.map((p, i) =>
+    `<li>${i + 1}. <span class="pp">${esc(p.avatar || '🙂')}</span>${esc(p.name)}<span class="pts">${p.score}</span></li>`).join('');
 }
