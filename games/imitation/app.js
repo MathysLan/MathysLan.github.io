@@ -17,6 +17,14 @@ let lastTakeUrl = null;   // blob URL de la dernière prise envoyée (pour la r�
 let myReady = false;
 let myAvatar = null;
 
+// Le catalogue (videos/videos.json) ne donne QUE l'id : le front construit
+// l'URL du bucket R2, comme le Jeu du Ban. Convention : <id>.mp4 à la racine.
+// Une entrée peut toujours forcer une `url` à elle (exception ponctuelle).
+// ?cdn=... pour tester contre un autre hébergement.
+const CDN = (new URLSearchParams(location.search).get('cdn')
+  || 'https://pub-ba7b84ba31b243b18264ea0403fd75fa.r2.dev').replace(/\/$/, '');
+const videoUrl = (id) => `${CDN}/${id}.mp4`;
+
 const $ = (id) => document.getElementById(id);
 const show = (id) => {
   for (const s of document.querySelectorAll('main > section')) s.hidden = s.id !== id;
@@ -437,7 +445,7 @@ const PHASES = {
     const v = $('ref-video');
     v.hidden = false;
     setVideoAudible(true);                                 // premier visionnage : avec le son
-    v.src = msg.url || 'videos/' + msg.video + '.mp4';     // CDN Pages, ou hébergement externe
+    v.src = msg.url || videoUrl(msg.video);                // `url` en exception, sinon le bucket R2
     v.currentTime = 0;
     v.play().catch(() => {});                              // autoplay bloqué → l'utilisateur a les contrôles
     startViz([{ an: refAnalyser, color: WAVE_VOICE }]);    // waveform du son du clip
