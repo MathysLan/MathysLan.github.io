@@ -459,10 +459,17 @@ const REFLEX = (() => {
 // Taper le plus de mots possible avant la fin du temps. Un mot validé par
 // espace ou Entrée ; on ne compte que les mots EXACTS.
 const TYPING = (() => {
+  const PAGE = 12;                       // mots affichés d'un bloc
   let words = [], idx = 0, correct = 0, live = false;
+  // Les mots restent EN PLACE : on ne fait glisser une fenêtre à chaque mot
+  // (tout sautait à l'écran, désagréable). Seul le surlignage avance ; le bloc
+  // n'est remplacé que lorsqu'il est entièrement tapé.
   function render() {
-    $('typing-words').innerHTML = words.slice(idx, idx + 5).map((w, i) =>
-      `<span class="w ${i === 0 ? 'now' : ''}">${esc(w)}</span>`).join(' ');
+    const page = Math.floor(idx / PAGE);
+    const start = page * PAGE;
+    const here = idx - start;
+    $('typing-words').innerHTML = words.slice(start, start + PAGE).map((w, i) =>
+      `<span class="w ${i === here ? 'now' : (i < here ? 'done' : '')}">${esc(w)}</span>`).join(' ');
     $('typing-count').textContent = correct + (correct > 1 ? ' mots' : ' mot');
   }
   function submitWord() {
