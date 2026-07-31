@@ -445,7 +445,7 @@ NET.onBinary = (buf) => {
   const mine = msg.player === you;
   setStage('🎧 écoute & note', mine ? 'ta prise passe - les autres notent' : 'note cette imitation avec les boutons dessous');
   $('listen-name').innerHTML = `<span class="pp">${esc(msg.avatar || '🙂')}</span>${esc(msg.name)}${mine ? ' (toi)' : ''}`;
-  $('listen-count').textContent = `imitation ${msg.idx}/${msg.of}`;
+  renderVoteWait([], msg.player);   // personne n'a encore voté sur cette prise
   for (const b of document.querySelectorAll('.rate')) b.disabled = mine;
 
   if (listenUrl) URL.revokeObjectURL(listenUrl);
@@ -469,15 +469,22 @@ function playCurrentListen() {
 
 $('relisten-btn').addEventListener('click', () => { if (listenUrl) playCurrentListen(); });
 
-NET.on('rated', (msg) => {
+// Qui n'a pas encore voté ? Affiché DÈS l'arrivée de la prise (personne n'a
+// voté à ce moment-là) puis à chaque vote reçu. Le propriétaire ne vote pas
+// sur sa propre imitation : il ne compte jamais parmi ceux qu'on attend.
+function renderVoteWait(votedIds, ownerId) {
   if (!lastListen) return;
-  // pareil qu'au lobby : on nomme ceux qu'on attend (le propriétaire ne vote pas)
+  const owner = ownerId !== undefined ? ownerId : lastListen.player;
   const late = (lastPlayers || [])
-    .filter((p) => p.id !== msg.owner && !(msg.ids || []).includes(p.id))
+    .filter((p) => p.id !== owner && !(votedIds || []).includes(p.id))
     .map((p) => esc(p.name));
-  $('listen-count').innerHTML = `imitation ${lastListen.idx}/${lastListen.of} — `
-    + (late.length ? `on attend <b>${late.join(', ')}</b>` : `${msg.count}/${msg.of} ont noté`);
-});
+  const head = `imitation ${lastListen.idx}/${lastListen.of}`;
+  $('listen-count').innerHTML = late.length
+    ? `${head} — on attend <b>${late.join(', ')}</b>`
+    : `${head} — <span class="ok">✔ tout le monde a voté</span>`;
+}
+
+NET.on('rated', (msg) => renderVoteWait(msg.ids, msg.owner));
 
 for (const btn of document.querySelectorAll('.rate')) {
   btn.addEventListener('click', () => {
