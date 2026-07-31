@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dépôt de vidéos — Imitation</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; box-sizing: border-box; }
+  :root { --bg:#1d1d1f; --card:#0b0b0c; --line:rgba(255,255,255,.09); --dim:#7d7d86; --ink:#f2f2f4; --accent:#8b5cf6; }
+  body { min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:var(--bg); color:var(--ink); font-family:'JetBrains Mono',monospace; padding:1.2rem; }
+  main { width:min(620px,100%); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:22px;
+    padding:1.8rem; box-shadow:0 24px 70px rgba(0,0,0,.55); }
+  h1 { font-family:'Space Grotesk',sans-serif; font-size:1.5rem; text-align:center; }
+  h1 .a { color:var(--accent); }
+  .sub { color:var(--dim); font-size:.74rem; margin:.35rem 0 1.5rem; text-align:center; line-height:1.5; }
+  button { font:inherit; cursor:pointer; background:#fff; color:#111; font-weight:700;
+    border:none; border-radius:12px; padding:.85rem 1.4rem; width:100%; }
+  button:hover { opacity:.88; }
+  button:disabled { opacity:.35; cursor:default; }
+  .ghost { background:transparent; border:1px solid var(--line); color:var(--ink); font-weight:400; }
+  input { font:inherit; background:#141416; border:1px solid var(--line); border-radius:12px;
+    color:var(--ink); padding:.85rem 1rem; outline:none; width:100%; }
+  input:focus { border-color:var(--accent); }
+  label { display:block; font-size:.66rem; color:var(--dim); letter-spacing:.1em; margin-bottom:.4rem; }
+  .row { margin-bottom:.9rem; }
+
+  /* zone de dépôt */
+  #drop { border:1.5px dashed rgba(255,255,255,.2); border-radius:16px; padding:2.2rem 1rem;
+    text-align:center; cursor:pointer; transition:border-color .15s, background .15s; }
+  #drop:hover, #drop.over { border-color:var(--accent); background:rgba(139,92,246,.07); }
+  #drop .big { font-size:2rem; }
+  #drop .t { font-size:.86rem; margin-top:.5rem; }
+  #drop .h { font-size:.7rem; color:var(--dim); margin-top:.3rem; }
+
+  /* liste des dépôts */
+  #items { margin-top:1rem; display:grid; gap:.5rem; }
+  .item { border:1px solid var(--line); border-radius:12px; padding:.7rem .85rem; background:#141416; font-size:.78rem; }
+  .item .top { display:flex; justify-content:space-between; gap:.6rem; align-items:center; }
+  .item .nm { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .item .st { font-size:.68rem; color:var(--dim); white-space:nowrap; }
+  .item.ok { border-color:rgba(52,211,153,.5); }
+  .item.ko { border-color:rgba(239,68,68,.5); }
+  .item.ok .st { color:#86efac; }
+  .item.ko .st { color:#fca5a5; }
+  .bar { height:5px; border-radius:999px; background:rgba(255,255,255,.1); overflow:hidden; margin-top:.5rem; }
+  .bar i { display:block; height:100%; width:0%; background:linear-gradient(90deg,#8b5cf6,#34d399); transition:width .15s linear; }
+
+  /* JSON à copier */
+  #out { margin-top:1.2rem; }
+  #json { width:100%; height:190px; font:inherit; font-size:.72rem; background:#141416;
+    border:1px solid var(--line); border-radius:12px; color:var(--ink); padding:.8rem; resize:vertical; }
+  .hint { font-size:.7rem; color:var(--dim); margin:.5rem 0; line-height:1.5; }
+  .ok-msg { color:#86efac; font-size:.74rem; }
+  #err { color:#fca5a5; font-size:.76rem; min-height:1.2em; margin-top:.8rem; text-align:center; }
+  .back { display:block; margin-top:1.2rem; color:#4a4a52; font-size:.7rem; text-decoration:none; text-align:center; }
+  .back:hover { color:var(--ink); }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+  <main>
+    <div class="card">
+      <h1>Dépôt de vidéos<span class="a">.</span></h1>
+      <p class="sub">pour le jeu de l'<b>Imitation</b> — dépose un extrait, il est renommé
+        et rangé automatiquement</p>
+
+      <!-- accès -->
+      <section id="gate">
+        <div class="row">
+          <label for="pw">MOT DE PASSE</label>
+          <input id="pw" type="password" placeholder="le code que Mathys t'a donné" autocomplete="off">
+        </div>
+        <div class="row">
+          <label for="who">TON PRÉNOM (pour que Mathys sache qui a déposé)</label>
+          <input id="who" maxlength="40" placeholder="ex : Jean" autocomplete="off">
+        </div>
+        <button id="enter">Entrer</button>
+      </section>
+
+      <!-- dépôt -->
+      <section id="zone" hidden>
+        <div id="drop">
+          <div class="big">🎬</div>
+          <p class="t">glisse tes vidéos ici, ou clique pour choisir</p>
+          <p class="h">.mp4 uniquement · <span id="maxmb">80</span> Mo max par fichier</p>
+        </div>
+        <input id="file" type="file" accept="video/mp4" multiple hidden>
+        <div id="items"></div>
+
+        <div id="out" hidden>
+          <p class="hint">✅ Catalogue à jour (<span id="count">0</span> clips) — copie-le dans
+            <code>games/imitation/videos/videos.json</code> puis push :</p>
+          <textarea id="json" readonly spellcheck="false"></textarea>
+          <button id="copy" class="ghost" style="margin-top:.6rem">📋 copier le JSON</button>
+          <p id="copied" class="ok-msg" hidden>copié ✔</p>
+        </div>
+      </section>
+
+      <p id="err"></p>
+    </div>
+    <a class="back" href="/">← retour au portfolio</a>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
