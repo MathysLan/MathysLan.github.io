@@ -4,7 +4,7 @@
 // ?server= pour tester contre un serveur local.
 
 const API = (new URLSearchParams(location.search).get('server')
-  || 'https://upload-server-9r3c.onrender.com').replace(/\/$/, '');
+  || 'https://upload-server.onrender.com').replace(/\/$/, '');
 
 const $ = (id) => document.getElementById(id);
 const err = (m) => { $('err').textContent = m ? '> ' + m : ''; };
@@ -121,8 +121,13 @@ function put(url, file, onProgress) {
     xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(Math.round(e.loaded / e.total * 100)); };
     xhr.onload = () => (xhr.status >= 200 && xhr.status < 300
       ? resolve()
-      : reject(new Error(`envoi refusé (${xhr.status}) — CORS du bucket ?`)));
-    xhr.onerror = () => reject(new Error('envoi impossible (réseau ou CORS du bucket)'));
+      : reject(new Error(`envoi refusé par le bucket (${xhr.status})`)));
+    // Piège classique : un PUT déclenche toujours un préliminaire OPTIONS, où le
+    // navigateur annonce Content-Type. Sans "AllowedHeaders": ["content-type"]
+    // dans la CORS du bucket, R2 refuse ce préliminaire.
+    xhr.onerror = () => reject(new Error(
+      'bloqué par la CORS du bucket — vérifie que la règle contient '
+      + '"AllowedHeaders": ["content-type"] et "AllowedMethods": ["PUT"]'));
     xhr.send(file);
   });
 }
