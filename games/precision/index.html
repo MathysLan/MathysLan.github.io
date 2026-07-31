@@ -141,6 +141,26 @@
     font-variant-numeric: tabular-nums; }
   #chrono.masked { color: #2c2c33; }
 
+  /* ---------- REFLEX ---------- */
+  #reflex-zone { position: absolute; inset: 0; display: grid; place-items: center; cursor: pointer;
+    background: #2a1116; transition: background .05s linear; }
+  #reflex-zone.go { background: #10391f; }
+  #reflex-zone.oops { background: #3a1020; }
+  #reflex-word { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 2.2rem;
+    letter-spacing: -.02em; color: #fca5a5; }
+  #reflex-zone.go #reflex-word { color: #86efac; }
+
+  /* ---------- TYPING ---------- */
+  #typing-wrap { position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 1rem; padding: 3.6rem 1.4rem 5rem; }
+  #typing-words { font-family: 'Space Grotesk', sans-serif; font-size: 1.35rem; line-height: 1.8;
+    text-align: center; word-spacing: .35rem; }
+  #typing-words .w { color: #4a4a52; }
+  #typing-words .w.done { color: #86efac; }
+  #typing-words .w.now { color: #fff; background: #2b2b33; border-radius: 6px; padding: .05rem .35rem; }
+  #typing-input { max-width: 320px; text-align: center; font-size: 1.05rem; }
+  #typing-count { font-size: .74rem; color: var(--dim); }
+
   /* ---------- REVEAL ---------- */
   /* gros score en haut à droite (façon dialed.gg) */
   #score-block { position: absolute; top: 1.9rem; right: 1.2rem; left: 1.2rem; text-align: right; }
@@ -152,8 +172,15 @@
   #reveal-view { position: absolute; inset: 0; padding: 3.4rem 1.2rem 5rem; overflow-y: auto; }
   /* quand la scène reste visible derrière (superposition des formes), le
      classement passe en panneau bas translucide au lieu de tout recouvrir */
-  #reveal-view.sheet { top: auto; bottom: 0; max-height: 46%; padding: 1.2rem 1.2rem 4.6rem;
+  #reveal-view.sheet { top: auto; bottom: 0; max-height: 40%; padding: 1rem 1.2rem 4.4rem;
     background: linear-gradient(to bottom, transparent, #0b0b0ce6 18%, #0b0b0c 40%); }
+  /* score compact quand la scène reste visible derrière (sinon il masque la forme) */
+  #score-block.compact { left: auto; }
+  #score-block.compact #rv-score { font-size: 2rem; }
+  #score-block.compact #rv-quip { font-size: .72rem; margin-top: .15rem; }
+  /* aux résultats, on replie tout le plateau au-dessus du classement :
+     la grille entière reste lisible, positions comprises */
+  #shape-board.fit { transform: scale(.56); transform-origin: 50% 0%; }
   .rv-compare { display: flex; gap: 1rem; justify-content: center; align-items: flex-end; margin-bottom: 1.1rem; flex-wrap: wrap; }
   .swatch { width: 96px; height: 66px; border-radius: 12px; border: 1px solid rgba(255,255,255,.18); }
   .rv-lbl { font-size: .6rem; color: var(--dim); text-align: center; margin-top: .3rem; letter-spacing: .1em; }
@@ -221,6 +248,8 @@
           <option value="color">Couleur seulement</option>
           <option value="sound">Son seulement</option>
           <option value="time">Timing seulement</option>
+          <option value="reflex">Réflexe seulement</option>
+          <option value="typing">Frappe seulement</option>
         </select>
         <button id="start">Lancer la partie</button>
       </div>
@@ -281,6 +310,20 @@
         <!-- TIME -->
         <div id="stage-time" class="fill" hidden>
           <canvas id="time-canvas"></canvas>
+        </div>
+
+        <!-- REFLEX -->
+        <div id="stage-reflex" class="fill" hidden>
+          <div id="reflex-zone"><p id="reflex-word">attends…</p></div>
+        </div>
+
+        <!-- TYPING -->
+        <div id="stage-typing" class="fill" hidden>
+          <div id="typing-wrap">
+            <p id="typing-words"></p>
+            <input id="typing-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="tape ici">
+            <p id="typing-count">0 mot</p>
+          </div>
         </div>
 
         <!-- REVEAL -->

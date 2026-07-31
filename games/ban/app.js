@@ -131,6 +131,21 @@ for (const em of AVATARS) {
   b.addEventListener('click', () => { myAvatar = em; document.querySelectorAll('.avatar-pick').forEach((x) => x.classList.toggle('picked', x === b)); });
   $('avatar-row').appendChild(b);
 }
+// Avertissement : on ne peut créer/rejoindre qu'après avoir coché la case.
+// Le choix est retenu localement pour ne pas le redemander à chaque partie.
+const TW_KEY = 'ban-tw-ok';
+function applyTw(ok) {
+  $('host').disabled = !ok;
+  $('join').disabled = !ok;
+  $('tw-check').checked = ok;
+}
+$('tw-check').addEventListener('change', (e) => {
+  const ok = e.target.checked;
+  applyTw(ok);
+  try { ok ? localStorage.setItem(TW_KEY, '1') : localStorage.removeItem(TW_KEY); } catch (_) {}
+});
+applyTw((() => { try { return localStorage.getItem(TW_KEY) === '1'; } catch (_) { return false; } })());
+
 $('host').addEventListener('click', () => enter());
 $('join').addEventListener('click', () => enter($('code-input').value));
 $('code-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') enter($('code-input').value); });

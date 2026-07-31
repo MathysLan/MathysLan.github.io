@@ -345,6 +345,9 @@ const SOUND = (() => {
 // des anneaux qui pulsent au rythme, et le chrono qui se cache en route.
 const TIME = (() => {
   let goal = 0, hideAt = 0, t0 = 0, raf = 0, tickTimer = 0, running = false, beats = 0;
+  // Le tempo sonore n'aide qu'en Facile/Moyen : au-dessus, on compte sans repère.
+  const TICK_DIFFS = ['facile', 'moyen'];
+  let withTicks = true;
   const fmt = (ms) => (ms / 1000).toFixed(3);
 
   function draw() {
@@ -368,14 +371,16 @@ const TIME = (() => {
   function stopViz() { if (raf) cancelAnimationFrame(raf); raf = 0; }
   function startTicks() {
     clearInterval(tickTimer); beats = 0;
+    if (!withTicks) return;                       // difficulté élevée : silence, débrouille-toi
     AUDIO.tick(true);
     tickTimer = setInterval(() => { beats++; AUDIO.tick(beats % 4 === 0); }, 1000);
   }
   function stopTicks() { clearInterval(tickTimer); tickTimer = 0; }
 
   return {
-    showTarget(t) {
+    showTarget(t, diff) {
       goal = t.target_ms; hideAt = t.hide_after_ms; running = false;
+      withTicks = TICK_DIFFS.includes(String(diff || '').toLowerCase());
       $('chrono').hidden = false; $('chrono').classList.remove('masked');
       $('chrono').textContent = fmt(goal);
       startViz(); startTicks();                       // le tempo commence dès la consigne
@@ -401,12 +406,106 @@ const TIME = (() => {
   };
 })();
 
-const GAMES = { shape: SHAPE, color: COLOR, sound: SOUND, time: TIME };
+// ============================================================ REFLEX
+// L'écran est rouge, puis passe au vert QUAND LE SERVEUR le dit (message `green`).
+// Cliquer avant = faux départ, 0 point : on ne récompense pas l'anticipation.
+const REFLEX = (() => {
+  let greenAt = 0, armed = false, early = false, reacted = null;
+  const zone = () => $('reflex-zone');
+  function wire() {
+    const z = zone();
+    if (z.dataset.wired) return; z.dataset.wired = '1';
+    z.addEventListener('pointerdown', () => hit());
+  }
+  function hit() {
+    if (!armed || reacted !== null || early) return;
+    if (!greenAt) {                       // pas encore vert → faux départ
+      early = true;
+      zone().classList.add('oops');
+      $('reflex-word').textContent = 'trop tôt !';
+      AUDIO.error();
+      doSubmit();                          // on envoie tout de suite : le tour est joué
+      return;
+    }
+    reacted = Math.round(performance.now() - greenAt);
+    $('reflex-word').textContent = reacted + ' ms';
+    AUDIO.submit();
+    doSubmit();
+  }
+  return {
+    showTarget() {                         // rien à mémoriser : juste la consigne
+      wire(); armed = false; greenAt = 0; early = false; reacted = null;
+      zone().classList.remove('go', 'oops');
+      $('reflex-word').textContent = 'prépare-toi';
+    },
+    reset() {
+      wire(); armed = true; greenAt = 0; early = false; reacted = null;
+      zone().classList.remove('go', 'oops');
+      $('reflex-word').textContent = 'attends le vert…';
+    },
+    green() {                              // top donné par le serveur
+      if (!armed || early || reacted !== null) return;
+      greenAt = performance.now();
+      zone().classList.add('go');
+      $('reflex-word').textContent = 'CLIQUE !';
+      AUDIO.go();
+    },
+    freeze() { armed = false; },
+    data() { return early ? { early: true } : { ms: reacted == null ? 99999 : reacted, early: false }; },
+  };
+})();
+
+// ============================================================ TYPING
+// Taper le plus de mots possible avant la fin du temps. Un mot validé par
+// espace ou Entrée ; on ne compte que les mots EXACTS.
+const TYPING = (() => {
+  let words = [], idx = 0, correct = 0, live = false;
+  function render() {
+    $('typing-words').innerHTML = words.slice(idx, idx + 5).map((w, i) =>
+      `<span class="w ${i === 0 ? 'now' : ''}">${esc(w)}</span>`).join(' ');
+    $('typing-count').textContent = correct + (correct > 1 ? ' mots' : ' mot');
+  }
+  function submitWord() {
+    const el = $('typing-input');
+    const typed = el.value.trim();
+    if (!typed) return;
+    if (typed === words[idx]) { correct++; AUDIO.pick(); } else { AUDIO.error(); }
+    idx++; el.value = '';
+    if (idx >= words.length) idx = 0;      // liste bouclée (personne n'ira jusque-là)
+    render();
+  }
+  function wire() {
+    const el = $('typing-input');
+    if (el.dataset.wired) return; el.dataset.wired = '1';
+    el.addEventListener('keydown', (e) => {
+      if (!live) return;
+      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); submitWord(); }
+    });
+  }
+  return {
+    showTarget() { wire(); live = false; words = []; idx = 0; correct = 0;
+      $('typing-input').value = ''; $('typing-input').disabled = true;
+      $('typing-words').innerHTML = '<span class="w now">prêt ?</span>'; $('typing-count').textContent = '';
+    },
+    reset(list) {
+      wire(); live = true; words = list || []; idx = 0; correct = 0;
+      const el = $('typing-input');
+      el.value = ''; el.disabled = false; render();
+      setTimeout(() => el.focus(), 30);    // le clavier tout de suite, sans clic
+    },
+    freeze() { live = false; $('typing-input').disabled = true; },
+    data() { return { correct }; },
+  };
+})();
+
+const GAMES = { shape: SHAPE, color: COLOR, sound: SOUND, time: TIME, reflex: REFLEX, typing: TYPING };
 const HINTS = {
   shape: { memo: 'Retiens la position, la taille et l\'angle', play: 'Déplace la forme · poignées pour tourner et agrandir' },
   color: { memo: 'Retiens cette couleur exacte', play: 'Retrouve la teinte, la saturation et la luminosité' },
   sound: { memo: 'Écoute bien cette hauteur', play: 'Tire l\'onde vers le haut ou le bas pour retrouver le son' },
   time: { memo: 'Retiens le temps à atteindre', play: 'Le chrono se cache — valide au bon moment' },
+  reflex: { memo: 'Clique dès que l\'écran passe au vert', play: 'Attends le vert… puis clique le plus vite possible' },
+  typing: { memo: 'Tape les mots le plus vite possible', play: 'Espace ou Entrée pour valider chaque mot' },
 };
 
 function showStage(g) {
@@ -454,6 +553,16 @@ $('start').addEventListener('click', () => {
   AUDIO.start();
   NET.send({ action: 'start', rounds: +$('rounds-select').value, difficulty: $('diff-select').value, game: $('game-select').value || undefined });
 });
+// TIMING : on peut cliquer N'IMPORTE OÙ sur la carte pour arrêter le chrono
+// (pas seulement sur le petit bouton rond). Le garde de doSubmit évite le double envoi.
+$('game').addEventListener('click', () => {
+  if (phase === 'play' && game === 'time') doSubmit();
+});
+// … et la barre d'espace, tant qu'à faire
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space' && phase === 'play' && game === 'time') { e.preventDefault(); doSubmit(); }
+});
+
 $('room-code').addEventListener('click', async () => {
   try { await navigator.clipboard.writeText($('room-code').textContent.trim()); AUDIO.pick();
     $('code-hint').textContent = 'code copié ✔'; setTimeout(() => { $('code-hint').textContent = 'clique sur le code pour le copier'; }, 1500); } catch (_) {}
@@ -498,6 +607,9 @@ NET.on('ready', (msg) => {
   if (phase === 'play' && submitted) $('phase-sub').textContent = `${msg.ids.length}/${msg.of} ont validé`;
 });
 
+// REFLEX : le top vert est donné par le serveur (le client ne le connaît jamais avant)
+NET.on('green', () => { dbg('TOP vert'); if (phase === 'play' && game === 'reflex') REFLEX.green(); });
+
 NET.on('phase', (msg) => { phase = msg.phase; dbg('phase → ' + msg.phase, msg); (PHASES[msg.phase] || (() => {}))(msg); });
 
 const PHASES = {
@@ -508,7 +620,8 @@ const PHASES = {
     $('phase-sub').textContent = 'mémorise…';
     showStage(game); setFab(null); AUDIO.memorize();
     $('score-block').hidden = true; $('reveal-view').classList.remove('sheet');
-    GAMES[game].showTarget(msg.target);
+    $('score-block').classList.remove('compact'); $('shape-board').classList.remove('fit');
+    GAMES[game].showTarget(msg.target, msg.difficulty);
     runBar(msg.ms);
   },
 
@@ -518,7 +631,7 @@ const PHASES = {
     $('phase-sub').textContent = 'à toi';
     showStage(game); AUDIO.go();
     $('score-block').hidden = true;
-    GAMES[game].reset(msg.kind);        // `kind` : quelle forme dessiner (shape)
+    GAMES[game].reset(game === 'typing' ? msg.words : msg.kind);   // mots (typing) / forme (shape)
     setFab('submit');
     runBar(msg.ms);
     armAutoSubmit(msg.ms);              // le temps qui s'écoule vaut validation
@@ -542,6 +655,7 @@ const PHASES = {
     $('phase-sub').textContent = '';
     $('hud-round').textContent = '🏆';
     $('score-block').hidden = true; $('reveal-view').classList.remove('sheet');
+    $('score-block').classList.remove('compact'); $('shape-board').classList.remove('fit');
     $('reveal-view').hidden = false;
     $('rv-compare').innerHTML = '<p class="rv-big">🏆 Podium</p>';
     setHidden($('rv-shape'), true); $('rv-list').innerHTML = '';
@@ -562,6 +676,8 @@ function deltaText(g, r) {
   if (g === 'shape') return `pos ${d.pos} · taille ${d.scale}` + (d.rot === null ? '' : ` · angle ${d.rot}°`);
   if (g === 'color') return `teinte ${d.h}° · sat ${d.s} · lum ${d.l}`;
   if (g === 'sound') return `${d.hz > 0 ? '+' : ''}${d.hz} Hz · ${Math.round(d.cents)} cents`;
+  if (g === 'reflex') return d.early ? 'parti trop tôt' : `${d.ms} ms de réaction`;
+  if (g === 'typing') return `${d.correct} mots · ${d.wpm} mots/min`;
   return `${d.ms > 0 ? '+' : ''}${d.ms} ms`;
 }
 
@@ -589,6 +705,8 @@ function renderReveal(msg) {
   // Le classement passe alors en panneau bas pour ne pas cacher le visuel.
   const overlay = (g === 'shape');
   $('reveal-view').classList.toggle('sheet', overlay);
+  $('score-block').classList.toggle('compact', overlay);
+  $('shape-board').classList.toggle('fit', overlay);   // plateau replié au-dessus du classement
   if (overlay) {
     showStage('shape');
     $('reveal-view').hidden = false;
@@ -607,6 +725,14 @@ function renderReveal(msg) {
     btn.className = 'ghost'; btn.textContent = '🔊 réécouter la cible';
     btn.addEventListener('click', () => SOUND.preview(t.frequency, 1300));
     cmp.appendChild(btn);
+  } else if (g === 'reflex') {
+    const d = mine && mine.deltas;
+    cmp.innerHTML = `<div><p class="rv-lbl">TA RÉACTION</p><p class="rv-big">`
+      + (!d ? '—' : d.early ? 'faux départ' : d.ms + ' ms') + '</p></div>';
+  } else if (g === 'typing') {
+    const d = mine && mine.deltas;
+    cmp.innerHTML = `<div><p class="rv-lbl">TA VITESSE</p><p class="rv-big">`
+      + (d ? `${d.wpm} mots/min` : '—') + '</p></div>';
   } else if (g === 'time') {
     cmp.innerHTML = `<div><p class="rv-lbl">LA CIBLE</p><p class="rv-big">${TIME.fmt(t.target_ms)} s</p></div>`
       + (mine && mine.data ? `<div><p class="rv-lbl">TOI</p><p class="rv-big">${TIME.fmt(mine.data.ms)} s</p></div>` : '');

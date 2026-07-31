@@ -26,6 +26,52 @@ const CDN = (new URLSearchParams(location.search).get('cdn')
 const videoUrl = (id) => `${CDN}/${id}.mp4`;
 
 const $ = (id) => document.getElementById(id);
+
+// --- test micro (lobby) -----------------------------------------------------
+// Autant vérifier son micro AVANT de jouer : un flux dédié, un niveau en direct,
+// et on relâche tout dès qu'on arrête (pas de micro ouvert en fond).
+const MICTEST = (() => {
+  let stream = null, ctx = null, an = null, raf = 0, peak = 0;
+  const buf = new Uint8Array(1024);
+  function paint() {
+    an.getByteTimeDomainData(buf);
+    let p = 0;
+    for (const v of buf) p = Math.max(p, Math.abs(v - 128) / 128);
+    peak = Math.max(peak, p);
+    $('mic-level').style.width = Math.min(100, p * 260).toFixed(1) + '%';
+    if (peak > 0.04) { $('mic-hint').textContent = 'micro OK, on t\'entend ✔'; $('mic-hint').className = 'ok'; }
+    raf = requestAnimationFrame(paint);
+  }
+  async function start() {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state === 'suspended') await ctx.resume();
+      an = ctx.createAnalyser(); an.fftSize = 2048;
+      ctx.createMediaStreamSource(stream).connect(an);   // analyse seule : aucun retour dans les enceintes
+      peak = 0;
+      $('mic-hint').textContent = 'parle : la barre doit bouger'; $('mic-hint').className = '';
+      $('mic-btn').textContent = 'arrêter'; $('mic-btn').classList.add('on');
+      paint();
+      return true;
+    } catch (e) {
+      $('mic-hint').textContent = 'micro refusé ou introuvable — vérifie les autorisations';
+      $('mic-hint').className = 'ko';
+      stop();
+      return false;
+    }
+  }
+  function stop() {
+    if (raf) cancelAnimationFrame(raf); raf = 0;
+    if (stream) { stream.getTracks().forEach((t) => t.stop()); stream = null; }
+    if (ctx) { try { ctx.close(); } catch (_) {} ctx = null; }
+    an = null;
+    $('mic-level').style.width = '0%';
+    $('mic-btn').textContent = 'tester'; $('mic-btn').classList.remove('on');
+  }
+  return { toggle() { raf ? stop() : start(); }, stop, running: () => !!raf };
+})();
+$('mic-btn').addEventListener('click', () => MICTEST.toggle());
 const show = (id) => {
   for (const s of document.querySelectorAll('main > section')) s.hidden = s.id !== id;
 };
@@ -437,6 +483,7 @@ NET.on('phase', (msg) => {
 
 const PHASES = {
   watching(msg) {
+    MICTEST.stop();          // la partie commence : on relâche le micro du test
     inEndScreen = false;
     show('game');
     hideStage();

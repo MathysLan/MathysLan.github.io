@@ -123,6 +123,16 @@
   #error { margin-top: 1rem; font-size: .8rem; color: #ef4444; min-height: 1.2em; }
   .back { display: inline-block; margin-top: 1.6rem; color: #6f6c80; font-size: .75rem; text-decoration: none; }
   .back:hover { color: #e7e5f4; }
+  /* avertissement (TW) affiché avant de pouvoir jouer */
+  #tw { border: 1px solid rgba(239,68,68,.4); background: rgba(239,68,68,.07);
+    border-radius: 12px; padding: .9rem 1rem; margin-bottom: 1.2rem; text-align: left; font-size: .76rem;
+    line-height: 1.5; color: #cbc9d8; }
+  #tw .tw-title { color: #fca5a5; font-weight: 700; margin-bottom: .4rem; letter-spacing: .04em; }
+  #tw p + p { margin-top: .5rem; }
+  #tw b { color: #e7e5f4; }
+  .tw-ok { display: flex; align-items: center; gap: .5rem; margin-top: .7rem;
+    color: #e7e5f4; cursor: pointer; font-size: .78rem; }
+  .tw-ok input { width: auto; accent-color: #ef4444; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -133,6 +143,16 @@
 
     <!-- accueil -->
     <section id="home">
+      <div id="tw">
+        <p class="tw-title">⚠️ Avertissement</p>
+        <p>Les extraits viennent de vidéos publiques et le mot caché peut être
+          <b>insultant, vulgaire ou blessant</b> (propos discriminatoires, injures…).
+          Ils sont là comme <b>matière de jeu</b>, pour le timing — pas pour le contenu.</p>
+        <p>Je ne cautionne aucun des propos tenus dans ces extraits, et ils
+          n'engagent que leurs auteurs. Si ça te met mal à l'aise, ne joue pas :
+          c'est complètement OK.</p>
+        <label class="tw-ok"><input type="checkbox" id="tw-check"> j'ai compris, je peux jouer</label>
+      </div>
       <input id="name-input" maxlength="16" placeholder="ton pseudo" autocomplete="off" spellcheck="false">
       <p class="pick-hint">choisis ton icône :</p>
       <div id="avatar-row"></div>
