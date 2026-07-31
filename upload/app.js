@@ -4,7 +4,7 @@
 // ?server= pour tester contre un serveur local.
 
 const API = (new URLSearchParams(location.search).get('server')
-  || 'https://upload-server.onrender.com').replace(/\/$/, '');
+  || 'https://upload-server-9r3c.onrender.com').replace(/\/$/, '');
 
 const $ = (id) => document.getElementById(id);
 const err = (m) => { $('err').textContent = m ? '> ' + m : ''; };
