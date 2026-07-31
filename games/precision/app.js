@@ -461,6 +461,7 @@ const REFLEX = (() => {
 const TYPING = (() => {
   const PAGE = 12;                       // mots affichés d'un bloc
   let words = [], idx = 0, correct = 0, live = false;
+  let marks = [];                        // pour chaque mot passé : réussi ou raté
   // Les mots restent EN PLACE : on ne fait glisser une fenêtre à chaque mot
   // (tout sautait à l'écran, désagréable). Seul le surlignage avance ; le bloc
   // n'est remplacé que lorsqu'il est entièrement tapé.
@@ -468,15 +469,20 @@ const TYPING = (() => {
     const page = Math.floor(idx / PAGE);
     const start = page * PAGE;
     const here = idx - start;
-    $('typing-words').innerHTML = words.slice(start, start + PAGE).map((w, i) =>
-      `<span class="w ${i === here ? 'now' : (i < here ? 'done' : '')}">${esc(w)}</span>`).join(' ');
+    $('typing-words').innerHTML = words.slice(start, start + PAGE).map((w, i) => {
+      // vert = tapé juste, ROUGE = raté (sinon on croit l'avoir eu bon)
+      const cls = i === here ? 'now' : (i < here ? (marks[start + i] ? 'ok' : 'ko') : '');
+      return `<span class="w ${cls}">${esc(w)}</span>`;
+    }).join(' ');
     $('typing-count').textContent = correct + (correct > 1 ? ' mots' : ' mot');
   }
   function submitWord() {
     const el = $('typing-input');
     const typed = el.value.trim();
     if (!typed) return;
-    if (typed === words[idx]) { correct++; AUDIO.pick(); } else { AUDIO.error(); }
+    const good = typed === words[idx];
+    marks[idx] = good;
+    if (good) { correct++; AUDIO.pick(); } else { AUDIO.error(); }
     idx++; el.value = '';
     if (idx >= words.length) idx = 0;      // liste bouclée (personne n'ira jusque-là)
     render();
@@ -490,12 +496,12 @@ const TYPING = (() => {
     });
   }
   return {
-    showTarget() { wire(); live = false; words = []; idx = 0; correct = 0;
+    showTarget() { wire(); live = false; words = []; idx = 0; correct = 0; marks = [];
       $('typing-input').value = ''; $('typing-input').disabled = true;
       $('typing-words').innerHTML = '<span class="w now">prêt ?</span>'; $('typing-count').textContent = '';
     },
     reset(list) {
-      wire(); live = true; words = list || []; idx = 0; correct = 0;
+      wire(); live = true; words = list || []; idx = 0; correct = 0; marks = [];
       const el = $('typing-input');
       el.value = ''; el.disabled = false; render();
       setTimeout(() => el.focus(), 30);    // le clavier tout de suite, sans clic

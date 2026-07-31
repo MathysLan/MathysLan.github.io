@@ -16,6 +16,7 @@ let activeRec = null;     // MediaRecorder en cours, sinon null
 let lastTakeUrl = null;   // blob URL de la dernière prise envoyée (pour la réécoute)
 let myReady = false;
 let myAvatar = null;
+let lastPlayers = [];     // dernier état connu des joueurs (pour nommer qui on attend)
 
 // Le catalogue (videos/videos.json) ne donne QUE l'id : le front construit
 // l'URL du bucket R2, comme le Jeu du Ban. Convention : <id>.mp4 à la racine.
@@ -391,6 +392,7 @@ function renderHostControls() {
 NET.on('room', (msg) => {
   you = msg.you;
   $('room-code').textContent = msg.code;
+  lastPlayers = msg.players;
   const me = msg.players.find((p) => p.id === you);
   isHost = !!(me && me.host);
   if (me) myReady = !!me.ready;
@@ -408,7 +410,12 @@ NET.on('room', (msg) => {
   $('rec-ready-btn').classList.toggle('is-ready', myReady);
   $('host-config').hidden = !isHost;
   $('start').disabled = msg.players.length < 2;
-  $('ready-count').textContent = `${readyCount}/${msg.players.length} prêts`;
+  // On NOMME ceux qu'on attend : « 2/4 prêts » ne dit pas après qui on poireaute.
+  const waiting = msg.players.filter((p) => !p.ready).map((p) => p.name);
+  $('ready-count').innerHTML = waiting.length === 0
+    ? `<span class="ok">✔ tout le monde est prêt (${readyCount}/${msg.players.length})</span>`
+    : `${readyCount}/${msg.players.length} prêts — on attend `
+      + `<b>${waiting.map(esc).join(', ')}</b>`;
   $('need-players').hidden = msg.players.length >= 2;
 
   renderScoreboard(msg.players);
@@ -464,7 +471,12 @@ $('relisten-btn').addEventListener('click', () => { if (listenUrl) playCurrentLi
 
 NET.on('rated', (msg) => {
   if (!lastListen) return;
-  $('listen-count').textContent = `imitation ${lastListen.idx}/${lastListen.of} — ${msg.count}/${msg.of} ont noté`;
+  // pareil qu'au lobby : on nomme ceux qu'on attend (le propriétaire ne vote pas)
+  const late = (lastPlayers || [])
+    .filter((p) => p.id !== msg.owner && !(msg.ids || []).includes(p.id))
+    .map((p) => esc(p.name));
+  $('listen-count').innerHTML = `imitation ${lastListen.idx}/${lastListen.of} — `
+    + (late.length ? `on attend <b>${late.join(', ')}</b>` : `${msg.count}/${msg.of} ont noté`);
 });
 
 for (const btn of document.querySelectorAll('.rate')) {

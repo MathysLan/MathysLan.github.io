@@ -160,7 +160,8 @@
   /* même gabarit pour TOUS les mots : le surlignage ne change que la couleur,
      jamais la largeur — sinon les mots suivants se décalent à chaque validation */
   #typing-words .w { color: #4a4a52; padding: .05rem .35rem; border-radius: 6px; }
-  #typing-words .w.done { color: #86efac; }
+  #typing-words .w.ok { color: #86efac; }
+  #typing-words .w.ko { color: #fca5a5; text-decoration: line-through; }
   #typing-words .w.now { color: #fff; background: #2b2b33; }
   #typing-input { max-width: 320px; text-align: center; font-size: 1.05rem; }
   #typing-count { font-size: .74rem; color: var(--dim); }
