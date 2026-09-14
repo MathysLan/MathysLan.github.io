@@ -75,6 +75,12 @@ démarre qu'après un seuil de 6 px pour que le lien « Jouer » reste cliquable
   `pub-427c946793104d1f8e39fbf6d5584ba9.r2.dev`. Convention : fichier nommé
   `<id>.mp4` à la racine du bucket. `?server=` et `?cdn=` pour tester en local.
   Testé : moteur 26/26, ws e2e 16/16, front e2e 12/12.
+- **Front / identité visuelle** : le halo de chaque section suit maintenant le
+  curseur (« poursuite de scène », amorti à 55 %, `--hx`/`--hy` posés par
+  `main.js`, désactivé au doigt et en `prefers-reduced-motion`) ; la nav allume
+  la section en cours de lecture ; grain de pellicule fixe sur toute la page ;
+  focus clavier visible partout (le carousel avait un `outline:none` alors
+  qu'il est tabbable et se pilote aux flèches). Testé via CDP : 10/10.
 - **Précision** (nouveau) : back `precision-server` livré à part
   (`engine-precision.js` pur + `server.js` avec les setTimeout de phase), front
   `games/precision/` sur `wss://precision-server.onrender.com`. Le MJ choisit

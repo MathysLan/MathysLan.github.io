@@ -122,6 +122,34 @@ document.addEventListener('DOMContentLoaded', () => {
     heroTitle.style.setProperty('--my', `${e.clientY - r.top}px`);
   });
 
+  // Poursuite de scène : le halo de chaque section suit le curseur. Amorti à 55 %
+  // pour garder un mouvement lourd de projecteur, et réservé aux pointeurs précis
+  // (au doigt il n'y a pas de survol, le halo resterait collé au dernier appui).
+  const finePointer = window.matchMedia('(pointer: fine)').matches;
+  const stillMode = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (finePointer && !stillMode) {
+    const halos = [...document.querySelectorAll('.section-halo')];
+    let queued = false, px = 0, py = 0;
+    function placeHalos() {
+      queued = false;
+      // On lit toutes les positions AVANT d'écrire : mélanger les deux forcerait
+      // un recalcul de mise en page à chaque tour de boucle.
+      const visible = [];
+      for (const halo of halos) {
+        const r = halo.getBoundingClientRect();
+        if (r.bottom > 0 && r.top < window.innerHeight) visible.push([halo, r]);
+      }
+      for (const [halo, r] of visible) {
+        halo.style.setProperty('--hx', `${(px - (r.left + r.width / 2)) * 0.55}px`);
+        halo.style.setProperty('--hy', `${(py - (r.top + r.height * 0.22)) * 0.55}px`);
+      }
+    }
+    window.addEventListener('pointermove', (e) => {
+      px = e.clientX; py = e.clientY;
+      if (!queued) { queued = true; requestAnimationFrame(placeHalos); }
+    }, { passive: true });
+  }
+
   // Ligne de terminal auto-tapée (suit la langue active)
   const termEl = document.getElementById('term-line');
   let li = 0, ci = 0, deleting = false;
@@ -160,6 +188,24 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   window.addEventListener('scroll', updateNavbar, { passive: true });
   updateNavbar();
+
+  // Nav : la section en cours de lecture s'allume. Le repère est pris au tiers
+  // haut de l'écran, pas en haut : une section s'allume quand on la lit vraiment.
+  const navLinks = [...document.querySelectorAll('#navbar .nav-link')];
+  const navTargets = navLinks.map((a) => document.querySelector(a.getAttribute('href')));
+  function updateSpy() {
+    const mark = window.scrollY + window.innerHeight * 0.35;
+    let active = -1;
+    navTargets.forEach((s, i) => { if (s && s.offsetTop <= mark) active = i; });
+    // Le footer est plus court que le repère : arrivé en bas, il ne peut donc
+    // jamais l'atteindre. Sans ce rattrapage, « Contact » ne s'allume jamais.
+    if (window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2) {
+      active = navTargets.length - 1;
+    }
+    navLinks.forEach((a, i) => a.classList.toggle('is-active', i === active));
+  }
+  window.addEventListener('scroll', updateSpy, { passive: true });
+  updateSpy();
 
   // Menu mobile
   const burger = document.getElementById('burger');
