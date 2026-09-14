@@ -17,7 +17,7 @@
   const trAcc = { violet: 'text-violet-400', amber: 'text-amber-300', mint: 'text-emerald-300' };
   const g = (obj, f) => (window.LANG === 'en' && obj[f + '_en'] !== undefined ? obj[f + '_en'] : obj[f]);
 
-  function slideHTML(game) {
+  function slideHTML(game, idx) {
     const en = window.LANG === 'en';
     const accent = trAcc[game.accent] || 'text-violet-400';
     const tags = (g(game, 'tags') || []).map((t) =>
@@ -46,7 +46,10 @@
     <div class="game-slide" role="group" aria-roledescription="${en ? 'slide' : 'diapositive'}" aria-label="${g(game, 'title')}">
       <div class="glass rounded-3xl p-7 md:p-9 h-full flex flex-col">
         <div class="flex items-start justify-between gap-4 mb-4">
-          <div class="game-emoji">${game.emoji}</div>
+          <div class="flex items-center gap-3">
+            <span class="slot-num" aria-hidden="true">${idx + 1}</span>
+            <div class="game-emoji">${game.emoji}</div>
+          </div>
           <span class="font-mono text-xs ${accent} tracking-widest uppercase">${g(game, 'tagline')}</span>
         </div>
         <h3 class="font-display text-2xl md:text-3xl font-bold heading mb-3">${g(game, 'title')}</h3>
@@ -185,6 +188,12 @@
     root.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowLeft') { prev(); restartAuto(); }
       else if (e.key === 'ArrowRight') { next(); restartAuto(); }
+      // Comme la sélection de classe dans TF2 : une touche = un jeu. Le numéro
+      // affiché sur chaque carte n'est donc pas décoratif.
+      else if (/^[1-9]$/.test(e.key)) {
+        const i = +e.key - 1;
+        if (i < GAMES.length) { e.preventDefault(); go(i); restartAuto(); }
+      }
     });
 
     // pause l'auto-rotation au survol / focus

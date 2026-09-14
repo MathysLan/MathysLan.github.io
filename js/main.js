@@ -22,6 +22,12 @@ function renderProjects() {
     const chips = p.stack.map(s =>
       `<span class="font-mono text-[11px] px-2.5 py-1 rounded-md chip">${s}</span>`
     ).join('');
+    // Estampille de qualité TF2 : le nom de qualité reste en anglais dans les
+    // deux langues, c'est ainsi que les joueurs le lisent (« un Strange », pas
+    // « un Étrange »).
+    const quality = p.quality
+      ? `<span class="q-badge" data-q="${p.quality}">★ ${p.quality === 'collectors' ? "Collector's" : p.quality}</span>`
+      : '';
     const confBadge = p.confidential
       ? `<span class="font-mono text-[11px] px-2.5 py-1 rounded-full conf-badge font-medium">${en ? 'confidential' : 'confidentiel'}</span>`
       : '';
@@ -45,8 +51,11 @@ function renderProjects() {
       ${cover}
       <div class="p-7">
         <div class="flex items-start justify-between gap-4 mb-3">
-          <span class="font-mono text-xs px-3 py-1 rounded-full badge-violet">${tr(p, 'badge')}</span>
-          <div class="flex items-center gap-3">${confBadge}${ghLink}</div>
+          <div class="flex flex-wrap items-center gap-2.5">
+            ${quality}
+            <span class="font-mono text-[11px] muted">${tr(p, 'badge')}</span>
+          </div>
+          <div class="flex items-center gap-3 shrink-0">${confBadge}${ghLink}</div>
         </div>
         <h3 class="font-display text-xl md:text-2xl font-semibold mb-2 heading">${tr(p, 'title')}</h3>
         <p class="muted text-sm leading-relaxed">${tr(p, 'desc')}</p>
@@ -118,8 +127,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const hero = document.getElementById('hero');
   hero.addEventListener('mousemove', (e) => {
     const r = heroTitle.getBoundingClientRect();
-    heroTitle.style.setProperty('--mx', `${e.clientX - r.left}px`);
-    heroTitle.style.setProperty('--my', `${e.clientY - r.top}px`);
+    // Borné au titre : au-delà, la zone éclairée sort des lettres et les pleins
+    // d'Anton retombent d'un bloc sur la teinte sombre du dégradé.
+    const x = Math.max(0, Math.min(r.width, e.clientX - r.left));
+    const y = Math.max(0, Math.min(r.height, e.clientY - r.top));
+    heroTitle.style.setProperty('--mx', `${x}px`);
+    heroTitle.style.setProperty('--my', `${y}px`);
   });
 
   // Poursuite de scène : le halo de chaque section suit le curseur. Amorti à 55 %
@@ -235,6 +248,40 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   });
+
+  // Killfeed : à la première arrivée sur une section, une ligne s'affiche en
+  // haut à droite puis disparaît. Une seule par section, jamais rejouée — sinon
+  // ça devient du bruit à chaque aller-retour de scroll.
+  const feed = document.getElementById('killfeed');
+  if (feed) {
+    // La clé d'arme de l'Engineer : c'est la classe qui construit et entretient.
+    const wrench = '<svg class="kf-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>';
+    const feedObs = new IntersectionObserver((entries) => {
+      entries.forEach((en) => {
+        if (!en.isIntersecting) return;
+        feedObs.unobserve(en.target);
+        const target = (KILLFEED[window.LANG] || KILLFEED.fr)[en.target.id];
+        if (!target) return;
+        const el = document.createElement('div');
+        el.className = 'kf';
+        const team = en.target.dataset.team || 'red';
+        el.style.setProperty('--team', `var(--${team})`);          // bordure
+        el.style.setProperty('--team-ink', `var(--${team}-ink)`);  // texte lisible
+        el.innerHTML = `<span class="kf-who">Mathys</span>${wrench}<span class="kf-what"></span>`;
+        el.querySelector('.kf-what').textContent = target;
+        feed.appendChild(el);
+        // En scroll rapide, plusieurs sections se déclenchent d'affilée : on
+        // garde les trois dernières, au-delà ça devient un mur de texte.
+        while (feed.children.length > 3) feed.firstElementChild.remove();
+        setTimeout(() => {
+          el.classList.add('out');
+          setTimeout(() => el.remove(), 500);
+        }, 4200);
+      });
+    }, { threshold: 0.25 });
+    ['projects', 'timeline', 'assos', 'passions', 'games', 'contact']
+      .forEach((id) => { const s = document.getElementById(id); if (s) feedObs.observe(s); });
+  }
 
   // Reveal au scroll
   const obs = new IntersectionObserver((entries) => {

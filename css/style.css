@@ -15,8 +15,40 @@
   --cover-bg: #11111c;
   --halo-opacity: .14;
   --grain-opacity: .035;
-  --t1: #ffffff; --t2: #cabdfd; --t3: #55506e;
+  --t1: #ffffff; --t2: #cabdfd; --t3: #7a7597;
   --violet-badge-text: #c4b5fd;
+
+  /* ---- Team Fortress 2 ----
+     Couleurs d'équipe RED / BLU et qualités d'objet, telles que le jeu les
+     utilise. Elles servent d'ACCENTS : la base du site reste violet/menthe.
+
+     Deux jeux de valeurs, et c'est volontaire :
+       --red / --blu / --q-*  = la teinte authentique, pour les barres, les
+         bordures et les fonds teintés, où le contraste n'est pas en jeu ;
+       --red-ink / --qi-*     = la même teinte rendue lisible EN TEXTE.
+     TF2 pose ses couleurs sur un gris moyen ; sur un fond quasi noir, la
+     moitié d'entre elles tombent sous 4.5:1 (Collector's descend à 2,5:1).
+     On garde donc la teinte et on remonte la luminosité. */
+  --red: #b8383b;
+  --blu: #5885a2;
+  --red-ink: #d96366;
+  --blu-ink: #5885a2;      /* déjà à 4.97:1 sur le fond sombre */
+
+  --q-unusual: #8650ac;
+  --q-strange: #cf6a32;
+  --q-collectors: #aa0000;
+  --q-vintage: #476291;
+  --q-genuine: #4d7455;
+  --q-haunted: #38f3ab;
+  --q-unique: #ffd700;
+
+  --qi-unusual: #a276c9;
+  --qi-strange: #cf6a32;
+  --qi-collectors: #d95757;
+  --qi-vintage: #6f8fbb;
+  --qi-genuine: #6b9a76;
+  --qi-haunted: #38f3ab;
+  --qi-unique: #ffd700;
 }
 html.light {
   --bg: #f2f1f7;
@@ -31,8 +63,22 @@ html.light {
   --cover-bg: #e6e4ef;
   --halo-opacity: .10;
   --grain-opacity: .018;   /* sur fond clair le grain pèse plus lourd */
-  --t1: #16121f; --t2: #6d4fd0; --t3: #b6b0ca;
+  --t1: #16121f; --t2: #6d4fd0; --t3: #6e6888;
   --violet-badge-text: #6d28d9;
+  /* Sur fond clair c'est l'inverse : il faut assombrir. Le doré et la menthe
+     du jeu sont quasi illisibles tels quels (2,3:1), d'où l'écart important. */
+  --red: #9e2d30;
+  --blu: #3c6280;
+  --red-ink: #9e2d30;
+  --blu-ink: #3c6280;
+
+  --qi-unusual: #6b3d8c;
+  --qi-strange: #9a4a1d;
+  --qi-collectors: #8f0000;
+  --qi-vintage: #3a5177;
+  --qi-genuine: #3c5c42;
+  --qi-haunted: #0f6e49;
+  --qi-unique: #7a6000;
 }
 
 html { background: var(--bg); scroll-behavior: smooth; }
@@ -130,6 +176,11 @@ html.light .text-red-400 { color: #dc2626; }
 .halo-violet { --halo: #8b5cf6; }
 .halo-mint   { --halo: #34d399; }
 .halo-amber  { --halo: #f59e0b; }
+/* Les sections alternent RED et BLU : en descendant la page, on traverse les
+   deux équipes. Toujours les teintes du jeu, jamais celles du thème clair —
+   un lavis à 14 % d'opacité n'a pas de problème de contraste. */
+.halo-red { --halo: #b8383b; }
+.halo-blu { --halo: #5885a2; }
 
 /* ---- Verre ---- */
 .glass {
@@ -570,6 +621,116 @@ body.crt::after {
 .game-dot:hover { background: var(--muted); }
 .game-dot.active { background: var(--violet); width: 22px; }
 
+/* ============================================================================
+   Team Fortress 2 — le langage graphique, pas les décalques
+   ----------------------------------------------------------------------------
+   TF2 tient sur trois choses : une typo d'affiche très grasse et condensée,
+   deux équipes qui se répondent, et des objets estampillés par leur qualité.
+   On prend ces trois-là. Pas de texture de caisse, pas de HUD permanent : le
+   site reste lisible par quelqu'un qui n'a jamais lancé le jeu.
+   ========================================================================= */
+
+/* ---- Typo d'affiche (titres uniquement) ---- */
+.font-tf {
+  font-family: 'Anton', 'Space Grotesk', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: .01em;
+  font-weight: 400;      /* Anton n'a qu'une graisse, déjà très grasse */
+}
+
+/* ---- Kicker de section : la barre d'équipe ---- */
+.kicker { display: flex; align-items: center; gap: .6rem; }
+.kicker::before {
+  content: '';
+  width: 26px; height: 4px;
+  border-radius: 2px;
+  background: var(--team, var(--violet));
+  flex: none;
+}
+[data-team="red"] { --team: var(--red); --team-ink: var(--red-ink); }
+[data-team="blu"] { --team: var(--blu); --team-ink: var(--blu-ink); }
+.kicker { color: var(--team-ink, var(--violet)); }
+
+/* ---- Estampille de qualité d'objet ----
+   Chaque projet porte une qualité TF2. L'attribut data-q pose deux variables :
+   --q (la teinte du jeu, pour le fond et la bordure) et --q-ink (la même
+   teinte, corrigée pour rester lisible en texte sur le fond du thème).
+   color-mix ne sert donc jamais au texte : il ne décide pas du contraste. */
+.q-badge {
+  display: inline-flex; align-items: center; gap: .35rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .66rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  padding: .3rem .6rem;
+  border-radius: 5px;      /* les objets TF2 sont des tampons, pas des pilules */
+  white-space: nowrap;
+  color: var(--q-ink);
+  background: color-mix(in srgb, var(--q) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--q) 50%, transparent);
+}
+.q-badge[data-q="unusual"]    { --q: var(--q-unusual);    --q-ink: var(--qi-unusual); }
+.q-badge[data-q="strange"]    { --q: var(--q-strange);    --q-ink: var(--qi-strange); }
+.q-badge[data-q="collectors"] { --q: var(--q-collectors); --q-ink: var(--qi-collectors); }
+.q-badge[data-q="vintage"]    { --q: var(--q-vintage);    --q-ink: var(--qi-vintage); }
+.q-badge[data-q="genuine"]    { --q: var(--q-genuine);    --q-ink: var(--qi-genuine); }
+.q-badge[data-q="haunted"]    { --q: var(--q-haunted);    --q-ink: var(--qi-haunted); }
+.q-badge[data-q="unique"]     { --q: var(--q-unique);     --q-ink: var(--qi-unique); }
+/* Un objet Unusual porte un effet de particules : ici, une lueur qui respire. */
+.q-badge[data-q="unusual"] {
+  animation: unusual-glow 3.2s ease-in-out infinite;
+}
+@keyframes unusual-glow {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--q-unusual) 0%, transparent); }
+  50%      { box-shadow: 0 0 14px 1px color-mix(in srgb, var(--q-unusual) 45%, transparent); }
+}
+
+/* ---- Killfeed ----
+   L'élément d'interface le plus reconnaissable du jeu. Ici il annonce ce que
+   Mathys a réellement réglé, une ligne par section, jamais plus d'une à la fois
+   à l'écran très longtemps. Sous la nav, hors du flux, ignoré au clic. */
+#killfeed {
+  position: fixed;
+  top: 5.4rem; right: 1rem;
+  z-index: 45;
+  display: flex; flex-direction: column; align-items: flex-end; gap: .4rem;
+  pointer-events: none;
+}
+.kf {
+  display: flex; align-items: center; gap: .55rem;
+  padding: .4rem .7rem;
+  border-radius: 4px;
+  background: rgba(10, 10, 18, .86);
+  border: 1px solid var(--team, var(--red));
+  border-left-width: 3px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .68rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: #e7e5f4;
+  max-width: min(78vw, 340px);
+  animation: kf-in .3s cubic-bezier(.16, .8, .3, 1);
+}
+html.light .kf { background: rgba(255, 255, 255, .93); color: #211f2c; }
+.kf.out { animation: kf-out .4s ease forwards; }
+.kf-who { color: var(--team-ink, var(--red-ink)); font-weight: 700; }
+.kf-what { overflow: hidden; text-overflow: ellipsis; }
+.kf-icon { width: 15px; height: 15px; flex: none; color: var(--muted); }
+@keyframes kf-in  { from { opacity: 0; transform: translateX(26px); } }
+@keyframes kf-out { to   { opacity: 0; transform: translateX(26px); } }
+@media (max-width: 640px) { #killfeed { top: 4.6rem; right: .6rem; } }
+
+/* ---- Cartes de jeu : le numéro de sélection de classe ----
+   Dans TF2 on choisit sa classe au clavier, de 1 à 9. Le numéro n'est pas
+   décoratif : les touches 1-7 changent vraiment de carte (voir carousel.js). */
+.slot-num {
+  font-family: 'Anton', sans-serif;
+  font-size: 1.5rem; line-height: 1;
+  color: var(--team, var(--red));
+  opacity: .85;
+}
+.game-slide:nth-child(even) { --team: var(--blu); }
+
 @media (prefers-reduced-motion: reduce) {
   .reveal { transition: none; opacity: 1; transform: none; }
   .marquee-track, .fader::after, .live-dot, .insert-coin { animation: none; }
@@ -577,4 +738,6 @@ body.crt::after {
   body.crt { animation: none; }
   .game-slide { transition: none; }
   .section-halo::before { transition: none; }
+  .q-badge[data-q="unusual"] { animation: none; }
+  .kf, .kf.out { animation: none; }
 }

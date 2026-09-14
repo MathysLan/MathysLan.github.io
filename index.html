@@ -12,8 +12,8 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=4">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css?v=7">
 </head>
 <body class="antialiased">
 
@@ -61,9 +61,12 @@
     <a href="#contact" class="mobile-link hover:text-emerald-400 transition-colors" data-i18n="nav.contact">Contact</a>
   </div>
 
+  <!-- Killfeed TF2 (rempli par js/main.js à l'arrivée sur chaque section) -->
+  <div id="killfeed" aria-live="polite"></div>
+
   <!-- ============ HERO ============ -->
-  <section id="hero" class="relative min-h-screen flex items-center overflow-hidden">
-    <div class="section-halo halo-violet"></div>
+  <section id="hero" data-team="red" class="relative min-h-screen flex items-center overflow-hidden">
+    <div class="section-halo halo-red"></div>
     <div class="max-w-6xl mx-auto px-6 w-full pt-28 pb-16 relative z-10">
       <div class="flex items-center gap-3 mb-8 reveal">
         <span class="font-mono text-xs px-3 py-1.5 rounded-full glass text-emerald-300">
@@ -72,7 +75,7 @@
         <span class="font-mono text-xs px-3 py-1.5 rounded-full glass muted" data-i18n="hero.location">Reims, France</span>
       </div>
 
-      <h1 id="hero-title" class="font-display text-6xl sm:text-7xl md:text-9xl font-bold tracking-tight leading-[0.95] reveal reveal-delay-1">
+      <h1 id="hero-title" class="font-tf text-6xl sm:text-7xl md:text-9xl tracking-tight leading-[0.95] reveal reveal-delay-1">
         Mathys<br>Langiny
       </h1>
 
@@ -104,12 +107,12 @@
   </div>
 
   <!-- ============ PROJETS ============ -->
-  <section id="projects" class="relative py-24 md:py-32 overflow-hidden">
-    <div class="section-halo halo-violet"></div>
+  <section id="projects" data-team="blu" class="relative py-24 md:py-32 overflow-hidden">
+    <div class="section-halo halo-blu"></div>
     <div class="max-w-6xl mx-auto px-6 relative z-10">
       <div class="reveal mb-14">
-        <p class="font-mono text-xs text-violet-400 tracking-widest uppercase mb-3" data-i18n="projects.kicker">01 - Projets</p>
-        <h2 class="font-display text-3xl md:text-5xl font-bold heading" data-i18n="projects.title">Projets data &amp; dev<span class="text-violet-400">.</span></h2>
+        <p class="kicker font-mono text-xs tracking-widest uppercase mb-3" data-i18n="projects.kicker">01 - Projets</p>
+        <h2 class="font-tf text-4xl md:text-6xl heading" data-i18n="projects.title">Projets data &amp; dev<span class="text-violet-400">.</span></h2>
         <p class="muted mt-4 max-w-lg" data-i18n="projects.sub">Pas de vitrine marketing : ce que j'ai construit, avec quoi, et pourquoi. Clique sur une carte pour voir les captures.</p>
       </div>
       <div id="projects-grid" class="grid sm:grid-cols-2 gap-6"></div>
@@ -121,12 +124,12 @@
   </section>
 
   <!-- ============ PARCOURS / TIMELINE ============ -->
-  <section id="timeline" class="relative py-24 md:py-32 overflow-hidden border-t border-white/5">
-    <div class="section-halo halo-violet"></div>
+  <section id="timeline" data-team="red" class="relative py-24 md:py-32 overflow-hidden border-t border-white/5">
+    <div class="section-halo halo-red"></div>
     <div class="max-w-6xl mx-auto px-6 relative z-10">
       <div class="reveal mb-14">
-        <p class="font-mono text-xs text-violet-400 tracking-widest uppercase mb-3" data-i18n="timeline.kicker">02 - Parcours</p>
-        <h2 class="font-display text-3xl md:text-5xl font-bold heading" data-i18n="timeline.title">Mon parcours<span class="text-violet-400">.</span></h2>
+        <p class="kicker font-mono text-xs tracking-widest uppercase mb-3" data-i18n="timeline.kicker">02 - Parcours</p>
+        <h2 class="font-tf text-4xl md:text-6xl heading" data-i18n="timeline.title">Mon parcours<span class="text-violet-400">.</span></h2>
       </div>
 
       <div class="timeline max-w-2xl">
@@ -178,12 +181,12 @@
   </section>
 
   <!-- ============ ASSOS : LES JEUNES CAPUCINS ============ -->
-  <section id="assos" class="relative py-24 md:py-32 overflow-hidden border-t border-white/5">
-    <div class="section-halo halo-mint"></div>
+  <section id="assos" data-team="blu" class="relative py-24 md:py-32 overflow-hidden border-t border-white/5">
+    <div class="section-halo halo-blu"></div>
     <div class="max-w-6xl mx-auto px-6 relative z-10">
       <div class="reveal mb-14">
-        <p class="font-mono text-xs text-emerald-400 tracking-widest uppercase mb-3" data-i18n="assos.kicker">03 - Engagement associatif</p>
-        <h2 class="font-display text-3xl md:text-5xl font-bold heading" data-i18n="assos.title">Les Jeunes Capucins<span class="text-emerald-400">.</span></h2>
+        <p class="kicker font-mono text-xs tracking-widest uppercase mb-3" data-i18n="assos.kicker">03 - Engagement associatif</p>
+        <h2 class="font-tf text-4xl md:text-6xl heading" data-i18n="assos.title">Les Jeunes Capucins<span class="text-emerald-400">.</span></h2>
       </div>
 
       <div class="grid md:grid-cols-2 gap-10 items-start">
@@ -260,12 +263,12 @@
   </section>
 
   <!-- ============ PASSIONS ============ -->
-  <section id="passions" class="relative py-24 md:py-32 overflow-hidden border-t border-white/5">
-    <div class="section-halo halo-amber"></div>
+  <section id="passions" data-team="red" class="relative py-24 md:py-32 overflow-hidden border-t border-white/5">
+    <div class="section-halo halo-red"></div>
     <div class="max-w-6xl mx-auto px-6 relative z-10">
       <div class="reveal mb-14">
-        <p class="font-mono text-xs text-amber-400 tracking-widest uppercase mb-3" data-i18n="passions.kicker">04 - En dehors du code</p>
-        <h2 class="font-display text-3xl md:text-5xl font-bold heading" data-i18n="passions.title">Backstage<span class="text-amber-400">.</span></h2>
+        <p class="kicker font-mono text-xs tracking-widest uppercase mb-3" data-i18n="passions.kicker">04 - En dehors du code</p>
+        <h2 class="font-tf text-4xl md:text-6xl heading" data-i18n="passions.title">Backstage<span class="text-amber-400">.</span></h2>
       </div>
 
       <!-- Sport : volley + karaté -->
@@ -484,13 +487,13 @@
   </section>
 
   <!-- ============ JEUX ============ -->
-  <section id="games" class="relative py-24 md:py-32 overflow-hidden border-t border-white/5">
-    <div class="section-halo halo-violet"></div>
+  <section id="games" data-team="blu" class="relative py-24 md:py-32 overflow-hidden border-t border-white/5">
+    <div class="section-halo halo-blu"></div>
     <div class="max-w-6xl mx-auto px-6 relative z-10">
       <div class="reveal mb-10 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p class="font-mono text-xs text-violet-400 tracking-widest uppercase mb-3" data-i18n="games.kicker">05 - Jeux</p>
-          <h2 class="font-display text-3xl md:text-5xl font-bold heading" data-i18n="games.title">Jeux web<span class="text-violet-400">.</span></h2>
+          <p class="kicker font-mono text-xs tracking-widest uppercase mb-3" data-i18n="games.kicker">05 - Jeux</p>
+          <h2 class="font-tf text-4xl md:text-6xl heading" data-i18n="games.title">Jeux web<span class="text-violet-400">.</span></h2>
           <p class="muted mt-4 max-w-lg" data-i18n="games.sub">Des jeux jouables direct dans le navigateur - sans install, sans compte. Front statique, serveur arbitre maison.</p>
         </div>
         <button id="insert-coin" class="font-mono text-xs tracking-[0.3em] text-violet-300 insert-coin shrink-0" title="Une pièce = une partie">▸ INSERT COIN ◂</button>
@@ -524,12 +527,12 @@
   </section>
 
   <!-- ============ CONTACT ============ -->
-  <footer id="contact" class="relative border-t border-white/5 pt-24 pb-10 overflow-hidden">
-    <div class="section-halo halo-mint"></div>
+  <footer id="contact" data-team="red" class="relative border-t border-white/5 pt-24 pb-10 overflow-hidden">
+    <div class="section-halo halo-red"></div>
     <div class="max-w-6xl mx-auto px-6 relative z-10">
       <div class="reveal text-center max-w-2xl mx-auto mb-14">
-        <p class="font-mono text-xs text-emerald-400 tracking-widest uppercase mb-3" data-i18n="contact.kicker">06 - Contact</p>
-        <h2 class="font-display text-3xl md:text-5xl font-bold heading mb-5" data-i18n="contact.title">On se capte ?</h2>
+        <p class="kicker justify-center font-mono text-xs tracking-widest uppercase mb-3" data-i18n="contact.kicker">06 - Contact</p>
+        <h2 class="font-tf text-4xl md:text-6xl heading mb-5" data-i18n="contact.title">On se capte ?</h2>
         <p class="muted leading-relaxed" data-i18n="contact.desc">
           Un projet data, une opportunité, ou juste envie d'échanger - écris-moi, je réponds.
         </p>
@@ -577,14 +580,14 @@
     <button id="lightbox-next" aria-label="Image suivante" class="absolute right-3 md:right-8 top-1/2 -translate-y-1/2 hover:text-white text-4xl font-light px-3">›</button>
   </div>
 
-  <script src="data/projects.js?v=3"></script>
+  <script src="data/projects.js?v=4"></script>
   <script src="data/games.js?v=1"></script>
   <script src="data/favgames.js?v=1"></script>
-  <script src="js/i18n.js?v=2"></script>
+  <script src="js/i18n.js?v=3"></script>
   <script src="js/lightbox.js?v=2"></script>
   <script src="js/tilt.js?v=2"></script>
-  <script src="js/main.js?v=4"></script>
-  <script src="js/carousel.js?v=1"></script>
+  <script src="js/main.js?v=7"></script>
+  <script src="js/carousel.js?v=2"></script>
   <script src="js/palette.js?v=1"></script>
   <script src="js/connect4.js?v=1"></script>
   <script src="js/easter.js?v=1"></script>

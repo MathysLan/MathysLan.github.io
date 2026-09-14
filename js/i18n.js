@@ -220,6 +220,28 @@ const I18N = {
   },
 };
 
+// Killfeed : une ligne par section, déclenchée à la première arrivée dessus.
+// Format TF2 : <auteur> <arme> <cible>. La cible est toujours un truc que
+// Mathys a réellement réglé — jamais une blague hors-sol.
+const KILLFEED = {
+  fr: {
+    projects: "les usines à gaz",
+    timeline: "les plannings sous Excel",
+    assos: "le budget de l'asso",
+    passions: "6 h de volley par semaine",
+    games: "le lag",
+    contact: "ta boîte mail (bientôt)",
+  },
+  en: {
+    projects: "over-engineering",
+    timeline: "schedules run on Excel",
+    assos: "the association budget",
+    passions: "6 hours of volleyball a week",
+    games: "lag",
+    contact: "your inbox (soon)",
+  },
+};
+
 // Lignes du terminal du hero, par langue
 const TERM_LINES = {
   fr: [

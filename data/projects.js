@@ -1,9 +1,14 @@
 // Données des projets - ajouter un projet = ajouter un objet ici, rien d'autre à toucher.
 // size: "lg" = carte large (2 colonnes), "md" = carte simple.
+// quality: estampille de qualité d'objet TF2 (unusual, strange, collectors,
+//   vintage, genuine, haunted, unique). Elle dit la nature du projet : strange
+//   compte des statistiques, collectors collecte, vintage est ancien mais tient
+//   encore, unusual est la pièce rare. Voir .q-badge dans css/style.css.
 // Les champs *_en fournissent la version anglaise (fallback : version française).
 const PROJECTS = [
   {
     id: 'tests-qualite',
+    quality: 'unusual',
     badge: 'AgiLab - entreprise',
     badge_en: 'AgiLab - industry',
     confidential: true,
@@ -18,6 +23,7 @@ const PROJECTS = [
   },
   {
     id: 'sae-radars',
+    quality: 'strange',
     badge: 'SAE S5 - data',
     size: 'lg',
     title: 'Radars & accidents - data visualisation',
@@ -36,6 +42,7 @@ const PROJECTS = [
   },
   {
     id: 'bluesky-gtavi',
+    quality: 'collectors',
     badge: 'SAE F.Admin.01 - data / IA',
     badge_en: 'SAE F.Admin.01 - data / AI',
     size: 'lg',
@@ -55,6 +62,7 @@ const PROJECTS = [
   },
   {
     id: 'back2play',
+    quality: 'haunted',
     badge: 'SAE S5/S6 - entrepreneuriat',
     badge_en: 'SAE S5/S6 - entrepreneurship',
     size: 'md',
@@ -71,6 +79,7 @@ const PROJECTS = [
   },
   {
     id: 'hopital',
+    quality: 'genuine',
     badge: 'SAE 3.01 - dev web',
     badge_en: 'SAE 3.01 - web dev',
     size: 'md',
@@ -91,6 +100,7 @@ const PROJECTS = [
   },
   {
     id: 'series-tv',
+    quality: 'vintage',
     badge: 'SAE S2 - dev web',
     badge_en: 'SAE S2 - web dev',
     size: 'md',
@@ -110,6 +120,7 @@ const PROJECTS = [
   },
   {
     id: 'puissance4',
+    quality: 'unique',
     badge: 'BUT - projet',
     badge_en: 'BUT - project',
     size: 'md',
@@ -126,6 +137,7 @@ const PROJECTS = [
   },
   {
     id: 'maze',
+    quality: 'unique',
     badge: 'BUT - projet',
     badge_en: 'BUT - project',
     size: 'md',

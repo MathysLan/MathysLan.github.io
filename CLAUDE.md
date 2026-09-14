@@ -75,6 +75,24 @@ démarre qu'après un seuil de 6 px pour que le lien « Jouer » reste cliquable
   `pub-427c946793104d1f8e39fbf6d5584ba9.r2.dev`. Convention : fichier nommé
   `<id>.mp4` à la racine du bucket. `?server=` et `?cdn=` pour tester en local.
   Testé : moteur 26/26, ws e2e 16/16, front e2e 12/12.
+- **Identité visuelle Team Fortress 2** (le jeu préféré de Mathys) : on a pris
+  le LANGAGE graphique du jeu, pas ses décalques — pas de texture de caisse ni
+  de HUD permanent, le site reste lisible par qui n'a jamais lancé TF2. Quatre
+  choses : typo d'affiche **Anton** sur le hero et les titres de section
+  (`.font-tf`, en capitales) ; sections alternées **RED / BLU**
+  (`data-team` + `.halo-red`/`.halo-blu` + barre d'équipe sur `.kicker`) ;
+  **estampilles de qualité d'objet** sur les projets (champ `quality` dans
+  `data/projects.js`, `.q-badge`, l'Unusual a une lueur de particules) ;
+  **killfeed** en haut à droite, une ligne par section à la première arrivée
+  (clé à molette de l'Engineer, textes dans `KILLFEED` de `i18n.js`). Bonus :
+  les cartes du carousel portent un numéro de sélection de classe et les
+  touches **1-9** changent de jeu.
+  ⚠️ Piège rencontré : les couleurs officielles de TF2 sont calibrées pour le
+  gris moyen du jeu. Sur le fond `#0a0a12` du site, la moitié tombe sous
+  4.5:1 (Collector's à 2,5:1) ; sur le fond clair, le doré et la menthe sont
+  illisibles. D'où la séparation **teinte** (`--red`, `--q-*` : barres,
+  bordures, fonds) / **encre** (`--red-ink`, `--qi-*` : texte), avec un jeu de
+  valeurs par thème. Ne pas « simplifier » en réunifiant les deux.
 - **Front / identité visuelle** : le halo de chaque section suit maintenant le
   curseur (« poursuite de scène », amorti à 55 %, `--hx`/`--hy` posés par
   `main.js`, désactivé au doigt et en `prefers-reduced-motion`) ; la nav allume
