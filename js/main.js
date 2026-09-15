@@ -194,6 +194,21 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   typeLoop();
 
+  // ConTracker : dépliage des contrats. L'en-tête est un <button>, donc Entrée,
+  // Espace et le focus clavier sont gérés par le navigateur — il ne reste qu'à
+  // basculer `hidden` et `aria-expanded`. Plusieurs contrats peuvent rester
+  // ouverts : refermer celui qu'on vient de lire pour en ouvrir un autre est
+  // une contrainte gratuite.
+  document.querySelectorAll('.contract-head').forEach((head) => {
+    head.addEventListener('click', () => {
+      const body = document.getElementById(head.getAttribute('aria-controls'));
+      if (!body) return;
+      const open = head.getAttribute('aria-expanded') === 'true';
+      head.setAttribute('aria-expanded', String(!open));
+      body.hidden = open;
+    });
+  });
+
   // Guichet Mann Co. : le formulaire de contact n'envoie rien nulle part. Il
   // assemble un mailto: et laisse le client mail de la personne prendre le
   // relais - c'est la seule façon d'avoir un formulaire sur un site statique

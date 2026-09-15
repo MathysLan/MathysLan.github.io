@@ -20,8 +20,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <!-- tf2.css = le socle (palette, polices, primitives) ; style.css = les
      composants du portfolio. L'ordre compte : le second s'appuie sur le premier. -->
-<link rel="stylesheet" href="css/tf2.css?v=1">
-<link rel="stylesheet" href="css/style.css?v=8">
+<link rel="stylesheet" href="css/tf2.css?v=2">
+<link rel="stylesheet" href="css/style.css?v=9">
 </head>
 <body class="antialiased">
 
@@ -154,51 +154,182 @@
       <div class="reveal mb-14">
         <p class="kicker font-mono text-xs tracking-widest uppercase mb-3" data-i18n="timeline.kicker">02 - Parcours</p>
         <h2 class="font-tf text-4xl md:text-6xl heading" data-i18n="timeline.title">Mon parcours<span class="ac">.</span></h2>
+        <p class="muted mt-4 max-w-lg" data-i18n="timeline.sub">Cinq contrats, dans l'ordre. Clique pour voir les objectifs.</p>
       </div>
 
-      <div class="timeline max-w-2xl">
-        <div id="timeline-line"></div>
-        <ol class="space-y-12">
-          <li class="tl-item reveal">
-            <span class="tl-dot"></span>
-            <p class="font-mono text-xs muted mb-1" data-i18n="timeline.bac.date">2023 - Lycée Pierre Bayle</p>
-            <h3 class="font-display text-lg font-semibold heading" data-i18n="timeline.bac.title">Baccalauréat, mention Bien</h3>
-            <p class="muted mt-1 text-sm leading-relaxed" data-i18n="timeline.bac.desc">
-              Spécialités NSI, SI et Mathématiques, option Latin. Les premières lignes de code sérieuses.
-            </p>
+      <!-- L'étoile, définie une fois et réutilisée par <use> : 13 étoiles sans
+           13 copies du tracé. Le SVG porteur est retiré de l'accessibilité et
+           du flux. -->
+      <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+        <symbol id="ico-star" viewBox="0 0 24 24">
+          <path d="M12 2.6l2.85 5.85 6.45.94-4.67 4.55 1.1 6.43L12 17.33l-5.73 3.04 1.1-6.43L2.7 9.39l6.45-.94z"
+                stroke-linejoin="round"/>
+        </symbol>
+      </svg>
+
+      <!-- Le ConTracker : un contrat par étape, dépliable. La frise et les
+           marqueurs restent visibles sans rien ouvrir, donc la chronologie se
+           lit d'un coup d'œil. Le contrat en cours est ouvert par défaut. -->
+      <div class="contracts max-w-3xl">
+        <div id="timeline-line" aria-hidden="true"></div>
+        <ol class="contract-list">
+
+          <li class="contract reveal" data-state="done">
+            <span class="contract-pin" aria-hidden="true"></span>
+            <div class="contract-card">
+              <button type="button" class="contract-head" id="h-bac" aria-expanded="false" aria-controls="c-bac">
+                <span class="contract-meta">
+                  <span class="contract-date font-mono" data-i18n="timeline.bac.date">2023 - Lycée Pierre Bayle</span>
+                  <span class="contract-title" data-i18n="timeline.bac.title">Baccalauréat, mention Bien</span>
+                </span>
+                <span class="contract-right">
+                  <span class="contract-state" data-i18n="contract.done">Contrat rempli</span>
+                  <span class="stars" aria-hidden="true">
+                    <svg class="star star-full"><use href="#ico-star"/></svg>
+                    <svg class="star star-full"><use href="#ico-star"/></svg>
+                  </span>
+                  <span class="sr-only"><span data-i18n="contract.score">Objectifs accomplis :</span> 2/2</span>
+                  <svg class="contract-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+                </span>
+              </button>
+              <div class="contract-body" id="c-bac" role="region" aria-labelledby="h-bac" hidden>
+                <p class="contract-desc muted" data-i18n="timeline.bac.desc">
+                  Spécialités NSI, SI et Mathématiques, option Latin. Les premières lignes de code sérieuses.
+                </p>
+                <ul class="objectives">
+                  <li class="objective is-done"><svg class="star star-full" aria-hidden="true"><use href="#ico-star"/></svg><span data-i18n="contract.bac.o1">Décrocher le bac avec mention</span></li>
+                  <li class="objective is-done"><svg class="star star-full" aria-hidden="true"><use href="#ico-star"/></svg><span data-i18n="contract.bac.o2">Écrire ses premières lignes de code sérieuses</span></li>
+                </ul>
+              </div>
+            </div>
           </li>
-          <li class="tl-item reveal reveal-delay-1">
-            <span class="tl-dot"></span>
-            <p class="font-mono text-xs muted mb-1" data-i18n="timeline.but.date">2023 - 2026 - IUT de Reims</p>
-            <h3 class="font-display text-lg font-semibold heading" data-i18n="timeline.but.title">BUT Informatique</h3>
-            <p class="muted mt-1 text-sm leading-relaxed" data-i18n="timeline.but.desc">
-              Développement, bases de données, gestion de projet agile et travail en équipe.
-            </p>
+
+          <li class="contract reveal reveal-delay-1" data-state="done">
+            <span class="contract-pin" aria-hidden="true"></span>
+            <div class="contract-card">
+              <button type="button" class="contract-head" id="h-but" aria-expanded="false" aria-controls="c-but">
+                <span class="contract-meta">
+                  <span class="contract-date font-mono" data-i18n="timeline.but.date">2023 - 2026 - IUT de Reims</span>
+                  <span class="contract-title" data-i18n="timeline.but.title">BUT Informatique</span>
+                </span>
+                <span class="contract-right">
+                  <span class="contract-state" data-i18n="contract.done">Contrat rempli</span>
+                  <span class="stars" aria-hidden="true">
+                    <svg class="star star-full"><use href="#ico-star"/></svg>
+                    <svg class="star star-full"><use href="#ico-star"/></svg>
+                    <svg class="star star-full"><use href="#ico-star"/></svg>
+                  </span>
+                  <span class="sr-only"><span data-i18n="contract.score">Objectifs accomplis :</span> 3/3</span>
+                  <svg class="contract-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+                </span>
+              </button>
+              <div class="contract-body" id="c-but" role="region" aria-labelledby="h-but" hidden>
+                <p class="contract-desc muted" data-i18n="timeline.but.desc">
+                  Développement, bases de données, gestion de projet agile et travail en équipe.
+                </p>
+                <ul class="objectives">
+                  <li class="objective is-done"><svg class="star star-full" aria-hidden="true"><use href="#ico-star"/></svg><span data-i18n="contract.but.o1">Valider les trois années</span></li>
+                  <li class="objective is-done"><svg class="star star-full" aria-hidden="true"><use href="#ico-star"/></svg><span data-i18n="contract.but.o2">Livrer des projets en équipe, en agile</span></li>
+                  <li class="objective is-done"><svg class="star star-full" aria-hidden="true"><use href="#ico-star"/></svg><span data-i18n="contract.but.o3">Choisir sa voie : la donnée</span></li>
+                </ul>
+              </div>
+            </div>
           </li>
-          <li class="tl-item reveal reveal-delay-1">
-            <span class="tl-dot"></span>
-            <p class="font-mono text-xs muted mb-1" data-i18n="timeline.stage.date">avril 2025 - AgiLab</p>
-            <h3 class="font-display text-lg font-semibold heading" data-i18n="timeline.stage.title">Stage</h3>
-            <p class="muted mt-1 text-sm leading-relaxed" data-i18n="timeline.stage.desc">
-              Découverte du support en entreprise : correction de bugs clients et documentation des correctifs.
-            </p>
+
+          <li class="contract reveal reveal-delay-1" data-state="done">
+            <span class="contract-pin" aria-hidden="true"></span>
+            <div class="contract-card">
+              <button type="button" class="contract-head" id="h-stage" aria-expanded="false" aria-controls="c-stage">
+                <span class="contract-meta">
+                  <span class="contract-date font-mono" data-i18n="timeline.stage.date">avril 2025 - AgiLab</span>
+                  <span class="contract-title" data-i18n="timeline.stage.title">Stage</span>
+                </span>
+                <span class="contract-right">
+                  <span class="contract-state" data-i18n="contract.done">Contrat rempli</span>
+                  <span class="stars" aria-hidden="true">
+                    <svg class="star star-full"><use href="#ico-star"/></svg>
+                    <svg class="star star-full"><use href="#ico-star"/></svg>
+                  </span>
+                  <span class="sr-only"><span data-i18n="contract.score">Objectifs accomplis :</span> 2/2</span>
+                  <svg class="contract-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+                </span>
+              </button>
+              <div class="contract-body" id="c-stage" role="region" aria-labelledby="h-stage" hidden>
+                <p class="contract-desc muted" data-i18n="timeline.stage.desc">
+                  Découverte du support en entreprise : correction de bugs clients et documentation des correctifs.
+                </p>
+                <ul class="objectives">
+                  <li class="objective is-done"><svg class="star star-full" aria-hidden="true"><use href="#ico-star"/></svg><span data-i18n="contract.stage.o1">Corriger de vrais bugs, sur de vrais clients</span></li>
+                  <li class="objective is-done"><svg class="star star-full" aria-hidden="true"><use href="#ico-star"/></svg><span data-i18n="contract.stage.o2">Documenter chaque correctif, sans exception</span></li>
+                </ul>
+              </div>
+            </div>
           </li>
-          <li class="tl-item reveal reveal-delay-2">
-            <span class="tl-dot"></span>
-            <p class="font-mono text-xs muted mb-1" data-i18n="timeline.alt.date">sept. 2025 - juin 2026 - AgiLab</p>
-            <h3 class="font-display text-lg font-semibold heading" data-i18n="timeline.alt.title">Alternance</h3>
-            <p class="muted mt-1 text-sm leading-relaxed" data-i18n="timeline.alt.desc">
-              Conception et industrialisation d'un système d'automatisation des tests qualité, en parallèle de la 3e année.
-            </p>
+
+          <li class="contract reveal reveal-delay-2" data-state="done">
+            <span class="contract-pin" aria-hidden="true"></span>
+            <div class="contract-card">
+              <button type="button" class="contract-head" id="h-alt" aria-expanded="false" aria-controls="c-alt">
+                <span class="contract-meta">
+                  <span class="contract-date font-mono" data-i18n="timeline.alt.date">sept. 2025 - juin 2026 - AgiLab</span>
+                  <span class="contract-title" data-i18n="timeline.alt.title">Alternance</span>
+                </span>
+                <span class="contract-right">
+                  <span class="contract-state" data-i18n="contract.done">Contrat rempli</span>
+                  <span class="stars" aria-hidden="true">
+                    <svg class="star star-full"><use href="#ico-star"/></svg>
+                    <svg class="star star-full"><use href="#ico-star"/></svg>
+                    <svg class="star star-full"><use href="#ico-star"/></svg>
+                  </span>
+                  <span class="sr-only"><span data-i18n="contract.score">Objectifs accomplis :</span> 3/3</span>
+                  <svg class="contract-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+                </span>
+              </button>
+              <div class="contract-body" id="c-alt" role="region" aria-labelledby="h-alt" hidden>
+                <p class="contract-desc muted" data-i18n="timeline.alt.desc">
+                  Conception et industrialisation d'un système d'automatisation des tests qualité, en parallèle de la 3e année.
+                </p>
+                <ul class="objectives">
+                  <li class="objective is-done"><svg class="star star-full" aria-hidden="true"><use href="#ico-star"/></svg><span data-i18n="contract.alt.o1">Concevoir l'automatisation des tests qualité</span></li>
+                  <li class="objective is-done"><svg class="star star-full" aria-hidden="true"><use href="#ico-star"/></svg><span data-i18n="contract.alt.o2">L'industrialiser sur plusieurs environnements clients</span></li>
+                  <li class="objective is-done"><svg class="star star-full" aria-hidden="true"><use href="#ico-star"/></svg><span data-i18n="contract.alt.o3">Tenir la 3e année de BUT en parallèle</span></li>
+                </ul>
+              </div>
+            </div>
           </li>
-          <li class="tl-item reveal reveal-delay-3">
-            <span class="tl-dot"></span>
-            <p class="font-mono text-xs ac-green mb-1" data-i18n="timeline.cdi.date">2026 - aujourd'hui - AgiLab</p>
-            <h3 class="font-display text-lg font-semibold heading" data-i18n="timeline.cdi.title">CDI - Data / Admin BDD</h3>
-            <p class="muted mt-1 text-sm leading-relaxed" data-i18n="timeline.cdi.desc">
-              Automatisation, outillage qualité et administration des bases. La donnée client, on la protège.
-            </p>
+
+          <li class="contract reveal reveal-delay-3" data-state="active">
+            <span class="contract-pin" aria-hidden="true"></span>
+            <div class="contract-card">
+              <button type="button" class="contract-head" id="h-cdi" aria-expanded="true" aria-controls="c-cdi">
+                <span class="contract-meta">
+                  <span class="contract-date font-mono" data-i18n="timeline.cdi.date">2026 - aujourd'hui - AgiLab</span>
+                  <span class="contract-title" data-i18n="timeline.cdi.title">CDI - Data / Admin BDD</span>
+                </span>
+                <span class="contract-right">
+                  <span class="contract-state" data-i18n="contract.active">En cours</span>
+                  <span class="stars" aria-hidden="true">
+                    <svg class="star star-full"><use href="#ico-star"/></svg>
+                    <svg class="star star-full"><use href="#ico-star"/></svg>
+                    <svg class="star star-empty"><use href="#ico-star"/></svg>
+                  </span>
+                  <span class="sr-only"><span data-i18n="contract.score">Objectifs accomplis :</span> 2/3</span>
+                  <svg class="contract-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+                </span>
+              </button>
+              <div class="contract-body" id="c-cdi" role="region" aria-labelledby="h-cdi">
+                <p class="contract-desc muted" data-i18n="timeline.cdi.desc">
+                  Automatisation, outillage qualité et administration des bases. La donnée client, on la protège.
+                </p>
+                <ul class="objectives">
+                  <li class="objective is-done"><svg class="star star-full" aria-hidden="true"><use href="#ico-star"/></svg><span data-i18n="contract.cdi.o1">Administrer les bases de production</span></li>
+                  <li class="objective is-done"><svg class="star star-full" aria-hidden="true"><use href="#ico-star"/></svg><span data-i18n="contract.cdi.o2">Automatiser ce qui doit l'être, et rien d'autre</span></li>
+                  <li class="objective"><svg class="star star-empty" aria-hidden="true"><use href="#ico-star"/></svg><span data-i18n="contract.cdi.o3">Protéger la donnée client. Tous les jours. Jamais fini.</span></li>
+                </ul>
+              </div>
+            </div>
           </li>
+
         </ol>
       </div>
     </div>
@@ -645,12 +776,12 @@
     <button id="lightbox-next" aria-label="Image suivante" class="absolute right-3 md:right-8 top-1/2 -translate-y-1/2 hov-ink text-4xl font-light px-3">›</button>
   </div>
 
-  <script src="data/projects.js?v=5"></script>
+  <script src="data/projects.js?v=6"></script>
   <script src="data/games.js?v=1"></script>
   <script src="data/favgames.js?v=2"></script>
-  <script src="js/i18n.js?v=4"></script>
+  <script src="js/i18n.js?v=5"></script>
   <script src="js/lightbox.js?v=2"></script>
-  <script src="js/main.js?v=8"></script>
+  <script src="js/main.js?v=9"></script>
   <script src="js/carousel.js?v=3"></script>
   <script src="js/palette.js?v=1"></script>
   <script src="js/connect4.js?v=1"></script>

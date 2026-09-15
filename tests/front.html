@@ -35,6 +35,24 @@ document.getElementById('f').addEventListener('load', function () {
       t('carte de jeu = objet', d.querySelector('.game-slide .item.game-card') !== null);
       t('jeux preferes (' + d.querySelectorAll('#fav-games .fav-game').length + ')', d.querySelectorAll('#fav-games .fav-game').length > 0);
 
+      // ConTracker
+      var contracts = d.querySelectorAll('.contract');
+      t('contrats rendus (' + contracts.length + '/5)', contracts.length === 5);
+      t('13 etoiles d objectif', d.querySelectorAll('.objective .star').length === 13);
+      t('1 objectif encore en cours', d.querySelectorAll('.objective .star-empty').length === 1);
+      var cdi = d.getElementById('h-cdi');
+      t('contrat en cours ouvert par defaut', cdi.getAttribute('aria-expanded') === 'true'
+        && !d.getElementById('c-cdi').hidden);
+      var bac = d.getElementById('h-bac');
+      t('contrat ferme au depart', bac.getAttribute('aria-expanded') === 'false' && d.getElementById('c-bac').hidden);
+      bac.click();
+      t('clic ouvre le contrat', bac.getAttribute('aria-expanded') === 'true' && !d.getElementById('c-bac').hidden);
+      bac.click();
+      t('re-clic le referme', bac.getAttribute('aria-expanded') === 'false' && d.getElementById('c-bac').hidden);
+      bac.focus();
+      t('anneau de focus sur l en-tete de contrat',
+        /inset/.test(w.getComputedStyle(bac).boxShadow));
+
       // Lightbox
       d.querySelector('#projects-grid .proj[role="button"]').click();
       t('lightbox ouverte au clic', d.getElementById('lightbox').classList.contains('open'));

@@ -1,9 +1,12 @@
 // Données des projets - ajouter un projet = ajouter un objet ici, rien d'autre à toucher.
 // size: "lg" = carte large (2 colonnes), "md" = carte simple.
 // quality: estampille de qualité d'objet TF2 (unusual, strange, collectors,
-//   vintage, genuine, haunted, unique). Elle dit la nature du projet : strange
-//   compte des statistiques, collectors collecte, vintage est ancien mais tient
-//   encore, unusual est la pièce rare. Voir .q-badge dans css/style.css.
+//   vintage, genuine, haunted, unique, australium). Elle dit la NATURE du projet,
+//   pas son importance : strange compte des statistiques, collectors collecte,
+//   vintage est ancien mais tient encore, unusual est la pièce rare. Ne pas la
+//   détourner en classement, la hiérarchie se lit ailleurs (taille de carte,
+//   ordre). « australium » (doré) est libre, en réserve pour un projet phare.
+//   Voir .q-badge et [data-q] dans css/tf2.css.
 // Les champs *_en fournissent la version anglaise (fallback : version française).
 const PROJECTS = [
   {

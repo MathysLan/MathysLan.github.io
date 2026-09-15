@@ -366,10 +366,17 @@ html.light .proj-count { background: rgba(255, 255, 255, .85); color: var(--ink-
 /* ============================================================================
    Parcours — la timeline
    ========================================================================= */
-.timeline { position: relative; }
+/* Le ConTracker : chaque étape du parcours est un « contrat » dépliable, avec
+   ses objectifs et ses étoiles. La chronologie reste lisible sans rien ouvrir
+   grâce à la frise et aux marqueurs, qui ne bougent pas.
+
+   L'en-tête est un vrai <button> : on récupère gratuitement le focus clavier,
+   Entrée et Espace, et `aria-expanded` porte l'état. Le JS ne fait que basculer
+   `hidden` et l'attribut — pas de gestion de touches à la main. */
+.contracts { position: relative; }
 #timeline-line {
   position: absolute;
-  left: 7px; top: 6px; bottom: 6px;
+  left: 9px; top: 10px; bottom: 10px;
   width: 3px;
   background: linear-gradient(to bottom, var(--red), var(--orange), var(--blu));
   transform: scaleY(0);
@@ -377,22 +384,148 @@ html.light .proj-count { background: rgba(255, 255, 255, .85); color: var(--ink-
   transition: transform 1.6s cubic-bezier(.16,.8,.3,1);
 }
 #timeline-line.drawn { transform: scaleY(1); }
-.tl-item { position: relative; padding-left: 2.2rem; }
-/* Un rivet plutôt qu'une pastille : petit carré biseauté sur la ligne. */
-.tl-dot {
+.contract-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .8rem; }
+.contract { position: relative; padding-left: 2.6rem; }
+
+/* Le marqueur sur la frise : un rivet carré, doré et lumineux pour le contrat
+   en cours. Il reste visible que la carte soit ouverte ou fermée. */
+.contract-pin {
   position: absolute;
-  left: -1px; top: .4rem;
-  width: 17px; height: 17px;
+  left: 1px; top: 1.15rem;
+  width: 19px; height: 19px;
   background: var(--panel-edge);
   box-shadow: inset 1.5px 1.5px 0 var(--bevel-hi), inset -1.5px -1.5px 0 var(--bevel-lo);
   --cut: 5px;
   clip-path: polygon(var(--cut) 0%, 100% 0%, 100% calc(100% - var(--cut)),
                      calc(100% - var(--cut)) 100%, 0% 100%, 0% var(--cut));
 }
-/* Le poste actuel est l'objet équipé : doré, et il brille. */
-.tl-item:last-child .tl-dot {
+.contract[data-state="active"] .contract-pin {
   background: var(--q-unique);
   filter: drop-shadow(0 0 8px color-mix(in srgb, var(--q-unique) 60%, transparent));
+}
+
+/* --- La carte de contrat --- */
+.contract-card {
+  position: relative;
+  isolation: isolate;
+  background: var(--panel-edge);
+  clip-path: polygon(var(--cut) 0%, 100% 0%, 100% calc(100% - var(--cut)),
+                     calc(100% - var(--cut)) 100%, 0% 100%, 0% var(--cut));
+  transition: background .2s ease;
+}
+.contract-card::before {
+  content: '';
+  position: absolute; inset: var(--edge-w); z-index: -1;
+  clip-path: polygon(var(--cut) 0%, 100% 0%, 100% calc(100% - var(--cut)),
+                     calc(100% - var(--cut)) 100%, 0% 100%, 0% var(--cut));
+  background: linear-gradient(180deg, var(--panel-top), var(--panel-bot));
+  box-shadow: inset 1.5px 1.5px 0 0 var(--bevel-hi),
+              inset -1.5px -1.5px 0 0 var(--bevel-lo);
+}
+/* Le contrat en cours porte la bordure dorée de l'objet équipé. */
+.contract[data-state="active"] .contract-card { background: var(--q-unique); }
+
+.contract-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: .95rem 1.1rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+.contract-head:hover .contract-title { color: var(--orange-ink); }
+/* clip-path rognerait un outline : anneau inset, comme partout ailleurs. */
+.contract-head:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--focus);
+}
+.contract-meta { display: flex; flex-direction: column; gap: .15rem; min-width: 0; flex: 1; }
+.contract-date {
+  font-size: .7rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.contract-title {
+  font-family: 'TF2 Build', 'Anton', sans-serif;
+  text-transform: uppercase;
+  font-size: 1.1rem;
+  line-height: 1.2;
+  color: var(--ink);
+  transition: color .2s ease;
+}
+.contract-right { display: flex; align-items: center; gap: .8rem; flex: none; }
+
+/* L'état du contrat : terminé (vert) ou en cours (doré). */
+.contract-state {
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  padding: .2rem .5rem;
+  white-space: nowrap;
+  color: var(--qi-genuine);
+  background: color-mix(in srgb, var(--q-genuine) 20%, var(--bg-deep));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--q-genuine) 50%, transparent);
+  --cut: 4px;
+  clip-path: polygon(var(--cut) 0%, 100% 0%, 100% calc(100% - var(--cut)),
+                     calc(100% - var(--cut)) 100%, 0% 100%, 0% var(--cut));
+}
+.contract[data-state="active"] .contract-state {
+  color: var(--qi-unique);
+  background: color-mix(in srgb, var(--q-unique) 20%, var(--bg-deep));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--q-unique) 55%, transparent);
+}
+
+/* Le chevron tourne quand la carte s'ouvre. */
+.contract-chevron {
+  width: 14px; height: 14px;
+  color: var(--ink-3);
+  transition: transform .25s ease;
+  flex: none;
+}
+.contract-head[aria-expanded="true"] .contract-chevron { transform: rotate(180deg); }
+
+/* --- Étoiles d'objectif --- */
+.stars { display: inline-flex; gap: .15rem; }
+.star { width: 14px; height: 14px; flex: none; }
+/* Une étoile pleine = objectif accompli ; une étoile creuse = en cours. Le
+   trait reste visible dans les deux cas, sinon l'étoile vide disparaît. */
+.star-full { fill: var(--star); stroke: var(--star); stroke-width: 1.2; }
+.star-empty { fill: none; stroke: var(--ink-3); stroke-width: 1.6; }
+
+/* --- Le corps déplié --- */
+.contract-body { padding: 0 1.1rem 1.1rem 1.1rem; }
+.contract-body[hidden] { display: none; }
+.contract-desc { font-size: .88rem; line-height: 1.55; margin: 0 0 .9rem; }
+.objectives { list-style: none; margin: 0; padding: .85rem 0 0; display: grid; gap: .5rem; }
+/* Le filet qui sépare la description des objectifs : deux traits, façon Source. */
+.objectives {
+  border-top: 2px solid transparent;
+  border-image: linear-gradient(180deg, var(--bevel-lo) 0 1px, var(--bevel-hi) 1px 2px) 1;
+}
+.objective {
+  display: flex;
+  align-items: flex-start;
+  gap: .6rem;
+  font-size: .85rem;
+  line-height: 1.45;
+  color: var(--ink-3);
+}
+.objective .star { margin-top: .15rem; }
+.objective.is-done { color: var(--ink-2); }
+
+@media (max-width: 640px) {
+  .contract { padding-left: 2.1rem; }
+  .contract-head { gap: .6rem; padding: .8rem .85rem; }
+  .contract-title { font-size: .98rem; }
+  /* Sur un écran étroit, l'état ne tient plus à côté des étoiles : les étoiles
+     suffisent à dire où en est le contrat. */
+  .contract-state { display: none; }
 }
 
 /* ============================================================================
