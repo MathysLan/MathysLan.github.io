@@ -14,53 +14,66 @@ function localizedImages(p) {
   return p.images.map(img => ({ src: img.src, cap: tr(img, 'cap') }));
 }
 
+// Un projet se présente comme un objet d'inventaire TF2 : vignette à gauche,
+// fiche à droite, bordure colorée par la qualité et étiquette de nom en bas.
+// La qualité n'est pas décorative : elle dit la nature du projet (strange =
+// compte des statistiques, vintage = ancien mais tient encore, unusual = la
+// pièce rare). C'est la hiérarchie de la section, à la place d'une taille de
+// titre. Voir .item / .q-badge dans css/tf2.css.
 function renderProjects() {
   const grid = document.getElementById('projects-grid');
   const en = window.LANG === 'en';
   grid.innerHTML = PROJECTS.map((p, i) => {
-    const wide = p.size === 'lg' ? 'sm:col-span-2' : '';
-    const chips = p.stack.map(s =>
-      `<span class="font-mono text-[11px] px-2.5 py-1 rounded-md chip">${s}</span>`
-    ).join('');
-    // Estampille de qualité TF2 : le nom de qualité reste en anglais dans les
-    // deux langues, c'est ainsi que les joueurs le lisent (« un Strange », pas
-    // « un Étrange »).
+    const wide = p.size === 'lg' ? 'sm:col-span-2 proj-wide' : '';
+    // La stack devient une liste d'attributs d'arme : une ligne par techno,
+    // bleu clair comme les attributs positifs du jeu.
+    const attrs = p.stack.map(s => `<li>${s}</li>`).join('');
+    // Le nom de qualité reste en anglais dans les deux langues, c'est ainsi que
+    // les joueurs le lisent (« un Strange », pas « un Étrange »).
     const quality = p.quality
       ? `<span class="q-badge" data-q="${p.quality}">★ ${p.quality === 'collectors' ? "Collector's" : p.quality}</span>`
       : '';
     const confBadge = p.confidential
-      ? `<span class="font-mono text-[11px] px-2.5 py-1 rounded-full conf-badge font-medium">${en ? 'confidential' : 'confidentiel'}</span>`
+      ? `<span class="conf-badge">${en ? 'confidential' : 'confidentiel'}</span>`
       : '';
     const ghLink = p.github
       ? `<a href="${p.github}" target="_blank" rel="noopener noreferrer" aria-label="GitHub" class="muted-icon transition-colors" onclick="event.stopPropagation()">${githubIcon()}</a>`
       : '';
     const imgCount = p.images.length > 1
-      ? `<span class="absolute bottom-3 right-3 font-mono text-[11px] px-2.5 py-1 rounded-full bg-black/60 backdrop-blur text-gray-200 border border-white/10">${p.images.length} captures ↗</span>`
+      ? `<span class="proj-count font-mono">${p.images.length} ${en ? 'shots' : 'captures'} ↗</span>`
       : '';
-    const cover = p.cover ? `
-      <div class="relative h-52 ${p.size === 'lg' ? 'md:h-64' : ''} overflow-hidden rounded-t-2xl cover-bg">
-        <img src="${p.cover}" alt="${tr(p, 'title')}" loading="lazy"
-             class="card-img w-full h-full ${p.coverFit === 'contain' ? 'object-contain p-6' : 'object-cover object-top'}">
-        <div class="absolute inset-0 cover-fade"></div>
-        ${imgCount}
-      </div>` : '';
+    // Pas de visuel ? La case affiche l'initiale du projet en filigrane, comme
+    // un objet sans icône dans l'inventaire — jamais un trou. C'est de la
+    // décoration pure (le nom est juste dessous, dans l'étiquette), donc
+    // aria-hidden : un lecteur d'écran n'a rien à faire d'un « A » isolé, et
+    // un filigrane n'a pas à respecter le contraste d'un texte.
+    const thumb = p.cover
+      ? `<img src="${p.cover}" alt="${tr(p, 'title')}" loading="lazy"
+              class="card-img proj-img ${p.coverFit === 'contain' ? 'is-contain' : ''}">`
+      : `<span class="proj-noimg font-display" aria-hidden="true">${tr(p, 'title').charAt(0)}</span>`;
 
     return `
-    <article class="reveal is-visible tilt-card glass rounded-2xl overflow-hidden ${wide} ${p.images.length ? 'cursor-pointer' : ''}"
+    <article class="reveal is-visible item proj ${wide} ${p.images.length ? 'cursor-pointer' : ''}"
+             data-q="${p.quality || 'normal'}"
              ${p.images.length ? `onclick="openLightbox(localizedImages(PROJECTS[${i}]), 0)" role="button" tabindex="0" aria-label="${tr(p, 'title')}"` : ''}>
-      ${cover}
-      <div class="p-7">
-        <div class="flex items-start justify-between gap-4 mb-3">
-          <div class="flex flex-wrap items-center gap-2.5">
-            ${quality}
-            <span class="font-mono text-[11px] muted">${tr(p, 'badge')}</span>
-          </div>
-          <div class="flex items-center gap-3 shrink-0">${confBadge}${ghLink}</div>
+      <div class="proj-grid">
+        <div class="proj-thumb panel panel-inset">
+          ${thumb}
+          ${imgCount}
         </div>
-        <h3 class="font-display text-xl md:text-2xl font-semibold mb-2 heading">${tr(p, 'title')}</h3>
-        <p class="muted text-sm leading-relaxed">${tr(p, 'desc')}</p>
-        <div class="flex flex-wrap gap-2 mt-5">${chips}</div>
+        <div class="proj-body">
+          <div class="proj-head">
+            <div class="proj-tags">
+              ${quality}
+              <span class="font-mono proj-badge">${tr(p, 'badge')}</span>
+            </div>
+            <div class="proj-actions">${confBadge}${ghLink}</div>
+          </div>
+          <p class="proj-desc">${tr(p, 'desc')}</p>
+          <ul class="attr-list proj-attrs">${attrs}</ul>
+        </div>
       </div>
+      <h3 class="item-label">${tr(p, 'title')}</h3>
     </article>`;
   }).join('');
 
@@ -84,13 +97,13 @@ function renderFavGames() {
       ? `<img src="${src}" alt="${tr(g, 'name')}" loading="lazy" class="fav-img" onerror="this.remove()">`
       : '';
     return `
-    <div class="fav-game">
-      <div class="fav-cover"${style}>
+    <div class="item fav-game" data-q="${g.quality || 'normal'}">
+      <div class="fav-cover panel-inset"${style}>
         <span class="fav-emoji">${g.emoji}</span>
         ${img}
       </div>
-      <p class="fav-name">${tr(g, 'name')}</p>
       <p class="fav-note">${tr(g, 'note')}</p>
+      <p class="item-label fav-name">${tr(g, 'name')}</p>
     </div>`;
   }).join('');
 }
@@ -181,6 +194,34 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   typeLoop();
 
+  // Guichet Mann Co. : le formulaire de contact n'envoie rien nulle part. Il
+  // assemble un mailto: et laisse le client mail de la personne prendre le
+  // relais - c'est la seule façon d'avoir un formulaire sur un site statique
+  // sans faire transiter le message par un service tiers.
+  const cf = document.getElementById('contact-form');
+  if (cf) {
+    const hint = document.getElementById('cf-hint');
+    cf.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const dict = I18N[window.LANG] || I18N.fr;
+      // Via cf.elements : sur un <form>, `cf.name` renverrait l'attribut name
+      // du formulaire, pas le champ qui porte ce nom.
+      const name = cf.elements.name.value.trim();
+      const subject = cf.elements.subject.value.trim();
+      const message = cf.elements.message.value.trim();
+      if (!name || !subject || !message) {
+        hint.textContent = dict['contact.store.missing'];
+        hint.classList.add('ac-red');
+        return;
+      }
+      hint.classList.remove('ac-red');
+      hint.textContent = dict['contact.store.sent'];
+      const body = `${message}\n\n-- ${name}`;
+      window.location.href = 'mailto:mathys.langiny@gmail.com'
+        + `?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    });
+  }
+
   // Barre de progression
   const progressBar = document.getElementById('progress-bar');
   function updateProgress() {
@@ -190,14 +231,11 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('scroll', updateProgress, { passive: true });
   updateProgress();
 
-  // Nav : fond au scroll
+  // Nav : le panneau n'apparaît qu'une fois la page descendue. En haut, la
+  // barre de sélection de classe flotte directement sur l'affiche du hero.
   const navbar = document.getElementById('navbar');
   function updateNavbar() {
-    if (window.scrollY > 20) {
-      navbar.querySelector('nav').classList.add('glass');
-    } else {
-      navbar.querySelector('nav').classList.remove('glass');
-    }
+    navbar.querySelector('nav').classList.toggle('panel', window.scrollY > 20);
   }
   window.addEventListener('scroll', updateNavbar, { passive: true });
   updateNavbar();

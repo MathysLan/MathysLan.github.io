@@ -16,12 +16,12 @@ const I18N = {
     'hero.contact': 'me contacter ↓',
 
     'projects.kicker': '01 - Projets',
-    'projects.title': 'Projets data & dev<span class="text-violet-400">.</span>',
+    'projects.title': 'Projets data & dev<span class="ac">.</span>',
     'projects.sub': "Pas de vitrine marketing : ce que j'ai construit, avec quoi, et pourquoi. Clique sur une carte pour voir les captures.",
     'projects.repos': '→ tous mes dépôts publics :',
 
     'timeline.kicker': '02 - Parcours',
-    'timeline.title': 'Mon parcours<span class="text-violet-400">.</span>',
+    'timeline.title': 'Mon parcours<span class="ac">.</span>',
     'timeline.bac.date': '2023 - Lycée Pierre Bayle',
     'timeline.bac.title': 'Baccalauréat, mention Bien',
     'timeline.bac.desc': 'Spécialités NSI, SI et Mathématiques, option Latin. Les premières lignes de code sérieuses.',
@@ -39,10 +39,10 @@ const I18N = {
     'timeline.cdi.desc': "Automatisation, outillage qualité et administration des bases. La donnée client, on la protège.",
 
     'assos.kicker': '03 - Engagement associatif',
-    'assos.title': 'Les Jeunes Capucins<span class="text-emerald-400">.</span>',
+    'assos.title': 'Les Jeunes Capucins<span class="ac-green">.</span>',
     'assos.role.kicker': 'rôle actuel',
     'assos.role.title': 'Vice-président',
-    'assos.role.desc': "Avec le président, je gère la <span class=\"text-white\">logistique</span> et le choix des événements. Le principe est simple : on organise, on récolte des fonds, on les réinvestit dans le collectif. Résultat concret : <span class=\"text-white\">toute l'association à Europa-Park</span>, payé par nos propres événements. J'y suis depuis le début et j'y reste - on ne lâche pas une équipe qui vous a fait confiance.",
+    'assos.role.desc': "Avec le président, je gère la <span class=\"ink\">logistique</span> et le choix des événements. Le principe est simple : on organise, on récolte des fonds, on les réinvestit dans le collectif. Résultat concret : <span class=\"ink\">toute l'association à Europa-Park</span>, payé par nos propres événements. J'y suis depuis le début et j'y reste - on ne lâche pas une équipe qui vous a fait confiance.",
     'assos.stat.years': "années d'engagement",
     'assos.stat.visitors': 'visiteurs au marché artisanal',
     'assos.stat.events': 'événements récurrents',
@@ -60,7 +60,7 @@ const I18N = {
     'assos.p.jouets.title': 'Bourse aux jouets',
 
     'passions.kicker': '04 - En dehors du code',
-    'passions.title': 'Backstage<span class="text-amber-400">.</span>',
+    'passions.title': 'Backstage<span class="ac-gold">.</span>',
     'passions.volley.kicker': 'volley-ball',
     'passions.volley.title': 'Central',
     'passions.volley.sub': 'SUAPS de Reims → club à la rentrée',
@@ -101,13 +101,25 @@ const I18N = {
     'passions.bigflo.sub': 'à venir ✦',
 
     'games.kicker': '05 - Jeux',
-    'games.title': 'Jeux web<span class="text-violet-400">.</span>',
+    'games.title': 'Jeux web<span class="ac">.</span>',
     'games.sub': "Des jeux jouables direct dans le navigateur - sans install, sans compte. Front statique, serveur arbitre maison.",
 
     'contact.kicker': '06 - Contact',
     'contact.title': 'On se capte ?',
     'contact.desc': "Un projet data, une opportunité, ou juste envie d'échanger - écris-moi, je réponds.",
+    'contact.store.kicker': 'Mann Co. - guichet',
+    'contact.store.title': 'Passer commande',
+    'contact.store.name': 'Ton nom',
+    'contact.store.subject': 'Objet',
+    'contact.store.message': 'Message',
+    'contact.store.price': 'Prix',
+    'contact.store.free': 'Gratuit',
+    'contact.store.cta': 'Ajouter au panier',
+    'contact.store.direct': 'Ou directement :',
+    'contact.store.sent': "Ton client mail s'ouvre, le message est prêt.",
+    'contact.store.missing': 'Il manque un champ - remplis les trois.',
     'footer.credit': 'conçu & codé avec soin.',
+    'footer.valve': "Not affiliated with Valve Corporation. Aucun mercenaire n'a été blessé.",
   },
 
   en: {
@@ -125,12 +137,12 @@ const I18N = {
     'hero.contact': 'contact me ↓',
 
     'projects.kicker': '01 - Projects',
-    'projects.title': 'Data & dev projects<span class="text-violet-400">.</span>',
+    'projects.title': 'Data & dev projects<span class="ac">.</span>',
     'projects.sub': "No marketing showcase: what I built, with what, and why. Click a card to see the screenshots.",
     'projects.repos': '→ all my public repos:',
 
     'timeline.kicker': '02 - Journey',
-    'timeline.title': 'My journey<span class="text-violet-400">.</span>',
+    'timeline.title': 'My journey<span class="ac">.</span>',
     'timeline.bac.date': '2023 - Lycée Pierre Bayle',
     'timeline.bac.title': 'High school diploma, with honours',
     'timeline.bac.desc': 'CS (NSI), engineering science and mathematics majors, Latin option. First serious lines of code.',
@@ -148,10 +160,10 @@ const I18N = {
     'timeline.cdi.desc': 'Automation, QA tooling and database administration. Client data gets protected, period.',
 
     'assos.kicker': '03 - Community involvement',
-    'assos.title': 'Les Jeunes Capucins<span class="text-emerald-400">.</span>',
+    'assos.title': 'Les Jeunes Capucins<span class="ac-green">.</span>',
     'assos.role.kicker': 'current role',
     'assos.role.title': 'Vice-president',
-    'assos.role.desc': 'Together with the president, I handle <span class="text-white">logistics</span> and event planning. The idea is simple: we organize, we raise funds, we reinvest them in the group. Concrete result: <span class="text-white">the whole association at Europa-Park</span>, paid for by our own events. I\'ve been in since the start and I\'m staying - you don\'t walk out on a team that trusted you.',
+    'assos.role.desc': 'Together with the president, I handle <span class="ink">logistics</span> and event planning. The idea is simple: we organize, we raise funds, we reinvest them in the group. Concrete result: <span class="ink">the whole association at Europa-Park</span>, paid for by our own events. I\'ve been in since the start and I\'m staying - you don\'t walk out on a team that trusted you.',
     'assos.stat.years': 'years involved',
     'assos.stat.visitors': 'visitors at the craft market',
     'assos.stat.events': 'recurring events',
@@ -169,7 +181,7 @@ const I18N = {
     'assos.p.jouets.title': 'Toy fair',
 
     'passions.kicker': '04 - Beyond the code',
-    'passions.title': 'Backstage<span class="text-amber-400">.</span>',
+    'passions.title': 'Backstage<span class="ac-gold">.</span>',
     'passions.volley.kicker': 'volleyball',
     'passions.volley.title': 'Middle blocker',
     'passions.volley.sub': 'SUAPS Reims → club next season',
@@ -210,13 +222,25 @@ const I18N = {
     'passions.bigflo.sub': 'coming up ✦',
 
     'games.kicker': '05 - Games',
-    'games.title': 'Web games<span class="text-violet-400">.</span>',
+    'games.title': 'Web games<span class="ac">.</span>',
     'games.sub': "Games playable straight in your browser - no install, no account. Static front, homemade referee server.",
 
     'contact.kicker': '06 - Contact',
     'contact.title': "Let's talk",
     'contact.desc': 'A data project, an opportunity, or just up for a chat - write me, I answer.',
+    'contact.store.kicker': 'Mann Co. - front desk',
+    'contact.store.title': 'Place an order',
+    'contact.store.name': 'Your name',
+    'contact.store.subject': 'Subject',
+    'contact.store.message': 'Message',
+    'contact.store.price': 'Price',
+    'contact.store.free': 'Free',
+    'contact.store.cta': 'Add to cart',
+    'contact.store.direct': 'Or straight to:',
+    'contact.store.sent': 'Your mail client is opening, the message is ready.',
+    'contact.store.missing': 'A field is missing - fill all three.',
     'footer.credit': 'designed & coded with care.',
+    'footer.valve': 'Not affiliated with Valve Corporation. No mercenaries were harmed.',
   },
 };
 
@@ -273,7 +297,9 @@ function applyLang(lang) {
   });
   const btn = document.getElementById('lang-toggle');
   if (btn) btn.textContent = lang === 'fr' ? 'EN' : 'FR';
-  if (typeof renderProjects === 'function') { renderProjects(); initTilt(); }
+  // Le tilt 3D des cartes est parti avec le theme precedent : un objet TF2 ne
+  // s'incline pas, il « pop » (voir .item:hover dans css/tf2.css).
+  if (typeof renderProjects === 'function') renderProjects();
   if (typeof renderGames === 'function') renderGames();
   if (typeof renderFavGames === 'function') renderFavGames();
 }

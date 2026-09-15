@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Styleguide TF2 — Mathys Langiny</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/tf2.css?v=1">
+<style>
+  /* Page de contrôle du socle : elle n'existe que pour vérifier les primitives
+     côte à côte. Rien ici ne part dans le site. */
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 2.5rem 1.25rem 5rem; position: relative; z-index: 1; }
+  .sg-h { font-size: 1.6rem; margin: 2.8rem 0 .3rem; color: var(--ink); }
+  .sg-sub { color: var(--ink-3); font-size: .85rem; margin: 0 0 1.2rem; }
+  .row { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; }
+  .grid3 { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 1rem; }
+  .sw { height: 62px; display: flex; align-items: flex-end; padding: .4rem; font-size: .68rem; color: #fff; text-shadow: 0 1px 2px #000; }
+  .top { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <div>
+      <p class="kicker" style="margin:0 0 .4rem">Socle — étape A</p>
+      <h1 style="font-size:2.4rem;margin:0">Styleguide Mann Co.</h1>
+    </div>
+    <button class="tf-btn tf-btn-sm" onclick="document.documentElement.classList.toggle('light')">Basculer le thème</button>
+  </div>
+
+  <h2 class="sg-h">Typographie</h2>
+  <p class="sg-sub">TF2 Build pour les titres, TF2 Secondary pour le corps. Accents inclus.</p>
+  <div class="panel rivets" style="padding:1.5rem">
+    <h1 style="font-size:2.6rem;margin:0 0 .3rem">Données protégées, à l'épreuve</h1>
+    <h3 style="font-size:1.2rem;margin:0 0 .8rem;color:var(--cream)">Où l'on vérifie les accents : éèêàâçùôîëïœ</h3>
+    <p style="margin:0 0 .7rem">Texte courant en TF2 Secondary. Le job : protéger la donnée, automatiser ce qui doit l'être, et dire non aux usines à gaz. On lit sans effort, et c'est le seul critère.</p>
+    <p class="font-mono" style="margin:0;color:var(--ink-3);font-size:.8rem">MÉTA / LABEL — font-mono remappé sur la secondaire</p>
+  </div>
+
+  <h2 class="sg-h">Palette</h2>
+  <p class="sg-sub">Teinte (fond, bordure) et encre (texte) sont deux choses différentes. Volontairement.</p>
+  <div class="grid3">
+    <div class="sw" style="background:var(--bg)">--bg</div>
+    <div class="sw" style="background:var(--bg-deep)">--bg-deep</div>
+    <div class="sw" style="background:var(--panel-top)">--panel-top</div>
+    <div class="sw" style="background:var(--panel-edge)">--panel-edge</div>
+    <div class="sw" style="background:var(--red)">--red&nbsp;&nbsp;<span style="color:var(--red-ink)">encre</span></div>
+    <div class="sw" style="background:var(--blu)">--blu&nbsp;&nbsp;<span style="color:var(--blu-ink)">encre</span></div>
+    <div class="sw" style="background:var(--orange)">--orange&nbsp;&nbsp;<span style="color:var(--orange-ink)">encre</span></div>
+    <div class="sw" style="background:var(--cream);color:#241c14;text-shadow:none">--cream</div>
+  </div>
+
+  <h2 class="sg-h">Panneaux</h2>
+  <p class="sg-sub">Bordure nette en diagonale + biseau inset. Le creux inverse la lumière.</p>
+  <div class="grid3">
+    <div class="panel" style="padding:1.1rem"><h4 style="margin:0 0 .4rem;font-size:1rem">Panneau</h4><p style="margin:0;font-size:.85rem">Relief : lumière en haut-gauche.</p></div>
+    <div class="panel rivets" style="padding:1.1rem"><h4 style="margin:0 0 .4rem;font-size:1rem">+ rivets</h4><p style="margin:0;font-size:.85rem">Quatre boulons aux angles.</p></div>
+    <div class="panel panel-inset" style="padding:1.1rem"><h4 style="margin:0 0 .4rem;font-size:1rem">Creux</h4><p style="margin:0;font-size:.85rem">Le biseau s'inverse : zone de saisie.</p></div>
+    <div class="panel panel-team" data-team="red" style="padding:1.1rem"><h4 style="margin:0 0 .4rem;font-size:1rem">Équipe RED</h4><p style="margin:0;font-size:.85rem">La tranche prend la couleur.</p></div>
+    <div class="panel panel-team" data-team="blu" style="padding:1.1rem"><h4 style="margin:0 0 .4rem;font-size:1rem">Équipe BLU</h4><p style="margin:0;font-size:.85rem">La tranche prend la couleur.</p></div>
+  </div>
+
+  <h2 class="sg-h">Boutons</h2>
+  <p class="sg-sub">Survol : le bouton s'enfonce d'un pixel. Clic : le biseau s'inverse.</p>
+  <div class="row">
+    <button class="tf-btn">Bouton VGUI</button>
+    <button class="tf-btn tf-btn-buy">Acheter</button>
+    <button class="tf-btn tf-btn-sm">Petit</button>
+    <button class="tf-btn tf-btn-lg">Grand</button>
+    <button class="tf-btn tf-icon-btn">EN</button>
+  </div>
+
+  <h2 class="sg-h">Étiquettes & attributs</h2>
+  <div class="panel" style="padding:1.2rem">
+    <div class="row" style="margin-bottom:1rem">
+      <span class="tf-tag">Oracle APEX</span><span class="tf-tag">PL/SQL</span><span class="tf-tag">Python</span><span class="tf-tag">Monday.com</span>
+    </div>
+    <ul class="attr-list">
+      <li>Déployé sur plusieurs environnements clients</li>
+      <li>Suivi synchronisé dans Monday.com</li>
+      <li class="neg">Le reste est confidentiel</li>
+      <li class="neutral">SAE S5 — data</li>
+    </ul>
+  </div>
+
+  <h2 class="sg-h">Qualités d'objet</h2>
+  <p class="sg-sub">Les huit estampilles. L'Unusual respire — effet de particules.</p>
+  <div class="row">
+    <span class="q-badge" data-q="normal">★ Normal</span>
+    <span class="q-badge" data-q="unique">★ Unique</span>
+    <span class="q-badge" data-q="vintage">★ Vintage</span>
+    <span class="q-badge" data-q="genuine">★ Genuine</span>
+    <span class="q-badge" data-q="strange">★ Strange</span>
+    <span class="q-badge" data-q="unusual">★ Unusual</span>
+    <span class="q-badge" data-q="haunted">★ Haunted</span>
+    <span class="q-badge" data-q="collectors">★ Collector's</span>
+  </div>
+
+  <h2 class="sg-h">Cases d'inventaire</h2>
+  <p class="sg-sub">Bordure = rareté. Au survol : l'objet se soulève et sa rareté s'allume.</p>
+  <div class="grid3">
+    <div class="item" data-q="unusual" tabindex="0">
+      <div class="panel-inset" style="height:120px;display:flex;align-items:center;justify-content:center;font-size:2.4rem">🗄️</div>
+      <div class="item-label">Tests qualité</div>
+    </div>
+    <div class="item" data-q="strange" tabindex="0">
+      <div class="panel-inset" style="height:120px;display:flex;align-items:center;justify-content:center;font-size:2.4rem">📊</div>
+      <div class="item-label">Radars & accidents</div>
+    </div>
+    <div class="item" data-q="unique" tabindex="0">
+      <div class="panel-inset" style="height:120px;display:flex;align-items:center;justify-content:center;font-size:2.4rem">🔴</div>
+      <div class="item-label">Puissance 4</div>
+    </div>
+    <div class="item" data-q="vintage" tabindex="0">
+      <div class="panel-inset" style="height:120px;display:flex;align-items:center;justify-content:center;font-size:2.4rem">📺</div>
+      <div class="item-label">Séries TV</div>
+    </div>
+  </div>
+
+  <h2 class="sg-h">Divers</h2>
+  <hr class="tf-rule" style="margin:1rem 0">
+  <div class="hud-strip" style="padding:.8rem 1rem">
+    Not affiliated with Valve Corporation. — bandeau de bas d'écran.
+  </div>
+
+</div>
+</body>
+</html>

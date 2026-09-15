@@ -1,0 +1,588 @@
+/* ============================================================================
+   TF2 / Source Engine — le socle
+   ----------------------------------------------------------------------------
+   Ce fichier ne connaît RIEN du portfolio : il ne contient que la palette, les
+   polices et les primitives (panneau, bouton, étiquette, case d'objet). Tout ce
+   qui est spécifique au site vit dans css/style.css, qui s'appuie là-dessus.
+
+   Le principe visuel de VGUI (l'UI de Source) tient en trois choses :
+     1. un panneau = un aplat dégradé + un biseau (lumière en haut-gauche,
+        ombre en bas-droite) + une bordure nette d'1 ou 2 px ;
+     2. des coins coupés en diagonale, pas des arrondis ;
+     3. une hiérarchie par la couleur de rareté, pas par la taille.
+
+   Piège technique assumé : clip-path rogne AUSSI les ombres portées et les
+   outlines. D'où deux conséquences dans tout ce fichier :
+     - le biseau se fait en box-shadow *inset* (qui survit au clip) ;
+     - une lueur extérieure se fait en filter: drop-shadow() (qui suit la
+       silhouette découpée), jamais en box-shadow ;
+     - le focus clavier se fait en anneau inset, pas en outline.
+   ========================================================================= */
+
+/* ---------------------------------------------------------------- Polices
+   Les deux polices du jeu, chargées en local. Elles couvrent tous les accents
+   français (vérifié dans la table cmap) ; il leur manque en revanche « » → ✦ ★,
+   que le navigateur ira chercher tout seul dans le fallback, glyphe par glyphe.
+   font-display: swap → le texte s'affiche tout de suite dans le fallback. */
+@font-face {
+  font-family: 'TF2 Build';
+  src: url('../assets/fonts/tf2build.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'TF2 Secondary';
+  src: url('../assets/fonts/TF2secondary.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ============================================================================
+   Palette
+   ----------------------------------------------------------------------------
+   Deux thèmes : « Mann Co. » (carton brun, le défaut) et « Blueprint » (plan
+   sur papier calque, le thème clair).
+
+   On garde la séparation héritée du passage précédent, et c'est la clé de
+   l'accessibilité ici : --red / --blu / --q-* sont la TEINTE (barres, bordures,
+   fonds teintés, où le contraste n'est pas en jeu) ; --red-ink / --qi-* sont la
+   même teinte remontée pour rester lisible EN TEXTE. Les couleurs officielles
+   de TF2 sont calibrées pour le gris moyen du jeu : posées telles quelles sur
+   un fond, la moitié passe sous 4.5:1. Ne pas réunifier les deux jeux.
+
+   Référence de contraste : toutes les encres sont validées à 4.5:1 minimum
+   contre --panel-top, qui est la surface la PLUS CLAIRE du thème sombre (donc
+   le pire cas). Elles passent donc partout ailleurs.
+   ========================================================================= */
+:root {
+  /* -- fonds -- */
+  --bg: #241c14;              /* carton Mann Co. */
+  --bg-deep: #191309;         /* creux : inputs, vignettes, fond de case */
+  --panel-top: #3a332b;       /* haut du dégradé de panneau */
+  --panel-bot: #241f1a;       /* bas du dégradé */
+  --panel-edge: #57493a;      /* la bordure nette d'un panneau */
+  --bevel-hi: rgba(255, 240, 214, .16);   /* lumière haut-gauche */
+  --bevel-lo: rgba(0, 0, 0, .55);         /* ombre bas-droite */
+  --rivet: rgba(255, 240, 214, .22);
+  --label-top: rgba(0, 0, 0, .25);
+  --label-bot: rgba(0, 0, 0, .55);
+  --line: rgba(217, 198, 146, .14);       /* filets de séparation */
+
+  /* -- encres -- */
+  --ink: #f0e7d2;             /* texte fort, titres */
+  --ink-2: #c6b99b;           /* texte courant */
+  --ink-3: #a99c7f;           /* méta, labels, légendes */
+  --cream: #d9c692;           /* liserés, accents beiges */
+
+  /* -- accents -- */
+  --orange: #cf7336;          /* Mann Co. : teinte (fonds, bordures) */
+  --orange-ink: #e8913f;      /* Mann Co. : encre */
+  --red: #b8383b;
+  --blu: #5885a2;
+  --red-ink: #e88a8c;
+  --blu-ink: #7fa8c4;
+  --btn: #5f5549;             /* fond de bouton VGUI. Plus sombre que le #776B5F
+                                 du jeu : sur le gris moyen de TF2 il porte du
+                                 texte crème, sur notre brun il tombait à 2,75:1. */
+  --btn-hi: #766a5c;
+  --on-orange: #241608;       /* encre des boutons orange (voir .tf-btn-buy) */
+  --btn-hover: #934739;
+  --att-pos: #99ccff;         /* attribut positif (bleu du jeu) */
+  --att-neg: #ff8d8d;         /* attribut négatif, remonté pour la lisibilité */
+  --focus: #ffd700;           /* anneau de focus : le doré Unique, très visible */
+
+  /* -- qualités d'objet : teinte du jeu, puis encre corrigée -- */
+  --q-normal: #b2b2b2;
+  --q-unique: #ffd700;
+  --q-vintage: #476291;
+  --q-genuine: #4d7455;
+  --q-strange: #cf6a32;
+  --q-unusual: #8650ac;
+  --q-haunted: #38f3ab;
+  --q-collectors: #aa0000;
+
+  --qi-normal: #c9c9c9;
+  --qi-unique: #ffd700;
+  --qi-vintage: #8ba4cf;
+  --qi-genuine: #8cbb96;
+  --qi-strange: #e8945f;
+  --qi-unusual: #bb8ede;
+  --qi-haunted: #38f3ab;
+  --qi-collectors: #e87070;
+
+  /* -- géométrie -- */
+  --cut: 14px;                /* taille du coin coupé */
+  --edge-w: 2px;              /* épaisseur de la bordure de panneau */
+  --grain: .05;               /* opacité de la texture papier */
+  --halo-opacity: .16;
+}
+
+/* --------------------------------------------------- Thème clair : Blueprint
+   Un plan technique sur papier calque plutôt qu'un simple fond blanc. Le grain
+   pèse plus lourd sur fond clair, la grille bleue remplace le halo. Ici il faut
+   ASSOMBRIR les teintes du jeu : le doré et la menthe y sont illisibles. */
+html.light {
+  --bg: #e4dbc4;
+  --bg-deep: #d2c8ae;
+  --panel-top: #f2ecda;
+  --panel-bot: #ded4bb;
+  --panel-edge: #9d8e6f;
+  --bevel-hi: rgba(255, 255, 255, .75);
+  --bevel-lo: rgba(74, 60, 38, .32);
+  --rivet: rgba(74, 60, 38, .30);
+  --label-top: rgba(74, 60, 38, .10);
+  --label-bot: rgba(74, 60, 38, .24);
+  --line: rgba(74, 60, 38, .18);
+
+  --ink: #251d12;
+  --ink-2: #4a3c26;
+  --ink-3: #6b5a3e;
+  --cream: #6b5a3e;
+
+  --orange: #a8521b;
+  --orange-ink: #8f4310;
+  --red: #9e2d30;
+  --blu: #3c6280;
+  --red-ink: #7a1a1d;
+  --blu-ink: #23425c;
+  --btn: #c3b696;
+  --btn-hi: #d6caac;
+  --on-orange: #ffffff;
+  --btn-hover: #a8521b;
+  --att-pos: #17456e;
+  --att-neg: #8a1c1c;
+  --focus: #7a5200;
+
+  /* Ces encres sont plus sombres qu'il n'y paraît : elles ne se posent jamais
+     sur le papier nu mais sur une estampille teintée (color-mix de la qualité
+     avec --bg-deep), donc sur un fond déjà clair. Elles sont calées à 4.5:1
+     contre CE fond-là, pas contre --bg. */
+  --qi-normal: #3d3d3d;
+  --qi-unique: #5c4800;
+  --qi-vintage: #253656;
+  --qi-genuine: #26412c;
+  --qi-strange: #6e330f;
+  --qi-unusual: #4e2a68;
+  --qi-haunted: #06503a;
+  --qi-collectors: #6e0000;
+
+  --grain: .07;
+  --halo-opacity: .10;
+}
+
+/* Sur petit écran le biseau doit rester lisible : un coin coupé de 14 px sur
+   une carte de 320 px de large mange le contenu. On le réduit. */
+@media (max-width: 640px) {
+  :root { --cut: 9px; }
+}
+
+/* ============================================================================
+   Base
+   ========================================================================= */
+html { background: var(--bg); scroll-behavior: smooth; }
+body {
+  margin: 0;
+  font-family: 'TF2 Secondary', 'Inter', system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  background: var(--bg);
+  color: var(--ink-2);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  transition: background .35s ease, color .35s ease;
+}
+
+/* Les titres sont des affiches : TF2 Build, capitales, serrées. */
+.font-tf, h1, h2, h3, h4 {
+  font-family: 'TF2 Build', 'Anton', 'Arial Narrow', sans-serif;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: .01em;
+  color: var(--ink);
+}
+/* .font-display : sous-titres et chiffres. Même police, sans les capitales
+   forcées, pour les endroits où le texte est déjà écrit avec des minuscules. */
+.font-display { font-family: 'TF2 Build', 'Anton', 'Arial Narrow', sans-serif; font-weight: 400; }
+/* .font-mono : dans un HUD Source il n'y a pas de chasse fixe. On récupère donc
+   ces ~60 usages (labels, badges, méta) vers la police secondaire, espacée.
+   Seul le terminal du hero garde une vraie mono — c'est un terminal. */
+.font-mono { font-family: 'TF2 Secondary', 'Inter', system-ui, sans-serif; letter-spacing: .05em; }
+.font-term { font-family: 'JetBrains Mono', ui-monospace, monospace; letter-spacing: 0; }
+
+::selection { background: var(--orange); color: #fff; }
+
+/* Focus clavier. Deux mécaniques, parce que clip-path rogne les outlines :
+   le cas général garde un outline, les éléments découpés (.bevel) reçoivent un
+   anneau inset qui, lui, survit au découpage. */
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.bevel:focus-visible,
+.panel:focus-visible,
+.tf-btn:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--focus), inset 0 0 0 4px rgba(0, 0, 0, .6);
+}
+
+/* Texture papier/carton : fixe, au-dessus du contenu, sous les surcouches
+   (lightbox z=100, palette z=110). C'est elle qui empêche les aplats bruns de
+   paraître plats — sans elle le fond ressemble à du marron d'imprimerie. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+  opacity: var(--grain);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+/* En thème clair, la grille du plan apparaît en plus du grain. */
+html.light body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: .5;
+  background-image:
+    linear-gradient(rgba(61, 92, 122, .10) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(61, 92, 122, .10) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+::-webkit-scrollbar { width: 12px; }
+::-webkit-scrollbar-track { background: var(--bg-deep); }
+::-webkit-scrollbar-thumb {
+  background: var(--btn);
+  border: 2px solid var(--bg-deep);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--btn-hover); }
+
+/* ============================================================================
+   Primitives
+   ========================================================================= */
+
+/* ------------------------------------------------------------- Coins coupés
+   Deux variantes : .bevel coupe le haut-gauche et le bas-droite (la diagonale
+   des panneaux du jeu), .bevel-all coupe les quatre. */
+.bevel {
+  clip-path: polygon(
+    var(--cut) 0%, 100% 0%,
+    100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%,
+    0% 100%, 0% var(--cut));
+}
+.bevel-all {
+  clip-path: polygon(
+    var(--cut) 0%, calc(100% - var(--cut)) 0%, 100% var(--cut),
+    100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%,
+    var(--cut) 100%, 0% calc(100% - var(--cut)), 0% var(--cut));
+}
+
+/* --------------------------------------------------------------- Le panneau
+   La brique de base. L'élément porte la BORDURE (un aplat découpé) ; son
+   ::before, encarté de --edge-w, porte le REMPLISSAGE et le biseau. C'est ce
+   qui permet une bordure nette le long d'une diagonale, ce qu'un border-* ne
+   sait pas faire. isolation:isolate garde le ::before (z-index:-1) au-dessus du
+   fond du panneau mais sous le contenu. */
+.panel {
+  position: relative;
+  isolation: isolate;
+  background: var(--panel-edge);
+  clip-path: polygon(
+    var(--cut) 0%, 100% 0%,
+    100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%,
+    0% 100%, 0% var(--cut));
+  color: var(--ink-2);
+}
+.panel::before {
+  content: '';
+  position: absolute;
+  inset: var(--edge-w);
+  z-index: -1;
+  clip-path: polygon(
+    var(--cut) 0%, 100% 0%,
+    100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%,
+    0% 100%, 0% var(--cut));
+  background: linear-gradient(180deg, var(--panel-top), var(--panel-bot));
+  box-shadow:
+    inset 1.5px 1.5px 0 0 var(--bevel-hi),
+    inset -1.5px -1.5px 0 0 var(--bevel-lo);
+}
+/* Panneau creux : un renfoncement plutôt qu'un relief. Le biseau s'inverse.
+   Sert aux zones de saisie et aux vignettes. */
+.panel-inset::before {
+  background: linear-gradient(180deg, var(--bg-deep), var(--panel-bot));
+  box-shadow:
+    inset 1.5px 1.5px 0 0 var(--bevel-lo),
+    inset -1.5px -1.5px 0 0 var(--bevel-hi);
+}
+/* Bordure d'équipe : la tranche gauche prend la couleur RED ou BLU. */
+.panel-team { background: var(--team, var(--panel-edge)); }
+
+/* -------------------------------------------------------------- Les rivets
+   Quatre petites têtes de boulon aux angles. Purement décoratif, donc posé en
+   ::after et ignoré au clic. À ne mettre que sur les panneaux importants :
+   partout, ça devient du bruit. */
+.rivets::after {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle, var(--rivet) 0 45%, transparent 50%),
+    radial-gradient(circle, var(--rivet) 0 45%, transparent 50%),
+    radial-gradient(circle, var(--rivet) 0 45%, transparent 50%),
+    radial-gradient(circle, var(--rivet) 0 45%, transparent 50%);
+  background-repeat: no-repeat;
+  background-position: 0 0, 100% 0, 0 100%, 100% 100%;
+  background-size: 5px 5px;
+}
+
+/* --------------------------------------------------------------- Le bouton
+   Le bouton VGUI : coins coupés, biseau en relief, et au survol il s'enfonce
+   d'un pixel — le « clunk » de l'interface du jeu. */
+.tf-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: .55rem;
+  font-family: 'TF2 Build', 'Anton', 'Arial Narrow', sans-serif;
+  font-size: 1.05rem;
+  text-transform: uppercase;
+  letter-spacing: .02em;
+  padding: .7rem 1.5rem;
+  border: none;
+  cursor: pointer;
+  color: var(--ink);
+  background: var(--btn);
+  clip-path: polygon(
+    var(--cut) 0%, 100% 0%,
+    100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%,
+    0% 100%, 0% var(--cut));
+  box-shadow:
+    inset 2px 2px 0 0 var(--bevel-hi),
+    inset -2px -2px 0 0 var(--bevel-lo);
+  transition: background .18s ease, transform .18s ease, color .18s ease;
+}
+.tf-btn:hover {
+  background: var(--btn-hover);
+  color: #fff;
+  transform: translateY(1px);
+}
+.tf-btn:active {
+  transform: translateY(2px);
+  box-shadow:
+    inset 2px 2px 0 0 var(--bevel-lo),
+    inset -2px -2px 0 0 var(--bevel-hi);
+}
+/* Le bouton d'achat du Mann Co. Store : orange, c'est celui qu'on clique. */
+/* L'encre est --on-orange, pas du blanc : du blanc sur le #CF7336 de Mann Co.
+   plafonne à 3,4:1, alors que le brun très sombre passe à 4,9:1 sans rien
+   perdre de la couleur. Sur fond clair l'orange s'assombrit, et c'est
+   l'inverse : --on-orange y vaut du blanc. */
+.tf-btn-buy { background: var(--orange); color: var(--on-orange); }
+.tf-btn-buy:hover { background: var(--orange-ink); color: var(--on-orange); }
+.tf-btn-sm { font-size: .85rem; padding: .45rem 1rem; --cut: 8px; }
+.tf-btn-lg { font-size: 1.4rem; padding: .9rem 2rem; }
+/* Bouton carré du HUD (thème, langue, flèches du carousel). */
+.tf-icon-btn {
+  width: 2.3rem; height: 2.3rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0;
+  --cut: 6px;
+  font-size: .75rem;
+}
+
+/* ------------------------------------------------------------- L'étiquette
+   Le petit tampon qu'on lit sur un objet : catégorie, techno, tag. Pas une
+   pilule — les objets TF2 sont estampillés, pas arrondis. */
+.tf-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  font-size: .78rem;
+  letter-spacing: .04em;
+  padding: .22rem .6rem;
+  color: var(--ink-2);
+  background: var(--bg-deep);
+  box-shadow: inset 0 0 0 1px var(--line);
+  --cut: 5px;
+  clip-path: polygon(
+    var(--cut) 0%, 100% 0%,
+    100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%,
+    0% 100%, 0% var(--cut));
+}
+
+/* ---------------------------------------------------- Les attributs d'objet
+   La stack technique d'un projet est affichée comme les stats d'une arme :
+   une ligne par attribut, bleu clair pour le positif. C'est la façon la plus
+   TF2 de lister quelque chose, et ça se lit mieux qu'un nuage de pastilles. */
+.attr-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: .82rem;
+  line-height: 1.6;
+}
+.attr-list li {
+  position: relative;
+  padding-left: 1.05rem;
+  color: var(--att-pos);
+}
+.attr-list li::before {
+  content: '+';
+  position: absolute;
+  left: 0;
+  color: var(--att-pos);
+  opacity: .8;
+}
+.attr-list li.neg { color: var(--att-neg); }
+.attr-list li.neg::before { content: '−'; color: var(--att-neg); }
+.attr-list li.neutral { color: var(--ink-3); }
+.attr-list li.neutral::before { content: '·'; color: var(--ink-3); }
+
+/* --------------------------------------------------------- La case d'objet
+   Une vignette d'inventaire : fond creux, bordure de rareté, et au survol le
+   « pop d'objet » (l'objet se soulève et sa rareté s'allume). La lueur passe
+   par filter: drop-shadow parce qu'une box-shadow extérieure serait rognée par
+   le clip-path — c'est le piège classique de ce genre de carte. */
+.item {
+  --q: var(--q-normal);
+  --q-ink: var(--qi-normal);
+  position: relative;
+  isolation: isolate;
+  background: var(--q);
+  clip-path: polygon(
+    var(--cut) 0%, 100% 0%,
+    100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%,
+    0% 100%, 0% var(--cut));
+  transition: transform .2s cubic-bezier(.2, .8, .3, 1), filter .25s ease;
+}
+.item::before {
+  content: '';
+  position: absolute;
+  inset: var(--edge-w);
+  z-index: -1;
+  clip-path: polygon(
+    var(--cut) 0%, 100% 0%,
+    100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%,
+    0% 100%, 0% var(--cut));
+  background: linear-gradient(180deg, var(--panel-top), var(--panel-bot));
+  box-shadow:
+    inset 1.5px 1.5px 0 0 var(--bevel-hi),
+    inset -1.5px -1.5px 0 0 var(--bevel-lo);
+}
+.item:hover,
+.item:focus-visible {
+  transform: translateY(-4px);
+  filter: drop-shadow(0 0 16px color-mix(in srgb, var(--q) 55%, transparent));
+}
+
+/* Les huit qualités. data-q pose la teinte ET l'encre : color-mix ne sert
+   jamais à calculer une couleur de texte, il ne sait pas gérer le contraste. */
+[data-q="normal"]     { --q: var(--q-normal);     --q-ink: var(--qi-normal); }
+[data-q="unique"]     { --q: var(--q-unique);     --q-ink: var(--qi-unique); }
+[data-q="vintage"]    { --q: var(--q-vintage);    --q-ink: var(--qi-vintage); }
+[data-q="genuine"]    { --q: var(--q-genuine);    --q-ink: var(--qi-genuine); }
+[data-q="strange"]    { --q: var(--q-strange);    --q-ink: var(--qi-strange); }
+[data-q="unusual"]    { --q: var(--q-unusual);    --q-ink: var(--qi-unusual); }
+[data-q="haunted"]    { --q: var(--q-haunted);    --q-ink: var(--qi-haunted); }
+[data-q="collectors"] { --q: var(--q-collectors); --q-ink: var(--qi-collectors); }
+
+/* L'estampille de qualité elle-même. */
+.q-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  font-size: .72rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  padding: .24rem .55rem;
+  white-space: nowrap;
+  color: var(--q-ink);
+  background: color-mix(in srgb, var(--q) 18%, var(--bg-deep));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--q) 55%, transparent);
+  --cut: 5px;
+  clip-path: polygon(
+    var(--cut) 0%, 100% 0%,
+    100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%,
+    0% 100%, 0% var(--cut));
+}
+/* Un objet Unusual porte un effet de particules. Ici : une lueur qui respire.
+   Sur l'estampille seulement, pour ne pas faire clignoter toute une carte. */
+.q-badge[data-q="unusual"] { animation: unusual-glow 3.2s ease-in-out infinite; }
+@keyframes unusual-glow {
+  0%, 100% { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--q) 55%, transparent); }
+  50%      { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--q) 90%, transparent),
+                         inset 0 0 12px 0 color-mix(in srgb, var(--q) 45%, transparent); }
+}
+
+/* L'étiquette de nom, en bas d'une case d'objet : bandeau sombre, nom centré,
+   exactement comme dans l'inventaire du jeu. */
+.item-label {
+  background: linear-gradient(180deg, var(--label-top), var(--label-bot));
+  border-top: 1px solid color-mix(in srgb, var(--q) 45%, transparent);
+  color: var(--ink);
+  font-family: 'TF2 Build', 'Anton', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: .02em;
+  padding: .5rem .75rem;
+  text-align: center;
+}
+
+/* ------------------------------------------------------- Le bandeau de HUD
+   Une barre d'information sobre, façon bas d'écran en jeu : fond sombre,
+   liseré crème en haut, texte en petites capitales. */
+.hud-strip {
+  background: var(--bg-deep);
+  border-top: 2px solid var(--panel-edge);
+  color: var(--ink-3);
+  font-size: .8rem;
+  letter-spacing: .06em;
+}
+
+/* --------------------------------------------------------- Titre de section
+   Le « kicker » : une barre d'équipe puis le libellé. La barre dit à quelle
+   équipe appartient la section (RED ou BLU), et c'est tout ce dont on a besoin
+   pour rythmer la page. */
+.kicker {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  color: var(--team-ink, var(--orange-ink));
+  font-size: .78rem;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+.kicker::before {
+  content: '';
+  width: 28px;
+  height: 5px;
+  flex: none;
+  background: var(--team, var(--orange));
+  box-shadow: inset 0 1px 0 var(--bevel-hi);
+}
+[data-team="red"] { --team: var(--red); --team-ink: var(--red-ink); }
+[data-team="blu"] { --team: var(--blu); --team-ink: var(--blu-ink); }
+
+/* ------------------------------------------------------------- Le séparateur
+   Deux filets, un clair un sombre : la façon Source de séparer deux blocs. */
+.tf-rule {
+  height: 2px;
+  border: none;
+  background: linear-gradient(180deg, var(--bevel-lo) 0 1px, var(--bevel-hi) 1px 2px);
+  margin: 0;
+}
+
+/* ============================================================================
+   Mouvement réduit
+   ========================================================================= */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .item, .tf-btn { transition: none; }
+  .q-badge[data-q="unusual"] { animation: none; }
+}

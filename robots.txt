@@ -2,5 +2,7 @@ User-agent: *
 Allow: /
 Disallow: /404.html
 Disallow: /data/
+Disallow: /tests/
+Disallow: /styleguide.html
 
 Sitemap: https://mathyslan.github.io/sitemap.xml

@@ -1,165 +1,201 @@
-/* ============ Thème « Studio / Scène » - variables ============ */
-:root {
-  --bg: #0a0a12;
-  --text: #e7e5f4;
-  --heading: #ffffff;
-  --muted: #9b98ad;
-  --muted-2: #6f6c80;
-  --violet: #8b5cf6;
-  --amber: #f59e0b;
-  --mint: #34d399;
-  --glass: rgba(255, 255, 255, 0.055);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --chip-bg: rgba(255, 255, 255, 0.05);
-  --chip-border: rgba(255, 255, 255, 0.1);
-  --cover-bg: #11111c;
-  --halo-opacity: .14;
-  --grain-opacity: .035;
-  --t1: #ffffff; --t2: #cabdfd; --t3: #7a7597;
-  --violet-badge-text: #c4b5fd;
+/* ============================================================================
+   Portfolio Mathys Langiny — composants du site
+   ----------------------------------------------------------------------------
+   Ce fichier suppose css/tf2.css chargé AVANT lui : il n'y a ici aucune
+   couleur en dur, aucune police, aucune primitive. Uniquement les composants
+   propres au portfolio, construits sur .panel / .item / .tf-btn.
 
-  /* ---- Team Fortress 2 ----
-     Couleurs d'équipe RED / BLU et qualités d'objet, telles que le jeu les
-     utilise. Elles servent d'ACCENTS : la base du site reste violet/menthe.
+   Deux conventions héritées et maintenues :
+     - classes sémantiques plutôt que palette Tailwind (.ac, .ink-2, .edge-line…),
+       pour que changer le thème ne demande jamais de toucher au HTML ;
+     - teinte et encre séparées (voir l'entête de tf2.css) — ne pas réunifier.
+   ========================================================================= */
 
-     Deux jeux de valeurs, et c'est volontaire :
-       --red / --blu / --q-*  = la teinte authentique, pour les barres, les
-         bordures et les fonds teintés, où le contraste n'est pas en jeu ;
-       --red-ink / --qi-*     = la même teinte rendue lisible EN TEXTE.
-     TF2 pose ses couleurs sur un gris moyen ; sur un fond quasi noir, la
-     moitié d'entre elles tombent sous 4.5:1 (Collector's descend à 2,5:1).
-     On garde donc la teinte et on remonte la luminosité. */
-  --red: #b8383b;
-  --blu: #5885a2;
-  --red-ink: #d96366;
-  --blu-ink: #5885a2;      /* déjà à 4.97:1 sur le fond sombre */
+/* ============================================================================
+   Classes sémantiques de couleur
+   ----------------------------------------------------------------------------
+   Elles remplacent les text-violet-400 / text-gray-500 d'avant. Le HTML dit à
+   quoi sert la couleur ; le thème décide laquelle c'est.
+   ========================================================================= */
+.ink        { color: var(--ink); }
+.ink-2      { color: var(--ink-2); }
+.ink-3      { color: var(--ink-3); }
+.heading    { color: var(--ink); }
+.muted      { color: var(--ink-2); }
+.ac         { color: var(--orange-ink); }   /* accent Mann Co. */
+.ac-green   { color: var(--qi-genuine); }
+.ac-gold    { color: var(--qi-unique); }
+.ac-unusual { color: var(--qi-unusual); }
+.ac-att     { color: var(--att-pos); }
+.ac-red     { color: var(--red-ink); }
 
-  --q-unusual: #8650ac;
-  --q-strange: #cf6a32;
-  --q-collectors: #aa0000;
-  --q-vintage: #476291;
-  --q-genuine: #4d7455;
-  --q-haunted: #38f3ab;
-  --q-unique: #ffd700;
+.hov-ink:hover    { color: var(--ink); }
+.hov-ac:hover     { color: var(--orange-ink); }
+.hov-green:hover  { color: var(--qi-genuine); }
+.hov-gold:hover   { color: var(--qi-unique); }
+.hov-edge:hover   { border-color: var(--orange); }
 
-  --qi-unusual: #a276c9;
-  --qi-strange: #cf6a32;
-  --qi-collectors: #d95757;
-  --qi-vintage: #6f8fbb;
-  --qi-genuine: #6b9a76;
-  --qi-haunted: #38f3ab;
-  --qi-unique: #ffd700;
+.edge-line    { border-color: var(--line) !important; }
+.surface-deep { background: var(--bg-deep); }
+.dot-live     { background: var(--qi-genuine); }
+.dot-red      { background: var(--red); }
+
+.muted-icon { color: var(--ink-3); }
+.muted-icon:hover { color: var(--orange-ink); }
+
+/* La petite étiquette « confidentiel » : un tampon, pas une pilule. */
+.conf-badge {
+  display: inline-flex; align-items: center;
+  font-size: .68rem; letter-spacing: .1em; text-transform: uppercase;
+  padding: .22rem .55rem;
+  background: var(--red);
+  color: #fff;
+  --cut: 5px;
+  clip-path: polygon(var(--cut) 0%, 100% 0%, 100% calc(100% - var(--cut)),
+                     calc(100% - var(--cut)) 100%, 0% 100%, 0% var(--cut));
 }
-html.light {
-  --bg: #f2f1f7;
-  --text: #211f2c;
-  --heading: #16141f;
-  --muted: #5b5870;
-  --muted-2: #7d7a90;
-  --glass: rgba(22, 20, 40, 0.045);
-  --glass-border: rgba(22, 20, 40, 0.12);
-  --chip-bg: rgba(22, 20, 40, 0.05);
-  --chip-border: rgba(22, 20, 40, 0.13);
-  --cover-bg: #e6e4ef;
-  --halo-opacity: .10;
-  --grain-opacity: .018;   /* sur fond clair le grain pèse plus lourd */
-  --t1: #16121f; --t2: #6d4fd0; --t3: #6e6888;
-  --violet-badge-text: #6d28d9;
-  /* Sur fond clair c'est l'inverse : il faut assombrir. Le doré et la menthe
-     du jeu sont quasi illisibles tels quels (2,3:1), d'où l'écart important. */
-  --red: #9e2d30;
-  --blu: #3c6280;
-  --red-ink: #9e2d30;
-  --blu-ink: #3c6280;
-
-  --qi-unusual: #6b3d8c;
-  --qi-strange: #9a4a1d;
-  --qi-collectors: #8f0000;
-  --qi-vintage: #3a5177;
-  --qi-genuine: #3c5c42;
-  --qi-haunted: #0f6e49;
-  --qi-unique: #7a6000;
-}
-
-html { background: var(--bg); scroll-behavior: smooth; }
-body {
-  font-family: 'Inter', sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
-  transition: background .35s ease, color .35s ease;
-}
-.font-display { font-family: 'Space Grotesk', sans-serif; }
-.font-mono { font-family: 'JetBrains Mono', monospace; }
-
-::selection { background: var(--violet); color: #fff; }
-
-/* Focus clavier visible partout. :focus-visible ne s'allume qu'au clavier,
-   donc la souris ne déclenche aucun anneau. */
-:focus-visible {
-  outline: 2px solid var(--violet);
-  outline-offset: 3px;
-  border-radius: 6px;
-}
-
-/* Grain de pellicule : fixe, au-dessus du contenu mais sous la lightbox et la
-   palette. C'est ce qui empêche les aplats sombres de paraître plats. */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 90;
-  pointer-events: none;
-  opacity: var(--grain-opacity);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-::-webkit-scrollbar { width: 10px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: #26243a; border-radius: 8px; }
-html.light ::-webkit-scrollbar-thumb { background: #c5c2d6; }
-
-/* ---- Classes sémantiques (suivent le thème) ---- */
-.heading { color: var(--heading); }
-.muted { color: var(--muted); }
-.muted-icon { color: var(--muted); }
-.muted-icon:hover { color: var(--heading); }
+/* .chip reste utilisé par quelques blocs de contenu : on l'aligne sur .tf-tag. */
 .chip {
-  background: var(--chip-bg);
-  border: 1px solid var(--chip-border);
-  color: var(--muted);
+  display: inline-flex; align-items: center;
+  background: var(--bg-deep);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink-2);
+  --cut: 5px;
+  clip-path: polygon(var(--cut) 0%, 100% 0%, 100% calc(100% - var(--cut)),
+                     calc(100% - var(--cut)) 100%, 0% 100%, 0% var(--cut));
 }
-.badge-violet {
-  background: rgba(139, 92, 246, 0.1);
-  border: 1px solid rgba(139, 92, 246, 0.32);
-  color: var(--violet-badge-text);
+/* Lien-pastille (Twitch, Steam, podium…) : même tampon, teinté par son rôle. */
+.link-chip {
+  display: inline-flex; align-items: center; gap: .5rem;
+  background: color-mix(in srgb, var(--lc, var(--orange)) 16%, var(--bg-deep));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lc, var(--orange)) 45%, transparent);
+  color: var(--lc-ink, var(--orange-ink));
+  --cut: 6px;
+  clip-path: polygon(var(--cut) 0%, 100% 0%, 100% calc(100% - var(--cut)),
+                     calc(100% - var(--cut)) 100%, 0% 100%, 0% var(--cut));
+  transition: background .25s ease;
 }
-.conf-badge { background: var(--heading); color: var(--bg); }
-.cover-bg { background: var(--cover-bg); }
-.cover-fade {
-  background: linear-gradient(to top, var(--bg), transparent 55%);
-  opacity: .85;
+.link-chip:hover { background: color-mix(in srgb, var(--lc, var(--orange)) 32%, var(--bg-deep)); }
+.link-unusual { --lc: var(--q-unusual); --lc-ink: var(--qi-unusual); }
+.link-att     { --lc: var(--blu);       --lc-ink: var(--blu-ink); }
+.link-gold    { --lc: var(--q-unique);  --lc-ink: var(--qi-unique); }
+.link-red     { --lc: var(--red);       --lc-ink: var(--red-ink); }
+
+/* ============================================================================
+   Chrome de page
+   ========================================================================= */
+
+/* Barre de progression de lecture : une jauge de chargement du jeu. */
+.progress-fill {
+  background: linear-gradient(90deg, var(--red), var(--orange), var(--blu));
+  box-shadow: 0 0 10px -2px var(--orange);
 }
 
-/* ---- Adaptation des utilitaires Tailwind écrits pour le sombre ---- */
-html.light .text-white { color: var(--heading); }
-html.light .text-gray-100, html.light .text-gray-200, html.light .text-gray-300 { color: #3d3a4e; }
-html.light .text-gray-400 { color: var(--muted); }
-html.light .text-gray-500 { color: var(--muted-2); }
-html.light .text-gray-600 { color: #8b889c; }
-html.light .border-white\/5, html.light .border-white\/10 { border-color: var(--glass-border); }
-html.light .bg-white\/5 { background: var(--chip-bg); }
-html.light .text-violet-300, html.light .text-violet-400 { color: #6d28d9; }
-html.light .text-emerald-300, html.light .text-emerald-400 { color: #047857; }
-html.light .text-amber-300, html.light .text-amber-400 { color: #b45309; }
-html.light .text-purple-300 { color: #7e22ce; }
-html.light .text-red-400 { color: #dc2626; }
+/* ---------------------------------------------------------------------- NAV
+   L'écran de sélection de classe : une rangée de vignettes, chacune avec son
+   pictogramme et son nom. Au survol (et sur la section en cours de lecture),
+   la vignette s'allume et son liseré bas prend la couleur de l'équipe. */
+#navbar nav {
+  background: var(--panel-edge);
+  --cut: 10px;
+  clip-path: polygon(var(--cut) 0%, 100% 0%, 100% calc(100% - var(--cut)),
+                     calc(100% - var(--cut)) 100%, 0% 100%, 0% var(--cut));
+  position: relative;
+  isolation: isolate;
+}
+#navbar nav::before {
+  content: '';
+  position: absolute; inset: 2px; z-index: -1;
+  clip-path: polygon(var(--cut) 0%, 100% 0%, 100% calc(100% - var(--cut)),
+                     calc(100% - var(--cut)) 100%, 0% 100%, 0% var(--cut));
+  background: linear-gradient(180deg, var(--panel-top), var(--panel-bot));
+  box-shadow: inset 1.5px 1.5px 0 0 var(--bevel-hi), inset -1.5px -1.5px 0 0 var(--bevel-lo);
+}
+/* Au repos la barre est transparente ; elle se matérialise au scroll (classe
+   posée par main.js, qui ajoutait « glass » avant et ajoute « panel » désormais). */
+#navbar nav:not(.panel) { background: transparent; }
+#navbar nav:not(.panel)::before { opacity: 0; }
+#navbar nav::before { transition: opacity .3s ease; }
 
-/* ---- Halos de projecteur ---- */
-/* --hx/--hy sont posés par main.js : le halo suit le curseur comme une poursuite
-   de scène. On décale en transform (pas en left/top) pour rester sur le
-   compositeur — un disque de 900px flouté à 140px ne se repositionne pas
-   gratuitement. Sans JS, les valeurs par défaut redonnent le halo d'origine. */
+.nav-logo {
+  font-family: 'TF2 Build', 'Anton', sans-serif;
+  font-size: 1.3rem;
+  letter-spacing: .04em;
+}
+/* La vignette de classe. */
+.nav-link {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .15rem;
+  padding: .3rem .55rem .35rem;
+  color: var(--ink-3);
+  font-size: .68rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  transition: color .2s ease, background .2s ease;
+}
+.nav-link svg { width: 18px; height: 18px; }
+.nav-link::after {
+  content: '';
+  position: absolute;
+  left: 8%; right: 8%; bottom: 0;
+  height: 2px;
+  background: var(--nav-team, var(--orange));
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform .22s ease;
+}
+.nav-link:hover,
+.nav-link.is-active { color: var(--ink); background: rgba(0, 0, 0, .18); }
+.nav-link:hover::after,
+.nav-link.is-active::after { transform: scaleX(1); }
+html.light .nav-link:hover, html.light .nav-link.is-active { background: rgba(74, 60, 38, .1); }
+/* Les sections alternent RED et BLU : la vignette reprend la couleur de la
+   sienne, donc la nav raconte la même alternance que la page. */
+#navbar li:nth-child(odd)  .nav-link { --nav-team: var(--blu); }
+#navbar li:nth-child(even) .nav-link { --nav-team: var(--red); }
+
+.ctrl-btn {
+  width: 2.1rem; height: 2.1rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0;
+  border: none;
+  cursor: pointer;
+  color: var(--ink);
+  background: var(--btn);
+  font-size: .68rem;
+  letter-spacing: .04em;
+  --cut: 6px;
+  clip-path: polygon(var(--cut) 0%, 100% 0%, 100% calc(100% - var(--cut)),
+                     calc(100% - var(--cut)) 100%, 0% 100%, 0% var(--cut));
+  box-shadow: inset 1.5px 1.5px 0 var(--bevel-hi), inset -1.5px -1.5px 0 var(--bevel-lo);
+  transition: background .2s ease, color .2s ease, transform .15s ease;
+}
+.ctrl-btn:hover { background: var(--btn-hover); color: #fff; transform: translateY(1px); }
+.ctrl-btn:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--focus); }
+
+/* ------------------------------------------------------------- Menu mobile */
+#mobile-menu {
+  background: var(--bg);
+  background-image: linear-gradient(180deg, var(--panel-top), var(--bg) 40%);
+}
+#mobile-menu a {
+  color: var(--ink);
+  font-family: 'TF2 Build', 'Anton', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  padding: .4rem 2rem;
+  transition: color .2s ease, background .2s ease;
+}
+#mobile-menu a:hover { background: var(--panel-edge); }
+.burger-line { background: var(--ink-2); }
+
+/* ---------------------------------------------------- Halos de projecteur
+   Conservés du thème précédent : --hx/--hy sont posés par main.js, le halo
+   suit le curseur. Sur le brun ils ne servent plus à « éclairer » mais à
+   teinter la section pour son équipe. */
 .section-halo { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .section-halo::before {
   content: '';
@@ -171,217 +207,266 @@ html.light .text-red-400 { color: #dc2626; }
   left: 50%; top: 22%;
   transform: translate(calc(-50% + var(--hx, 0px)), calc(-50% + var(--hy, 0px)));
   transition: transform .55s cubic-bezier(.16, .8, .3, 1);
-  background: var(--halo, var(--violet));
+  background: var(--halo, var(--orange));
 }
-.halo-violet { --halo: #8b5cf6; }
-.halo-mint   { --halo: #34d399; }
-.halo-amber  { --halo: #f59e0b; }
-/* Les sections alternent RED et BLU : en descendant la page, on traverse les
-   deux équipes. Toujours les teintes du jeu, jamais celles du thème clair —
-   un lavis à 14 % d'opacité n'a pas de problème de contraste. */
-.halo-red { --halo: #b8383b; }
-.halo-blu { --halo: #5885a2; }
+.halo-red { --halo: var(--red); }
+.halo-blu { --halo: var(--blu); }
+.halo-violet { --halo: var(--q-unusual); }
+.halo-mint   { --halo: var(--q-genuine); }
+.halo-amber  { --halo: var(--orange); }
 
-/* ---- Verre ---- */
-.glass {
-  background: var(--glass);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-}
-
-/* ---- Boutons de contrôle (thème / langue) ---- */
-.ctrl-btn {
-  width: 2.1rem; height: 2.1rem;
-  display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 9999px;
-  border: 1px solid var(--glass-border);
-  color: var(--muted);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: .7rem;
-  transition: color .25s ease, border-color .25s ease, transform .25s ease;
-}
-.ctrl-btn:hover { color: var(--heading); border-color: var(--violet); transform: translateY(-1px); }
-
-/* ---- Menu mobile ---- */
-#mobile-menu { background: rgba(10, 10, 18, 0.97); }
-html.light #mobile-menu { background: rgba(242, 241, 247, 0.97); }
-#mobile-menu a { color: var(--heading); }
-
-/* ---- Hero spotlight ---- */
+/* ============================================================================
+   Hero — l'affiche
+   ========================================================================= */
+/* Le titre est éclairé par une poursuite qui suit la souris (--mx/--my posés
+   par main.js). La borne SOMBRE du dégradé est --ink-3, pas --panel-edge :
+   au-delà, les pleins d'une police aussi grasse tombent sous 3:1 et le nom
+   devient un aplat illisible sur la moitié de sa largeur. */
 #hero-title {
-  background: radial-gradient(240px circle at var(--mx, 50%) var(--my, 40%),
-    var(--t1) 0%, var(--t2) 35%, var(--t3) 100%);
+  background: radial-gradient(280px circle at var(--mx, 50%) var(--my, 40%),
+    var(--ink) 0%, var(--cream) 40%, var(--ink-3) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  text-shadow: none;
 }
-
-/* ---- Terminal ---- */
+html.light #hero-title {
+  background: radial-gradient(280px circle at var(--mx, 50%) var(--my, 40%),
+    var(--orange) 0%, var(--ink) 40%, var(--ink-3) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+/* Le terminal garde une vraie chasse fixe : c'est un terminal, pas un HUD. */
+#term-line, .terminal-caret {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: 0;
+}
 .terminal-caret::after {
   content: '▍';
   animation: blink 1s steps(1) infinite;
-  color: var(--mint);
+  color: var(--orange-ink);
 }
 @keyframes blink { 50% { opacity: 0; } }
+.live-dot { animation: pulse-live 1.6s ease-in-out infinite; }
+@keyframes pulse-live { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 
-/* ---- Reveal on scroll ---- */
-.reveal {
-  opacity: 0;
-  transform: translateY(26px);
-  transition: opacity .8s cubic-bezier(.16,.8,.3,1), transform .8s cubic-bezier(.16,.8,.3,1);
-}
-.reveal.is-visible { opacity: 1; transform: translateY(0); }
-.reveal-delay-1 { transition-delay: .08s; }
-.reveal-delay-2 { transition-delay: .16s; }
-.reveal-delay-3 { transition-delay: .24s; }
-
-/* ---- Cartes projets (tilt) ---- */
-.tilt-card {
-  transform-style: preserve-3d;
-  transition: transform .18s ease-out, box-shadow .3s ease;
-  will-change: transform;
-}
-.tilt-card:hover { box-shadow: 0 24px 60px -24px rgba(139, 92, 246, 0.35); }
-.tilt-card .card-img { transition: transform 1.2s cubic-bezier(.16,.8,.3,1); }
-.tilt-card:hover .card-img { transform: scale(1.06); }
-
-/* ---- Nav ---- */
-.nav-link { position: relative; }
-.nav-link::after {
-  content: '';
-  position: absolute;
-  left: 0; bottom: -4px;
-  width: 0%; height: 2px;
-  background: linear-gradient(90deg, var(--violet), var(--mint));
-  transition: width .3s ease;
-}
-.nav-link:hover::after { width: 100%; }
-/* la section en cours de lecture reste allumée : repère sur une page longue */
-.nav-link.is-active { color: var(--heading); }
-.nav-link.is-active::after { width: 100%; }
-html.light #navbar .text-gray-300 { color: #4a4760; }
-
-/* ---- Boutons ---- */
+/* Le CTA principal : le bouton d'achat du Mann Co. Store. */
 .btn-glow {
-  background: linear-gradient(90deg, #8b5cf6, #7c3aed);
-  transition: box-shadow .3s ease, transform .3s ease;
+  display: inline-flex; align-items: center; gap: .55rem;
+  font-family: 'TF2 Build', 'Anton', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: .02em;
+  color: var(--on-orange);
+  background: var(--orange);
+  border: none;
+  cursor: pointer;
+  clip-path: polygon(var(--cut) 0%, 100% 0%, 100% calc(100% - var(--cut)),
+                     calc(100% - var(--cut)) 100%, 0% 100%, 0% var(--cut));
+  box-shadow: inset 2px 2px 0 var(--bevel-hi), inset -2px -2px 0 var(--bevel-lo);
+  transition: background .18s ease, transform .18s ease, color .18s ease;
 }
-.btn-glow:hover {
-  box-shadow: 0 10px 40px -8px rgba(139, 92, 246, 0.7);
-  transform: translateY(-2px);
-}
+.btn-glow:hover { background: var(--orange-ink); color: var(--on-orange); transform: translateY(1px); }
+.btn-glow:active { transform: translateY(2px); }
+.btn-glow:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--focus), inset 0 0 0 4px rgba(0,0,0,.6); }
 
-/* ---- Marquee technos ---- */
+/* ------------------------------------------------------------- Marquee */
 .marquee {
   mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
   -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
   overflow: hidden;
+  background: var(--bg-deep);
 }
 .marquee-track {
   display: flex;
   gap: 2.5rem;
   width: max-content;
   animation: scroll-marquee 28s linear infinite;
+  text-transform: uppercase;
+  letter-spacing: .12em;
 }
 @keyframes scroll-marquee { to { transform: translateX(-50%); } }
 
-/* ---- Timeline (parcours) ---- */
+/* ---------------------------------------------------------------- Reveal */
+.reveal {
+  opacity: 0;
+  transform: translateY(26px);
+  transition: opacity .7s cubic-bezier(.16,.8,.3,1), transform .7s cubic-bezier(.16,.8,.3,1);
+}
+.reveal.is-visible { opacity: 1; transform: translateY(0); }
+.reveal-delay-1 { transition-delay: .08s; }
+.reveal-delay-2 { transition-delay: .16s; }
+.reveal-delay-3 { transition-delay: .24s; }
+
+/* ============================================================================
+   Projets — la fiche d'objet
+   ----------------------------------------------------------------------------
+   Vignette à gauche, fiche à droite, étiquette de nom en bas. La bordure de la
+   carte est la couleur de qualité (posée par .item + data-q).
+   ========================================================================= */
+.proj { display: flex; flex-direction: column; }
+.proj-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.1rem;
+  padding: 1.1rem;
+  flex: 1;
+}
+/* Carte large : la vignette passe à gauche, carrée, comme une case d'objet. */
+.proj-wide .proj-grid { grid-template-columns: 240px 1fr; align-items: start; }
+.proj-thumb {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+/* .panel-inset pose son remplissage en ::before (z-index:-1) : l'image doit
+   donc rester au-dessus, sinon elle disparaît sous le fond du creux. */
+.proj-thumb > * { position: relative; z-index: 1; }
+.proj-img {
+  width: 100%; height: 100%;
+  object-fit: cover; object-position: top;
+  transition: transform 1.1s cubic-bezier(.16,.8,.3,1);
+}
+.proj-img.is-contain { object-fit: contain; padding: 1.2rem; }
+.proj:hover .proj-img { transform: scale(1.05); }
+.proj-noimg {
+  font-size: 3.4rem;
+  color: var(--panel-edge);
+  line-height: 1;
+}
+.proj-count {
+  position: absolute;
+  right: .5rem; bottom: .5rem;
+  font-size: .68rem;
+  padding: .2rem .5rem;
+  background: rgba(0, 0, 0, .72);
+  color: var(--ink-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+html.light .proj-count { background: rgba(255, 255, 255, .85); color: var(--ink-2); }
+
+.proj-body { display: flex; flex-direction: column; min-width: 0; }
+.proj-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 1rem; margin-bottom: .7rem;
+}
+.proj-tags { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.proj-badge { font-size: .72rem; color: var(--ink-2); letter-spacing: .06em; text-transform: uppercase; }
+.proj-actions { display: flex; align-items: center; gap: .7rem; flex: none; }
+.proj-desc { color: var(--ink-2); font-size: .9rem; line-height: 1.55; margin: 0; }
+.proj-attrs { margin-top: .9rem; }
+/* L'étiquette de nom occupe toute la largeur en bas de la carte. */
+.proj > .item-label { font-size: 1.05rem; }
+
+@media (max-width: 720px) {
+  .proj-wide .proj-grid { grid-template-columns: 1fr; }
+  .proj-thumb { aspect-ratio: 16 / 10; }
+}
+
+/* ============================================================================
+   Parcours — la timeline
+   ========================================================================= */
 .timeline { position: relative; }
 #timeline-line {
   position: absolute;
   left: 7px; top: 6px; bottom: 6px;
-  width: 2px;
-  background: linear-gradient(to bottom, var(--violet), var(--mint));
+  width: 3px;
+  background: linear-gradient(to bottom, var(--red), var(--orange), var(--blu));
   transform: scaleY(0);
   transform-origin: top;
   transition: transform 1.6s cubic-bezier(.16,.8,.3,1);
 }
 #timeline-line.drawn { transform: scaleY(1); }
 .tl-item { position: relative; padding-left: 2.2rem; }
+/* Un rivet plutôt qu'une pastille : petit carré biseauté sur la ligne. */
 .tl-dot {
   position: absolute;
-  left: 0; top: .35rem;
-  width: 16px; height: 16px;
-  border-radius: 9999px;
-  background: var(--bg);
-  border: 2px solid var(--violet);
-  transition: background .35s ease;
+  left: -1px; top: .4rem;
+  width: 17px; height: 17px;
+  background: var(--panel-edge);
+  box-shadow: inset 1.5px 1.5px 0 var(--bevel-hi), inset -1.5px -1.5px 0 var(--bevel-lo);
+  --cut: 5px;
+  clip-path: polygon(var(--cut) 0%, 100% 0%, 100% calc(100% - var(--cut)),
+                     calc(100% - var(--cut)) 100%, 0% 100%, 0% var(--cut));
 }
+/* Le poste actuel est l'objet équipé : doré, et il brille. */
 .tl-item:last-child .tl-dot {
-  background: var(--mint);
-  border-color: var(--mint);
-  box-shadow: 0 0 18px -2px var(--mint);
+  background: var(--q-unique);
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--q-unique) 60%, transparent));
 }
 
-/* ---- Polaroids ---- */
+/* ============================================================================
+   Assos — polaroids et affiches
+   ========================================================================= */
 .polaroid {
-  background: #f5f2ea;
-  color: #201f1b;
+  background: #f1e7cf;
+  color: #201c14;
   padding: .8rem .8rem 1rem;
-  box-shadow: 0 14px 30px -14px rgba(0, 0, 0, 0.6);
-  transition: transform .35s cubic-bezier(.16,.8,.3,1), box-shadow .35s ease;
+  box-shadow: 0 14px 30px -14px rgba(0, 0, 0, .7);
+  transition: transform .3s cubic-bezier(.16,.8,.3,1), box-shadow .3s ease;
 }
 .polaroid:hover {
   transform: rotate(0deg) translateY(-6px) scale(1.03) !important;
-  box-shadow: 0 22px 44px -16px rgba(52, 211, 153, 0.35);
+  box-shadow: 0 20px 40px -14px rgba(207, 115, 54, .5);
   z-index: 5;
 }
 .polaroid img { width: 100%; height: 6rem; object-fit: cover; object-position: top; }
+/* Le polaroid est toujours du papier clair, dans les deux thèmes : ses encres
+   ne peuvent donc pas suivre le thème, sinon la légende disparaît en sombre. */
+.polaroid .ink-3, .polaroid .ink-2, .polaroid .muted { color: #5a5245; }
+.polaroid .heading, .polaroid .ink { color: #201c14; }
+/* Les quatre affiches d'événement sans photo : un aplat d'équipe, pas un
+   dégradé pastel. Chacune prend une teinte du jeu. */
+.poster-bg { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .3); }
+.poster-1 { background: linear-gradient(160deg, var(--q-strange), var(--q-unusual)); }
+.poster-2 { background: linear-gradient(160deg, var(--q-genuine), var(--blu)); }
+.poster-3 { background: linear-gradient(160deg, var(--q-unique), var(--red)); }
+.poster-4 { background: linear-gradient(160deg, var(--q-unusual), var(--blu)); }
 
-/* ---- Specs setup PC ---- */
+/* ============================================================================
+   Passions
+   ========================================================================= */
+/* Specs du PC : une ligne d'attribut par composant, comme la fiche d'une arme. */
 .spec {
   display: flex; align-items: center; gap: .85rem;
-  background: var(--chip-bg);
-  border: 1px solid var(--chip-border);
-  border-radius: 12px;
-  padding: .9rem 1rem;
-  transition: border-color .25s ease, transform .25s ease;
+  background: var(--bg-deep);
+  box-shadow: inset 0 0 0 1px var(--line);
+  padding: .8rem 1rem;
+  --cut: 8px;
+  clip-path: polygon(var(--cut) 0%, 100% 0%, 100% calc(100% - var(--cut)),
+                     calc(100% - var(--cut)) 100%, 0% 100%, 0% var(--cut));
+  transition: background .22s ease, transform .22s ease;
 }
-.spec:hover { border-color: rgba(245, 158, 11, .45); transform: translateY(-2px); }
-.spec-emoji { font-size: 1.5rem; line-height: 1; }
-.spec-label { font-family: 'JetBrains Mono', monospace; font-size: .68rem; color: var(--muted-2); text-transform: uppercase; letter-spacing: .1em; }
-.spec-val { color: var(--heading); font-weight: 600; font-size: .9rem; margin-top: .1rem; }
+.spec:hover { background: var(--panel-bot); transform: translateY(-2px); }
+.spec-emoji { font-size: 1.4rem; line-height: 1; }
+.spec-label { font-size: .66rem; color: var(--ink-2); text-transform: uppercase; letter-spacing: .12em; }
+.spec-val { color: var(--att-pos); font-size: .9rem; margin-top: .1rem; }
 
-/* ---- Jeux vidéo préférés ---- */
-.fav-game {
-  background: var(--chip-bg);
-  border: 1px solid var(--chip-border);
-  border-radius: 14px;
-  overflow: hidden;
-  transition: border-color .25s ease, transform .25s ease;
-}
-.fav-game:hover { border-color: rgba(56, 189, 248, .45); transform: translateY(-3px); }
+/* Jeux préférés : de vraies cases d'inventaire (.item est posé par main.js). */
+.fav-game { display: flex; flex-direction: column; }
 .fav-cover {
   position: relative;
   aspect-ratio: 460 / 215;      /* format bannière Steam */
   display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(135deg, #1a1730, #241b3a);
-}
-.fav-emoji { font-size: 2.3rem; line-height: 1; }
-.fav-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.fav-name { color: var(--heading); font-weight: 600; font-size: .9rem; margin: .7rem .85rem .15rem; }
-.fav-note { font-family: 'JetBrains Mono', monospace; font-size: .68rem; color: var(--muted-2); margin: 0 .85rem .9rem; line-height: 1.4; }
-
-/* ---- Badge LIVE ---- */
-.live-dot { animation: pulse-live 1.6s ease-in-out infinite; }
-@keyframes pulse-live { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
-
-/* ---- Faders (carte stream) ---- */
-.fader {
-  width: 4px;
-  border-radius: 4px;
-  background: var(--chip-bg);
-  position: relative;
   overflow: hidden;
 }
+.fav-cover > * { position: relative; z-index: 1; }
+.fav-emoji { font-size: 2.2rem; line-height: 1; }
+.fav-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
+.fav-note {
+  flex: 1;
+  font-size: .74rem; color: var(--ink-2); line-height: 1.45;
+  margin: .7rem .85rem .8rem;
+}
+.fav-name { font-size: .88rem; margin: 0; }
+
+/* Faders de la régie : des jauges de HUD. */
+.fader { width: 5px; background: var(--bg-deep); position: relative; overflow: hidden; }
 .fader::after {
   content: '';
-  position: absolute;
-  left: 0; right: 0; bottom: 0;
+  position: absolute; left: 0; right: 0; bottom: 0;
   height: var(--lvl, 50%);
-  border-radius: 4px;
-  background: linear-gradient(to top, var(--amber), var(--violet));
+  background: linear-gradient(to top, var(--q-genuine), var(--q-unique), var(--orange));
   animation: fader-move 2.4s ease-in-out infinite alternate;
   animation-delay: var(--d, 0s);
 }
@@ -390,24 +475,23 @@ html.light #navbar .text-gray-300 { color: #4a4760; }
   to   { height: calc(var(--lvl, 50%) + 18%); }
 }
 
-/* ---- Tickets ---- */
+/* Tickets de concert : des bons d'échange Mann Co., encoches comprises. */
 .ticket {
   position: relative;
-  background: var(--glass);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(10px);
-  border-radius: 14px;
+  background: var(--panel-top);
+  box-shadow: inset 0 0 0 1px var(--panel-edge),
+              inset 1.5px 1.5px 0 var(--bevel-hi),
+              inset -1.5px -1.5px 0 var(--bevel-lo);
   overflow: hidden;
-  transition: transform .3s ease, border-color .3s ease;
+  transition: transform .25s ease, background .25s ease;
 }
-.ticket:hover { transform: translateY(-4px); border-color: rgba(245, 158, 11, 0.5); }
+.ticket:hover { transform: translateY(-4px); background: var(--panel-edge); }
 .ticket::before, .ticket::after {
   content: '';
   position: absolute;
   width: 22px; height: 22px;
   background: var(--bg);
-  border: 1px solid var(--glass-border);
-  border-radius: 9999px;
+  border-radius: 9999px;   /* les encoches, elles, sont bien rondes */
   top: 50%;
 }
 .ticket::before { left: -12px; transform: translateY(-50%); }
@@ -421,17 +505,249 @@ html.light #navbar .text-gray-300 { color: #4a4760; }
   opacity: .5;
 }
 
-/* ---- Arcade / Jeux ---- */
-.arcade-border { border: 2px dashed rgba(139, 92, 246, 0.4); }
-.insert-coin { animation: blink 1.2s steps(1) infinite; }
+/* Fiche joueur volley. */
+.jersey-number {
+  font-family: 'TF2 Build', 'Anton', sans-serif;
+  font-size: clamp(5rem, 10vw, 8rem);
+  line-height: 1;
+  color: var(--panel-edge);
+  opacity: .85;
+}
+.net-pattern {
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
 
-/* ---- Lightbox ---- */
+/* ============================================================================
+   Jeux — carousel « coverflow »
+   ========================================================================= */
+#games-carousel { --vp-h: 520px; --card-h: 480px; }
+#games-carousel:focus-visible { outline: 2px solid var(--focus); outline-offset: 8px; }
+#games-viewport {
+  position: relative;
+  height: var(--vp-h);
+  perspective: 1400px;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: pan-y;      /* le scroll vertical de la page reste possible */
+}
+#games-carousel.dragging #games-viewport { cursor: grabbing; }
+#games-track { position: absolute; inset: 0; transform-style: preserve-3d; }
+.game-slide {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: min(400px, 86vw);
+  height: var(--card-h);
+  transform: translate(-50%, -50%);
+  transition: transform .6s cubic-bezier(.16, .8, .3, 1), opacity .5s ease;
+  backface-visibility: hidden;
+  will-change: transform, opacity;
+  user-select: none;
+}
+#games-carousel.dragging .game-slide { transition: none; }
+/* La carte elle-même est un objet : sa bordure porte la qualité du jeu. */
+.game-card { height: 100%; }
+.game-card-body { height: 100%; display: flex; flex-direction: column; padding: 1.6rem 1.5rem; }
+.game-card:hover { transform: none; filter: none; }   /* le pop gênerait le glissement */
+.game-slide.is-active .game-card {
+  filter: drop-shadow(0 0 22px color-mix(in srgb, var(--q) 45%, transparent));
+}
+.game-title { font-size: 1.6rem; margin: 0 0 .6rem; }
+.game-tagline { color: var(--q-ink); letter-spacing: .14em; text-transform: uppercase; text-align: right; }
+.game-desc {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
+  -webkit-box-orient: vertical;
+}
+.game-emoji { font-size: 2.3rem; line-height: 1; }
+/* Dans TF2 on choisit sa classe au clavier, de 1 à 9. Le numéro n'est pas
+   décoratif : les touches 1-9 changent vraiment de carte (voir carousel.js). */
+.slot-num {
+  font-family: 'TF2 Build', 'Anton', sans-serif;
+  font-size: 1.6rem; line-height: 1;
+  color: var(--q-ink);
+  opacity: .9;
+}
+.game-cta { width: 100%; justify-content: center; }
+.game-cta-soon {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  width: 100%;
+  padding: .7rem 1.4rem;
+  background: var(--bg-deep);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink-2);
+  --cut: 10px;
+  clip-path: polygon(var(--cut) 0%, 100% 0%, 100% calc(100% - var(--cut)),
+                     calc(100% - var(--cut)) 100%, 0% 100%, 0% var(--cut));
+}
+@media (max-width: 640px) { #games-carousel { --vp-h: 560px; --card-h: 520px; } }
+
+.game-nav {
+  position: absolute; top: calc(var(--vp-h) / 2); transform: translateY(-50%);
+  width: 2.6rem; height: 2.6rem;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--btn);
+  color: var(--ink);
+  border: none;
+  cursor: pointer;
+  --cut: 7px;
+  clip-path: polygon(var(--cut) 0%, 100% 0%, 100% calc(100% - var(--cut)),
+                     calc(100% - var(--cut)) 100%, 0% 100%, 0% var(--cut));
+  box-shadow: inset 1.5px 1.5px 0 var(--bevel-hi), inset -1.5px -1.5px 0 var(--bevel-lo);
+  transition: background .2s ease;
+  z-index: 5;
+}
+.game-nav:hover { background: var(--btn-hover); color: #fff; }
+.game-nav:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--focus); }
+.game-nav-prev { left: -.6rem; }
+.game-nav-next { right: -.6rem; }
+@media (min-width: 768px) {
+  .game-nav-prev { left: -1.3rem; }
+  .game-nav-next { right: -1.3rem; }
+}
+.game-dot {
+  width: 10px; height: 10px;
+  background: var(--panel-edge);
+  transition: background .25s ease, width .25s ease;
+}
+.game-dot:hover { background: var(--ink-3); }
+.game-dot.active { background: var(--orange); width: 24px; }
+
+.arcade-border { box-shadow: inset 0 0 0 2px var(--panel-edge); }
+.insert-coin { animation: blink 1.2s steps(1) infinite; cursor: pointer; }
+#insert-coin { color: var(--orange-ink); }
+#insert-coin:hover { color: var(--qi-unique); }
+#c4 {
+  cursor: pointer;
+  touch-action: manipulation;
+  background: var(--bg-deep);
+  box-shadow: inset 0 0 0 2px var(--panel-edge);
+}
+
+/* ============================================================================
+   Contact — le guichet Mann Co.
+   ----------------------------------------------------------------------------
+   Pas de backend sur GitHub Pages : le formulaire compose un mailto: et laisse
+   le client mail de la personne faire le reste. Zéro service tiers, zéro donnée
+   qui transite ailleurs, et on garde le guichet.
+   ========================================================================= */
+.store-form { display: grid; gap: .9rem; text-align: left; }
+.store-field { display: grid; gap: .3rem; }
+.store-field label {
+  font-size: .7rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.store-field input,
+.store-field textarea {
+  width: 100%;
+  font: inherit;
+  font-size: .92rem;
+  color: var(--ink);
+  background: var(--bg-deep);
+  border: none;
+  padding: .65rem .8rem;
+  box-shadow: inset 1.5px 1.5px 0 var(--bevel-lo),
+              inset -1.5px -1.5px 0 var(--bevel-hi),
+              inset 0 0 0 1px var(--panel-edge);
+  --cut: 7px;
+  clip-path: polygon(var(--cut) 0%, 100% 0%, 100% calc(100% - var(--cut)),
+                     calc(100% - var(--cut)) 100%, 0% 100%, 0% var(--cut));
+}
+.store-field textarea { resize: vertical; min-height: 7rem; }
+.store-field input::placeholder,
+.store-field textarea::placeholder { color: var(--ink-3); opacity: .7; }
+.store-field input:focus-visible,
+.store-field textarea:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--focus), inset 0 0 0 4px rgba(0, 0, 0, .35);
+}
+/* La ligne de prix du guichet : « ce que ça coûte » — rien, évidemment. */
+.store-price {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 1rem;
+  padding-top: .3rem;
+  font-size: .78rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.store-price b { color: var(--qi-unique); font-family: 'TF2 Build', 'Anton', sans-serif; font-size: 1.1rem; }
+
+/* Les liens sociaux : des cases d'objet carrées, pas des ronds. */
+.social {
+  width: 3rem; height: 3rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--btn);
+  color: var(--ink);
+  --cut: 8px;
+  clip-path: polygon(var(--cut) 0%, 100% 0%, 100% calc(100% - var(--cut)),
+                     calc(100% - var(--cut)) 100%, 0% 100%, 0% var(--cut));
+  box-shadow: inset 1.5px 1.5px 0 var(--bevel-hi), inset -1.5px -1.5px 0 var(--bevel-lo);
+  transition: background .2s ease, color .2s ease, transform .2s ease;
+}
+.social:hover { background: var(--btn-hover); color: #fff; transform: translateY(-3px); }
+.social:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--focus); }
+
+/* Bas de page : le bandeau d'information du bas d'écran. */
+.footer-strip {
+  background: var(--bg-deep);
+  border-top: 2px solid var(--panel-edge);
+  color: var(--ink-2);
+  font-size: .75rem;
+  letter-spacing: .08em;
+}
+.footer-disclaimer { color: var(--ink-2); font-size: .7rem; }
+
+/* ============================================================================
+   Killfeed
+   ----------------------------------------------------------------------------
+   L'élément d'interface le plus reconnaissable du jeu. Une ligne par section, à
+   la première arrivée. Sous la nav, hors du flux, ignoré au clic.
+   ========================================================================= */
+#killfeed {
+  position: fixed;
+  top: 5.6rem; right: 1rem;
+  z-index: 45;
+  display: flex; flex-direction: column; align-items: flex-end; gap: .4rem;
+  pointer-events: none;
+}
+.kf {
+  display: flex; align-items: center; gap: .55rem;
+  padding: .4rem .7rem;
+  background: var(--bg-deep);
+  box-shadow: inset 0 0 0 1px var(--team, var(--red));
+  border-left: 4px solid var(--team, var(--red));
+  font-size: .7rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  max-width: min(78vw, 340px);
+  animation: kf-in .3s cubic-bezier(.16, .8, .3, 1);
+}
+.kf.out { animation: kf-out .4s ease forwards; }
+.kf-who { color: var(--team-ink, var(--red-ink)); }
+.kf-what { overflow: hidden; text-overflow: ellipsis; }
+.kf-icon { width: 15px; height: 15px; flex: none; color: var(--ink-3); }
+@keyframes kf-in  { from { opacity: 0; transform: translateX(26px); } }
+@keyframes kf-out { to   { opacity: 0; transform: translateX(26px); } }
+@media (max-width: 640px) { #killfeed { top: 4.8rem; right: .6rem; } }
+
+/* ============================================================================
+   Surcouches — lightbox, palette de commandes, mode CRT
+   ========================================================================= */
 #lightbox {
   position: fixed;
   inset: 0;
   z-index: 100;
-  background: rgba(6, 6, 12, 0.92);
-  backdrop-filter: blur(10px);
+  background: rgba(16, 11, 6, .94);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -445,33 +761,14 @@ html.light #navbar .text-gray-300 { color: #4a4760; }
   max-width: min(92vw, 1100px);
   max-height: 74vh;
   object-fit: contain;
-  border-radius: 10px;
-  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 0 0 2px var(--panel-edge), 0 30px 80px -20px #000;
 }
-#lightbox p, #lightbox button { color: #d5d3e2; }
+#lightbox p, #lightbox button { color: #d8cdb4; }
+#lightbox button:hover { color: #e8913f; }
 
-/* ---- Fiche joueur volley ---- */
-.jersey-number {
-  font-size: clamp(5rem, 10vw, 8rem);
-  line-height: 1;
-  background: linear-gradient(180deg, var(--heading), transparent);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  opacity: .9;
-}
-.net-pattern {
-  background-image:
-    linear-gradient(var(--chip-bg) 1px, transparent 1px),
-    linear-gradient(90deg, var(--chip-bg) 1px, transparent 1px);
-  background-size: 22px 22px;
-}
-
-/* ---- Command palette (Ctrl+K) ---- */
 #cmdk-overlay {
   position: fixed; inset: 0; z-index: 110;
-  background: rgba(6, 6, 12, 0.55);
-  backdrop-filter: blur(6px);
+  background: rgba(16, 11, 6, .7);
   display: none;
   align-items: flex-start; justify-content: center;
   padding-top: 18vh;
@@ -479,258 +776,64 @@ html.light #navbar .text-gray-300 { color: #4a4760; }
 #cmdk-overlay.open { display: flex; }
 #cmdk {
   width: min(560px, 92vw);
-  background: var(--bg);
-  border: 1px solid var(--glass-border);
-  border-radius: 14px;
-  overflow: hidden;
-  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.7);
-  font-family: 'JetBrains Mono', monospace;
+  background: var(--panel-edge);
+  position: relative;
+  isolation: isolate;
+  --cut: 12px;
+  clip-path: polygon(var(--cut) 0%, 100% 0%, 100% calc(100% - var(--cut)),
+                     calc(100% - var(--cut)) 100%, 0% 100%, 0% var(--cut));
+}
+#cmdk::before {
+  content: ''; position: absolute; inset: 2px; z-index: -1;
+  clip-path: polygon(var(--cut) 0%, 100% 0%, 100% calc(100% - var(--cut)),
+                     calc(100% - var(--cut)) 100%, 0% 100%, 0% var(--cut));
+  background: linear-gradient(180deg, var(--panel-top), var(--panel-bot));
 }
 #cmdk input {
   width: 100%;
   background: transparent;
   border: none; outline: none;
-  color: var(--heading);
+  color: var(--ink);
   padding: 1rem 1.1rem;
   font: inherit; font-size: .95rem;
-  border-bottom: 1px solid var(--glass-border);
+  border-bottom: 1px solid var(--panel-edge);
 }
-#cmdk input::placeholder { color: var(--muted-2); }
+#cmdk input::placeholder { color: var(--ink-3); }
 #cmdk-list { max-height: 300px; overflow-y: auto; padding: .4rem; }
 .cmdk-item {
   display: flex; align-items: center; gap: .7rem;
   padding: .55rem .7rem;
-  border-radius: 8px;
-  color: var(--muted);
+  color: var(--ink-2);
   font-size: .85rem;
   cursor: pointer;
 }
-.cmdk-item .k { margin-left: auto; font-size: .7rem; color: var(--muted-2); }
-.cmdk-item.active { background: var(--chip-bg); color: var(--heading); }
-.cmdk-empty { padding: .9rem .7rem; color: var(--muted-2); font-size: .85rem; }
+.cmdk-item .k { margin-left: auto; font-size: .7rem; color: var(--ink-3); }
+.cmdk-item.active { background: var(--orange); color: var(--on-orange); }
+.cmdk-empty { padding: .9rem .7rem; color: var(--ink-3); font-size: .85rem; }
 
-/* ---- Mode CRT + toast (Konami) ---- */
 body.crt { animation: crt-flicker .16s steps(2) 5; }
 body.crt::after {
   content: '';
   position: fixed; inset: 0; z-index: 105;
   pointer-events: none;
-  background: repeating-linear-gradient(0deg, rgba(52, 211, 153, 0.09) 0 1px, transparent 1px 3px);
+  background: repeating-linear-gradient(0deg, rgba(207, 115, 54, .10) 0 1px, transparent 1px 3px);
 }
 @keyframes crt-flicker { 50% { filter: invert(1) hue-rotate(90deg); } }
 .crt-toast {
   position: fixed; left: 50%; top: 14vh; z-index: 120;
   transform: translateX(-50%);
-  background: #0a0a12;
-  border: 1px solid rgba(52, 211, 153, 0.5);
-  color: #34d399;
-  font-family: 'JetBrains Mono', monospace;
+  background: var(--bg-deep);
+  box-shadow: inset 0 0 0 2px var(--orange);
+  color: var(--orange-ink);
   font-size: .8rem;
   padding: .7rem 1.1rem;
-  border-radius: 10px;
   white-space: nowrap;
   max-width: 92vw; overflow: hidden; text-overflow: ellipsis;
 }
 
-/* ---- Puissance 4 ---- */
-#c4 { cursor: pointer; touch-action: manipulation; }
-#insert-coin { cursor: pointer; }
-#insert-coin:hover { color: var(--mint); }
-
-/* ---- Carousel 3D « coverflow » des jeux ---- */
-/* Le carousel est tabbable et se pilote aux flèches : il lui FAUT un focus visible. */
-#games-carousel { --vp-h: 500px; --card-h: 460px; }
-#games-carousel:focus-visible { outline: 2px solid var(--violet); outline-offset: 8px; border-radius: 1.6rem; }
-#games-viewport {
-  position: relative;
-  height: var(--vp-h);
-  perspective: 1400px;
-  overflow: hidden;
-  border-radius: 1.5rem;
-  cursor: grab;
-  touch-action: pan-y;      /* le scroll vertical de la page reste possible */
-}
-#games-carousel.dragging #games-viewport { cursor: grabbing; }
-#games-track {
-  position: absolute;
-  inset: 0;
-  transform-style: preserve-3d;
-}
-.game-slide {
-  position: absolute;
-  left: 50%; top: 50%;
-  width: min(400px, 86vw);
-  height: var(--card-h);       /* hauteur fixe → cartes uniformes, jamais rognées */
-  transform: translate(-50%, -50%);
-  transition: transform .6s cubic-bezier(.16, .8, .3, 1), opacity .5s ease;
-  backface-visibility: hidden;
-  will-change: transform, opacity;
-  user-select: none;
-}
-/* pendant le glissement : suivi direct, sans transition qui traîne */
-#games-carousel.dragging .game-slide { transition: none; }
-.game-slide > .glass { height: 100%; }
-/* la description occupe l'espace restant et se tronque proprement si trop longue */
-.game-desc {
-  flex: 1 1 0;
-  min-height: 0;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 6;
-  line-clamp: 6;
-  -webkit-box-orient: vertical;
-}
-/* la carte de devant se détache par un halo, pour bien la lire */
-.game-slide.is-active > .glass {
-  border-color: rgba(139, 92, 246, .4);
-  box-shadow: 0 30px 70px -28px rgba(139, 92, 246, .55);
-}
-.game-emoji {
-  font-size: 2.6rem; line-height: 1;
-  filter: drop-shadow(0 6px 16px rgba(139, 92, 246, .35));
-}
-@media (max-width: 640px) { #games-carousel { --vp-h: 540px; --card-h: 500px; } }
-.game-cta { padding: .7rem 1.5rem; border-radius: 9999px; font-size: .9rem; }
-.game-cta-soon {
-  display: inline-flex; align-items: center; gap: .5rem;
-  padding: .7rem 1.4rem; border-radius: 9999px;
-  background: var(--chip-bg); border: 1px solid var(--chip-border); color: var(--muted);
-}
-.game-nav {
-  position: absolute; top: calc(var(--vp-h) / 2); transform: translateY(-50%);
-  width: 2.6rem; height: 2.6rem;
-  display: flex; align-items: center; justify-content: center;
-  border-radius: 9999px;
-  background: var(--bg); color: var(--heading);
-  border: 1px solid var(--glass-border);
-  transition: border-color .25s ease, transform .25s ease, background .25s ease;
-  z-index: 5;
-}
-.game-nav:hover { border-color: var(--violet); transform: translateY(-50%) scale(1.08); }
-.game-nav-prev { left: -.6rem; }
-.game-nav-next { right: -.6rem; }
-@media (min-width: 768px) {
-  .game-nav-prev { left: -1.3rem; }
-  .game-nav-next { right: -1.3rem; }
-}
-.game-dot {
-  width: 8px; height: 8px; border-radius: 9999px;
-  background: var(--chip-border);
-  transition: background .25s ease, width .25s ease;
-}
-.game-dot:hover { background: var(--muted); }
-.game-dot.active { background: var(--violet); width: 22px; }
-
 /* ============================================================================
-   Team Fortress 2 — le langage graphique, pas les décalques
-   ----------------------------------------------------------------------------
-   TF2 tient sur trois choses : une typo d'affiche très grasse et condensée,
-   deux équipes qui se répondent, et des objets estampillés par leur qualité.
-   On prend ces trois-là. Pas de texture de caisse, pas de HUD permanent : le
-   site reste lisible par quelqu'un qui n'a jamais lancé le jeu.
+   Mouvement réduit
    ========================================================================= */
-
-/* ---- Typo d'affiche (titres uniquement) ---- */
-.font-tf {
-  font-family: 'Anton', 'Space Grotesk', sans-serif;
-  text-transform: uppercase;
-  letter-spacing: .01em;
-  font-weight: 400;      /* Anton n'a qu'une graisse, déjà très grasse */
-}
-
-/* ---- Kicker de section : la barre d'équipe ---- */
-.kicker { display: flex; align-items: center; gap: .6rem; }
-.kicker::before {
-  content: '';
-  width: 26px; height: 4px;
-  border-radius: 2px;
-  background: var(--team, var(--violet));
-  flex: none;
-}
-[data-team="red"] { --team: var(--red); --team-ink: var(--red-ink); }
-[data-team="blu"] { --team: var(--blu); --team-ink: var(--blu-ink); }
-.kicker { color: var(--team-ink, var(--violet)); }
-
-/* ---- Estampille de qualité d'objet ----
-   Chaque projet porte une qualité TF2. L'attribut data-q pose deux variables :
-   --q (la teinte du jeu, pour le fond et la bordure) et --q-ink (la même
-   teinte, corrigée pour rester lisible en texte sur le fond du thème).
-   color-mix ne sert donc jamais au texte : il ne décide pas du contraste. */
-.q-badge {
-  display: inline-flex; align-items: center; gap: .35rem;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: .66rem;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  padding: .3rem .6rem;
-  border-radius: 5px;      /* les objets TF2 sont des tampons, pas des pilules */
-  white-space: nowrap;
-  color: var(--q-ink);
-  background: color-mix(in srgb, var(--q) 15%, transparent);
-  border: 1px solid color-mix(in srgb, var(--q) 50%, transparent);
-}
-.q-badge[data-q="unusual"]    { --q: var(--q-unusual);    --q-ink: var(--qi-unusual); }
-.q-badge[data-q="strange"]    { --q: var(--q-strange);    --q-ink: var(--qi-strange); }
-.q-badge[data-q="collectors"] { --q: var(--q-collectors); --q-ink: var(--qi-collectors); }
-.q-badge[data-q="vintage"]    { --q: var(--q-vintage);    --q-ink: var(--qi-vintage); }
-.q-badge[data-q="genuine"]    { --q: var(--q-genuine);    --q-ink: var(--qi-genuine); }
-.q-badge[data-q="haunted"]    { --q: var(--q-haunted);    --q-ink: var(--qi-haunted); }
-.q-badge[data-q="unique"]     { --q: var(--q-unique);     --q-ink: var(--qi-unique); }
-/* Un objet Unusual porte un effet de particules : ici, une lueur qui respire. */
-.q-badge[data-q="unusual"] {
-  animation: unusual-glow 3.2s ease-in-out infinite;
-}
-@keyframes unusual-glow {
-  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--q-unusual) 0%, transparent); }
-  50%      { box-shadow: 0 0 14px 1px color-mix(in srgb, var(--q-unusual) 45%, transparent); }
-}
-
-/* ---- Killfeed ----
-   L'élément d'interface le plus reconnaissable du jeu. Ici il annonce ce que
-   Mathys a réellement réglé, une ligne par section, jamais plus d'une à la fois
-   à l'écran très longtemps. Sous la nav, hors du flux, ignoré au clic. */
-#killfeed {
-  position: fixed;
-  top: 5.4rem; right: 1rem;
-  z-index: 45;
-  display: flex; flex-direction: column; align-items: flex-end; gap: .4rem;
-  pointer-events: none;
-}
-.kf {
-  display: flex; align-items: center; gap: .55rem;
-  padding: .4rem .7rem;
-  border-radius: 4px;
-  background: rgba(10, 10, 18, .86);
-  border: 1px solid var(--team, var(--red));
-  border-left-width: 3px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: .68rem;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  color: #e7e5f4;
-  max-width: min(78vw, 340px);
-  animation: kf-in .3s cubic-bezier(.16, .8, .3, 1);
-}
-html.light .kf { background: rgba(255, 255, 255, .93); color: #211f2c; }
-.kf.out { animation: kf-out .4s ease forwards; }
-.kf-who { color: var(--team-ink, var(--red-ink)); font-weight: 700; }
-.kf-what { overflow: hidden; text-overflow: ellipsis; }
-.kf-icon { width: 15px; height: 15px; flex: none; color: var(--muted); }
-@keyframes kf-in  { from { opacity: 0; transform: translateX(26px); } }
-@keyframes kf-out { to   { opacity: 0; transform: translateX(26px); } }
-@media (max-width: 640px) { #killfeed { top: 4.6rem; right: .6rem; } }
-
-/* ---- Cartes de jeu : le numéro de sélection de classe ----
-   Dans TF2 on choisit sa classe au clavier, de 1 à 9. Le numéro n'est pas
-   décoratif : les touches 1-7 changent vraiment de carte (voir carousel.js). */
-.slot-num {
-  font-family: 'Anton', sans-serif;
-  font-size: 1.5rem; line-height: 1;
-  color: var(--team, var(--red));
-  opacity: .85;
-}
-.game-slide:nth-child(even) { --team: var(--blu); }
-
 @media (prefers-reduced-motion: reduce) {
   .reveal { transition: none; opacity: 1; transform: none; }
   .marquee-track, .fader::after, .live-dot, .insert-coin { animation: none; }
@@ -738,6 +841,6 @@ html.light .kf { background: rgba(255, 255, 255, .93); color: #211f2c; }
   body.crt { animation: none; }
   .game-slide { transition: none; }
   .section-halo::before { transition: none; }
-  .q-badge[data-q="unusual"] { animation: none; }
   .kf, .kf.out { animation: none; }
+  .proj-img { transition: none; }
 }

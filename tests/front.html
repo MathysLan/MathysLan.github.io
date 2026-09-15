@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Test fonctionnel du front</title>
+<style>
+  body { margin:0; background:#111; color:#8f8; font:13px/1.6 monospace; }
+  #log { padding:10px; white-space:pre-wrap; }
+  iframe { width:1100px; height:900px; border:0; position:fixed; left:-9999px; }
+  .ko { color:#f77; }
+</style>
+</head>
+<body>
+<div id="log">chargement…</div>
+<iframe id="f" src="../index.html"></iframe>
+<script>
+// Pilote le vrai index.html dans une iframe (meme origine avec
+// --allow-file-access-from-files) : on ne touche pas au fichier livre.
+var out = [], errs = [];
+function t(name, ok) { out.push((ok ? 'OK   ' : 'KO   ') + name); if (!ok) out.ko = true; }
+document.getElementById('f').addEventListener('load', function () {
+  var w = this.contentWindow, d = this.contentDocument;
+  w.addEventListener('error', function (e) { errs.push(e.message + ' @' + String(e.filename).split('/').pop() + ':' + e.lineno); });
+  setTimeout(function () {
+    try {
+      var projs = d.querySelectorAll('#projects-grid .proj');
+      t('cartes projets rendues (' + projs.length + '/8)', projs.length === 8);
+      t('bordure de qualite posee', d.querySelector('.proj[data-q="unusual"]') !== null);
+      t('etiquette de nom presente', d.querySelector('.proj .item-label') !== null);
+      t('stack en attributs', d.querySelectorAll('.proj .attr-list li').length > 10);
+
+      var slides = d.querySelectorAll('.game-slide');
+      t('cartes jeux rendues (' + slides.length + ')', slides.length === 7);
+      t('carte de jeu = objet', d.querySelector('.game-slide .item.game-card') !== null);
+      t('jeux preferes (' + d.querySelectorAll('#fav-games .fav-game').length + ')', d.querySelectorAll('#fav-games .fav-game').length > 0);
+
+      // Lightbox
+      d.querySelector('#projects-grid .proj[role="button"]').click();
+      t('lightbox ouverte au clic', d.getElementById('lightbox').classList.contains('open'));
+      d.getElementById('lightbox-close').click();
+      t('lightbox refermee', !d.getElementById('lightbox').classList.contains('open'));
+
+      // Palette de commandes
+      d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }));
+      t('palette Ctrl+K ouverte', d.getElementById('cmdk-overlay').classList.contains('open'));
+      // Echap est ecoute sur le champ de saisie (qui recoit le focus a
+      // l'ouverture), pas sur le document : on dispatche donc au bon endroit.
+      d.querySelector('#cmdk input').dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      t('palette refermee (Echap)', !d.getElementById('cmdk-overlay').classList.contains('open'));
+
+      // Langue
+      d.getElementById('lang-toggle').click();
+      var h2 = d.querySelector('#projects h2');
+      t('bascule EN [' + h2.textContent.trim().slice(0, 16) + ']', /project/i.test(h2.textContent));
+      t('pictogrammes de nav conserves (' + d.querySelectorAll('.nav-link svg').length + '/6)', d.querySelectorAll('.nav-link svg').length === 6);
+      d.getElementById('lang-toggle').click();
+      t('retour FR', /Projets/.test(d.querySelector('#projects h2').textContent));
+
+      // Theme
+      d.getElementById('theme-toggle').click();
+      t('theme blueprint actif', d.documentElement.classList.contains('light'));
+      d.getElementById('theme-toggle').click();
+      t('retour Mann Co.', !d.documentElement.classList.contains('light'));
+
+      // Guichet : refuse le vide, sans naviguer
+      var f = d.getElementById('contact-form');
+      f.dispatchEvent(new w.Event('submit', { cancelable: true, bubbles: true }));
+      t('guichet refuse les champs vides', d.getElementById('cf-hint').textContent.length > 0);
+
+      // Focus clavier sur un element decoupe (clip-path rogne les outlines)
+      var b = d.querySelector('.tf-btn');
+      b.focus();
+      var sh = w.getComputedStyle(b).boxShadow;
+      t('anneau de focus sur bouton decoupe', /inset/.test(sh) && sh.indexOf('rgb(255, 215, 0)') > -1);
+
+      // Nav au scroll
+      var nav = d.querySelector('#navbar nav');
+      t('nav sans panneau en haut de page', !nav.classList.contains('panel'));
+
+      t('aucune erreur JS', errs.length === 0);
+    } catch (e) {
+      out.push('EXCEPTION: ' + e.message);
+      out.ko = true;
+    }
+    var head = out.ko ? 'DES TESTS ECHOUENT' : 'TOUT PASSE';
+    document.getElementById('log').textContent =
+      head + ' — ' + out.length + ' verifications\n\n' + out.join('\n') +
+      (errs.length ? '\n\nERREURS JS:\n' + errs.join('\n') : '');
+  }, 900);
+});
+</script>
+</body>
+</html>

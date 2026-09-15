@@ -75,30 +75,60 @@ démarre qu'après un seuil de 6 px pour que le lien « Jouer » reste cliquable
   `pub-427c946793104d1f8e39fbf6d5584ba9.r2.dev`. Convention : fichier nommé
   `<id>.mp4` à la racine du bucket. `?server=` et `?cdn=` pour tester en local.
   Testé : moteur 26/26, ws e2e 16/16, front e2e 12/12.
-- **Identité visuelle Team Fortress 2** (le jeu préféré de Mathys) : on a pris
-  le LANGAGE graphique du jeu, pas ses décalques — pas de texture de caisse ni
-  de HUD permanent, le site reste lisible par qui n'a jamais lancé TF2. Quatre
-  choses : typo d'affiche **Anton** sur le hero et les titres de section
-  (`.font-tf`, en capitales) ; sections alternées **RED / BLU**
-  (`data-team` + `.halo-red`/`.halo-blu` + barre d'équipe sur `.kicker`) ;
-  **estampilles de qualité d'objet** sur les projets (champ `quality` dans
-  `data/projects.js`, `.q-badge`, l'Unusual a une lueur de particules) ;
-  **killfeed** en haut à droite, une ligne par section à la première arrivée
-  (clé à molette de l'Engineer, textes dans `KILLFEED` de `i18n.js`). Bonus :
-  les cartes du carousel portent un numéro de sélection de classe et les
-  touches **1-9** changent de jeu.
-  ⚠️ Piège rencontré : les couleurs officielles de TF2 sont calibrées pour le
-  gris moyen du jeu. Sur le fond `#0a0a12` du site, la moitié tombe sous
-  4.5:1 (Collector's à 2,5:1) ; sur le fond clair, le doré et la menthe sont
-  illisibles. D'où la séparation **teinte** (`--red`, `--q-*` : barres,
-  bordures, fonds) / **encre** (`--red-ink`, `--qi-*` : texte), avec un jeu de
-  valeurs par thème. Ne pas « simplifier » en réunifiant les deux.
+- **Interface Team Fortress 2 / Source** (le jeu préféré de Mathys) : le site
+  n'a plus un *accent* TF2, il EST une interface VGUI. Le thème violet/verre
+  précédent a disparu. Trois principes tiennent tout :
+  1. un panneau = aplat dégradé + biseau (lumière haut-gauche, ombre
+     bas-droite) + bordure nette ; 2. des coins coupés en diagonale, jamais
+     d'arrondi ; 3. une hiérarchie par la **qualité d'objet**, pas par la
+     taille du texte.
+  **Deux feuilles, et l'ordre compte** : `css/tf2.css` = le socle (polices,
+  palette, primitives `.panel` / `.item` / `.tf-btn` / `.tf-tag` / `.attr-list`
+  / `.q-badge`) ; `css/style.css` = les composants du portfolio, construits
+  dessus. Le socle ne connaît rien du site, ne pas y mettre de composant.
+  **Polices** : `TF2 Build` (titres, capitales) et `TF2 Secondary` (corps), en
+  `@font-face` depuis `assets/fonts/`. Elles viennent du tf2-ui-kit de
+  GingerBunny et restent la propriété de Valve — d'où le « Not affiliated with
+  Valve Corporation » en pied de page. Elles couvrent tous les accents
+  français (vérifié dans la cmap) mais pas `« » → ✦ ★`, qui tombent sur le
+  fallback (Anton / Inter) glyphe par glyphe : c'est voulu, pas un bug.
+  **Mapping** : nav = écran de sélection de classe (pictogramme + nom + liseré
+  d'équipe) ; projets = fiches d'objet (vignette, bordure de rareté, stack en
+  attributs d'arme, étiquette de nom en bas) ; contact = guichet Mann Co. (le
+  formulaire compose un `mailto:`, aucun service tiers) ; footer = bandeau de
+  bas d'écran. Le killfeed, les sections RED/BLU et les numéros de classe du
+  carousel sont conservés du passage précédent.
+  ⚠️ Deux pièges, tous deux documentés dans `tf2.css` :
+  - **`clip-path` rogne aussi les ombres portées et les outlines.** D'où :
+    biseau en `box-shadow` *inset*, lueur de rareté en `filter: drop-shadow()`,
+    focus clavier en anneau inset. Une `box-shadow` extérieure sur un élément
+    découpé ne s'affichera jamais.
+  - **Teinte ≠ encre.** Les couleurs officielles de TF2 sont calibrées pour le
+    gris moyen du jeu ; posées telles quelles sur le brun (ou le papier), la
+    moitié passe sous 4.5:1. `--red` / `--q-*` servent aux barres, bordures et
+    fonds ; `--red-ink` / `--qi-*` au texte, avec un jeu de valeurs par thème.
+    Ne pas « simplifier » en réunifiant les deux. Même logique pour
+    `--on-orange` (du blanc sur l'orange Mann Co. plafonne à 3,4:1).
+  Thèmes : **Mann Co.** (brun carton, défaut) et **Blueprint** (papier calque
+  + grille bleue) — le bouton soleil/lune bascule entre les deux.
 - **Front / identité visuelle** : le halo de chaque section suit maintenant le
   curseur (« poursuite de scène », amorti à 55 %, `--hx`/`--hy` posés par
   `main.js`, désactivé au doigt et en `prefers-reduced-motion`) ; la nav allume
   la section en cours de lecture ; grain de pellicule fixe sur toute la page ;
   focus clavier visible partout (le carousel avait un `outline:none` alors
   qu'il est tabbable et se pilote aux flèches). Testé via CDP : 10/10.
+- **Outils de contrôle du front** (nouveaux) : `styleguide.html` montre les
+  primitives côte à côte dans les deux thèmes ; `tests/front.html` pilote le
+  vrai `index.html` dans une iframe et vérifie ce qui casse en silence quand on
+  touche au style (rendu des cartes, lightbox, Ctrl+K, FR/EN, thème, guichet,
+  anneau de focus). Les deux sont en `Disallow` dans `robots.txt`. Voir
+  `tests/README.md` pour les lancer. Dernier passage : front 20/20, et un
+  auditeur de contraste jetable (377 nœuds) a validé **0 échec WCAG AA** dans
+  les deux thèmes.
+  ⚠️ En headless, Edge n'ouvre pas de fenêtre sous ~500 px : pour tester le
+  mobile à 390 px il faut passer par une iframe, pas par `--window-size`. Et
+  `--screenshot` capture toujours depuis le haut du document, donc pour cadrer
+  une section on masque les autres plutôt que de scroller.
 - **Précision** (nouveau) : back `precision-server` livré à part
   (`engine-precision.js` pur + `server.js` avec les setTimeout de phase), front
   `games/precision/` sur `wss://precision-server.onrender.com`. Le MJ choisit

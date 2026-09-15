@@ -4,14 +4,17 @@
 //   2. steam → l'app ID Steam : la bannière officielle est tirée du CDN Steam
 //   3. sinon → fond dégradé (bg) + emoji, en repli
 // Un repli emoji s'affiche toujours si l'image ne charge pas (jamais de carte cassée).
+// quality : l'estampille TF2 de la case (voir .item dans css/tf2.css). Elle dit la
+//   place du jeu dans le classement - unusual = le préféré, strange/genuine/vintage
+//   = les piliers, rien = normal. C'est la seule hiérarchie de la grille.
 const FAV_GAMES = [
   {
-    name: 'Team Fortress 2', emoji: '🎯', steam: 440,
+    name: 'Team Fortress 2', emoji: '🎯', steam: 440, quality: 'unusual',
     note: '9 classes, zéro sérieux — le FPS qui vieillit pas.',
     note_en: '9 classes, zero seriousness — the FPS that never ages.',
   },
   {
-    name: 'Clair Obscur : Expédition 33', emoji: '🎨',
+    name: 'Clair Obscur : Expédition 33', emoji: '🎨', quality: 'strange',
     img: 'assets/games/expedition33.jpg',
     bg: 'linear-gradient(135deg, #6d4fd0, #241b3a)',
     note: 'Claque visuelle et narrative — RPG au tour par tour.',
@@ -23,7 +26,7 @@ const FAV_GAMES = [
     note_en: 'Childhood as a game, Saiyan galore.',
   },
   {
-    name: 'Minecraft', emoji: '⛏️',
+    name: 'Minecraft', emoji: '⛏️', quality: 'genuine',
     img: 'assets/games/minecraft.jpg',
     bg: 'linear-gradient(135deg, #3a7d34, #1f4d2b)',
     note: 'Je montais les serveurs — mes meilleurs souvenirs à jouer avec toute la bande.',
@@ -35,7 +38,7 @@ const FAV_GAMES = [
     note_en: 'Hardcore survival, betrayals guaranteed.',
   },
   {
-    name: "Garry's Mod", emoji: '🔧', steam: 4000,
+    name: "Garry's Mod", emoji: '🔧', steam: 4000, quality: 'vintage',
     note: 'Le bac à sable sans aucune limite.',
     note_en: 'The no-limits sandbox.',
   },

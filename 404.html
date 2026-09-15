@@ -9,37 +9,54 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
+  /* Page autonome : elle ne charge ni tf2.css ni Tailwind (une 404 doit
+     s'afficher même si tout le reste casse), mais elle reprend à la main la
+     palette Mann Co. et le panneau biseauté, pour ne pas dépayser. */
   * { margin: 0; box-sizing: border-box; }
   body {
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #0a0a12;
-    color: #e7e5f4;
+    background: #241c14;
+    color: #c6b99b;
     font-family: 'JetBrains Mono', monospace;
     padding: 1.5rem;
   }
   .term {
+    position: relative;
+    isolation: isolate;
     width: min(640px, 100%);
-    background: rgba(255, 255, 255, 0.045);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 14px;
+    background: #57493a;                    /* la bordure du panneau */
     padding: 2rem 2.2rem;
     font-size: .9rem;
     line-height: 1.9;
+    --cut: 14px;
+    clip-path: polygon(var(--cut) 0%, 100% 0%, 100% calc(100% - var(--cut)),
+                       calc(100% - var(--cut)) 100%, 0% 100%, 0% var(--cut));
+  }
+  .term::before {
+    content: '';
+    position: absolute; inset: 2px; z-index: -1;
+    clip-path: polygon(var(--cut) 0%, 100% 0%, 100% calc(100% - var(--cut)),
+                       calc(100% - var(--cut)) 100%, 0% 100%, 0% var(--cut));
+    background: linear-gradient(180deg, #3a332b, #241f1a);
+    box-shadow: inset 1.5px 1.5px 0 rgba(255,240,214,.16),
+                inset -1.5px -1.5px 0 rgba(0,0,0,.55);
   }
   .bar { display: flex; gap: .45rem; margin-bottom: 1.3rem; }
-  .bar span { width: 11px; height: 11px; border-radius: 50%; background: #55506e; }
-  .bar span:first-child { background: #ef4444; }
-  .p { color: #34d399; }
-  .q { color: #8b5cf6; }
-  .err { color: #ef4444; }
-  .dim { color: #6f6c80; font-size: .8rem; }
-  a.cmd { color: #e7e5f4; text-decoration: underline; text-underline-offset: 4px; }
-  a.cmd:hover { color: #34d399; }
-  .caret { color: #34d399; animation: blink 1s steps(1) infinite; }
+  .bar span { width: 11px; height: 11px; background: #5f5549; }
+  .bar span:first-child { background: #b8383b; }
+  .p { color: #8cbb96; }
+  .q { color: #99ccff; }
+  .err { color: #e88a8c; }
+  .dim { color: #a99c7f; font-size: .8rem; }
+  a.cmd { color: #f0e7d2; text-decoration: underline; text-underline-offset: 4px; }
+  a.cmd:hover { color: #e8913f; }
+  a.cmd:focus-visible { outline: 2px solid #ffd700; outline-offset: 3px; }
+  .caret { color: #e8913f; animation: blink 1s steps(1) infinite; }
   @keyframes blink { 50% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .caret { animation: none; } }
 </style>
 </head>
 <body>

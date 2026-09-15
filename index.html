@@ -9,32 +9,56 @@
 <meta name="keywords" content="Mathys Langiny, développeur, portfolio, Reims, AgiLab, BUT Informatique" />
 <meta name="google-site-verification" content="rV17Nc10V9L16IBL8cbHRUxTQMPwTubcGTfHKIsaqa8" />
 
+<meta name="theme-color" content="#241c14">
+
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css?v=7">
+<!-- Anton sert de repli à TF2 Build (même esprit d'affiche grasse et condensée)
+     le temps que la police locale charge ; JetBrains Mono ne sert qu'au
+     terminal du hero, qui a besoin d'une vraie chasse fixe. -->
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- tf2.css = le socle (palette, polices, primitives) ; style.css = les
+     composants du portfolio. L'ordre compte : le second s'appuie sur le premier. -->
+<link rel="stylesheet" href="css/tf2.css?v=1">
+<link rel="stylesheet" href="css/style.css?v=8">
 </head>
 <body class="antialiased">
 
   <!-- Barre de progression -->
   <div class="fixed top-0 left-0 w-full h-[3px] z-[60]">
-    <div id="progress-bar" class="h-full w-full scale-x-0 bg-gradient-to-r from-violet-500 to-emerald-400" style="transform-origin:left"></div>
+    <div id="progress-bar" class="h-full w-full scale-x-0 progress-fill" style="transform-origin:left"></div>
   </div>
 
-  <!-- NAV : pilule de verre flottante -->
+  <!-- NAV : l'écran de sélection de classe.
+       Chaque section est une « classe » : un pictogramme, un nom en petites
+       capitales, et un liseré d'équipe qui s'allume au survol et sur la section
+       en cours de lecture (main.js pose .is-active). Les pictogrammes sont
+       dessinés ici en SVG — rien n'est repris du jeu. -->
   <header id="navbar" class="fixed top-4 inset-x-0 z-50 px-4">
-    <nav class="max-w-3xl mx-auto px-5 py-3 flex items-center justify-between rounded-full transition-all duration-300">
-      <a href="#hero" class="font-mono font-semibold text-lg">
-        <span class="heading">M</span><span class="text-violet-400">L</span><span class="text-emerald-400">.</span>
+    <nav class="max-w-3xl mx-auto px-4 py-2 flex items-center justify-between gap-3 transition-all duration-300">
+      <a href="#hero" class="nav-logo" aria-label="Retour en haut">
+        <span class="heading">M</span><span class="ac">L</span><span class="ac-green">.</span>
       </a>
-      <ul class="hidden md:flex items-center gap-6 text-sm text-gray-300 font-mono">
-        <li><a href="#projects" class="nav-link hover:text-white transition-colors" data-i18n="nav.projects">Projets</a></li>
-        <li><a href="#timeline" class="nav-link hover:text-white transition-colors" data-i18n="nav.timeline">Parcours</a></li>
-        <li><a href="#assos" class="nav-link hover:text-white transition-colors" data-i18n="nav.assos">Assos</a></li>
-        <li><a href="#passions" class="nav-link hover:text-white transition-colors" data-i18n="nav.passions">Passions</a></li>
-        <li><a href="#games" class="nav-link hover:text-white transition-colors" data-i18n="nav.games">Jeux</a></li>
-        <li><a href="#contact" class="nav-link hover:text-white transition-colors" data-i18n="nav.contact">Contact</a></li>
+      <ul class="hidden md:flex items-stretch gap-1">
+        <li><a href="#projects" class="nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/><path d="M7 7h.01M7 17h.01"/></svg>
+          <span data-i18n="nav.projects">Projets</span></a></li>
+        <li><a href="#timeline" class="nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 3v18"/><circle cx="5" cy="8" r="2"/><circle cx="5" cy="16" r="2"/><path d="M9 8h10M9 16h7"/></svg>
+          <span data-i18n="nav.timeline">Parcours</span></a></li>
+        <li><a href="#assos" class="nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.2"/><path d="M15 20a5 5 0 0 1 6-4.6"/></svg>
+          <span data-i18n="nav.assos">Assos</span></a></li>
+        <li><a href="#passions" class="nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 21s-7-4.6-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.4-7 10-7 10z"/></svg>
+          <span data-i18n="nav.passions">Passions</span></a></li>
+        <li><a href="#games" class="nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="2" y="7" width="20" height="10" rx="3"/><path d="M7 10v4M5 12h4M16 11h.01M18.5 13h.01"/></svg>
+          <span data-i18n="nav.games">Jeux</span></a></li>
+        <li><a href="#contact" class="nav-link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="2.5" y="5" width="19" height="14" rx="1"/><path d="M3 6.5l9 6.5 9-6.5"/></svg>
+          <span data-i18n="nav.contact">Contact</span></a></li>
       </ul>
       <div class="flex items-center gap-2">
         <button id="theme-toggle" class="ctrl-btn" aria-label="Changer de thème">
@@ -43,22 +67,22 @@
         </button>
         <button id="lang-toggle" class="ctrl-btn" aria-label="Switch language">EN</button>
         <button id="burger" aria-label="Ouvrir le menu" class="md:hidden relative w-8 h-8 flex flex-col justify-center items-center gap-1.5 z-50 ml-1">
-          <span class="burger-line block w-6 h-0.5 bg-current rounded transition-all duration-300"></span>
-          <span class="burger-line block w-6 h-0.5 bg-current rounded transition-all duration-300"></span>
-          <span class="burger-line block w-6 h-0.5 bg-current rounded transition-all duration-300"></span>
+          <span class="burger-line block w-6 h-0.5 bg-current transition-all duration-300"></span>
+          <span class="burger-line block w-6 h-0.5 bg-current transition-all duration-300"></span>
+          <span class="burger-line block w-6 h-0.5 bg-current transition-all duration-300"></span>
         </button>
       </div>
     </nav>
   </header>
 
   <!-- Menu mobile (hors header : un backdrop-filter ancêtre piègerait ce fixed) -->
-  <div id="mobile-menu" class="md:hidden fixed inset-0 z-40 backdrop-blur-xl flex flex-col items-center justify-center gap-8 text-2xl font-display transition-all duration-300 opacity-0 pointer-events-none">
-    <a href="#projects" class="mobile-link hover:text-violet-400 transition-colors" data-i18n="nav.projects">Projets</a>
-    <a href="#timeline" class="mobile-link hover:text-violet-400 transition-colors" data-i18n="nav.timeline">Parcours</a>
-    <a href="#assos" class="mobile-link hover:text-emerald-400 transition-colors" data-i18n="nav.assos">Assos</a>
-    <a href="#passions" class="mobile-link hover:text-amber-400 transition-colors" data-i18n="nav.passions">Passions</a>
-    <a href="#games" class="mobile-link hover:text-violet-400 transition-colors" data-i18n="nav.games">Jeux</a>
-    <a href="#contact" class="mobile-link hover:text-emerald-400 transition-colors" data-i18n="nav.contact">Contact</a>
+  <div id="mobile-menu" class="md:hidden fixed inset-0 z-40  flex flex-col items-center justify-center gap-8 text-2xl font-display transition-all duration-300 opacity-0 pointer-events-none">
+    <a href="#projects" class="mobile-link hov-ac transition-colors" data-i18n="nav.projects">Projets</a>
+    <a href="#timeline" class="mobile-link hov-ac transition-colors" data-i18n="nav.timeline">Parcours</a>
+    <a href="#assos" class="mobile-link hov-green transition-colors" data-i18n="nav.assos">Assos</a>
+    <a href="#passions" class="mobile-link hov-gold transition-colors" data-i18n="nav.passions">Passions</a>
+    <a href="#games" class="mobile-link hov-ac transition-colors" data-i18n="nav.games">Jeux</a>
+    <a href="#contact" class="mobile-link hov-green transition-colors" data-i18n="nav.contact">Contact</a>
   </div>
 
   <!-- Killfeed TF2 (rempli par js/main.js à l'arrivée sur chaque section) -->
@@ -69,10 +93,10 @@
     <div class="section-halo halo-red"></div>
     <div class="max-w-6xl mx-auto px-6 w-full pt-28 pb-16 relative z-10">
       <div class="flex items-center gap-3 mb-8 reveal">
-        <span class="font-mono text-xs px-3 py-1.5 rounded-full glass text-emerald-300">
-          <span class="live-dot inline-block w-2 h-2 rounded-full bg-emerald-400 mr-1.5 align-middle"></span><span data-i18n="hero.status">CDI @ AgiLab</span>
+        <span class="font-mono text-xs px-3 py-1.5  panel ac-green">
+          <span class="live-dot inline-block w-2 h-2  dot-live mr-1.5 align-middle"></span><span data-i18n="hero.status">CDI @ AgiLab</span>
         </span>
-        <span class="font-mono text-xs px-3 py-1.5 rounded-full glass muted" data-i18n="hero.location">Reims, France</span>
+        <span class="font-mono text-xs px-3 py-1.5  panel muted" data-i18n="hero.location">Reims, France</span>
       </div>
 
       <h1 id="hero-title" class="font-tf text-6xl sm:text-7xl md:text-9xl tracking-tight leading-[0.95] reveal reveal-delay-1">
@@ -84,23 +108,23 @@
         et dire non aux usines à gaz. Le soir : central au volley, régie de stream maison, fosse en concert de rap.
       </p>
 
-      <div class="mt-6 glass rounded-xl px-5 py-3.5 max-w-xl font-mono text-sm text-gray-300 reveal reveal-delay-2">
-        <span class="text-emerald-400">&gt;&nbsp;</span><span id="term-line" class="terminal-caret"></span>
+      <div class="mt-6 panel  px-5 py-3.5 max-w-xl font-mono text-sm ink-2 reveal reveal-delay-2">
+        <span class="ac-green">&gt;&nbsp;</span><span id="term-line" class="terminal-caret"></span>
       </div>
 
       <div class="mt-10 flex flex-wrap items-center gap-4 reveal reveal-delay-3">
-        <a href="#projects" class="btn-glow inline-flex items-center gap-2 text-white font-semibold px-7 py-3.5 rounded-full">
+        <a href="#projects" class="btn-glow inline-flex items-center gap-2 ink font-semibold px-7 py-3.5 ">
           <span data-i18n="hero.cta">Voir mes projets</span>
           <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         </a>
-        <a href="#contact" class="font-mono text-sm muted hover:text-white transition-colors px-2 py-3.5" data-i18n="hero.contact">me contacter ↓</a>
+        <a href="#contact" class="font-mono text-sm muted hov-ink transition-colors px-2 py-3.5" data-i18n="hero.contact">me contacter ↓</a>
       </div>
     </div>
   </section>
 
   <!-- Marquee technos -->
-  <div class="marquee py-6 border-y border-white/5">
-    <div class="marquee-track font-mono text-sm text-gray-500">
+  <div class="marquee py-6 border-y edge-line">
+    <div class="marquee-track font-mono text-sm ink-2">
       <span>Oracle APEX</span><span>✦</span><span>PL/SQL</span><span>✦</span><span>Python</span><span>✦</span><span>PHP</span><span>✦</span><span>SQL</span><span>✦</span><span>Power BI</span><span>✦</span><span>Grafana</span><span>✦</span><span>OBS</span><span>✦</span><span>VoiceMeeter</span><span>✦</span><span>Tailwind</span><span>✦</span>
       <span>Oracle APEX</span><span>✦</span><span>PL/SQL</span><span>✦</span><span>Python</span><span>✦</span><span>PHP</span><span>✦</span><span>SQL</span><span>✦</span><span>Power BI</span><span>✦</span><span>Grafana</span><span>✦</span><span>OBS</span><span>✦</span><span>VoiceMeeter</span><span>✦</span><span>Tailwind</span><span>✦</span>
     </div>
@@ -112,24 +136,24 @@
     <div class="max-w-6xl mx-auto px-6 relative z-10">
       <div class="reveal mb-14">
         <p class="kicker font-mono text-xs tracking-widest uppercase mb-3" data-i18n="projects.kicker">01 - Projets</p>
-        <h2 class="font-tf text-4xl md:text-6xl heading" data-i18n="projects.title">Projets data &amp; dev<span class="text-violet-400">.</span></h2>
+        <h2 class="font-tf text-4xl md:text-6xl heading" data-i18n="projects.title">Projets data &amp; dev<span class="ac">.</span></h2>
         <p class="muted mt-4 max-w-lg" data-i18n="projects.sub">Pas de vitrine marketing : ce que j'ai construit, avec quoi, et pourquoi. Clique sur une carte pour voir les captures.</p>
       </div>
       <div id="projects-grid" class="grid sm:grid-cols-2 gap-6"></div>
-      <p class="reveal mt-8 text-sm text-gray-500 font-mono">
+      <p class="reveal mt-8 text-sm ink-3 font-mono">
         <span data-i18n="projects.repos">→ tous mes dépôts publics :</span>
-        <a href="https://github.com/MathysLan?tab=repositories" target="_blank" rel="noopener noreferrer" class="text-violet-400 hover:text-violet-300 underline underline-offset-4 transition-colors">github.com/MathysLan</a>
+        <a href="https://github.com/MathysLan?tab=repositories" target="_blank" rel="noopener noreferrer" class="ac hov-ac underline underline-offset-4 transition-colors">github.com/MathysLan</a>
       </p>
     </div>
   </section>
 
   <!-- ============ PARCOURS / TIMELINE ============ -->
-  <section id="timeline" data-team="red" class="relative py-24 md:py-32 overflow-hidden border-t border-white/5">
+  <section id="timeline" data-team="red" class="relative py-24 md:py-32 overflow-hidden border-t edge-line">
     <div class="section-halo halo-red"></div>
     <div class="max-w-6xl mx-auto px-6 relative z-10">
       <div class="reveal mb-14">
         <p class="kicker font-mono text-xs tracking-widest uppercase mb-3" data-i18n="timeline.kicker">02 - Parcours</p>
-        <h2 class="font-tf text-4xl md:text-6xl heading" data-i18n="timeline.title">Mon parcours<span class="text-violet-400">.</span></h2>
+        <h2 class="font-tf text-4xl md:text-6xl heading" data-i18n="timeline.title">Mon parcours<span class="ac">.</span></h2>
       </div>
 
       <div class="timeline max-w-2xl">
@@ -169,7 +193,7 @@
           </li>
           <li class="tl-item reveal reveal-delay-3">
             <span class="tl-dot"></span>
-            <p class="font-mono text-xs text-emerald-400 mb-1" data-i18n="timeline.cdi.date">2026 - aujourd'hui - AgiLab</p>
+            <p class="font-mono text-xs ac-green mb-1" data-i18n="timeline.cdi.date">2026 - aujourd'hui - AgiLab</p>
             <h3 class="font-display text-lg font-semibold heading" data-i18n="timeline.cdi.title">CDI - Data / Admin BDD</h3>
             <p class="muted mt-1 text-sm leading-relaxed" data-i18n="timeline.cdi.desc">
               Automatisation, outillage qualité et administration des bases. La donnée client, on la protège.
@@ -181,81 +205,81 @@
   </section>
 
   <!-- ============ ASSOS : LES JEUNES CAPUCINS ============ -->
-  <section id="assos" data-team="blu" class="relative py-24 md:py-32 overflow-hidden border-t border-white/5">
+  <section id="assos" data-team="blu" class="relative py-24 md:py-32 overflow-hidden border-t edge-line">
     <div class="section-halo halo-blu"></div>
     <div class="max-w-6xl mx-auto px-6 relative z-10">
       <div class="reveal mb-14">
         <p class="kicker font-mono text-xs tracking-widest uppercase mb-3" data-i18n="assos.kicker">03 - Engagement associatif</p>
-        <h2 class="font-tf text-4xl md:text-6xl heading" data-i18n="assos.title">Les Jeunes Capucins<span class="text-emerald-400">.</span></h2>
+        <h2 class="font-tf text-4xl md:text-6xl heading" data-i18n="assos.title">Les Jeunes Capucins<span class="ac-green">.</span></h2>
       </div>
 
       <div class="grid md:grid-cols-2 gap-10 items-start">
         <div class="reveal space-y-5">
-          <div class="glass rounded-2xl p-7">
-            <p class="font-mono text-xs text-emerald-300 mb-2" data-i18n="assos.role.kicker">rôle actuel</p>
+          <div class="panel  p-7">
+            <p class="font-mono text-xs ac-green mb-2" data-i18n="assos.role.kicker">rôle actuel</p>
             <h3 class="font-display text-2xl md:text-3xl font-bold heading mb-3" data-i18n="assos.role.title">Vice-président</h3>
             <p class="muted leading-relaxed text-sm" data-i18n="assos.role.desc">
-              Avec le président, je gère la <span class="text-white">logistique</span> et le choix des événements.
+              Avec le président, je gère la <span class="ink">logistique</span> et le choix des événements.
               Le principe est simple : on organise, on récolte des fonds, on les réinvestit dans le collectif.
-              Résultat concret : <span class="text-white">toute l'association à Europa-Park</span>, payé par nos propres événements.
+              Résultat concret : <span class="ink">toute l'association à Europa-Park</span>, payé par nos propres événements.
               J'y suis depuis le début et j'y reste - on ne lâche pas une équipe qui vous a fait confiance.
             </p>
           </div>
 
           <div class="grid grid-cols-3 gap-4">
-            <div class="glass rounded-2xl p-5 text-center">
-              <p class="font-display text-4xl font-bold text-emerald-300"><span data-count="4">0</span><span class="text-xl">+</span></p>
-              <p class="font-mono text-[11px] text-gray-500 mt-1" data-i18n="assos.stat.years">années d'engagement</p>
+            <div class="panel  p-5 text-center">
+              <p class="font-display text-4xl font-bold ac-green"><span data-count="4">0</span><span class="text-xl">+</span></p>
+              <p class="font-mono text-[11px] ink-3 mt-1" data-i18n="assos.stat.years">années d'engagement</p>
             </div>
-            <div class="glass rounded-2xl p-5 text-center">
-              <p class="font-display text-4xl font-bold text-emerald-300"><span data-count="300">0</span></p>
-              <p class="font-mono text-[11px] text-gray-500 mt-1" data-i18n="assos.stat.visitors">visiteurs au marché artisanal</p>
+            <div class="panel  p-5 text-center">
+              <p class="font-display text-4xl font-bold ac-green"><span data-count="300">0</span></p>
+              <p class="font-mono text-[11px] ink-3 mt-1" data-i18n="assos.stat.visitors">visiteurs au marché artisanal</p>
             </div>
-            <div class="glass rounded-2xl p-5 text-center">
-              <p class="font-display text-4xl font-bold text-emerald-300"><span data-count="7">0</span><span class="text-xl">+</span></p>
-              <p class="font-mono text-[11px] text-gray-500 mt-1" data-i18n="assos.stat.events">événements récurrents</p>
+            <div class="panel  p-5 text-center">
+              <p class="font-display text-4xl font-bold ac-green"><span data-count="7">0</span><span class="text-xl">+</span></p>
+              <p class="font-mono text-[11px] ink-3 mt-1" data-i18n="assos.stat.events">événements récurrents</p>
             </div>
           </div>
 
-          <p class="text-sm text-gray-500">
+          <p class="text-sm ink-3">
             <span data-i18n="assos.follow">Suivez-nous :</span>
-            <a href="https://www.lesjeunescapucins.com" target="_blank" rel="noopener noreferrer" class="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 transition-colors">lesjeunescapucins.com</a>
+            <a href="https://www.lesjeunescapucins.com" target="_blank" rel="noopener noreferrer" class="ac-green hov-green underline underline-offset-4 transition-colors">lesjeunescapucins.com</a>
             ·
-            <a href="https://www.facebook.com/profile.php?id=61566526067016" target="_blank" rel="noopener noreferrer" class="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 transition-colors">Facebook</a>
+            <a href="https://www.facebook.com/profile.php?id=61566526067016" target="_blank" rel="noopener noreferrer" class="ac-green hov-green underline underline-offset-4 transition-colors">Facebook</a>
           </p>
         </div>
 
         <!-- Polaroids des événements (vraies affiches quand disponibles) -->
         <div class="reveal reveal-delay-1 grid grid-cols-2 gap-5 sm:gap-6">
-          <div class="polaroid rounded-sm" style="transform: rotate(-2.5deg)">
-            <img src="assets/assos/carnaval-2023.jpg" alt="Affiche du Carnaval 2023" loading="lazy" class="rounded-sm">
+          <div class="polaroid " style="transform: rotate(-2.5deg)">
+            <img src="assets/assos/carnaval-2023.jpg" alt="Affiche du Carnaval 2023" loading="lazy" class="">
             <p class="font-mono text-xs mt-2.5 font-medium">Carnaval</p>
-            <p class="font-mono text-[10px] text-neutral-500" data-i18n="assos.p.carnaval">défilé, brûlage de la poupée & Mario</p>
+            <p class="font-mono text-[10px] ink-3" data-i18n="assos.p.carnaval">défilé, brûlage de la poupée & Mario</p>
           </div>
-          <div class="polaroid rounded-sm" style="transform: rotate(2deg)">
-            <img src="assets/assos/marche-artisanal.jpg" alt="Affiche du marché artisanal" loading="lazy" class="rounded-sm">
+          <div class="polaroid " style="transform: rotate(2deg)">
+            <img src="assets/assos/marche-artisanal.jpg" alt="Affiche du marché artisanal" loading="lazy" class="">
             <p class="font-mono text-xs mt-2.5 font-medium" data-i18n="assos.p.marche.title">Marché artisanal</p>
-            <p class="font-mono text-[10px] text-neutral-500" data-i18n="assos.p.marche">complet - 300 visiteurs</p>
+            <p class="font-mono text-[10px] ink-3" data-i18n="assos.p.marche">complet - 300 visiteurs</p>
           </div>
-          <div class="polaroid rounded-sm" style="transform: rotate(1.5deg)">
-            <div class="h-24 rounded-sm bg-gradient-to-br from-orange-500/80 to-purple-700/80 flex items-center justify-center text-4xl">🎃</div>
+          <div class="polaroid " style="transform: rotate(1.5deg)">
+            <div class="h-24  poster-bg poster-1 flex items-center justify-center text-4xl">🎃</div>
             <p class="font-mono text-xs mt-2.5 font-medium">Halloween</p>
-            <p class="font-mono text-[10px] text-neutral-500" data-i18n="assos.p.halloween">animations pour petits & grands</p>
+            <p class="font-mono text-[10px] ink-3" data-i18n="assos.p.halloween">animations pour petits & grands</p>
           </div>
-          <div class="polaroid rounded-sm" style="transform: rotate(-1.8deg)">
-            <div class="h-24 rounded-sm bg-gradient-to-br from-emerald-500/80 to-teal-700/80 flex items-center justify-center text-4xl">🎄</div>
+          <div class="polaroid " style="transform: rotate(-1.8deg)">
+            <div class="h-24  poster-bg poster-2 flex items-center justify-center text-4xl">🎄</div>
             <p class="font-mono text-xs mt-2.5 font-medium" data-i18n="assos.p.noel.title">Marché de Noël</p>
-            <p class="font-mono text-[10px] text-neutral-500" data-i18n="assos.p.noel">stands & ambiance festive</p>
+            <p class="font-mono text-[10px] ink-3" data-i18n="assos.p.noel">stands & ambiance festive</p>
           </div>
-          <div class="polaroid rounded-sm" style="transform: rotate(2.2deg)">
-            <div class="h-24 rounded-sm bg-gradient-to-br from-amber-500/80 to-rose-600/80 flex items-center justify-center text-4xl">🧸</div>
+          <div class="polaroid " style="transform: rotate(2.2deg)">
+            <div class="h-24  poster-bg poster-3 flex items-center justify-center text-4xl">🧸</div>
             <p class="font-mono text-xs mt-2.5 font-medium" data-i18n="assos.p.jouets.title">Bourse aux jouets</p>
-            <p class="font-mono text-[10px] text-neutral-500" data-i18n="assos.p.jouets">événement solidaire</p>
+            <p class="font-mono text-[10px] ink-3" data-i18n="assos.p.jouets">événement solidaire</p>
           </div>
-          <div class="polaroid rounded-sm" style="transform: rotate(-2deg)">
-            <div class="h-24 rounded-sm bg-gradient-to-br from-violet-500/80 to-fuchsia-600/80 flex items-center justify-center text-4xl">🎢</div>
+          <div class="polaroid " style="transform: rotate(-2deg)">
+            <div class="h-24  poster-bg poster-4 flex items-center justify-center text-4xl">🎢</div>
             <p class="font-mono text-xs mt-2.5 font-medium" data-i18n="assos.p.sorties.title">Sorties bénévoles</p>
-            <p class="font-mono text-[10px] text-neutral-500" data-i18n="assos.p.sorties">Walygator · Astérix · Europa-Park</p>
+            <p class="font-mono text-[10px] ink-3" data-i18n="assos.p.sorties">Walygator · Astérix · Europa-Park</p>
           </div>
         </div>
       </div>
@@ -263,57 +287,57 @@
   </section>
 
   <!-- ============ PASSIONS ============ -->
-  <section id="passions" data-team="red" class="relative py-24 md:py-32 overflow-hidden border-t border-white/5">
+  <section id="passions" data-team="red" class="relative py-24 md:py-32 overflow-hidden border-t edge-line">
     <div class="section-halo halo-red"></div>
     <div class="max-w-6xl mx-auto px-6 relative z-10">
       <div class="reveal mb-14">
         <p class="kicker font-mono text-xs tracking-widest uppercase mb-3" data-i18n="passions.kicker">04 - En dehors du code</p>
-        <h2 class="font-tf text-4xl md:text-6xl heading" data-i18n="passions.title">Backstage<span class="text-amber-400">.</span></h2>
+        <h2 class="font-tf text-4xl md:text-6xl heading" data-i18n="passions.title">Backstage<span class="ac-gold">.</span></h2>
       </div>
 
       <!-- Sport : volley + karaté -->
       <div class="grid md:grid-cols-2 gap-6 mb-6">
-        <div class="reveal glass net-pattern rounded-2xl p-7 relative overflow-hidden">
-          <div class="absolute top-4 right-6 jersey-number font-display font-bold select-none">24</div>
-          <p class="font-mono text-xs text-amber-300 mb-2" data-i18n="passions.volley.kicker">volley-ball</p>
+        <div class="reveal panel net-pattern  p-7 relative overflow-hidden">
+          <div class="absolute top-4 right-6 jersey-number font-display font-bold select-none" aria-hidden="true">24</div>
+          <p class="font-mono text-xs ac-gold mb-2" data-i18n="passions.volley.kicker">volley-ball</p>
           <h3 class="font-display text-2xl font-bold heading mb-1" data-i18n="passions.volley.title">Central</h3>
-          <p class="font-mono text-xs text-gray-500 mb-4" data-i18n="passions.volley.sub">SUAPS de Reims → club à la rentrée</p>
+          <p class="font-mono text-xs ink-3 mb-4" data-i18n="passions.volley.sub">SUAPS de Reims → club à la rentrée</p>
           <p class="muted text-sm leading-relaxed max-w-sm" data-i18n="passions.volley.desc">
             6 h par semaine sur le terrain. Le poste de central, c'est de la lecture de jeu,
             du timing au contre et beaucoup de communication - exactement ce que je ramène
             dans le travail d'équipe au quotidien.
           </p>
           <div class="flex gap-2 mt-5">
-            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md chip" data-i18n="passions.volley.t1">contre</span>
-            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md chip" data-i18n="passions.volley.t2">attaque rapide</span>
-            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md chip" data-i18n="passions.volley.t3">beach</span>
+            <span class="font-mono text-[11px] px-2.5 py-1  chip" data-i18n="passions.volley.t1">contre</span>
+            <span class="font-mono text-[11px] px-2.5 py-1  chip" data-i18n="passions.volley.t2">attaque rapide</span>
+            <span class="font-mono text-[11px] px-2.5 py-1  chip" data-i18n="passions.volley.t3">beach</span>
           </div>
         </div>
 
-        <div class="reveal reveal-delay-1 glass rounded-2xl p-7 relative overflow-hidden">
+        <div class="reveal reveal-delay-1 panel  p-7 relative overflow-hidden">
           <div class="absolute top-4 right-6 text-6xl opacity-20 select-none">🥋</div>
-          <p class="font-mono text-xs text-amber-300 mb-2" data-i18n="passions.karate.kicker">karaté - 10 ans de pratique</p>
+          <p class="font-mono text-xs ac-gold mb-2" data-i18n="passions.karate.kicker">karaté - 10 ans de pratique</p>
           <h3 class="font-display text-2xl font-bold heading mb-1" data-i18n="passions.karate.title">Vice-champion de France</h3>
-          <p class="font-mono text-xs text-gray-500 mb-4" data-i18n="passions.karate.sub">full contact</p>
+          <p class="font-mono text-xs ink-3 mb-4" data-i18n="passions.karate.sub">full contact</p>
           <p class="muted text-sm leading-relaxed max-w-sm" data-i18n="passions.karate.desc">
             Dix ans de tatami avant le filet. Le full contact m'a appris la discipline,
             la gestion de la pression et le goût du travail long - jusqu'à une finale nationale.
           </p>
           <div class="flex gap-2 mt-5">
-            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-300" data-i18n="passions.karate.t1">🥈 podium national</span>
-            <span class="font-mono text-[11px] px-2.5 py-1 rounded-md chip" data-i18n="passions.karate.t2">discipline</span>
+            <span class="font-mono text-[11px] px-2.5 py-1  link-chip link-gold ac-gold" data-i18n="passions.karate.t1">🥈 podium national</span>
+            <span class="font-mono text-[11px] px-2.5 py-1  chip" data-i18n="passions.karate.t2">discipline</span>
           </div>
         </div>
       </div>
 
       <!-- Stream -->
-      <div class="reveal glass rounded-2xl p-7 mb-6 relative overflow-hidden">
+      <div class="reveal panel  p-7 mb-6 relative overflow-hidden">
         <div class="flex flex-col md:flex-row md:items-center gap-8">
           <div class="flex-1">
             <div class="flex items-center gap-3 mb-2">
-              <p class="font-mono text-xs text-amber-300" data-i18n="passions.stream.kicker">stream & audiovisuel</p>
-              <span class="font-mono text-[11px] px-2.5 py-0.5 rounded-full bg-red-500/15 border border-red-500/40 text-red-400">
-                <span class="live-dot inline-block w-1.5 h-1.5 rounded-full bg-red-500 mr-1 align-middle"></span>LIVE
+              <p class="font-mono text-xs ac-gold" data-i18n="passions.stream.kicker">stream & audiovisuel</p>
+              <span class="font-mono text-[11px] px-2.5 py-0.5  link-chip link-red">
+                <span class="live-dot inline-block w-1.5 h-1.5 dot-red mr-1 align-middle"></span>LIVE
               </span>
             </div>
             <h3 class="font-display text-2xl font-bold heading mb-3" data-i18n="passions.stream.title">Régie de stream maison</h3>
@@ -324,13 +348,13 @@
             </p>
             <div class="flex flex-wrap items-center gap-3 mt-5">
               <a href="https://www.twitch.tv/nimu_08" target="_blank" rel="noopener noreferrer"
-                 class="inline-flex items-center gap-2 font-mono text-sm px-4 py-2 rounded-full bg-purple-600/20 border border-purple-500/40 text-purple-300 hover:bg-purple-600/35 transition-colors">
+                 class="inline-flex items-center gap-2 font-mono text-sm px-4 py-2  link-chip link-unusual transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z"/></svg>
                 twitch.tv/nimu_08
               </a>
-              <span class="font-mono text-[11px] px-2.5 py-1 rounded-md chip">OBS</span>
-              <span class="font-mono text-[11px] px-2.5 py-1 rounded-md chip">VoiceMeeter</span>
-              <span class="font-mono text-[11px] px-2.5 py-1 rounded-md chip">overlays HTML</span>
+              <span class="font-mono text-[11px] px-2.5 py-1  chip">OBS</span>
+              <span class="font-mono text-[11px] px-2.5 py-1  chip">VoiceMeeter</span>
+              <span class="font-mono text-[11px] px-2.5 py-1  chip">overlays HTML</span>
             </div>
           </div>
           <div class="hidden md:flex items-end gap-3 h-36 pr-4" aria-hidden="true">
@@ -345,8 +369,8 @@
       </div>
 
       <!-- Setup PC -->
-      <div class="reveal glass rounded-2xl p-7 mb-6 relative overflow-hidden">
-        <p class="font-mono text-xs text-amber-300 mb-2" data-i18n="passions.setup.kicker">setup gaming & stream</p>
+      <div class="reveal panel  p-7 mb-6 relative overflow-hidden">
+        <p class="font-mono text-xs ac-gold mb-2" data-i18n="passions.setup.kicker">setup gaming & stream</p>
         <h3 class="font-display text-2xl font-bold heading mb-3" data-i18n="passions.setup.title">Mon poste de combat</h3>
         <p class="muted text-sm leading-relaxed max-w-lg mb-6" data-i18n="passions.setup.desc">
           La tour qui fait tourner le stream, le dev et les parties. Montée pièce par pièce - pas de préfabriqué.
@@ -405,11 +429,11 @@
       </div>
 
       <!-- Jeux vidéo préférés -->
-      <div class="reveal glass rounded-2xl p-7 mb-6 relative overflow-hidden">
+      <div class="reveal panel  p-7 mb-6 relative overflow-hidden">
         <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
-          <p class="font-mono text-xs text-amber-300" data-i18n="passions.games.kicker">manette en main</p>
+          <p class="font-mono text-xs ac-gold" data-i18n="passions.games.kicker">manette en main</p>
           <a href="https://steamcommunity.com/id/mathys08" target="_blank" rel="noopener noreferrer"
-             class="inline-flex items-center gap-2 font-mono text-xs px-3.5 py-1.5 rounded-full bg-sky-600/15 border border-sky-500/40 text-sky-300 hover:bg-sky-600/30 transition-colors">
+             class="inline-flex items-center gap-2 font-mono text-xs px-3.5 py-1.5  link-chip link-att transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M11.98 2C6.7 2 2.4 6.05 2.03 11.19l5.36 2.21a2.83 2.83 0 0 1 1.6-.5l2.39-3.46v-.05a3.78 3.78 0 1 1 3.78 3.78h-.09l-3.41 2.43c0 .07.01.14.01.21a2.84 2.84 0 0 1-5.65.44l-3.83-1.58A10 10 0 1 0 11.98 2zm-3.7 15.18l-1.23-.51a2.13 2.13 0 0 0 3.95-.29 2.13 2.13 0 0 0-2.94-2.62l1.27.53a1.57 1.57 0 1 1-1.05 2.96zm7.48-8.65a2.52 2.52 0 1 0 0-5.04 2.52 2.52 0 0 0 0 5.04zm0-.79a1.73 1.73 0 1 1 0-3.46 1.73 1.73 0 0 1 0 3.46z"/></svg>
             <span data-i18n="passions.games.steam">mon profil Steam</span>
           </a>
@@ -424,61 +448,61 @@
       <!-- Culture : tickets -->
       <div class="grid md:grid-cols-2 gap-6">
         <div class="reveal">
-          <p class="font-mono text-xs text-gray-500 uppercase tracking-widest mb-4" data-i18n="passions.concerts">- concerts & festivals</p>
+          <p class="font-mono text-xs ink-3 uppercase tracking-widest mb-4" data-i18n="passions.concerts">- concerts & festivals</p>
           <div class="space-y-4">
             <div class="ticket p-5 flex items-center gap-5">
-              <div class="font-display text-3xl font-bold text-amber-400">VALD</div>
+              <div class="font-display text-3xl font-bold ac-gold">VALD</div>
               <div class="flex-1 border-l-2 border-dashed border-white/15 pl-5">
-                <p class="text-sm text-gray-300" data-i18n="passions.vald">Mon premier concert en arène</p>
-                <p class="font-mono text-[11px] text-gray-500 mt-1" data-i18n="passions.vald.sub">rap FR · fosse</p>
+                <p class="text-sm ink-2" data-i18n="passions.vald">Mon premier concert en arène</p>
+                <p class="font-mono text-[11px] ink-3 mt-1" data-i18n="passions.vald.sub">rap FR · fosse</p>
               </div>
-              <div class="barcode w-14 text-gray-400" aria-hidden="true"></div>
+              <div class="barcode w-14 ink-3" aria-hidden="true"></div>
             </div>
             <div class="ticket p-5 flex items-center gap-5">
-              <div class="font-display text-xl font-bold text-amber-400">Damso<br>Orelsan</div>
+              <div class="font-display text-xl font-bold ac-gold">Damso<br>Orelsan</div>
               <div class="flex-1 border-l-2 border-dashed border-white/15 pl-5">
-                <p class="text-sm text-gray-300" data-i18n="passions.damso">Les gros shows d'arène</p>
-                <p class="font-mono text-[11px] text-gray-500 mt-1" data-i18n="passions.damso.sub">+ Cabaret Vert en festival</p>
+                <p class="text-sm ink-2" data-i18n="passions.damso">Les gros shows d'arène</p>
+                <p class="font-mono text-[11px] ink-3 mt-1" data-i18n="passions.damso.sub">+ Cabaret Vert en festival</p>
               </div>
-              <div class="barcode w-14 text-gray-400" aria-hidden="true"></div>
+              <div class="barcode w-14 ink-3" aria-hidden="true"></div>
             </div>
             <div class="ticket p-5 flex items-center gap-5 opacity-80">
-              <div class="font-display text-lg font-bold text-amber-400">BIGFLO<br>&amp; OLI</div>
+              <div class="font-display text-lg font-bold ac-gold">BIGFLO<br>&amp; OLI</div>
               <div class="flex-1 border-l-2 border-dashed border-white/15 pl-5">
-                <p class="text-sm text-gray-300" data-i18n="passions.bigflo">Prochain sur la liste</p>
-                <p class="font-mono text-[11px] text-emerald-400 mt-1" data-i18n="passions.bigflo.sub">à venir ✦</p>
+                <p class="text-sm ink-2" data-i18n="passions.bigflo">Prochain sur la liste</p>
+                <p class="font-mono text-[11px] ac-green mt-1" data-i18n="passions.bigflo.sub">à venir ✦</p>
               </div>
-              <div class="barcode w-14 text-gray-400" aria-hidden="true"></div>
+              <div class="barcode w-14 ink-3" aria-hidden="true"></div>
             </div>
           </div>
         </div>
 
         <div class="reveal reveal-delay-1">
-          <p class="font-mono text-xs text-gray-500 uppercase tracking-widest mb-4" data-i18n="passions.movies">- séances cultes</p>
+          <p class="font-mono text-xs ink-3 uppercase tracking-widest mb-4" data-i18n="passions.movies">- séances cultes</p>
           <div class="space-y-4">
             <div class="ticket p-5 flex items-center gap-5">
               <div class="text-3xl">🥁</div>
               <div class="flex-1 border-l-2 border-dashed border-white/15 pl-5">
-                <p class="font-display font-bold text-gray-100">Whiplash</p>
-                <p class="font-mono text-[11px] text-gray-500 mt-1">Damien Chazelle · 2014</p>
+                <p class="font-display font-bold ink-2">Whiplash</p>
+                <p class="font-mono text-[11px] ink-3 mt-1">Damien Chazelle · 2014</p>
               </div>
-              <div class="barcode w-14 text-gray-400" aria-hidden="true"></div>
+              <div class="barcode w-14 ink-3" aria-hidden="true"></div>
             </div>
             <div class="ticket p-5 flex items-center gap-5">
               <div class="text-3xl">⏳</div>
               <div class="flex-1 border-l-2 border-dashed border-white/15 pl-5">
-                <p class="font-display font-bold text-gray-100">Tenet</p>
-                <p class="font-mono text-[11px] text-gray-500 mt-1">Christopher Nolan · 2020</p>
+                <p class="font-display font-bold ink-2">Tenet</p>
+                <p class="font-mono text-[11px] ink-3 mt-1">Christopher Nolan · 2020</p>
               </div>
-              <div class="barcode w-14 text-gray-400" aria-hidden="true"></div>
+              <div class="barcode w-14 ink-3" aria-hidden="true"></div>
             </div>
             <div class="ticket p-5 flex items-center gap-5">
               <div class="text-3xl">🧼</div>
               <div class="flex-1 border-l-2 border-dashed border-white/15 pl-5">
-                <p class="font-display font-bold text-gray-100">Fight Club</p>
-                <p class="font-mono text-[11px] text-gray-500 mt-1">David Fincher · 1999</p>
+                <p class="font-display font-bold ink-2">Fight Club</p>
+                <p class="font-mono text-[11px] ink-3 mt-1">David Fincher · 1999</p>
               </div>
-              <div class="barcode w-14 text-gray-400" aria-hidden="true"></div>
+              <div class="barcode w-14 ink-3" aria-hidden="true"></div>
             </div>
           </div>
         </div>
@@ -487,16 +511,16 @@
   </section>
 
   <!-- ============ JEUX ============ -->
-  <section id="games" data-team="blu" class="relative py-24 md:py-32 overflow-hidden border-t border-white/5">
+  <section id="games" data-team="blu" class="relative py-24 md:py-32 overflow-hidden border-t edge-line">
     <div class="section-halo halo-blu"></div>
     <div class="max-w-6xl mx-auto px-6 relative z-10">
       <div class="reveal mb-10 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p class="kicker font-mono text-xs tracking-widest uppercase mb-3" data-i18n="games.kicker">05 - Jeux</p>
-          <h2 class="font-tf text-4xl md:text-6xl heading" data-i18n="games.title">Jeux web<span class="text-violet-400">.</span></h2>
+          <h2 class="font-tf text-4xl md:text-6xl heading" data-i18n="games.title">Jeux web<span class="ac">.</span></h2>
           <p class="muted mt-4 max-w-lg" data-i18n="games.sub">Des jeux jouables direct dans le navigateur - sans install, sans compte. Front statique, serveur arbitre maison.</p>
         </div>
-        <button id="insert-coin" class="font-mono text-xs tracking-[0.3em] text-violet-300 insert-coin shrink-0" title="Une pièce = une partie">▸ INSERT COIN ◂</button>
+        <button id="insert-coin" class="font-mono text-xs tracking-[0.3em] ac insert-coin shrink-0" title="Une pièce = une partie">▸ INSERT COIN ◂</button>
       </div>
 
       <!-- Carousel des jeux (rendu par js/carousel.js depuis data/games.js) -->
@@ -518,76 +542,116 @@
       <!-- Puissance 4 (lancé depuis le carousel, l'INSERT COIN, Ctrl+K ou le Konami) -->
       <div id="c4-wrap" class="hidden mt-10 max-w-md mx-auto text-left">
         <div class="flex items-center justify-between mb-3 font-mono text-xs">
-          <span id="c4-status" class="text-violet-300"></span>
-          <button id="c4-reset" class="chip px-2.5 py-1 rounded-md hover:text-white transition-colors">reset</button>
+          <span id="c4-status" class="ac"></span>
+          <button id="c4-reset" class="chip px-2.5 py-1  hov-ink transition-colors">reset</button>
         </div>
-        <canvas id="c4" width="420" height="360" class="w-full rounded-xl border border-white/10"></canvas>
+        <canvas id="c4" width="420" height="360" class="w-full  border edge-line"></canvas>
       </div>
     </div>
   </section>
 
   <!-- ============ CONTACT ============ -->
-  <footer id="contact" data-team="red" class="relative border-t border-white/5 pt-24 pb-10 overflow-hidden">
+  <footer id="contact" data-team="red" class="relative border-t edge-line pt-24 pb-10 overflow-hidden">
     <div class="section-halo halo-red"></div>
     <div class="max-w-6xl mx-auto px-6 relative z-10">
-      <div class="reveal text-center max-w-2xl mx-auto mb-14">
+      <div class="reveal text-center max-w-2xl mx-auto mb-10">
         <p class="kicker justify-center font-mono text-xs tracking-widest uppercase mb-3" data-i18n="contact.kicker">06 - Contact</p>
         <h2 class="font-tf text-4xl md:text-6xl heading mb-5" data-i18n="contact.title">On se capte ?</h2>
         <p class="muted leading-relaxed" data-i18n="contact.desc">
           Un projet data, une opportunité, ou juste envie d'échanger - écris-moi, je réponds.
         </p>
-        <a href="mailto:mathys.langiny@gmail.com" class="btn-glow mt-8 inline-flex items-center gap-2 text-white font-semibold px-8 py-4 rounded-full font-mono text-sm">
-          mathys.langiny@gmail.com
-        </a>
+      </div>
+
+      <!-- Le guichet Mann Co. : le formulaire ne part sur AUCUN service tiers.
+           Il assemble un mailto: et laisse le client mail de la personne faire
+           le reste — le site reste 100 % statique et rien ne transite ailleurs.
+           Le lien mailto direct reste affiché dessous, pour qui n'a pas de
+           client mail configuré. -->
+      <div class="reveal panel rivets max-w-xl mx-auto p-6 md:p-8 mb-14">
+        <p class="font-mono text-xs tracking-widest uppercase ac-gold mb-1" data-i18n="contact.store.kicker">Mann Co. — guichet</p>
+        <h3 class="font-tf text-2xl heading mb-5" data-i18n="contact.store.title">Passer commande</h3>
+        <form id="contact-form" class="store-form" novalidate>
+          <div class="store-field">
+            <label for="cf-name" data-i18n="contact.store.name">Ton nom</label>
+            <input id="cf-name" name="name" type="text" autocomplete="name" required placeholder="Saxton Hale">
+          </div>
+          <div class="store-field">
+            <label for="cf-subject" data-i18n="contact.store.subject">Objet</label>
+            <input id="cf-subject" name="subject" type="text" required placeholder="Une base de données à remettre d'aplomb">
+          </div>
+          <div class="store-field">
+            <label for="cf-message" data-i18n="contact.store.message">Message</label>
+            <textarea id="cf-message" name="message" required placeholder="Dis-moi tout."></textarea>
+          </div>
+          <div class="store-price">
+            <span data-i18n="contact.store.price">Prix</span>
+            <b data-i18n="contact.store.free">Gratuit</b>
+          </div>
+          <button type="submit" class="tf-btn tf-btn-buy w-full justify-center mt-1" data-i18n="contact.store.cta">
+            Ajouter au panier
+          </button>
+          <p id="cf-hint" class="font-mono text-xs ink-3 text-center" role="status" aria-live="polite"></p>
+        </form>
+        <hr class="tf-rule my-5">
+        <p class="font-mono text-xs ink-3 text-center">
+          <span data-i18n="contact.store.direct">Ou directement :</span>
+          <a href="mailto:mathys.langiny@gmail.com" class="ac hov-gold underline underline-offset-4">mathys.langiny@gmail.com</a>
+        </p>
       </div>
 
       <div class="reveal flex items-center justify-center gap-5 mb-14">
         <a href="https://github.com/MathysLan" target="_blank" rel="noopener noreferrer" aria-label="GitHub"
-           class="w-12 h-12 rounded-full glass flex items-center justify-center muted-icon hover:border-violet-500/60 transition-all">
+           class="social">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55 0-.27-.01-1-.02-1.96-3.2.7-3.87-1.54-3.87-1.54-.53-1.33-1.29-1.69-1.29-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.56-.29-5.26-1.28-5.26-5.71 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.47.11-3.06 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.64 1.59.24 2.77.12 3.06.74.8 1.18 1.83 1.18 3.09 0 4.44-2.7 5.42-5.28 5.7.42.36.78 1.07.78 2.16 0 1.56-.02 2.82-.02 3.2 0 .31.21.67.79.55A10.51 10.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"/></svg>
         </a>
         <a href="https://www.linkedin.com/in/mathys-langiny" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn"
-           class="w-12 h-12 rounded-full glass flex items-center justify-center muted-icon hover:border-sky-500/60 transition-all">
+           class="social">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.02-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.36V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.38-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.11 20.45H3.56V9h3.55v11.45z"/></svg>
         </a>
         <a href="https://www.twitch.tv/nimu_08" target="_blank" rel="noopener noreferrer" aria-label="Twitch"
-           class="w-12 h-12 rounded-full glass flex items-center justify-center muted-icon hover:border-purple-500/60 transition-all">
+           class="social">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z"/></svg>
         </a>
         <a href="https://steamcommunity.com/id/mathys08" target="_blank" rel="noopener noreferrer" aria-label="Steam"
-           class="w-12 h-12 rounded-full glass flex items-center justify-center muted-icon hover:border-sky-500/60 transition-all">
+           class="social">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M11.98 2C6.7 2 2.4 6.05 2.03 11.19l5.36 2.21a2.83 2.83 0 0 1 1.6-.5l2.39-3.46v-.05a3.78 3.78 0 1 1 3.78 3.78h-.09l-3.41 2.43c0 .07.01.14.01.21a2.84 2.84 0 0 1-5.65.44l-3.83-1.58A10 10 0 1 0 11.98 2zm-3.7 15.18l-1.23-.51a2.13 2.13 0 0 0 3.95-.29 2.13 2.13 0 0 0-2.94-2.62l1.27.53a1.57 1.57 0 1 1-1.05 2.96zm7.48-8.65a2.52 2.52 0 1 0 0-5.04 2.52 2.52 0 0 0 0 5.04zm0-.79a1.73 1.73 0 1 1 0-3.46 1.73 1.73 0 0 1 0 3.46z"/></svg>
         </a>
         <a href="mailto:mathys.langiny@gmail.com" aria-label="Email"
-           class="w-12 h-12 rounded-full glass flex items-center justify-center muted-icon hover:border-emerald-500/60 transition-all">
+           class="social">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 6l-10 7L2 6"/><path d="M2 6h20v12H2z"/></svg>
         </a>
       </div>
 
-      <div class="text-center text-xs text-gray-600 font-mono border-t border-white/5 pt-8">
-        © <span id="year"></span> Mathys Langiny - <span data-i18n="footer.credit">conçu & codé avec soin.</span>
+    </div>
+
+    <!-- Bandeau de bas d'écran, façon barre d'info en jeu. La mention Valve
+         n'est pas une coquetterie : le site emprunte le langage graphique de
+         TF2 et ses deux polices, autant le dire clairement. -->
+    <div class="footer-strip mt-10">
+      <div class="max-w-6xl mx-auto px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-center font-mono">
+        <span>© <span id="year"></span> Mathys Langiny — <span data-i18n="footer.credit">conçu &amp; codé avec soin.</span></span>
+        <span class="footer-disclaimer" data-i18n="footer.valve">Not affiliated with Valve Corporation. Aucun mercenaire n'a été blessé.</span>
       </div>
     </div>
   </footer>
 
   <!-- Lightbox -->
   <div id="lightbox" role="dialog" aria-modal="true" aria-label="Galerie d'images">
-    <button id="lightbox-close" aria-label="Fermer" class="absolute top-5 right-6 hover:text-white text-3xl font-light">✕</button>
-    <button id="lightbox-prev" aria-label="Image précédente" class="absolute left-3 md:left-8 top-1/2 -translate-y-1/2 hover:text-white text-4xl font-light px-3">‹</button>
+    <button id="lightbox-close" aria-label="Fermer" class="absolute top-5 right-6 hov-ink text-3xl font-light">✕</button>
+    <button id="lightbox-prev" aria-label="Image précédente" class="absolute left-3 md:left-8 top-1/2 -translate-y-1/2 hov-ink text-4xl font-light px-3">‹</button>
     <img id="lightbox-img" src="" alt="">
     <p id="lightbox-cap" class="mt-4 text-sm text-center max-w-xl px-6"></p>
     <p id="lightbox-count" class="mt-1 font-mono text-xs"></p>
-    <button id="lightbox-next" aria-label="Image suivante" class="absolute right-3 md:right-8 top-1/2 -translate-y-1/2 hover:text-white text-4xl font-light px-3">›</button>
+    <button id="lightbox-next" aria-label="Image suivante" class="absolute right-3 md:right-8 top-1/2 -translate-y-1/2 hov-ink text-4xl font-light px-3">›</button>
   </div>
 
-  <script src="data/projects.js?v=4"></script>
+  <script src="data/projects.js?v=5"></script>
   <script src="data/games.js?v=1"></script>
-  <script src="data/favgames.js?v=1"></script>
-  <script src="js/i18n.js?v=3"></script>
+  <script src="data/favgames.js?v=2"></script>
+  <script src="js/i18n.js?v=4"></script>
   <script src="js/lightbox.js?v=2"></script>
-  <script src="js/tilt.js?v=2"></script>
-  <script src="js/main.js?v=7"></script>
-  <script src="js/carousel.js?v=2"></script>
+  <script src="js/main.js?v=8"></script>
+  <script src="js/carousel.js?v=3"></script>
   <script src="js/palette.js?v=1"></script>
   <script src="js/connect4.js?v=1"></script>
   <script src="js/easter.js?v=1"></script>
