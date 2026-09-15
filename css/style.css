@@ -298,69 +298,151 @@ html.light #hero-title {
 .reveal-delay-3 { transition-delay: .24s; }
 
 /* ============================================================================
-   Projets — la fiche d'objet
+   Projets — le sac à dos
    ----------------------------------------------------------------------------
-   Vignette à gauche, fiche à droite, étiquette de nom en bas. La bordure de la
-   carte est la couleur de qualité (posée par .item + data-q).
+   Une case carrée par projet. Nom et rareté restent lisibles sans rien ouvrir :
+   c'est ce qui permet de balayer les huit projets d'un coup d'œil, alors qu'une
+   grille d'icônes nues obligerait à cliquer partout pour savoir ce qu'on a
+   sous les yeux. Le détail vit dans la modale (.im plus bas).
    ========================================================================= */
-.proj { display: flex; flex-direction: column; }
-.proj-grid {
+.backpack {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 1.1rem;
-  padding: 1.1rem;
-  flex: 1;
+  grid-template-columns: repeat(auto-fill, minmax(186px, 1fr));
+  gap: 1rem;
 }
-/* Carte large : la vignette passe à gauche, carrée, comme une case d'objet. */
-.proj-wide .proj-grid { grid-template-columns: 240px 1fr; align-items: start; }
-.proj-thumb {
+/* La case est un <button> : on remet à plat le style natif, .item fait le reste
+   (bordure de rareté, remplissage en ::before, pop au survol). */
+.bp-cell {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+.bp-cell:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 3px var(--focus);
+}
+.bp-thumb {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  aspect-ratio: 1;
+  overflow: hidden;
+}
+/* .panel-inset peint son fond dans un ::before à z-index:-1 : tout ce qui est
+   posé dessus doit remonter, sinon l'image passe sous le creux. */
+.bp-thumb > * { position: relative; z-index: 1; }
+.bp-img {
+  width: 100%; height: 100%;
+  object-fit: cover; object-position: top;
+  transition: transform 1s cubic-bezier(.16, .8, .3, 1);
+}
+.bp-img.is-contain { object-fit: contain; padding: 1.1rem; }
+.bp-cell:hover .bp-img,
+.bp-cell:focus-visible .bp-img { transform: scale(1.06); }
+/* Pas de visuel : l'initiale en filigrane, jamais une case vide. */
+.bp-noimg { font-size: 3rem; line-height: 1; color: var(--panel-edge); }
+
+/* L'estampille de rareté, posée sur la vignette comme sur un objet en jeu. */
+.bp-q {
+  position: absolute;
+  left: .4rem; top: .4rem;
+  font-size: .6rem;
+  letter-spacing: .08em;
+  padding: .18rem .4rem;
+}
+.bp-lock {
+  position: absolute;
+  right: .45rem; top: .4rem;
+  font-size: .8rem;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .7));
+}
+.bp-name {
+  font-size: .82rem;
+  padding: .55rem .5rem;
+  line-height: 1.25;
+  /* Deux lignes au maximum : au-delà, les cases d'une même rangée se décalent. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 3.1em;
+}
+
+@media (max-width: 480px) {
+  .backpack { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: .7rem; }
+  .bp-name { font-size: .74rem; }
+}
+
+/* ============================================================================
+   Modale « description d'objet »
+   ----------------------------------------------------------------------------
+   z-index 95 : au-dessus du grain (90) mais SOUS la lightbox (100), parce que
+   c'est la modale qui passe la main à la lightbox pour les captures.
+   ========================================================================= */
+.im {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+}
+.im[hidden] { display: none; }
+.im-backdrop { position: absolute; inset: 0; background: rgba(16, 11, 6, .82); }
+/* La fiche prend la bordure de la qualité de l'objet, comme sa case dans la
+   grille : on ouvre bien le même objet, la couleur le confirme. */
+.im-panel[data-q] { background: var(--q); }
+.im-panel {
+  position: relative;
+  width: min(680px, 100%);
+  max-height: 86vh;
+  overflow-y: auto;
+  padding: 1.6rem;
+  animation: im-in .22s cubic-bezier(.16, .8, .3, 1);
+}
+@keyframes im-in { from { opacity: 0; transform: translateY(12px); } }
+/* Le corps ne défile plus derrière la modale ouverte. */
+body.modal-open { overflow: hidden; }
+
+.im-close { position: absolute; right: .9rem; top: .9rem; z-index: 2; }
+.im-head {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .6rem;
+  padding-right: 3rem;     /* la croix ne doit pas chevaucher les badges */
+  margin-bottom: .6rem;
+}
+.im-badge { font-size: .72rem; color: var(--ink-2); letter-spacing: .06em; text-transform: uppercase; }
+.im-title { font-size: 1.7rem; margin: 0 0 1.1rem; }
+.im-grid { display: grid; grid-template-columns: 200px 1fr; gap: 1.2rem; align-items: start; }
+.im-thumb {
   position: relative;
   aspect-ratio: 1;
   overflow: hidden;
   display: flex; align-items: center; justify-content: center;
 }
-/* .panel-inset pose son remplissage en ::before (z-index:-1) : l'image doit
-   donc rester au-dessus, sinon elle disparaît sous le fond du creux. */
-.proj-thumb > * { position: relative; z-index: 1; }
-.proj-img {
-  width: 100%; height: 100%;
-  object-fit: cover; object-position: top;
-  transition: transform 1.1s cubic-bezier(.16,.8,.3,1);
-}
-.proj-img.is-contain { object-fit: contain; padding: 1.2rem; }
-.proj:hover .proj-img { transform: scale(1.05); }
-.proj-noimg {
-  font-size: 3.4rem;
-  color: var(--panel-edge);
-  line-height: 1;
-}
-.proj-count {
-  position: absolute;
-  right: .5rem; bottom: .5rem;
-  font-size: .68rem;
-  padding: .2rem .5rem;
-  background: rgba(0, 0, 0, .72);
-  color: var(--ink-2);
-  box-shadow: inset 0 0 0 1px var(--line);
-}
-html.light .proj-count { background: rgba(255, 255, 255, .85); color: var(--ink-2); }
+.im-thumb > * { position: relative; z-index: 1; }
+.im-img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.im-img.is-contain { object-fit: contain; padding: 1rem; }
+.im-desc { color: var(--ink-2); font-size: .9rem; line-height: 1.6; margin: 0; }
+.im-stack { margin-top: 1rem; }
+.im-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1.3rem; }
+.im-actions [hidden] { display: none; }
 
-.proj-body { display: flex; flex-direction: column; min-width: 0; }
-.proj-head {
-  display: flex; align-items: flex-start; justify-content: space-between;
-  gap: 1rem; margin-bottom: .7rem;
+@media (max-width: 620px) {
+  .im-panel { padding: 1.1rem; }
+  .im-grid { grid-template-columns: 1fr; }
+  .im-thumb { aspect-ratio: 16 / 10; }
+  .im-title { font-size: 1.3rem; }
 }
-.proj-tags { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
-.proj-badge { font-size: .72rem; color: var(--ink-2); letter-spacing: .06em; text-transform: uppercase; }
-.proj-actions { display: flex; align-items: center; gap: .7rem; flex: none; }
-.proj-desc { color: var(--ink-2); font-size: .9rem; line-height: 1.55; margin: 0; }
-.proj-attrs { margin-top: .9rem; }
-/* L'étiquette de nom occupe toute la largeur en bas de la carte. */
-.proj > .item-label { font-size: 1.05rem; }
-
-@media (max-width: 720px) {
-  .proj-wide .proj-grid { grid-template-columns: 1fr; }
-  .proj-thumb { aspect-ratio: 16 / 10; }
+@media (prefers-reduced-motion: reduce) {
+  .im-panel { animation: none; }
+  .bp-img { transition: none; }
 }
 
 /* ============================================================================
@@ -975,5 +1057,4 @@ body.crt::after {
   .game-slide { transition: none; }
   .section-halo::before { transition: none; }
   .kf, .kf.out { animation: none; }
-  .proj-img { transition: none; }
 }

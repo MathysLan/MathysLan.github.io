@@ -14,74 +14,45 @@ function localizedImages(p) {
   return p.images.map(img => ({ src: img.src, cap: tr(img, 'cap') }));
 }
 
-// Un projet se présente comme un objet d'inventaire TF2 : vignette à gauche,
-// fiche à droite, bordure colorée par la qualité et étiquette de nom en bas.
-// La qualité n'est pas décorative : elle dit la nature du projet (strange =
-// compte des statistiques, vintage = ancien mais tient encore, unusual = la
-// pièce rare). C'est la hiérarchie de la section, à la place d'une taille de
-// titre. Voir .item / .q-badge dans css/tf2.css.
+// Le nom de qualité tel que les joueurs le lisent : il reste en anglais dans
+// les deux langues (« un Strange », pas « un Étrange »).
+function qualityLabel(q) {
+  if (q === 'collectors') return "Collector's";
+  return q;
+}
+
+// La section Projets est un sac à dos : une case carrée par projet, bordure
+// colorée par la qualité, nom et rareté lisibles SANS rien ouvrir — c'est ce
+// qui permet de balayer les huit projets d'un coup d'œil. Le détail (descriptif,
+// stack, GitHub, captures) vit dans la modale de description d'objet.
+//
+// La qualité n'est pas décorative et ne classe pas : elle dit la NATURE du
+// projet (strange = compte des statistiques, vintage = ancien mais tient
+// encore, unusual = la pièce rare). Voir data/projects.js.
 function renderProjects() {
   const grid = document.getElementById('projects-grid');
-  const en = window.LANG === 'en';
   grid.innerHTML = PROJECTS.map((p, i) => {
-    const wide = p.size === 'lg' ? 'sm:col-span-2 proj-wide' : '';
-    // La stack devient une liste d'attributs d'arme : une ligne par techno,
-    // bleu clair comme les attributs positifs du jeu.
-    const attrs = p.stack.map(s => `<li>${s}</li>`).join('');
-    // Le nom de qualité reste en anglais dans les deux langues, c'est ainsi que
-    // les joueurs le lisent (« un Strange », pas « un Étrange »).
-    const quality = p.quality
-      ? `<span class="q-badge" data-q="${p.quality}">★ ${p.quality === 'collectors' ? "Collector's" : p.quality}</span>`
-      : '';
-    const confBadge = p.confidential
-      ? `<span class="conf-badge">${en ? 'confidential' : 'confidentiel'}</span>`
-      : '';
-    const ghLink = p.github
-      ? `<a href="${p.github}" target="_blank" rel="noopener noreferrer" aria-label="GitHub" class="muted-icon transition-colors" onclick="event.stopPropagation()">${githubIcon()}</a>`
-      : '';
-    const imgCount = p.images.length > 1
-      ? `<span class="proj-count font-mono">${p.images.length} ${en ? 'shots' : 'captures'} ↗</span>`
-      : '';
-    // Pas de visuel ? La case affiche l'initiale du projet en filigrane, comme
-    // un objet sans icône dans l'inventaire — jamais un trou. C'est de la
-    // décoration pure (le nom est juste dessous, dans l'étiquette), donc
-    // aria-hidden : un lecteur d'écran n'a rien à faire d'un « A » isolé, et
-    // un filigrane n'a pas à respecter le contraste d'un texte.
+    const q = p.quality || 'normal';
+    // Un vrai <button> : focus clavier, Entrée et Espace viennent du navigateur.
+    // aria-haspopup="dialog" annonce qu'il ouvre une fenêtre, pas une page.
+    // Pas de visuel ? L'initiale en filigrane, comme un objet sans icône dans
+    // l'inventaire — jamais une case vide. Décorative, donc aria-hidden.
     const thumb = p.cover
-      ? `<img src="${p.cover}" alt="${tr(p, 'title')}" loading="lazy"
-              class="card-img proj-img ${p.coverFit === 'contain' ? 'is-contain' : ''}">`
-      : `<span class="proj-noimg font-display" aria-hidden="true">${tr(p, 'title').charAt(0)}</span>`;
+      ? `<img src="${p.cover}" alt="" loading="lazy"
+              class="bp-img ${p.coverFit === 'contain' ? 'is-contain' : ''}">`
+      : `<span class="bp-noimg font-display" aria-hidden="true">${tr(p, 'title').charAt(0)}</span>`;
 
     return `
-    <article class="reveal is-visible item proj ${wide} ${p.images.length ? 'cursor-pointer' : ''}"
-             data-q="${p.quality || 'normal'}"
-             ${p.images.length ? `onclick="openLightbox(localizedImages(PROJECTS[${i}]), 0)" role="button" tabindex="0" aria-label="${tr(p, 'title')}"` : ''}>
-      <div class="proj-grid">
-        <div class="proj-thumb panel panel-inset">
-          ${thumb}
-          ${imgCount}
-        </div>
-        <div class="proj-body">
-          <div class="proj-head">
-            <div class="proj-tags">
-              ${quality}
-              <span class="font-mono proj-badge">${tr(p, 'badge')}</span>
-            </div>
-            <div class="proj-actions">${confBadge}${ghLink}</div>
-          </div>
-          <p class="proj-desc">${tr(p, 'desc')}</p>
-          <ul class="attr-list proj-attrs">${attrs}</ul>
-        </div>
-      </div>
-      <h3 class="item-label">${tr(p, 'title')}</h3>
-    </article>`;
+    <button type="button" class="reveal is-visible item bp-cell" data-q="${q}" data-index="${i}"
+            aria-haspopup="dialog">
+      <span class="bp-thumb panel-inset">
+        ${thumb}
+        <span class="q-badge bp-q" data-q="${q}">★ ${qualityLabel(q)}</span>
+        ${p.confidential ? '<span class="bp-lock" aria-hidden="true">🔒</span>' : ''}
+      </span>
+      <span class="item-label bp-name">${tr(p, 'title')}</span>
+    </button>`;
   }).join('');
-
-  grid.querySelectorAll('[role="button"]').forEach(el => {
-    el.addEventListener('keydown', e => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el.click(); }
-    });
-  });
 }
 
 // ============ Jeux vidéo préférés (data/favgames.js) ============

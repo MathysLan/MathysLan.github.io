@@ -17,7 +17,7 @@ const I18N = {
 
     'projects.kicker': '01 - Projets',
     'projects.title': 'Projets data & dev<span class="ac">.</span>',
-    'projects.sub': "Pas de vitrine marketing : ce que j'ai construit, avec quoi, et pourquoi. Clique sur une carte pour voir les captures.",
+    'projects.sub': "Pas de vitrine marketing : ce que j'ai construit, avec quoi, et pourquoi. Clique sur une case pour ouvrir la fiche de l'objet.",
     'projects.repos': '→ tous mes dépôts publics :',
 
     'timeline.kicker': '02 - Parcours',
@@ -158,7 +158,7 @@ const I18N = {
 
     'projects.kicker': '01 - Projects',
     'projects.title': 'Data & dev projects<span class="ac">.</span>',
-    'projects.sub': "No marketing showcase: what I built, with what, and why. Click a card to see the screenshots.",
+    'projects.sub': "No marketing showcase: what I built, with what, and why. Click a slot to open its item description.",
     'projects.repos': '→ all my public repos:',
 
     'timeline.kicker': '02 - Journey',

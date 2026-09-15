@@ -21,7 +21,7 @@
 <!-- tf2.css = le socle (palette, polices, primitives) ; style.css = les
      composants du portfolio. L'ordre compte : le second s'appuie sur le premier. -->
 <link rel="stylesheet" href="css/tf2.css?v=2">
-<link rel="stylesheet" href="css/style.css?v=9">
+<link rel="stylesheet" href="css/style.css?v=10">
 </head>
 <body class="antialiased">
 
@@ -137,9 +137,11 @@
       <div class="reveal mb-14">
         <p class="kicker font-mono text-xs tracking-widest uppercase mb-3" data-i18n="projects.kicker">01 - Projets</p>
         <h2 class="font-tf text-4xl md:text-6xl heading" data-i18n="projects.title">Projets data &amp; dev<span class="ac">.</span></h2>
-        <p class="muted mt-4 max-w-lg" data-i18n="projects.sub">Pas de vitrine marketing : ce que j'ai construit, avec quoi, et pourquoi. Clique sur une carte pour voir les captures.</p>
+        <p class="muted mt-4 max-w-lg" data-i18n="projects.sub">Pas de vitrine marketing : ce que j'ai construit, avec quoi, et pourquoi. Clique sur une case pour ouvrir la fiche de l'objet.</p>
       </div>
-      <div id="projects-grid" class="grid sm:grid-cols-2 gap-6"></div>
+      <!-- Le sac à dos : les cases sont rendues par renderProjects() dans
+           js/main.js, la modale de description par js/itemmodal.js. -->
+      <div id="projects-grid" class="backpack"></div>
       <p class="reveal mt-8 text-sm ink-3 font-mono">
         <span data-i18n="projects.repos">→ tous mes dépôts publics :</span>
         <a href="https://github.com/MathysLan?tab=repositories" target="_blank" rel="noopener noreferrer" class="ac hov-ac underline underline-offset-4 transition-colors">github.com/MathysLan</a>
@@ -766,6 +768,34 @@
     </div>
   </footer>
 
+  <!-- Modale « description d'objet » : ouverte au clic sur une case du sac à
+       dos. Remplie par js/itemmodal.js depuis PROJECTS — rien n'est dupliqué
+       ici. Elle passe la main à la lightbox pour les captures, d'où son
+       z-index plus bas. -->
+  <div id="item-modal" class="im" role="dialog" aria-modal="true" aria-labelledby="im-title" hidden>
+    <div class="im-backdrop" data-im-close></div>
+    <div class="im-panel panel rivets">
+      <button type="button" class="im-close ctrl-btn" data-im-close aria-label="Fermer">✕</button>
+      <div class="im-head">
+        <span class="q-badge im-quality" data-q="normal"></span>
+        <span class="im-badge font-mono"></span>
+        <span class="im-conf conf-badge" hidden></span>
+      </div>
+      <h3 class="im-title font-tf" id="im-title"></h3>
+      <div class="im-grid">
+        <div class="im-thumb panel panel-inset"></div>
+        <div class="im-detail">
+          <p class="im-desc"></p>
+          <ul class="attr-list im-stack"></ul>
+        </div>
+      </div>
+      <div class="im-actions">
+        <button type="button" class="im-shots tf-btn tf-btn-sm" hidden></button>
+        <a class="im-gh tf-btn tf-btn-sm" target="_blank" rel="noopener noreferrer" hidden>GitHub</a>
+      </div>
+    </div>
+  </div>
+
   <!-- Lightbox -->
   <div id="lightbox" role="dialog" aria-modal="true" aria-label="Galerie d'images">
     <button id="lightbox-close" aria-label="Fermer" class="absolute top-5 right-6 hov-ink text-3xl font-light">✕</button>
@@ -781,7 +811,8 @@
   <script src="data/favgames.js?v=2"></script>
   <script src="js/i18n.js?v=5"></script>
   <script src="js/lightbox.js?v=2"></script>
-  <script src="js/main.js?v=9"></script>
+  <script src="js/itemmodal.js?v=1"></script>
+  <script src="js/main.js?v=10"></script>
   <script src="js/carousel.js?v=3"></script>
   <script src="js/palette.js?v=1"></script>
   <script src="js/connect4.js?v=1"></script>

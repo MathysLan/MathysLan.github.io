@@ -24,11 +24,33 @@ document.getElementById('f').addEventListener('load', function () {
   w.addEventListener('error', function (e) { errs.push(e.message + ' @' + String(e.filename).split('/').pop() + ':' + e.lineno); });
   setTimeout(function () {
     try {
-      var projs = d.querySelectorAll('#projects-grid .proj');
-      t('cartes projets rendues (' + projs.length + '/8)', projs.length === 8);
-      t('bordure de qualite posee', d.querySelector('.proj[data-q="unusual"]') !== null);
-      t('etiquette de nom presente', d.querySelector('.proj .item-label') !== null);
-      t('stack en attributs', d.querySelectorAll('.proj .attr-list li').length > 10);
+      // Sac a dos
+      var cells = d.querySelectorAll('#projects-grid .bp-cell');
+      t('cases du sac a dos (' + cells.length + '/8)', cells.length === 8);
+      t('cases focusables au clavier', cells[0].tagName === 'BUTTON');
+      t('bordure de qualite posee', d.querySelector('.bp-cell[data-q="unusual"]') !== null);
+      t('nom visible sans ouvrir', d.querySelector('.bp-cell .bp-name').textContent.trim().length > 0);
+      t('rarete visible sans ouvrir', d.querySelectorAll('.bp-cell .bp-q').length === 8);
+      t('cadenas sur le projet confidentiel', d.querySelectorAll('.bp-lock').length === 1);
+
+      // Modale de description d'objet
+      var im = d.getElementById('item-modal');
+      t('modale fermee au depart', im.hidden);
+      cells[1].click();
+      t('clic ouvre la modale', !im.hidden);
+      t('modale reprend la rarete de la case',
+        im.querySelector('.im-panel').getAttribute('data-q') === cells[1].getAttribute('data-q'));
+      t('descriptif complet repris', im.querySelector('.im-desc').textContent.length > 200);
+      t('stack en attributs', im.querySelectorAll('.im-stack li').length > 0);
+      t('focus place dans la modale', d.activeElement === im.querySelector('.im-close'));
+      t('defilement de la page bloque', d.body.classList.contains('modal-open'));
+      d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      t('Echap ferme la modale', im.hidden);
+      t('focus rendu a la case', d.activeElement === cells[1]);
+      // Un projet sans depot ne doit pas afficher un lien GitHub mort.
+      cells[0].click();
+      t('lien GitHub masque si absent', im.querySelector('.im-gh').hidden);
+      im.querySelector('.im-close').click();
 
       var slides = d.querySelectorAll('.game-slide');
       t('cartes jeux rendues (' + slides.length + ')', slides.length === 7);
@@ -53,11 +75,15 @@ document.getElementById('f').addEventListener('load', function () {
       t('anneau de focus sur l en-tete de contrat',
         /inset/.test(w.getComputedStyle(bac).boxShadow));
 
-      // Lightbox
-      d.querySelector('#projects-grid .proj[role="button"]').click();
-      t('lightbox ouverte au clic', d.getElementById('lightbox').classList.contains('open'));
+      // Lightbox : ouverte depuis la modale, elle doit passer AU-DESSUS d'elle.
+      cells[1].click();
+      im.querySelector('.im-shots').click();
+      t('lightbox ouverte depuis la modale', d.getElementById('lightbox').classList.contains('open'));
+      t('lightbox au-dessus de la modale',
+        +w.getComputedStyle(d.getElementById('lightbox')).zIndex > +w.getComputedStyle(im).zIndex);
       d.getElementById('lightbox-close').click();
       t('lightbox refermee', !d.getElementById('lightbox').classList.contains('open'));
+      im.querySelector('.im-close').click();
 
       // Palette de commandes
       d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }));
