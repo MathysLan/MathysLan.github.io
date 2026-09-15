@@ -411,14 +411,28 @@ html.light body::after {
 .tf-btn-buy:hover { background: var(--orange-ink); color: var(--on-orange); }
 .tf-btn-sm { font-size: .85rem; padding: .45rem 1rem; --cut: 8px; }
 .tf-btn-lg { font-size: 1.4rem; padding: .9rem 2rem; }
-/* Bouton carré du HUD (thème, langue, flèches du carousel). */
+/* Bouton carré du HUD : thème, langue, croix de fermeture, flèches du carousel.
+   Tout ce qui ne porte qu'une icône passe par là plutôt que de redéclarer son
+   propre clip-path et ses propres ombres. */
 .tf-icon-btn {
-  width: 2.3rem; height: 2.3rem;
+  width: 2.2rem; height: 2.2rem;
   display: inline-flex; align-items: center; justify-content: center;
   padding: 0;
   --cut: 6px;
   font-size: .75rem;
 }
+.tf-icon-btn-lg { width: 3rem; height: 3rem; --cut: 8px; }
+
+/* Un bouton qui n'en est pas un : l'état « indisponible ». Creux au lieu d'être
+   en relief, il annonce de lui-même qu'il ne se clique pas — d'où l'absence de
+   :hover et de cursor: pointer. */
+.tf-btn-ghost {
+  background: var(--bg-deep);
+  color: var(--ink-2);
+  cursor: default;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.tf-btn-ghost:hover { background: var(--bg-deep); color: var(--ink-2); transform: none; }
 
 /* ------------------------------------------------------------- L'étiquette
    Le petit tampon qu'on lit sur un objet : catégorie, techno, tag. Pas une

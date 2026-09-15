@@ -28,7 +28,7 @@
 
     let cta;
     if (game.status === 'soon') {
-      cta = `<span class="game-cta-soon font-mono">
+      cta = `<span class="tf-btn tf-btn-ghost tf-btn-sm game-cta-soon font-mono">
                <span class="live-dot inline-block w-2 h-2 dot-live"></span>
                ${en ? 'coming soon' : 'bientôt'}
              </span>`;

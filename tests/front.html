@@ -118,6 +118,27 @@ document.getElementById('f').addEventListener('load', function () {
       var sh = w.getComputedStyle(b).boxShadow;
       t('anneau de focus sur bouton decoupe', /inset/.test(sh) && sh.indexOf('rgb(255, 215, 0)') > -1);
 
+      // Consolidation des CTA : tout passe par la primitive, plus de doublons.
+      t('les CTA passent par .tf-btn (' + d.querySelectorAll('.tf-btn').length + ')',
+        d.querySelectorAll('.tf-btn').length >= 12);
+      t('plus aucun .ctrl-btn ni .btn-glow',
+        d.querySelectorAll('.ctrl-btn, .btn-glow').length === 0);
+      t('le CTA du hero est un bouton d achat',
+        d.querySelector('#hero a[href="#projects"]').classList.contains('tf-btn-buy'));
+      t('les liens sociaux sont des boutons icone',
+        d.querySelectorAll('#contact .tf-icon-btn-lg').length === 5);
+      // .tf-btn s'enfonce au survol avec un transform : une fleche centree par
+      // translateY(-50%) serait ecrasee. Elle doit l'etre par margin-top.
+      var arrow = d.getElementById('games-next');
+      var vp = d.getElementById('games-viewport');
+      var da = Math.abs((arrow.getBoundingClientRect().top + arrow.getBoundingClientRect().height / 2)
+                      - (vp.getBoundingClientRect().top + vp.getBoundingClientRect().height / 2));
+      t('fleches du carousel centrees (ecart ' + da.toFixed(1) + 'px)', da < 2);
+      // L'etat « bientot » ne doit pas se faire passer pour cliquable.
+      var ghost = d.querySelector('.tf-btn-ghost');
+      t('l etat indisponible n est pas cliquable',
+        !ghost || w.getComputedStyle(ghost).cursor !== 'pointer');
+
       // Nav au scroll
       var nav = d.querySelector('#navbar nav');
       t('nav sans panneau en haut de page', !nav.classList.contains('panel'));
