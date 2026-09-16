@@ -1061,7 +1061,10 @@ body.crt::after {
   cursor: var(--cursor-cross), pointer;
   transition: color .2s ease;
 }
-.spy-trigger svg { width: 14px; height: 14px; }
+/* 18 px : en dessous, les yeux en amande se bouchent et le masque redevient
+   une tache. Toujours discret dans le bandeau. */
+.spy-trigger svg { width: 18px; height: 18px; overflow: visible; }
+.spy-ember { fill: var(--orange); }
 .spy-trigger:hover, .spy-trigger[aria-expanded="true"] { color: var(--blu-ink); }
 
 /* Palette d'illustration FIXE : le Spy est BLU dans les deux thèmes, et son

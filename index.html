@@ -21,7 +21,7 @@
 <!-- tf2.css = le socle (palette, polices, primitives) ; style.css = les
      composants du portfolio. L'ordre compte : le second s'appuie sur le premier. -->
 <link rel="stylesheet" href="css/tf2.css?v=7">
-<link rel="stylesheet" href="css/style.css?v=15">
+<link rel="stylesheet" href="css/style.css?v=16">
 </head>
 <body class="antialiased">
 
@@ -795,7 +795,13 @@
           <!-- Easter egg : le masque du Spy. Discret mais vrai bouton — il se
                tabule et porte un nom pour les lecteurs d'écran. js/easter.js. -->
           <button type="button" id="spy-trigger" class="spy-trigger" aria-haspopup="dialog" aria-expanded="false" aria-controls="secret-note">
-            <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M8 1.2C4.6 1.2 2.8 3.8 2.8 7.1v5.6c0 1.1.9 2 2 2h6.4c1.1 0 2-.9 2-2V7.1c0-3.3-1.8-5.9-5.2-5.9zM4.9 6.6h6.2v3.6H4.9z"/></svg>
+            <!-- Dessiné maison, pas le logo de classe du jeu : ce qui fait le Spy,
+                 c'est la cagoule, les yeux en amande, la bouche et la cigarette. -->
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="currentColor" fill-rule="evenodd" d="M12 1.8C7.2 1.8 4.6 5.3 4.6 9.8v4.1c0 4.5 3.1 8.3 7.4 8.3s7.4-3.8 7.4-8.3V9.8c0-4.5-2.6-8-7.4-8zM6.6 10.9c1-1.6 3.3-1.9 4.6-.4-1.1 1.8-3.4 1.9-4.6.4zM17.4 10.9c-1-1.6-3.3-1.9-4.6-.4 1.1 1.8 3.4 1.9 4.6.4zM9.4 16.4c1.3-.9 3.9-.9 5.2 0-1.3 1.6-3.9 1.6-5.2 0z"/>
+              <path d="M13.6 16.9l7.2 3.1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              <circle class="spy-ember" cx="21.4" cy="20.3" r="1.1"/>
+            </svg>
             <span class="sr-only" data-i18n="secret.trigger">Il y a un Spy ici ?</span>
           </button>
         </span>
