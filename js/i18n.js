@@ -155,6 +155,8 @@ const I18N = {
     'contact.store.direct': 'Ou directement :',
     'contact.store.sent': "Ton client mail s'ouvre, le message est prêt.",
     'contact.store.missing': 'Il manque un champ - remplis les trois.',
+    'contact.capture.running': 'Capture du point…',
+    'contact.capture.done': 'Signal sécurisé ✓',
     'footer.credit': 'conçu & codé avec soin.',
     'footer.valve': "Not affiliated with Valve Corporation. Aucun mercenaire n'a été blessé.",
 
@@ -321,6 +323,8 @@ const I18N = {
     'contact.store.direct': 'Or straight to:',
     'contact.store.sent': 'Your mail client is opening, the message is ready.',
     'contact.store.missing': 'A field is missing - fill all three.',
+    'contact.capture.running': 'Capturing the point…',
+    'contact.capture.done': 'Signal secured ✓',
     'footer.credit': 'designed & coded with care.',
     'footer.valve': 'Not affiliated with Valve Corporation. No mercenaries were harmed.',
 

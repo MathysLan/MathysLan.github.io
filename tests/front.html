@@ -19,7 +19,9 @@
 // --allow-file-access-from-files) : on ne touche pas au fichier livre.
 var out = [], errs = [];
 function t(name, ok) { out.push((ok ? 'OK   ' : 'KO   ') + name); if (!ok) out.ko = true; }
+var ran = false;   // un mailto: peut recharger l'iframe : on ne rejoue pas la suite
 document.getElementById('f').addEventListener('load', function () {
+  if (ran) return; ran = true;
   var w = this.contentWindow, d = this.contentDocument;
   w.addEventListener('error', function (e) { errs.push(e.message + ' @' + String(e.filename).split('/').pop() + ':' + e.lineno); });
   setTimeout(function () {
@@ -225,15 +227,52 @@ document.getElementById('f').addEventListener('load', function () {
       var nav = d.querySelector('#navbar nav');
       t('nav sans panneau en haut de page', !nav.classList.contains('panel'));
 
-      t('aucune erreur JS', errs.length === 0);
     } catch (e) {
       out.push('EXCEPTION: ' + e.message);
       out.ko = true;
     }
-    var head = out.ko ? 'DES TESTS ECHOUENT' : 'TOUT PASSE';
-    document.getElementById('log').textContent =
-      head + ' — ' + out.length + ' verifications\n\n' + out.join('\n') +
-      (errs.length ? '\n\nERREURS JS:\n' + errs.join('\n') : '');
+
+    // Guichet : la barre de capture. Asynchrone (1,1 s de remplissage), donc
+    // en dernier, avant le verdict.
+    try {
+      var cfm = d.getElementById('contact-form'), cap = d.getElementById('cf-capture');
+      var sub = cfm.querySelector('[type="submit"]'), hint = d.getElementById('cf-hint');
+      // On intercepte l'ouverture du client mail : en headless, un vrai mailto:
+      // bloque le navigateur. main.js emet guichet:send juste avant.
+      var mailto = null;
+      cfm.addEventListener('guichet:send', function (ev) { mailto = ev.detail.url; ev.preventDefault(); });
+      t('barre de capture cachee au depart', cap.hidden);
+      cfm.elements.name.value = 'Test'; cfm.elements.subject.value = 'Objet'; cfm.elements.message.value = 'Message';
+      cfm.dispatchEvent(new w.Event('submit', { cancelable: true, bubbles: true }));
+      t('envoi valide : la capture demarre', !cap.hidden && cap.classList.contains('is-running'));
+      t('bouton bloque pendant la capture', sub.disabled);
+      t('le client mail attend la fin de la capture', mailto === null);
+      t('la barre prend la couleur de l equipe',
+        /rgb\(184, 56, 59\)/.test(w.getComputedStyle(cap.querySelector('.capture-point')).boxShadow));
+      t('pas de « signal securise » avant la fin', w.getComputedStyle(cap.querySelector('.capture-done')).display === 'none');
+    } catch (e) { out.push('EXCEPTION capture: ' + e.message); out.ko = true; }
+
+    setTimeout(function () {
+      try {
+        t('fin : signal securise affiche',
+          cap.classList.contains('is-done') && w.getComputedStyle(cap.querySelector('.capture-done')).display !== 'none'
+          && /Signal/i.test(cap.querySelector('.capture-done').textContent));
+        t('fin : barre pleine', cap.querySelector('.capture-fill').getBoundingClientRect().width
+          >= cap.querySelector('.capture-track').getBoundingClientRect().width - 8);
+        t('fin : annonce du client mail (lecteurs d ecran)', hint.textContent.length > 0 && !/Signal/i.test(hint.textContent));
+        t('fin : bouton rendu', !sub.disabled);
+        t('fin : mailto compose (objet + message + nom)',
+          /^mailto:mathys\.langiny@gmail\.com\?subject=Objet&body=Message%0A%0A--%20Test$/.test(mailto || ''));
+        cfm.elements.name.value = '';
+        cfm.dispatchEvent(new w.Event('submit', { cancelable: true, bubbles: true }));
+        t('un champ vide masque la barre', cap.hidden);
+      } catch (e) { out.push('EXCEPTION capture fin: ' + e.message); out.ko = true; }
+      t('aucune erreur JS', errs.length === 0);
+      var head = out.ko ? 'DES TESTS ECHOUENT' : 'TOUT PASSE';
+      document.getElementById('log').textContent =
+        head + ' — ' + out.length + ' verifications\n\n' + out.join('\n') +
+        (errs.length ? '\n\nERREURS JS:\n' + errs.join('\n') : '');
+    }, 1700);
   }, 900);
 });
 </script>

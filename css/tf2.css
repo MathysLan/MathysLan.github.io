@@ -451,6 +451,11 @@ html.light body::after {
     inset 2px 2px 0 0 var(--bevel-lo),
     inset -2px -2px 0 0 var(--bevel-hi);
 }
+/* Désactivé (le temps d'une action en cours) : il ne s'enfonce plus, ne
+   s'allume plus, et le curseur dit qu'on attend. */
+.tf-btn:disabled,
+.tf-btn:disabled:hover { opacity: .6; cursor: progress; transform: none; }
+.tf-btn-buy:disabled:hover { background: var(--orange); color: var(--on-orange); }
 /* Le bouton d'achat du Mann Co. Store : orange, c'est celui qu'on clique. */
 /* L'encre est --on-orange, pas du blanc : du blanc sur le #CF7336 de Mann Co.
    plafonne à 3,4:1, alors que le brun très sombre passe à 4,9:1 sans rien

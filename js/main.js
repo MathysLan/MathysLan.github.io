@@ -187,6 +187,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const cf = document.getElementById('contact-form');
   if (cf) {
     const hint = document.getElementById('cf-hint');
+    const capture = document.getElementById('cf-capture');
+    const submit = cf.querySelector('[type="submit"]');
     cf.addEventListener('submit', (e) => {
       e.preventDefault();
       const dict = I18N[window.LANG] || I18N.fr;
@@ -196,15 +198,39 @@ document.addEventListener('DOMContentLoaded', () => {
       const subject = cf.elements.subject.value.trim();
       const message = cf.elements.message.value.trim();
       if (!name || !subject || !message) {
+        capture.hidden = true;
         hint.textContent = dict['contact.store.missing'];
         hint.classList.add('ac-red');
         return;
       }
+      if (submit.disabled) return;          // une capture est déjà en cours
       hint.classList.remove('ac-red');
-      hint.textContent = dict['contact.store.sent'];
+      hint.textContent = '';
       const body = `${message}\n\n-- ${name}`;
-      window.location.href = 'mailto:mathys.langiny@gmail.com'
+      const url = 'mailto:mathys.langiny@gmail.com'
         + `?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+      // La barre de capture, PUIS le client mail. Le texte ne prétend pas que
+      // le message est parti : il ne part que du client mail de la personne.
+      // Délai court exprès : un navigateur n'autorise l'ouverture d'un mailto:
+      // que peu après le clic (activation utilisateur, ~5 s dans Chrome).
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const ms = reduced ? 0 : parseFloat(getComputedStyle(capture).getPropertyValue('--capture-ms')) || 0;
+      capture.classList.remove('is-running', 'is-done');
+      capture.hidden = false;
+      void capture.offsetWidth;             // repart de 0 si on renvoie un second message
+      capture.classList.add('is-running');
+      submit.disabled = true;
+      setTimeout(() => {
+        capture.classList.replace('is-running', 'is-done');
+        hint.textContent = dict['contact.store.sent'];
+        submit.disabled = false;
+        // Événement annulable juste avant l'ouverture : personne ne l'écoute sur
+        // le site, mais tests/front.html l'annule pour vérifier l'URL sans
+        // lancer de vrai client mail (en headless, ça bloque le navigateur).
+        const go = cf.dispatchEvent(new CustomEvent('guichet:send', { detail: { url }, cancelable: true }));
+        if (go) window.location.href = url;
+      }, ms);
     });
   }
 

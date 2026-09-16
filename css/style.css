@@ -902,6 +902,58 @@ body.modal-open { overflow: hidden; }
 }
 .store-price b { color: var(--qi-unique); font-family: 'TF2 Build', 'Anton', sans-serif; font-size: 1.1rem; }
 
+/* La barre de capture : la jauge d'un point de contrôle qui passe à l'équipe.
+   Teinte = --team (la section contact est RED), encre = --team-ink.
+   Déroulé piloté par main.js : is-running (rayures qui défilent, remplissage)
+   puis is-done (aplat franc, flash, « Signal sécurisé ✓ »). La durée vit ici,
+   main.js la relit : une seule source de vérité. */
+.capture { --capture-ms: 1100; display: grid; gap: .45rem; }
+.capture[hidden] { display: none; }
+.capture-head {
+  display: flex; align-items: center; gap: .55rem;
+  font-family: 'TF2 Build', 'Anton', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+/* Le point de contrôle : un losange qui se remplit à la fin. */
+.capture-point {
+  width: .75rem; height: .75rem; flex: none;
+  transform: rotate(45deg);
+  box-shadow: inset 0 0 0 2px var(--team);
+  transition: background .2s ease;
+}
+.capture-label { font-size: .85rem; color: var(--ink-2); }
+.capture-done  { font-size: 1.05rem; color: var(--team-ink); display: none; }
+.capture-track {
+  height: 12px;
+  background: var(--bg-deep);
+  box-shadow: inset 1.5px 1.5px 0 var(--bevel-lo), inset -1.5px -1.5px 0 var(--bevel-hi),
+              inset 0 0 0 1px var(--panel-edge);
+  padding: 2px;
+}
+.capture-fill {
+  height: 100%;
+  width: 0;
+  background: repeating-linear-gradient(-45deg,
+    var(--team) 0 7px, color-mix(in srgb, var(--team) 70%, #000) 7px 14px);
+  background-size: 20px 20px;
+}
+.capture.is-running .capture-fill {
+  width: 100%;
+  transition: width calc(var(--capture-ms) * 1ms) cubic-bezier(.35, .1, .35, 1);
+  animation: capture-stripes .5s linear infinite;
+}
+@keyframes capture-stripes { to { background-position: 20px 0; } }
+.capture.is-done .capture-fill { width: 100%; background: var(--team); animation: capture-flash .45s ease-out; }
+@keyframes capture-flash { from { filter: brightness(1.8); } }
+.capture.is-done .capture-point { background: var(--team); }
+.capture.is-done .capture-label { display: none; }
+.capture.is-done .capture-done  { display: inline; }
+@media (prefers-reduced-motion: reduce) {
+  .capture.is-running .capture-fill { transition: none; animation: none; }
+  .capture.is-done .capture-fill { animation: none; }
+}
+
 /* Les liens sociaux : des cases d'objet carrées, pas des ronds. */
 /* Les liens sociaux sont des .tf-btn tf-icon-btn tf-icon-btn-lg : plus rien à
    déclarer ici. Ils s'enfoncent au survol comme tous les autres boutons du

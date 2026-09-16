@@ -152,8 +152,14 @@ démarre qu'après un seuil de 6 px pour que le lien « Jouer » reste cliquable
   Enchaînement sur `animationend` dans `js/easter.js`. ⚠️ En headless à temps
   virtuel les animations CSS restent figées à 0 ms : pour tester la vraie
   chaîne, avancer avec `el.getAnimations().forEach(a => a.finish())` et
-  laisser ~1,5 s avant de lire l'état ; 8 barre
-  « SIGNAL SÉCURISÉ ✓ » du guichet. Le 9 (icônes de
+  laisser ~1,5 s avant de lire l'état ; 8 barre « SIGNAL SÉCURISÉ ✓ » du
+  guichet ✅ : à l'envoi, `#cf-capture` se remplit à la couleur d'équipe
+  (`--capture-ms`, 1,1 s) PUIS le mailto: s'ouvre — délai court car un
+  navigateur n'ouvre un mailto: que peu après le clic. ⚠️ Un vrai mailto:
+  bloque Edge headless : `main.js` émet l'événement annulable `guichet:send`
+  juste avant, que `tests/front.html` annule. Le masque du Spy a été redessiné
+  (bandeau d'yeux, sans cigarette) ; Mathys a proposé un SVG de fan du logo de
+  classe : refusé comme source, gardé comme référence de proportions. Le 9 (icônes de
   nav) était déjà fait. Règle : aucun asset Valve (images, sons, voix), tout
   est refait en CSS/SVG. Mis de côté sauf demande : switch RED/BLU, sons du
   jeu, vidéo « Meet the Team ». Les textes écrits à la place de Mathys
