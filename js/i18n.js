@@ -9,6 +9,10 @@ const I18N = {
     'nav.games': 'Jeux',
     'nav.contact': 'Contact',
 
+    // Titre d'onglet et description : suivent la langue (voir applyLang).
+    'meta.title': 'Mathys Langiny — Data & admin BDD · Portfolio',
+    'meta.description': 'Portfolio de Mathys Langiny, Data & administrateur de bases de données chez AgiLab (Reims) : projets data, jeux web multijoueurs et parcours.',
+
     // Libellés accessibles (aria-label), posés via data-i18n-aria.
     'a11y.home': 'Retour en haut',
     'a11y.theme': 'Changer de thème',
@@ -199,6 +203,9 @@ const I18N = {
     'nav.passions': 'Hobbies',
     'nav.games': 'Games',
     'nav.contact': 'Contact',
+
+    'meta.title': 'Mathys Langiny — Data & database admin · Portfolio',
+    'meta.description': 'Portfolio of Mathys Langiny, data & database administrator at AgiLab (Reims, France): data projects, multiplayer web games and career path.',
 
     'a11y.home': 'Back to top',
     'a11y.theme': 'Toggle theme',
@@ -423,6 +430,9 @@ function applyLang(lang) {
   localStorage.setItem('lang', lang);
   document.documentElement.lang = lang;
   const dict = I18N[lang];
+  document.title = dict['meta.title'];
+  const metaDesc = document.querySelector('meta[name="description"]');
+  if (metaDesc) metaDesc.setAttribute('content', dict['meta.description']);
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.dataset.i18n;
     if (dict[key] !== undefined) el.innerHTML = dict[key];

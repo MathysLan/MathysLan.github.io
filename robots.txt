@@ -1,8 +1,10 @@
 User-agent: *
 Allow: /
 Disallow: /404.html
-Disallow: /data/
 Disallow: /tests/
+Disallow: /tools/
 Disallow: /styleguide.html
+# /data/ n'est PAS bloqué : data/projects.js et data/games.js servent au rendu.
+# Les bloquer empêchait les moteurs qui exécutent le JS de voir les projets.
 
 Sitemap: https://mathyslan.github.io/sitemap.xml

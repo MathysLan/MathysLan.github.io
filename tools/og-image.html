@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Générateur de l'image de partage</title>
+<!-- Image Open Graph / Twitter (1200 × 630), dessinée avec le socle du site :
+     mêmes polices, même palette, même panneau. Pour la régénérer :
+
+       msedge --headless=new --hide-scrollbars --window-size=1200,630 \
+              --screenshot=assets/og-image.png --virtual-time-budget=3000 \
+              file:///CHEMIN/VERS/tools/og-image.html
+
+     Aucune image du jeu : tout est en CSS. -->
+<link rel="stylesheet" href="../css/tf2.css">
+<style>
+  html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; }
+  /* Pas de grain ici : en PNG il ne se compresse pas (mesuré : 774 Ko avec,
+     248 Ko sans), pour un détail invisible à la taille d'un aperçu. */
+  body::before { display: none; }
+  .stage {
+    position: relative;
+    width: 1200px; height: 630px;
+    display: flex; align-items: center;
+    padding: 0 90px;
+    box-sizing: border-box;
+    background:
+      radial-gradient(700px 520px at 18% 30%, color-mix(in srgb, var(--red) 30%, transparent), transparent 70%),
+      radial-gradient(640px 520px at 95% 90%, color-mix(in srgb, var(--blu) 26%, transparent), transparent 70%),
+      var(--bg);
+  }
+  .main { flex: 1; }
+  .kicker { font-size: 22px; margin-bottom: 26px; }
+  .kicker::before { width: 46px; height: 8px; }
+  h1 { font-size: 132px; line-height: .92; margin: 0; letter-spacing: 0; }
+  .role { margin: 30px 0 0; font-size: 34px; color: var(--ink-2); }
+  .url { margin: 44px 0 0; font-size: 26px; color: var(--orange-ink); letter-spacing: .06em; }
+  .card { width: 400px; padding: 30px 26px; background: var(--q); }
+  .card .item-desc-name { font-size: 34px; }
+  .card .item-desc-level { font-size: 18px; }
+  .card .attr-list { font-size: 21px; line-height: 1.55; margin-top: 20px; }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="main">
+      <p class="kicker" style="--team: var(--red); --team-ink: var(--red-ink)">Portfolio</p>
+      <h1>Mathys<br>Langiny</h1>
+      <p class="role">Data &amp; admin BDD · AgiLab · Reims</p>
+      <p class="url">mathyslan.github.io</p>
+    </div>
+    <div class="panel item-desc card" data-q="strange">
+      <h2 class="item-desc-name">Strange Admin BDD</h2>
+      <p class="item-desc-level">Data / Admin BDD de niveau CDI</p>
+      <ul class="attr-list">
+        <li>Oracle APEX, PL/SQL, SQL</li>
+        <li>Python, Docker</li>
+        <li>Power BI, Grafana</li>
+        <li>Node.js, WebSocket</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

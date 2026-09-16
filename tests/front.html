@@ -128,8 +128,21 @@ document.getElementById('f').addEventListener('load', function () {
       t('palette refermee (Echap)', !d.getElementById('cmdk-overlay').classList.contains('open'));
       t('palette : focus rendu a l element d origine', d.activeElement === langBtn);
 
+      // SEO : ce que lisent les moteurs et les apercus de partage.
+      var head = function (sel, attr) { var el = d.head.querySelector(sel); return el ? el.getAttribute(attr) : null; };
+      t('SEO : canonical absolue', head('link[rel="canonical"]', 'href') === 'https://mathyslan.github.io/');
+      t('SEO : og:image en URL absolue', head('meta[property="og:image"]', 'content') === 'https://mathyslan.github.io/assets/og-image.png');
+      t('SEO : carte Twitter grand format', head('meta[name="twitter:card"]', 'content') === 'summary_large_image');
+      var ld = null;
+      try { ld = JSON.parse(d.head.querySelector('script[type="application/ld+json"]').textContent); } catch (e) {}
+      t('SEO : JSON-LD Person valide', !!ld && ld['@type'] === 'Person' && ld.name === 'Mathys Langiny');
+      var titleFr = d.title;
+
       // Langue
       d.getElementById('lang-toggle').click();
+      t('SEO : titre et description suivent la langue',
+        d.title !== titleFr && /admin/i.test(d.title)
+        && /Portfolio of/.test(head('meta[name="description"]', 'content')));
       var h2 = d.querySelector('#projects h2');
       t('bascule EN [' + h2.textContent.trim().slice(0, 16) + ']', /project/i.test(h2.textContent));
       t('competences traduites [' + d.getElementById('loadout-name').textContent + ']',
