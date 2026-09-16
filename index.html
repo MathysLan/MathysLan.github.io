@@ -49,7 +49,6 @@
 
 <meta name="theme-color" content="#241c14">
 
-<script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- Anton sert de repli à TF2 Build (même esprit d'affiche grasse et condensée)
@@ -61,9 +60,21 @@
 <!-- Marque la page comme « JS actif » AVANT le rendu : les effets d'apparition
      (.reveal) ne cachent le contenu que si JS est là pour le révéler. Sans JS,
      tout reste lisible. -->
-<script>document.documentElement.classList.add('js')</script>
+<!-- Le thème mémorisé est posé ICI, avant le premier rendu : appliqué plus
+     tard par main.js, un visiteur en Blueprint voyait d'abord le thème sombre
+     puis un fondu de couleurs à chaque chargement. -->
+<script>
+  document.documentElement.classList.add('js');
+  try { if (localStorage.getItem('theme') === 'light') document.documentElement.classList.add('light'); } catch (e) {}
+</script>
 <link rel="stylesheet" href="css/tf2.css?v=8">
-<link rel="stylesheet" href="css/style.css?v=19">
+<link rel="stylesheet" href="css/style.css?v=22">
+<!-- Tailwind COMPILÉ (tools/build.mjs), à la place du script
+     cdn.tailwindcss.com qui générait ces styles dans le navigateur à chaque
+     visite, et n'appliquait donc aucune mise en page sans JavaScript. Placé
+     après style.css : c'est là que le CDN injectait ses styles, l'ordre de la
+     cascade reste le même. -->
+<link rel="stylesheet" href="css/tailwind.css?v=1">
 </head>
 <body class="antialiased">
 
@@ -103,12 +114,12 @@
           <span data-i18n="nav.contact">Contact</span></a></li>
       </ul>
       <div class="flex items-center gap-2">
-        <button id="theme-toggle" class="tf-btn tf-icon-btn" aria-label="Changer de thème" data-i18n-aria="a11y.theme">
+        <button id="theme-toggle" type="button" class="tf-btn tf-icon-btn js-only" aria-label="Changer de thème" data-i18n-aria="a11y.theme">
           <svg id="icon-sun" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
           <svg id="icon-moon" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
         </button>
-        <button id="lang-toggle" class="tf-btn tf-icon-btn" aria-label="English version" data-i18n-aria="a11y.lang">EN</button>
-        <button id="burger" type="button" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="mobile-menu" class="md:hidden relative w-8 h-8 flex flex-col justify-center items-center gap-1.5 z-50 ml-1">
+        <button id="lang-toggle" type="button" class="tf-btn tf-icon-btn js-only" aria-label="English version" data-i18n-aria="a11y.lang">EN</button>
+        <button id="burger" type="button" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="mobile-menu" class="js-only md:hidden relative w-8 h-8 flex flex-col justify-center items-center gap-1.5 z-50 ml-1">
           <span class="burger-line block w-6 h-0.5 bg-current transition-all duration-300"></span>
           <span class="burger-line block w-6 h-0.5 bg-current transition-all duration-300"></span>
           <span class="burger-line block w-6 h-0.5 bg-current transition-all duration-300"></span>
@@ -214,7 +225,153 @@
       </div>
       <!-- Le sac à dos : les cases sont rendues par renderProjects() dans
            js/main.js, la modale de description par js/itemmodal.js. -->
-      <div id="projects-grid" class="backpack"></div>
+      <!-- Le contenu entre les marqueurs build: est GÉNÉRÉ par tools/build.mjs
+           depuis data/*.js et js/templates.js : ne pas l'éditer à la main.
+           Il est dans le HTML publié pour les moteurs et les visites sans JS ;
+           avec JS, la page le reprend tel quel (et le re-rend en anglais). -->
+      <!-- build:projects -->
+      <div id="projects-grid" class="backpack" data-lang="fr">
+    <button type="button" class="reveal is-visible item bp-cell" data-q="unusual" data-index="0"
+            aria-haspopup="dialog">
+      <span class="bp-thumb panel-inset">
+        <span class="bp-noimg font-display" aria-hidden="true">A</span>
+        <span class="q-badge bp-q" data-q="unusual">★ unusual</span>
+        <span class="bp-lock" aria-hidden="true">🔒</span>
+      </span>
+      <span class="item-label bp-name">Automatisation de tests qualité</span>
+    </button>
+    <button type="button" class="reveal is-visible item bp-cell" data-q="strange" data-index="1"
+            aria-haspopup="dialog">
+      <span class="bp-thumb panel-inset">
+        <img src="assets/projects/radars-powerbi-carte.png" alt="" loading="lazy"
+              class="bp-img ">
+        <span class="q-badge bp-q" data-q="strange">★ strange</span>
+        
+      </span>
+      <span class="item-label bp-name">Radars & accidents - data visualisation</span>
+    </button>
+    <button type="button" class="reveal is-visible item bp-cell" data-q="collectors" data-index="2"
+            aria-haspopup="dialog">
+      <span class="bp-thumb panel-inset">
+        <img src="assets/projects/bluesky-top-influence.png" alt="" loading="lazy"
+              class="bp-img ">
+        <span class="q-badge bp-q" data-q="collectors">★ Collector's</span>
+        
+      </span>
+      <span class="item-label bp-name">Analyse d'influence - Bluesky × GTA VI</span>
+    </button>
+    <button type="button" class="reveal is-visible item bp-cell" data-q="haunted" data-index="3"
+            aria-haspopup="dialog">
+      <span class="bp-thumb panel-inset">
+        <img src="assets/projects/back2play-logo.jpg" alt="" loading="lazy"
+              class="bp-img is-contain">
+        <span class="q-badge bp-q" data-q="haunted">★ haunted</span>
+        
+      </span>
+      <span class="item-label bp-name">Back2Play</span>
+    </button>
+    <button type="button" class="reveal is-visible item bp-cell" data-q="genuine" data-index="4"
+            aria-haspopup="dialog">
+      <span class="bp-thumb panel-inset">
+        <img src="assets/projects/hopital-recherche-creneau.png" alt="" loading="lazy"
+              class="bp-img ">
+        <span class="q-badge bp-q" data-q="genuine">★ genuine</span>
+        
+      </span>
+      <span class="item-label bp-name">Plannings hospitaliers</span>
+    </button>
+    <button type="button" class="reveal is-visible item bp-cell" data-q="vintage" data-index="5"
+            aria-haspopup="dialog">
+      <span class="bp-thumb panel-inset">
+        <img src="assets/projects/series-liste.png" alt="" loading="lazy"
+              class="bp-img ">
+        <span class="q-badge bp-q" data-q="vintage">★ vintage</span>
+        
+      </span>
+      <span class="item-label bp-name">Consultation de séries TV</span>
+    </button>
+    <button type="button" class="reveal is-visible item bp-cell" data-q="unique" data-index="6"
+            aria-haspopup="dialog">
+      <span class="bp-thumb panel-inset">
+        <img src="assets/projects/puissance4-jeu.png" alt="" loading="lazy"
+              class="bp-img ">
+        <span class="q-badge bp-q" data-q="unique">★ unique</span>
+        
+      </span>
+      <span class="item-label bp-name">Puissance 4</span>
+    </button>
+    <button type="button" class="reveal is-visible item bp-cell" data-q="unique" data-index="7"
+            aria-haspopup="dialog">
+      <span class="bp-thumb panel-inset">
+        <img src="assets/projects/labyrinthe.png" alt="" loading="lazy"
+              class="bp-img ">
+        <span class="q-badge bp-q" data-q="unique">★ unique</span>
+        
+      </span>
+      <span class="item-label bp-name">A Maze in Python</span>
+    </button>
+      </div>
+      <!-- /build:projects -->
+      <!-- build:sheets -->
+      <div id="projects-sheets" class="nojs-only" data-lang="fr">
+    <article class="nojs-sheet">
+      <h3>Automatisation de tests qualité</h3>
+      <p class="nojs-sheet-meta">AgiLab - entreprise · confidentiel</p>
+      <p>Un système d'automatisation des tests qualité en Oracle APEX / PL/SQL, déployé sur plusieurs environnements clients. Ma règle sur ce projet : on ne modifie pas l'architecture d'une base pour un besoin temporaire. Quand il fallait piloter les tests, j'ai fait passer les paramètres par URL plutôt que de toucher au modèle - la base reste propre, le besoin est couvert. Suivi synchronisé automatiquement dans Monday.com. Le reste est confidentiel, c'est le jeu.</p>
+      <ul class="attr-list"><li>Oracle APEX</li><li>PL/SQL</li><li>Python</li><li>Monday.com</li></ul>
+      
+    </article>
+    <article class="nojs-sheet">
+      <h3>Radars & accidents - data visualisation</h3>
+      <p class="nojs-sheet-meta">SAE S5 - data</p>
+      <p>Les radars réduisent-ils vraiment les accidents ? On a pris les données publiques et on a vérifié, à quatre. Le vrai boulot : nettoyer et normaliser des données sales, puis les poser dans une base relationnelle carrée. Ensuite seulement, les dashboards Power BI et Grafana : 3 268 radars cartographiés, 54 822 accidents analysés, heatmaps et analyses croisées. Les chiffres parlent d'eux-mêmes.</p>
+      <ul class="attr-list"><li>SQL</li><li>Power BI</li><li>Grafana</li><li>Adminer</li></ul>
+      
+    </article>
+    <article class="nojs-sheet">
+      <h3>Analyse d'influence - Bluesky × GTA VI</h3>
+      <p class="nojs-sheet-meta">SAE F.Admin.01 - data / IA</p>
+      <p>Qui fait l'opinion autour de GTA VI sur Bluesky ? Pipeline entièrement conteneurisé sous Docker : collecte des posts via l'API, puis analyse de sentiments. Un seul LLM, je n'y crois pas - alors j'en ai mis deux en face à face : Qwen en local via Ollama contre Gemini en API, et on compare leurs verdicts sur les mêmes posts. Score d'influence par compte, et analyse du mème « we got X before GTA 6 » en bonus.</p>
+      <ul class="attr-list"><li>Python</li><li>Docker</li><li>Ollama</li><li>Gemini API</li><li>Bluesky API</li></ul>
+      
+    </article>
+    <article class="nojs-sheet">
+      <h3>Back2Play</h3>
+      <p class="nojs-sheet-meta">SAE S5/S6 - entrepreneuriat</p>
+      <p>Zéro code ici, et c'était le but : un business plan complet pour une aire de jeux indoor pour adultes à Reims. Étude de marché sur 77 répondants, identité de marque, charte graphique, prévisions financières et plan de financement de 500 000 €. Slogan : « Parce qu'on ne grandit jamais ».</p>
+      <ul class="attr-list"><li>Business plan</li><li>Étude de marché</li><li>Charte graphique</li></ul>
+      
+    </article>
+    <article class="nojs-sheet">
+      <h3>Plannings hospitaliers</h3>
+      <p class="nojs-sheet-meta">SAE 3.01 - dev web</p>
+      <p>Un service hospitalier qui gère ses plannings sous Excel, ça finit toujours par casser. On a tout centralisé dans une appli web : recherche de créneaux, profils du personnel, notifications mail et un petit chatbot à réponses pré-enregistrées. Méthode agile (MoSCoW), maquettes Figma. Simple, robuste, ça fait le job.</p>
+      <ul class="attr-list"><li>PHP</li><li>MySQL</li><li>Figma</li><li>Agile</li></ul>
+      <p><a href="https://github.com/MathysLan/SAE3-01" target="_blank" rel="noopener noreferrer">GitHub</a></p>
+    </article>
+    <article class="nojs-sheet">
+      <h3>Consultation de séries TV</h3>
+      <p class="nojs-sheet-meta">SAE S2 - dev web</p>
+      <p>Application web mobile-first pour parcourir des séries : liste, saisons, épisodes, formulaires d'édition. En binôme, trois jours, livré.</p>
+      <ul class="attr-list"><li>PHP</li><li>MySQL</li><li>HTML / CSS</li></ul>
+      <p><a href="https://github.com/MathysLan/ApplicationWeb-Serie-television" target="_blank" rel="noopener noreferrer">GitHub</a></p>
+    </article>
+    <article class="nojs-sheet">
+      <h3>Puissance 4</h3>
+      <p class="nojs-sheet-meta">BUT - projet</p>
+      <p>Puissance 4 en Python (pygame), une semaine de dev : détection des victoires, chute des jetons, et un mode étendu où on pousse les jetons par les côtés de la grille. Pas de fioritures, juste un jeu qui tourne.</p>
+      <ul class="attr-list"><li>Python</li><li>pygame</li></ul>
+      <p><a href="https://github.com/MathysLan/Puissance-4" target="_blank" rel="noopener noreferrer">GitHub</a></p>
+    </article>
+    <article class="nojs-sheet">
+      <h3>A Maze in Python</h3>
+      <p class="nojs-sheet-meta">BUT - projet</p>
+      <p>Générateur de labyrinthes : cinq algorithmes de génération, trois méthodes de résolution automatique affichées pas à pas. En binôme, deux semaines. De l'algo pur, et c'est ce que j'aime.</p>
+      <ul class="attr-list"><li>Python</li><li>Algorithmique</li></ul>
+      
+    </article>
+      </div>
+      <!-- /build:sheets -->
       <p class="reveal mt-8 text-sm ink-3 font-mono">
         <span data-i18n="projects.repos">→ tous mes dépôts publics :</span>
         <a href="https://github.com/MathysLan?tab=repositories" target="_blank" rel="noopener noreferrer" class="ac hov-ac underline underline-offset-4 transition-colors">github.com/MathysLan</a>
@@ -648,7 +805,82 @@
         <p class="muted text-sm leading-relaxed max-w-lg mb-6" data-i18n="passions.games.desc">
           Compétiteur dans l'âme, autant sur un serveur que manette en main. Ma bibliothèque complète est sur Steam.
         </p>
-        <div id="fav-games" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        <!-- build:favgames -->
+        <div id="fav-games" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4" data-lang="fr">
+    <div class="item fav-game" data-q="unusual">
+      <div class="fav-cover panel-inset">
+        <span class="fav-emoji">🎯</span>
+        <img src="https://cdn.cloudflare.steamstatic.com/steam/apps/440/header.jpg" alt="Team Fortress 2" loading="lazy" class="fav-img" onerror="this.remove()">
+      </div>
+      <p class="fav-note">9 classes, zéro sérieux — le FPS qui vieillit pas.</p>
+      <p class="item-label fav-name">Team Fortress 2</p>
+    </div>
+    <div class="item fav-game" data-q="strange">
+      <div class="fav-cover panel-inset" style="background:linear-gradient(135deg, #6d4fd0, #241b3a)">
+        <span class="fav-emoji">🎨</span>
+        <img src="assets/games/expedition33.jpg" alt="Clair Obscur : Expédition 33" loading="lazy" class="fav-img" onerror="this.remove()">
+      </div>
+      <p class="fav-note">Claque visuelle et narrative — RPG au tour par tour.</p>
+      <p class="item-label fav-name">Clair Obscur : Expédition 33</p>
+    </div>
+    <div class="item fav-game" data-q="normal">
+      <div class="fav-cover panel-inset">
+        <span class="fav-emoji">🐉</span>
+        <img src="https://cdn.cloudflare.steamstatic.com/steam/apps/851850/header.jpg" alt="DBZ Kakarot" loading="lazy" class="fav-img" onerror="this.remove()">
+      </div>
+      <p class="fav-note">L'enfance en jeu, du Saiyan à gogo.</p>
+      <p class="item-label fav-name">DBZ Kakarot</p>
+    </div>
+    <div class="item fav-game" data-q="genuine">
+      <div class="fav-cover panel-inset" style="background:linear-gradient(135deg, #3a7d34, #1f4d2b)">
+        <span class="fav-emoji">⛏️</span>
+        <img src="assets/games/minecraft.jpg" alt="Minecraft" loading="lazy" class="fav-img" onerror="this.remove()">
+      </div>
+      <p class="fav-note">Je montais les serveurs — mes meilleurs souvenirs à jouer avec toute la bande.</p>
+      <p class="item-label fav-name">Minecraft</p>
+    </div>
+    <div class="item fav-game" data-q="normal">
+      <div class="fav-cover panel-inset">
+        <span class="fav-emoji">🪓</span>
+        <img src="https://cdn.cloudflare.steamstatic.com/steam/apps/252490/header.jpg" alt="Rust" loading="lazy" class="fav-img" onerror="this.remove()">
+      </div>
+      <p class="fav-note">Survie hardcore, trahisons garanties.</p>
+      <p class="item-label fav-name">Rust</p>
+    </div>
+    <div class="item fav-game" data-q="vintage">
+      <div class="fav-cover panel-inset">
+        <span class="fav-emoji">🔧</span>
+        <img src="https://cdn.cloudflare.steamstatic.com/steam/apps/4000/header.jpg" alt="Garry's Mod" loading="lazy" class="fav-img" onerror="this.remove()">
+      </div>
+      <p class="fav-note">Le bac à sable sans aucune limite.</p>
+      <p class="item-label fav-name">Garry's Mod</p>
+    </div>
+    <div class="item fav-game" data-q="normal">
+      <div class="fav-cover panel-inset" style="background:linear-gradient(135deg, #3b82f6, #7c3aed)">
+        <span class="fav-emoji">🪂</span>
+        <img src="assets/games/fortnite.jpg" alt="Fortnite" loading="lazy" class="fav-img" onerror="this.remove()">
+      </div>
+      <p class="fav-note">L'époque prime, la vraie.</p>
+      <p class="item-label fav-name">Fortnite</p>
+    </div>
+    <div class="item fav-game" data-q="normal">
+      <div class="fav-cover panel-inset">
+        <span class="fav-emoji">🥊</span>
+        <img src="https://cdn.cloudflare.steamstatic.com/steam/apps/2212330/header.jpg" alt="Your Only Move Is HUSTLE" loading="lazy" class="fav-img" onerror="this.remove()">
+      </div>
+      <p class="fav-note">Baston au tour par tour, chaque frame compte.</p>
+      <p class="item-label fav-name">Your Only Move Is HUSTLE</p>
+    </div>
+    <div class="item fav-game" data-q="normal">
+      <div class="fav-cover panel-inset">
+        <span class="fav-emoji">🧪</span>
+        <img src="https://cdn.cloudflare.steamstatic.com/steam/apps/700330/header.jpg" alt="SCP: Secret Laboratory" loading="lazy" class="fav-img" onerror="this.remove()">
+      </div>
+      <p class="fav-note">Confinement, chaos et trahisons en équipe.</p>
+      <p class="item-label fav-name">SCP: Secret Laboratory</p>
+    </div>
+        </div>
+        <!-- /build:favgames -->
       </div>
 
       <!-- Culture : tickets -->
@@ -726,26 +958,175 @@
           <h2 class="font-tf text-4xl md:text-6xl heading" data-i18n="games.title">Jeux web<span class="ac">.</span></h2>
           <p class="muted mt-4 max-w-lg" data-i18n="games.sub">Des jeux jouables direct dans le navigateur - sans install, sans compte. Front statique, serveur arbitre maison.</p>
         </div>
-        <button id="insert-coin" type="button" class="font-mono text-xs tracking-[0.3em] ac insert-coin shrink-0" title="Une pièce = une partie">▸ INSERT COIN ◂</button>
+        <button id="insert-coin" type="button" class="js-only font-mono text-xs tracking-[0.3em] ac insert-coin shrink-0" title="Une pièce = une partie">▸ INSERT COIN ◂</button>
       </div>
 
       <!-- Carousel des jeux (rendu par js/carousel.js depuis data/games.js) -->
       <div id="games-carousel" class="reveal relative" tabindex="0" role="region" aria-roledescription="carousel" aria-label="Jeux jouables" data-i18n-aria="a11y.carousel">
         <div id="games-viewport">
-          <div id="games-track"></div>
+          <!-- build:games -->
+          <div id="games-track" data-lang="fr">
+    <div class="game-slide" role="group" aria-roledescription="diapositive" aria-label="Morpion">
+      <div class="item game-card" data-q="unusual">
+        <div class="game-card-body">
+          <div class="flex items-start justify-between gap-4 mb-4">
+            <div class="flex items-center gap-3">
+              <span class="slot-num" aria-hidden="true">1</span>
+              <div class="game-emoji">⭕</div>
+            </div>
+            <span class="font-mono text-xs game-tagline">Le Hello World du réseau</span>
+          </div>
+          <h3 class="game-title">Morpion</h3>
+          <p class="muted text-sm leading-relaxed game-desc">Le classique en multijoueur temps réel : tu crées une partie, tu partages un code à 4 lettres, et c'est parti. Serveur Node arbitre - le client n'a aucune autorité.</p>
+          <div class="flex flex-wrap gap-2 mt-4"><span class="tf-tag font-mono">en ligne</span><span class="tf-tag font-mono">2 joueurs</span><span class="tf-tag font-mono">temps réel</span></div>
+          <ul class="attr-list mt-3"><li>WebSocket</li><li>Node.js</li><li>Canvas</li></ul>
+          <div class="mt-6"><a href="games/morpion/" class="tf-btn tf-btn-buy game-cta">
+               Jouer
+               <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+             </a></div>
+        </div>
+      </div>
+    </div>
+    <div class="game-slide" role="group" aria-roledescription="diapositive" aria-label="Imitation">
+      <div class="item game-card" data-q="unique">
+        <div class="game-card-body">
+          <div class="flex items-start justify-between gap-4 mb-4">
+            <div class="flex items-center gap-3">
+              <span class="slot-num" aria-hidden="true">2</span>
+              <div class="game-emoji">🎤</div>
+            </div>
+            <span class="font-mono text-xs game-tagline">Le party game vocal</span>
+          </div>
+          <h3 class="game-title">Imitation</h3>
+          <p class="muted text-sm leading-relaxed game-desc">Regarde un extrait, imite le son au micro en rythme (double waveform pour te caler), puis note les autres 👍×2 / 👍 / 👎. Le host pilote, le serveur arbitre, les audios ne touchent jamais le disque.</p>
+          <div class="flex flex-wrap gap-2 mt-4"><span class="tf-tag font-mono">en ligne</span><span class="tf-tag font-mono">multi</span><span class="tf-tag font-mono">micro</span></div>
+          <ul class="attr-list mt-3"><li>WebSocket</li><li>MediaRecorder</li><li>Web Audio</li><li>R2</li></ul>
+          <div class="mt-6"><a href="games/imitation/" class="tf-btn tf-btn-buy game-cta">
+               Jouer
+               <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+             </a></div>
+        </div>
+      </div>
+    </div>
+    <div class="game-slide" role="group" aria-roledescription="diapositive" aria-label="Demi-Cercle">
+      <div class="item game-card" data-q="unique">
+        <div class="game-card-body">
+          <div class="flex items-start justify-between gap-4 mb-4">
+            <div class="flex items-center gap-3">
+              <span class="slot-num" aria-hidden="true">3</span>
+              <div class="game-emoji">🎯</div>
+            </div>
+            <span class="font-mono text-xs game-tagline">Le party game de perception</span>
+          </div>
+          <h3 class="game-title">Demi-Cercle</h3>
+          <p class="muted text-sm leading-relaxed game-desc">Inspiré de Wavelength : un Guide voit une cible secrète sur un spectre 0-100 et lâche un indice, les autres placent leur curseur au plus près. Serveur arbitre - la cible ne fuite jamais avant la révélation.</p>
+          <div class="flex flex-wrap gap-2 mt-4"><span class="tf-tag font-mono">en ligne</span><span class="tf-tag font-mono">multi</span><span class="tf-tag font-mono">bluff</span></div>
+          <ul class="attr-list mt-3"><li>WebSocket</li><li>Node.js</li><li>SVG</li></ul>
+          <div class="mt-6"><a href="games/demicercle/" class="tf-btn tf-btn-buy game-cta">
+               Jouer
+               <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+             </a></div>
+        </div>
+      </div>
+    </div>
+    <div class="game-slide" role="group" aria-roledescription="diapositive" aria-label="Puissance 4">
+      <div class="item game-card" data-q="unusual">
+        <div class="game-card-body">
+          <div class="flex items-start justify-between gap-4 mb-4">
+            <div class="flex items-center gap-3">
+              <span class="slot-num" aria-hidden="true">4</span>
+              <div class="game-emoji">🔴</div>
+            </div>
+            <span class="font-mono text-xs game-tagline">Solo contre le bot</span>
+          </div>
+          <h3 class="game-title">Puissance 4</h3>
+          <p class="muted text-sm leading-relaxed game-desc">Un Puissance 4 en canvas contre une IA simple mais pas manchote (gagner > bloquer > centre). Caché aussi derrière l'INSERT COIN et le Konami code - à toi de fouiller.</p>
+          <div class="flex flex-wrap gap-2 mt-4"><span class="tf-tag font-mono">solo</span><span class="tf-tag font-mono">vs bot</span></div>
+          <ul class="attr-list mt-3"><li>Canvas</li><li>JS natif</li></ul>
+          <div class="mt-6"><button type="button" data-action="connect4" class="tf-btn tf-btn-buy game-cta js-only">
+               Jouer ▸
+             </button></div>
+        </div>
+      </div>
+    </div>
+    <div class="game-slide" role="group" aria-roledescription="diapositive" aria-label="Le Jeu du Ban">
+      <div class="item game-card" data-q="unusual">
+        <div class="game-card-body">
+          <div class="flex items-start justify-between gap-4 mb-4">
+            <div class="flex items-center gap-3">
+              <span class="slot-num" aria-hidden="true">5</span>
+              <div class="game-emoji">🚫</div>
+            </div>
+            <span class="font-mono text-xs game-tagline">Le party game du sang-froid</span>
+          </div>
+          <h3 class="game-title">Le Jeu du Ban</h3>
+          <p class="muted text-sm leading-relaxed game-desc">Une vidéo cache un mot interdit. Chacun son tour, tu la stoppes le plus tard possible… sans jamais le laisser sortir. Serveur arbitre : il dicte le rythme, recoupe ton temps à son horloge (anti-triche) et coupe le tour d'un joueur inactif.</p>
+          <div class="flex flex-wrap gap-2 mt-4"><span class="tf-tag font-mono">en ligne</span><span class="tf-tag font-mono">multi</span><span class="tf-tag font-mono">sang-froid</span></div>
+          <ul class="attr-list mt-3"><li>WebSocket</li><li>Node.js</li><li>R2</li><li>setTimeout</li></ul>
+          <div class="mt-6"><a href="games/ban/" class="tf-btn tf-btn-buy game-cta">
+               Jouer
+               <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+             </a></div>
+        </div>
+      </div>
+    </div>
+    <div class="game-slide" role="group" aria-roledescription="diapositive" aria-label="Précision">
+      <div class="item game-card" data-q="haunted">
+        <div class="game-card-body">
+          <div class="flex items-start justify-between gap-4 mb-4">
+            <div class="flex items-center gap-3">
+              <span class="slot-num" aria-hidden="true">6</span>
+              <div class="game-emoji">🎯</div>
+            </div>
+            <span class="font-mono text-xs game-tagline">Le party game de la mémoire fine</span>
+          </div>
+          <h3 class="game-title">Précision</h3>
+          <p class="muted text-sm leading-relaxed game-desc">Inspiré de dialed.gg : une forme, une couleur, un son ou un timing s'affiche quelques secondes… puis disparaît. À toi de le reproduire au plus juste. Tout le monde joue en même temps, le serveur note la précision de chacun de 0 à 100 %.</p>
+          <div class="flex flex-wrap gap-2 mt-4"><span class="tf-tag font-mono">en ligne</span><span class="tf-tag font-mono">multi</span><span class="tf-tag font-mono">4 épreuves</span></div>
+          <ul class="attr-list mt-3"><li>WebSocket</li><li>Node.js</li><li>Web Audio</li><li>SVG</li></ul>
+          <div class="mt-6"><a href="games/precision/" class="tf-btn tf-btn-buy game-cta">
+               Jouer
+               <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+             </a></div>
+        </div>
+      </div>
+    </div>
+    <div class="game-slide" role="group" aria-roledescription="diapositive" aria-label="La suite">
+      <div class="item game-card" data-q="haunted">
+        <div class="game-card-body">
+          <div class="flex items-start justify-between gap-4 mb-4">
+            <div class="flex items-center gap-3">
+              <span class="slot-num" aria-hidden="true">7</span>
+              <div class="game-emoji">🎮</div>
+            </div>
+            <span class="font-mono text-xs game-tagline">En cours de dev</span>
+          </div>
+          <h3 class="game-title">La suite</h3>
+          <p class="muted text-sm leading-relaxed game-desc">D'autres jeux web arrivent - toujours jouables direct dans le navigateur, sans install ni compte. L'architecture front statique + serveur arbitre est prête à les accueillir.</p>
+          <div class="flex flex-wrap gap-2 mt-4"><span class="tf-tag font-mono">bientôt</span></div>
+          
+          <div class="mt-6"><span class="tf-btn tf-btn-ghost tf-btn-sm game-cta-soon font-mono">
+               <span class="live-dot inline-block w-2 h-2 dot-live"></span>
+               bientôt
+             </span></div>
+        </div>
+      </div>
+    </div>
+          </div>
+          <!-- /build:games -->
         </div>
 
-        <button id="games-prev" type="button" class="tf-btn tf-icon-btn game-nav game-nav-prev" aria-label="Jeu précédent" data-i18n-aria="a11y.prevGame">
+        <button id="games-prev" type="button" class="js-only tf-btn tf-icon-btn game-nav game-nav-prev" aria-label="Jeu précédent" data-i18n-aria="a11y.prevGame">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
-        <button id="games-next" type="button" class="tf-btn tf-icon-btn game-nav game-nav-next" aria-label="Jeu suivant" data-i18n-aria="a11y.nextGame">
+        <button id="games-next" type="button" class="js-only tf-btn tf-icon-btn game-nav game-nav-next" aria-label="Jeu suivant" data-i18n-aria="a11y.nextGame">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
         </button>
 
         <!-- Pause : la rotation automatique change de carte toutes les 4,5 s ; au
              doigt, sans survol pour la suspendre, on n'avait pas le temps de lire.
              Masqué en mouvement réduit, où il n'y a pas de rotation. -->
-        <div class="games-controls">
+        <div class="games-controls js-only">
           <div id="games-dots" class="flex justify-center gap-2.5"></div>
           <button id="games-pause" type="button" class="tf-btn tf-icon-btn" aria-pressed="false" aria-label="Mettre en pause la rotation" data-i18n-aria="a11y.pause">
             <svg class="w-4 h-4 icon-pause" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>
@@ -860,7 +1241,7 @@
           <span class="footer-disclaimer" data-i18n="footer.valve">Not affiliated with Valve Corporation. Aucun mercenaire n'a été blessé.</span>
           <!-- Easter egg : le masque du Spy. Discret mais vrai bouton — il se
                tabule et porte un nom pour les lecteurs d'écran. js/easter.js. -->
-          <button type="button" id="spy-trigger" class="spy-trigger" aria-haspopup="dialog" aria-expanded="false" aria-controls="secret-note">
+          <button type="button" id="spy-trigger" class="spy-trigger js-only" aria-haspopup="dialog" aria-expanded="false" aria-controls="secret-note">
             <!-- Dessiné maison, PAS le logo de classe du jeu (ni un calque d'un
                  redessin de fan) : trois formes simples suffisent à faire le Spy —
                  la cagoule dont la mâchoire s'affine, UN bandeau d'yeux façon
@@ -974,10 +1355,11 @@
   <script src="data/games.js?v=1"></script>
   <script src="data/favgames.js?v=2"></script>
   <script src="js/i18n.js?v=10"></script>
+  <script src="js/templates.js?v=2"></script>
   <script src="js/lightbox.js?v=3"></script>
   <script src="js/itemmodal.js?v=2"></script>
-  <script src="js/main.js?v=12"></script>
-  <script src="js/carousel.js?v=5"></script>
+  <script src="js/main.js?v=13"></script>
+  <script src="js/carousel.js?v=6"></script>
   <script src="js/palette.js?v=2"></script>
   <script src="js/connect4.js?v=2"></script>
   <script src="js/easter.js?v=2"></script>

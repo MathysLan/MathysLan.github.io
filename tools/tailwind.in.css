@@ -1,0 +1,5 @@
+/* Entrée de la compilation Tailwind (voir tools/build.mjs). Mêmes couches que le
+   CDN : base (preflight), components, utilities. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

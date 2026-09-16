@@ -37,6 +37,8 @@ document.getElementById('f').addEventListener('load', function () {
       // Sac a dos
       var cells = d.querySelectorAll('#projects-grid .bp-cell');
       t('cases du sac a dos (' + cells.length + '/8)', cells.length === 8);
+      t('avec JS : fiches de secours masquees', w.getComputedStyle(d.getElementById('projects-sheets')).display === 'none');
+      t('avec JS : contenu pre-rendu repris sans re-rendu (data-lang)', d.getElementById('projects-grid').dataset.lang === 'fr');
       t('cases focusables au clavier', cells[0].tagName === 'BUTTON');
       t('bordure de qualite posee', d.querySelector('.bp-cell[data-q="unusual"]') !== null);
       t('nom visible sans ouvrir', d.querySelector('.bp-cell .bp-name').textContent.trim().length > 0);
@@ -397,6 +399,20 @@ document.getElementById('f').addEventListener('load', function () {
         var nw = document.getElementById('nojs').contentWindow;
         t('sans JS : le contenu .reveal reste visible',
           [].every.call(nd.querySelectorAll('.reveal'), function (r) { return nw.getComputedStyle(r).opacity === '1'; }));
+        // Contenu pre-rendu par tools/build.mjs : present sans executer de JS.
+        t('sans JS : 8 cases de projets dans le HTML', nd.querySelectorAll('#projects-grid .bp-cell').length === 8);
+        var sheets = nd.querySelectorAll('#projects-sheets .nojs-sheet');
+        t('sans JS : fiches de projet visibles avec descriptif',
+          sheets.length === 8 && nw.getComputedStyle(nd.getElementById('projects-sheets')).display !== 'none'
+          && sheets[1].textContent.length > 200);
+        t('sans JS : 7 cartes de jeu, en grille lisible',
+          nd.querySelectorAll('#games-track .game-slide').length === 7
+          && nw.getComputedStyle(nd.querySelector('.game-slide')).position === 'static');
+        t('sans JS : jeux preferes presents', nd.querySelectorAll('#fav-games .fav-game').length > 0);
+        t('sans JS : boutons qui dependent du JS masques',
+          [].every.call(nd.querySelectorAll('.js-only'), function (b) { return nw.getComputedStyle(b).display === 'none'; }));
+        t('sans JS : objectifs des contrats lisibles',
+          [].every.call(nd.querySelectorAll('.contract-body'), function (b) { return nw.getComputedStyle(b).display !== 'none'; }));
       } catch (e) { out.push('EXCEPTION sans JS: ' + e.message); out.ko = true; }
       t('aucune erreur JS', errs.length === 0);
       var head = out.ko ? 'DES TESTS ECHOUENT' : 'TOUT PASSE';

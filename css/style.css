@@ -1197,6 +1197,43 @@ body.crt::after {
 .secret-ok { margin-top: 1rem; }
 
 /* ============================================================================
+   Sans JavaScript
+   ----------------------------------------------------------------------------
+   Le contenu important est pré-rendu dans le HTML (tools/build.mjs). Sans JS,
+   on cache ce qui ne fonctionnerait pas (boutons qui pilotent du JS), on
+   montre ce qui serait sinon inaccessible (fiches de projet, objectifs des
+   contrats) et le carousel devient une simple grille. Avec JS (classe .js
+   posée dans le <head>), rien de tout ça ne s'applique.
+   ========================================================================= */
+.js .nojs-only { display: none !important; }   /* bat les règles par id (#projects-sheets) */
+html:not(.js) .js-only { display: none !important; }
+html:not(.js) .contract-body[hidden] { display: block; }
+html:not(.js) #games-viewport { height: auto; perspective: none; overflow: visible; cursor: auto; }
+html:not(.js) #games-track {
+  position: static;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.2rem;
+  transform-style: flat;
+}
+html:not(.js) .game-slide { position: static; transform: none; width: auto; height: auto; }
+/* Hauteur de carte libre : le descriptif (flex-basis 0, fait pour la carte à
+   hauteur fixe du carousel) s'écraserait à zéro. On le montre en entier. */
+html:not(.js) .game-desc { flex: none; display: block; overflow: visible; -webkit-line-clamp: none; line-clamp: none; }
+/* Les fiches détaillées, sous la grille du sac à dos. */
+#projects-sheets { display: grid; gap: 1rem; margin-top: 2rem; }
+.nojs-sheet {
+  padding: 1.1rem 1.2rem;
+  background: var(--bg-deep);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.nojs-sheet h3 { font-size: 1.2rem; margin: 0 0 .3rem; }
+.nojs-sheet p { margin: .5rem 0 0; color: var(--ink-2); font-size: .92rem; line-height: 1.6; }
+.nojs-sheet .nojs-sheet-meta { color: var(--ink-3); font-size: .78rem; letter-spacing: .06em; text-transform: uppercase; }
+.nojs-sheet a { color: var(--orange-ink); text-decoration: underline; }
+.nojs-sheet .attr-list { margin-top: .7rem; }
+
+/* ============================================================================
    Mouvement réduit
    ========================================================================= */
 @media (prefers-reduced-motion: reduce) {

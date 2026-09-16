@@ -15,62 +15,20 @@
   const ROT = 46;       // rotation Y par cran (deg)
   const FADE = 0.58;    // vitesse d'estompage des cartes latérales
 
-  // L'accent d'un jeu (champ `accent` dans data/games.js) devient une qualité
-  // d'objet TF2 : c'est elle qui colore la bordure de la carte et sa tagline.
-  const trQual = { violet: 'unusual', amber: 'unique', mint: 'haunted' };
-  const g = (obj, f) => (window.LANG === 'en' && obj[f + '_en'] !== undefined ? obj[f + '_en'] : obj[f]);
-
-  function slideHTML(game, idx) {
-    const en = window.LANG === 'en';
-    const qual = trQual[game.accent] || 'normal';
-    const tags = (g(game, 'tags') || []).map((t) =>
-      `<span class="tf-tag font-mono">${t}</span>`).join('');
-    const stack = (game.stack || []).map((s) => `<li>${s}</li>`).join('');
-
-    let cta;
-    if (game.status === 'soon') {
-      cta = `<span class="tf-btn tf-btn-ghost tf-btn-sm game-cta-soon font-mono">
-               <span class="live-dot inline-block w-2 h-2 dot-live"></span>
-               ${en ? 'coming soon' : 'bientôt'}
-             </span>`;
-    } else if (game.href) {
-      cta = `<a href="${game.href}" class="tf-btn tf-btn-buy game-cta">
-               ${en ? 'Play' : 'Jouer'}
-               <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-             </a>`;
-    } else {
-      cta = `<button data-action="${game.action}" class="tf-btn tf-btn-buy game-cta">
-               ${en ? 'Play' : 'Jouer'} ▸
-             </button>`;
-    }
-
-    return `
-    <div class="game-slide" role="group" aria-roledescription="${en ? 'slide' : 'diapositive'}" aria-label="${g(game, 'title')}">
-      <div class="item game-card" data-q="${qual}">
-        <div class="game-card-body">
-          <div class="flex items-start justify-between gap-4 mb-4">
-            <div class="flex items-center gap-3">
-              <span class="slot-num" aria-hidden="true">${idx + 1}</span>
-              <div class="game-emoji">${game.emoji}</div>
-            </div>
-            <span class="font-mono text-xs game-tagline">${g(game, 'tagline')}</span>
-          </div>
-          <h3 class="game-title">${g(game, 'title')}</h3>
-          <p class="muted text-sm leading-relaxed game-desc">${g(game, 'desc')}</p>
-          <div class="flex flex-wrap gap-2 mt-4">${tags}</div>
-          ${stack ? `<ul class="attr-list mt-3">${stack}</ul>` : ''}
-          <div class="mt-6">${cta}</div>
-        </div>
-      </div>
-    </div>`;
-  }
+  // Le balisage d'une carte vit dans js/templates.js (gameSlideHTML), partagé
+  // avec le pré-rendu de tools/build.mjs.
+  const g = (obj, f) => trLang(obj, f, window.LANG);
 
   function render() {
     const track = document.getElementById('games-track');
     const dots = document.getElementById('games-dots');
     if (!track) return;
     const en = window.LANG === 'en';
-    track.innerHTML = GAMES.map(slideHTML).join('');
+    // Pré-rendu déjà dans la bonne langue : on garde les cartes telles quelles.
+    if (track.dataset.lang !== window.LANG) {
+      track.innerHTML = GAMES.map((game, i) => gameSlideHTML(game, i, window.LANG)).join('');
+      track.dataset.lang = window.LANG;
+    }
     // Les points portent le nom du jeu : « Jeu 4 » ne disait rien à l'oreille.
     dots.innerHTML = GAMES.map((game, i) =>
       `<button type="button" class="game-dot" data-i="${i}" aria-label="${g(game, 'title')}"></button>`).join('');

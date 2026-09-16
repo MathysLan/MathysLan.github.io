@@ -1,7 +1,9 @@
-// ============ Rendu des cartes projets depuis data/projects.js ============
-function githubIcon() {
-  return `<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55 0-.27-.01-1-.02-1.96-3.2.7-3.87-1.54-3.87-1.54-.53-1.33-1.29-1.69-1.29-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.56-.29-5.26-1.28-5.26-5.71 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.47.11-3.06 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.64 1.59.24 2.77.12 3.06.74.8 1.18 1.83 1.18 3.09 0 4.44-2.7 5.42-5.28 5.7.42.36.78 1.07.78 2.16 0 1.56-.02 2.82-.02 3.2 0 .31.21.67.79.55A10.51 10.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"/></svg>`;
-}
+// ============ Rendu des contenus depuis data/*.js ============
+// Le balisage vit dans js/templates.js, partagé avec tools/build.mjs qui le
+// pré-rend dans index.html. Ici on ne fait que (re)rendre quand la langue
+// change : si le conteneur porte déjà la bonne langue (data-lang posé par le
+// pré-rendu), on ne touche à rien — pas de redessin ni de rechargement d'image
+// au chargement de la page.
 
 // Mouvement réduit : lu AU MOMENT de l'animation, pas une fois au chargement —
 // la préférence système peut changer pendant la visite. Global : carousel.js,
@@ -15,10 +17,9 @@ function scrollBehavior() {
   return prefersReducedMotion() ? 'auto' : 'smooth';
 }
 
-// Renvoie le champ dans la langue active, avec repli sur le français
+// Champ dans la langue active, avec repli sur le français.
 function tr(obj, field) {
-  if (window.LANG === 'en' && obj[field + '_en']) return obj[field + '_en'];
-  return obj[field];
+  return trLang(obj, field, window.LANG);
 }
 
 // Images d'un projet avec la légende dans la langue active
@@ -26,11 +27,11 @@ function localizedImages(p) {
   return p.images.map(img => ({ src: img.src, cap: tr(img, 'cap') }));
 }
 
-// Le nom de qualité tel que les joueurs le lisent : il reste en anglais dans
-// les deux langues (« un Strange », pas « un Étrange »).
-function qualityLabel(q) {
-  if (q === 'collectors') return "Collector's";
-  return q;
+// Remplit un conteneur pour la langue active, sauf s'il y est déjà.
+function renderInto(el, html) {
+  if (!el || el.dataset.lang === window.LANG) return;
+  el.innerHTML = html;
+  el.dataset.lang = window.LANG;
 }
 
 // La section Projets est un sac à dos : une case carrée par projet, bordure
@@ -42,53 +43,17 @@ function qualityLabel(q) {
 // projet (strange = compte des statistiques, vintage = ancien mais tient
 // encore, unusual = la pièce rare). Voir data/projects.js.
 function renderProjects() {
-  const grid = document.getElementById('projects-grid');
-  grid.innerHTML = PROJECTS.map((p, i) => {
-    const q = p.quality || 'normal';
-    // Un vrai <button> : focus clavier, Entrée et Espace viennent du navigateur.
-    // aria-haspopup="dialog" annonce qu'il ouvre une fenêtre, pas une page.
-    // Pas de visuel ? L'initiale en filigrane, comme un objet sans icône dans
-    // l'inventaire — jamais une case vide. Décorative, donc aria-hidden.
-    const thumb = p.cover
-      ? `<img src="${p.cover}" alt="" loading="lazy"
-              class="bp-img ${p.coverFit === 'contain' ? 'is-contain' : ''}">`
-      : `<span class="bp-noimg font-display" aria-hidden="true">${tr(p, 'title').charAt(0)}</span>`;
-
-    return `
-    <button type="button" class="reveal is-visible item bp-cell" data-q="${q}" data-index="${i}"
-            aria-haspopup="dialog">
-      <span class="bp-thumb panel-inset">
-        ${thumb}
-        <span class="q-badge bp-q" data-q="${q}">★ ${qualityLabel(q)}</span>
-        ${p.confidential ? '<span class="bp-lock" aria-hidden="true">🔒</span>' : ''}
-      </span>
-      <span class="item-label bp-name">${tr(p, 'title')}</span>
-    </button>`;
-  }).join('');
+  renderInto(document.getElementById('projects-grid'),
+    PROJECTS.map((p, i) => projectCellHTML(p, i, window.LANG)).join(''));
+  renderInto(document.getElementById('projects-sheets'),
+    PROJECTS.map((p) => projectSheetHTML(p, window.LANG)).join(''));
 }
 
 // ============ Jeux vidéo préférés (data/favgames.js) ============
 function renderFavGames() {
-  const grid = document.getElementById('fav-games');
-  if (!grid || typeof FAV_GAMES === 'undefined') return;
-  grid.innerHTML = FAV_GAMES.map(g => {
-    const src = g.img || (g.steam ? `https://cdn.cloudflare.steamstatic.com/steam/apps/${g.steam}/header.jpg` : '');
-    const style = g.bg ? ` style="background:${g.bg}"` : '';
-    // L'image (object-cover) recouvre l'emoji quand elle charge ; si elle échoue,
-    // onerror la retire et l'emoji reste sur le fond dégradé. Jamais de carte vide.
-    const img = src
-      ? `<img src="${src}" alt="${tr(g, 'name')}" loading="lazy" class="fav-img" onerror="this.remove()">`
-      : '';
-    return `
-    <div class="item fav-game" data-q="${g.quality || 'normal'}">
-      <div class="fav-cover panel-inset"${style}>
-        <span class="fav-emoji">${g.emoji}</span>
-        ${img}
-      </div>
-      <p class="fav-note">${tr(g, 'note')}</p>
-      <p class="item-label fav-name">${tr(g, 'name')}</p>
-    </div>`;
-  }).join('');
+  if (typeof FAV_GAMES === 'undefined') return;
+  renderInto(document.getElementById('fav-games'),
+    FAV_GAMES.map((g) => favGameHTML(g, window.LANG)).join(''));
 }
 
 // ============ Interactions globales ============
