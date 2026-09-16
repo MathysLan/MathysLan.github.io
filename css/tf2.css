@@ -123,6 +123,10 @@
   --edge-w: 2px;              /* épaisseur de la bordure de panneau */
   --grain: .05;               /* opacité de la texture papier */
   --halo-opacity: .16;
+
+  /* -- usure de surface : taches de carton + fibres (voir « Textures ») -- */
+  --tex-opacity: .4;
+  --tex-edge: rgba(0, 0, 0, .28);
 }
 
 /* --------------------------------------------------- Thème clair : Blueprint
@@ -144,11 +148,11 @@ html.light {
 
   --ink: #251d12;
   --ink-2: #4a3c26;
-  --ink-3: #6b5a3e;
+  --ink-3: #5e4f37;
   --cream: #6b5a3e;
 
   --orange: #a8521b;
-  --orange-ink: #8f4310;
+  --orange-ink: #7e390a;
   --red: #9e2d30;
   --blu: #3c6280;
   --red-ink: #7a1a1d;
@@ -180,6 +184,12 @@ html.light {
 
   --grain: .07;
   --halo-opacity: .10;
+  /* Sur papier une tache se voit bien plus, et elle ASSOMBRIT le fond sous des
+     encres sombres : texture réduite, et pas d usure des bords (c est là que
+     sont les titres). --ink-3 et --orange-ink ont été foncés d un cran pour
+     tenir 4.5:1 sur la tache la plus sombre possible. */
+  --tex-opacity: .12;
+  --tex-edge: transparent;
 }
 
 /* Sur petit écran le biseau doit rester lisible : un coin coupé de 14 px sur
@@ -274,6 +284,26 @@ html.light body::after {
     linear-gradient(rgba(61, 92, 122, .10) 1px, transparent 1px),
     linear-gradient(90deg, rgba(61, 92, 122, .10) 1px, transparent 1px);
   background-size: 28px 28px;
+}
+
+/* ------------------------------------------------------------- Textures
+   Le grain ci-dessus est fixe et fin : il donne la matière, pas l'usure. Pour
+   casser l'aplat, il faut des accidents à plus grande échelle, qui défilent
+   avec le contenu : des taches de carton et des fibres horizontales.
+
+   Tout est GÉNÉRÉ (feTurbulence), rien n'est téléchargé : aucune licence à
+   suivre, aucun asset du jeu, et une seule tuile de 720 px rastérisée une fois.
+     - taches : bruit très basse fréquence, seuillé par feColorMatrix pour ne
+       garder que les pics → des auréoles éparses plutôt qu'un voile uniforme ;
+     - fibres : bruit étiré (fréquence .003 en x, .6 en y), seuillé plus dur
+       → quelques traits fins, comme le carton ondulé vu de près.
+   La couleur est un brun sombre fixe, l'intensité vient de --tex-opacity.
+
+   Contraste : l'alpha d'une tache est borné à 1, donc le fond le plus sombre
+   possible sous un texte est --bg assombri de --tex-opacity (+ l'usure des
+   bords). C'est CE fond-là qui est audité, pas --bg. */
+:root {
+  --tex-stains: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='720' height='720'%3E%3Cfilter id='s' x='0' y='0' width='720' height='720' filterUnits='userSpaceOnUse'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.0056' numOctaves='4' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .12 0 0 0 0 .08 0 0 0 0 .04 4 0 0 0 -2.3'/%3E%3C/filter%3E%3Cfilter id='f' x='0' y='0' width='720' height='720' filterUnits='userSpaceOnUse'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.0028 .5' numOctaves='2' seed='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .12 0 0 0 0 .08 0 0 0 0 .04 10 0 0 0 -6.7'/%3E%3C/filter%3E%3Crect width='720' height='720' filter='url(%23s)'/%3E%3Crect width='720' height='720' filter='url(%23f)' opacity='.5'/%3E%3C/svg%3E");
 }
 
 ::-webkit-scrollbar { width: 12px; }

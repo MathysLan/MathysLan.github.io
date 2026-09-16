@@ -191,6 +191,29 @@ html.light .nav-link:hover, html.light .nav-link.is-active { background: rgba(74
   transition: transform .55s cubic-bezier(.16, .8, .3, 1);
   background: var(--halo, var(--orange));
 }
+/* L'usure de la section (tokens dans tf2.css, « Textures »). Posée sur le
+   calque du halo parce qu'il est déjà là dans les sept blocs, plein cadre,
+   non cliquable et sous le contenu (z-10) : aucune ligne de HTML à toucher.
+   Les panneaux restent propres par-dessus, c'est voulu — le fond est usé,
+   l'interface ne l'est pas. */
+.section-halo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: var(--tex-opacity);
+  background-image: var(--tex-stains);
+  background-size: 720px 720px;
+}
+/* Usure des bords : un second calque à pleine opacité, sinon --tex-opacity
+   l'écraserait aussi. Porté par la section elle-même, sous tout le reste. */
+.section-halo {
+  background: radial-gradient(ellipse 75% 70% at 50% 50%, transparent 55%, var(--tex-edge) 100%);
+}
+/* Décale la tuile d'une section à l'autre : sans ça, on reconnaît la même
+   tache au même endroit en passant de RED à BLU. */
+[data-team="blu"] > .section-halo::after { background-position: 310px 190px; }
+#hero > .section-halo::after { background-position: 520px 430px; }
+
 .halo-red { --halo: var(--red); }
 .halo-blu { --halo: var(--blu); }
 .halo-violet { --halo: var(--q-unusual); }

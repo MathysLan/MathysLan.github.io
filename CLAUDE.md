@@ -137,7 +137,11 @@ démarre qu'après un seuil de 6 px pour que le lien « Jouer » reste cliquable
   `.tf-btn` ✅ ; 4 compétences en « stats d'arme » ✅ : infobulle d'objet
   (primitive `.item-desc`) à droite du nom dans le hero, sous les CTA en
   dessous de 1180 px, texte dans `i18n.js` (`skills.*`) ; 5 textures de fond
-  par section (à faire). Puis polish : 6 réticule SVG, 7 easter egg (sur
+  ✅ : taches + fibres générées en `feTurbulence` (token `--tex-stains`),
+  posées sur `.section-halo::after`. ⚠️ Le filtre SVG doit avoir une région =
+  la tuile (`filterUnits='userSpaceOnUse'`), sinon coutures tous les 720 px.
+  En Blueprint la tache assombrit le papier : `--ink-3` / `--orange-ink` y ont
+  été foncés pour tenir 4.5:1 sur la tache la plus sombre. Puis polish : 6 réticule SVG, 7 easter egg (sur
   `js/easter.js`), 8 barre « SIGNAL SÉCURISÉ ✓ » du guichet. Le 9 (icônes de
   nav) était déjà fait. Règle : aucun asset Valve (images, sons, voix), tout
   est refait en CSS/SVG. Mis de côté sauf demande : switch RED/BLU, sons du

@@ -106,6 +106,9 @@ document.getElementById('f').addEventListener('load', function () {
       // Theme
       d.getElementById('theme-toggle').click();
       t('theme blueprint actif', d.documentElement.classList.contains('light'));
+      // Sur papier la tache assombrit le fond sous des encres sombres : elle doit rester legere.
+      t('texture plus legere en Blueprint',
+        +w.getComputedStyle(d.querySelector('.section-halo'), '::after').opacity <= .15);
       d.getElementById('theme-toggle').click();
       t('retour Mann Co.', !d.documentElement.classList.contains('light'));
 
@@ -163,6 +166,19 @@ document.getElementById('f').addEventListener('load', function () {
       var rt = d.getElementById('hero-title').getBoundingClientRect(), rl = lo.getBoundingClientRect();
       t('la carte ne chevauche pas le nom',
         rl.left >= rt.right || rl.top >= rt.bottom || rl.right <= rt.left || rl.bottom <= rt.top);
+
+      // Textures de fond : une couche d'usure par section, generee, discrete.
+      var halos = d.querySelectorAll('.section-halo');
+      t('texture sur les 7 blocs (' + halos.length + ')', halos.length === 7 && [].every.call(halos, function (h) {
+        return /data:image\/svg/.test(w.getComputedStyle(h, '::after').backgroundImage);
+      }));
+      // Sans region de filtre explicite, le bruit se repete a 864 px sur une
+      // tuile de 720 : des coutures verticales apparaissent.
+      t('texture sans couture (region de filtre = tuile)',
+        /userSpaceOnUse/.test(w.getComputedStyle(d.documentElement).getPropertyValue('--tex-stains')));
+      t('texture discrete en Mann Co. (opacite ' + w.getComputedStyle(halos[1], '::after').opacity + ')',
+        +w.getComputedStyle(halos[1], '::after').opacity <= .5);
+      t('texture non cliquable', w.getComputedStyle(halos[1]).pointerEvents === 'none');
 
       // Nav au scroll
       var nav = d.querySelector('#navbar nav');
