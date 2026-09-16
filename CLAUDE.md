@@ -6,8 +6,11 @@ contexte**. Si tu débarques : lis-le en entier avant de toucher quoi que ce soi
 ## Le principe de base : front statique + serveurs séparés
 
 - **Le portfolio** (`mathyslan.github.io`) est un site **statique** : HTML +
-  Vanilla JS + Tailwind (CDN). Hébergé sur **GitHub Pages**. Aucun build, aucun
-  framework. Pas de logique de jeu ici.
+  Vanilla JS + Tailwind **compilé** (`css/tailwind.css`, plus de CDN). Hébergé
+  sur **GitHub Pages**, servi tel quel. Aucun framework. Pas de logique de jeu
+  ici. Un seul script de génération, `tools/build.mjs` (Node, zéro dépendance) :
+  pré-rendu du contenu de `data/*.js` dans `index.html`, compilation Tailwind
+  via `npx`, sitemap. Voir « Stabilisation » plus bas.
 - **Chaque jeu multijoueur a son PROPRE serveur** Node.js (WebSocket, lib `ws`),
   déployé **à part sur Render**. Le front et le back ne vivent PAS dans le même
   repo : ce repo ne contient que le **front**. Les serveurs sont livrés/déployés
@@ -31,12 +34,22 @@ contexte**. Si tu débarques : lis-le en entier avant de toucher quoi que ce soi
 | **Imitation** | `games/imitation/` | serveur dédié (Render) | Enregistrement voix (MediaRecorder + Web Audio), vidéos de référence sur **Cloudflare R2** (CORS requis). Double waveform référence (ambre) + voix (violet) pour juger la synchro. |
 | **Le Jeu du Ban** | `games/ban/` | `ban-server` (Render) | Une vidéo (CDN R2) cache un mot interdit à `fatal` (secondes). Chacun son tour, on stoppe au plus tard sans dépasser. Serveur : `setTimeout` pour le rythme + filet anti-blocage, temps recoupé à l'horloge serveur (anti-triche), ordre de passage aléatoire par vidéo. `fatal` jamais envoyé avant `results`. **Catalogue = `games/ban/videos.json` DANS CE REPO** (`{id, fatal, startAt}`) : le serveur le fetch depuis Pages à chaque partie (cache 10 s), donc Mathys édite le JSON + push, aucun redeploy Render. Contrepartie assumée : `fatal` public. |
 | **Précision** | `games/precision/` | `precision-server` (Render) | Party game inspiré de dialed.gg : 4 épreuves (shape/color/sound/time). TOUT LE MONDE joue en même temps. Le serveur génère la cible, tient les timers de phase (`memorize`→`play`, durées selon la difficulté Facile→Impossible) et calcule la précision 0–100 %. Moteur pur `engine-precision.js` (barèmes + scoring : teinte circulaire, symétrie du triangle, cents pour le son). Cible envoyée en `memorize` seulement ; `time` recoupé à l'horloge serveur. |
-| **Puissance 4** | `games/` + `launchConnect4` | serveur dédié | lancé via bouton du carousel. |
+| **Puissance 4** | `js/connect4.js` (`launchConnect4`) | aucun (100 % navigateur) | Canvas, bot heuristique gagner > bloquer > centre. Lancé par le carousel, INSERT COIN, Ctrl+K, Konami. |
+| **Morpion** | `games/morpion/` | `morpion-server` (Render) | URL du serveur fixée dans `net.js` (pas de `?server=`, contrairement aux autres). |
 
 Le **carousel des jeux** (`js/carousel.js`) est un coverflow 3D ; le drag ne
 démarre qu'après un seuil de 6 px pour que le lien « Jouer » reste cliquable.
 
 ## Contraintes de l'environnement de dev (IMPORTANT)
+
+- **Poste Windows de Mathys** (Claude Code en local) : `git push` fonctionne.
+  **Pas de Node ni de Python installés** : pour exécuter `tools/build.mjs` ou
+  une conversion d'images, télécharger le zip Node officiel dans le scratchpad
+  (vérifier le SHA-256), rien sur le système. Navigateur de test : Edge
+  headless (`msedge --headless=new`). Sous PowerShell la sortie de
+  `--dump-dom` est vide : passer par l'outil Bash.
+- Les notes ci-dessous (proxy, Playwright sous /opt, zip) concernent
+  l'environnement **cloud** Linux utilisé pour les serveurs.
 
 - **Le proxy sortant bloque le réseau externe** (HTTP 000/403). On ne peut donc
   PAS joindre les serveurs Render ni R2 depuis l'environnement. Pour tester :
@@ -164,6 +177,43 @@ démarre qu'après un seuil de 6 px pour que le lien « Jouer » reste cliquable
   est refait en CSS/SVG. Mis de côté sauf demande : switch RED/BLU, sons du
   jeu, vidéo « Meet the Team ». Les textes écrits à la place de Mathys
   (objectifs, stats) lui sont soumis avant publication.
+- **Stabilisation / professionnalisation (2026-09-16)**, sans toucher à
+  l'identité. Ce qui a changé et qu'il ne faut pas casser :
+  - **Accessibilité** : menu mobile (`inert` fermé, aria-expanded, Échap,
+    focus), lightbox (visibility quand fermée, piège à focus, focus rendu),
+    palette (combobox/listbox), carousel (role region, points nommés, bouton
+    pause, rotation coupée hors écran), killfeed `aria-hidden`, `aria-label`
+    traduits via `data-i18n-aria`. Échap : la fenêtre du dessus fait
+    `preventDefault`, celles du dessous ignorent une touche déjà traitée.
+    La croix de la fiche écoute `click` (au mousedown elle ne marchait pas au
+    clavier).
+  - **Mouvement réduit** respecté aussi en JS : `prefersReducedMotion()` et
+    `scrollBehavior()` (main.js), lus au moment de l'animation.
+  - **Sans JS** : classe `js` posée dans le `<head>` ; `.js .reveal` seul est
+    caché ; `.js-only` / `.nojs-only` ; carousel en grille ; compteurs avec
+    leur vraie valeur dans le HTML (l'animation n'est qu'une couche).
+  - **Pré-rendu** : `js/templates.js` = balisage partagé navigateur/build.
+    Contenu entre `<!-- build:… -->` dans index.html = GÉNÉRÉ. Après toute
+    modif de `data/`, `templates.js` ou d'une classe Tailwind : `node
+    tools/build.mjs`. CI `.github/workflows/generated-files.yml` = `--check`.
+  - **Tailwind 3.4.17 compilé**, placé APRÈS style.css (c'est là que le CDN
+    injectait ses styles). Équivalence vérifiée : géométrie identique des 1031
+    éléments à 1280/390 px, deux thèmes.
+  - **SEO** : canonical, Open Graph, Twitter, JSON-LD Person (faits affichés
+    seulement), `assets/og-image.png` généré depuis `tools/og-image.html`,
+    robots.txt ne bloque plus `/data/`, sitemap généré depuis data/games.js,
+    `games/ban/calibrate.html` en noindex.
+  - **Perf** : images en WebP (vignettes 480 px dans `assets/projects/thumbs/`),
+    polices WOFF2 préchargées, thème posé dans le `<head>` (plus de flash),
+    un seul écouteur de scroll (rAF), terminal en pause hors écran.
+  - **Contenu** : `data/projects.js` a des champs `goal` / `role` / `result`
+    / `team` ; `data/games.js` a `code` / `arch` (bouton Architecture →
+    même modale que les projets). ⚠️ **`role` (ma part) n'est rempli que pour
+    AgiLab** : pour les projets d'équipe, Mathys doit dire ce qu'il a fait —
+    NE PAS l'inventer. Le dépôt des radars n'est pas lié : son README publie
+    une IP interne et des identifiants par défaut.
+  - **Tests** : `tests/front.html` (bureau + téléphone + sans JS) à lancer
+    DEUX fois, dont une avec `--force-prefers-reduced-motion`.
 - **Précision** (nouveau) : back `precision-server` livré à part
   (`engine-precision.js` pur + `server.js` avec les setTimeout de phase), front
   `games/precision/` sur `wss://precision-server.onrender.com`. Le MJ choisit
