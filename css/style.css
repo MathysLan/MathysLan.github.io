@@ -336,7 +336,7 @@ html.light #hero-title {
   border: none;
   font: inherit;
   text-align: left;
-  cursor: pointer;
+  cursor: var(--cursor-cross), pointer;
   color: inherit;
 }
 .bp-cell:focus-visible {
@@ -762,10 +762,15 @@ body.modal-open { overflow: hidden; }
   height: var(--vp-h);
   perspective: 1400px;
   overflow: hidden;
-  cursor: grab;
+  cursor: var(--cursor-cross), grab;
   touch-action: pan-y;      /* le scroll vertical de la page reste possible */
 }
-#games-carousel.dragging #games-viewport { cursor: grabbing; }
+/* Le réticule au repos ; pendant le glissement, la main fermée dit qu'on tient
+   la piste. Les liens et boutons des cartes le gardent aussi : un <a> impose
+   sinon sa main de lien par la feuille du navigateur. */
+#games-viewport a, #games-viewport button { cursor: var(--cursor-cross), pointer; }
+#games-carousel.dragging #games-viewport,
+#games-carousel.dragging #games-viewport * { cursor: grabbing; }
 #games-track { position: absolute; inset: 0; transform-style: preserve-3d; }
 .game-slide {
   position: absolute;

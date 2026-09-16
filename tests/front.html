@@ -104,8 +104,13 @@ document.getElementById('f').addEventListener('load', function () {
       t('retour FR', /Projets/.test(d.querySelector('#projects h2').textContent));
 
       // Theme
+      var crossDark = w.getComputedStyle(d.getElementById('theme-toggle')).cursor;
       d.getElementById('theme-toggle').click();
       t('theme blueprint actif', d.documentElement.classList.contains('light'));
+      // Le reticule s'inverse avec le theme (un token par theme, cf. tf2.css).
+      t('reticule a la couleur du theme',
+        /url\(/.test(w.getComputedStyle(d.getElementById('theme-toggle')).cursor)
+        && w.getComputedStyle(d.getElementById('theme-toggle')).cursor !== crossDark);
       // Sur papier la tache assombrit le fond sous des encres sombres : elle doit rester legere.
       t('texture plus legere en Blueprint',
         +w.getComputedStyle(d.querySelector('.section-halo'), '::after').opacity <= .15);
@@ -179,6 +184,19 @@ document.getElementById('f').addEventListener('load', function () {
       t('texture discrete en Mann Co. (opacite ' + w.getComputedStyle(halos[1], '::after').opacity + ')',
         +w.getComputedStyle(halos[1], '::after').opacity <= .5);
       t('texture non cliquable', w.getComputedStyle(halos[1]).pointerEvents === 'none');
+
+      // Reticule : seulement sur ce qu'on vise.
+      function cur(el) { return el ? w.getComputedStyle(el).cursor : '(absent)'; }
+      function cross(el) { return /url\(/.test(cur(el)); }
+      t('reticule sur les boutons', cross(d.querySelector('#hero .tf-btn-buy')) && cross(d.getElementById('theme-toggle')));
+      // Requete fraiche : la bascule de langue a re-rendu les cases, cells[] est detache.
+      t('reticule sur les cases du sac a dos', cross(d.querySelector('#projects-grid .bp-cell')));
+      t('reticule sur le carousel et ses liens',
+        cross(d.getElementById('games-viewport')) && cross(d.querySelector('#games-viewport a.game-cta, #games-viewport button.game-cta')));
+      t('pas de reticule ailleurs [' + cur(d.body) + ']',
+        !cross(d.body) && !cross(d.querySelector('#assos p')) && !cross(d.querySelector('#timeline h2')));
+      t('les champs gardent leur curseur', !cross(d.getElementById('cf-name')) && !cross(d.getElementById('cf-message')));
+      t('l etat indisponible n a pas le reticule', !ghost || !cross(ghost));
 
       // Nav au scroll
       var nav = d.querySelector('#navbar nav');

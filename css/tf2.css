@@ -190,6 +190,9 @@ html.light {
      tenir 4.5:1 sur la tache la plus sombre possible. */
   --tex-opacity: .12;
   --tex-edge: transparent;
+  /* Réticule inversé : encre sombre, liseré clair pour rester visible sur une
+     capture ou une case sombre posée sur le papier. */
+  --cursor-cross: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='none' stroke-linecap='round'%3E%3Cpath d='M11.5 10Q7.5 16 11.5 22M20.5 10Q24.5 16 20.5 22' stroke='%23fff' stroke-opacity='.85' stroke-width='4'/%3E%3Ccircle cx='16' cy='16' r='2.7' fill='%23fff' fill-opacity='.85'/%3E%3Cpath d='M11.5 10Q7.5 16 11.5 22M20.5 10Q24.5 16 20.5 22' stroke='%23251d12' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='1.6' fill='%23251d12'/%3E%3C/svg%3E") 16 16;
 }
 
 /* Sur petit écran le biseau doit rester lisible : un coin coupé de 14 px sur
@@ -306,6 +309,22 @@ html.light body::after {
   --tex-stains: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='720' height='720'%3E%3Cfilter id='s' x='0' y='0' width='720' height='720' filterUnits='userSpaceOnUse'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.0056' numOctaves='4' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .12 0 0 0 0 .08 0 0 0 0 .04 4 0 0 0 -2.3'/%3E%3C/filter%3E%3Cfilter id='f' x='0' y='0' width='720' height='720' filterUnits='userSpaceOnUse'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.0028 .5' numOctaves='2' seed='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .12 0 0 0 0 .08 0 0 0 0 .04 10 0 0 0 -6.7'/%3E%3C/filter%3E%3Crect width='720' height='720' filter='url(%23s)'/%3E%3Crect width='720' height='720' filter='url(%23f)' opacity='.5'/%3E%3C/svg%3E");
 }
 
+
+/* ------------------------------------------------------------- Le réticule
+   Le réticule par défaut du jeu, redessiné : un point entre deux parenthèses,
+   ( • ). Il ne remplace PAS le curseur de tout le site — seulement celui de ce
+   qu'on vise : boutons, cases d'objet, carousel. Partout ailleurs la flèche
+   reste la flèche, et les champs gardent leur curseur texte.
+
+   Deux traits superposés : un liseré large et sombre, puis le trait clair.
+   C'est ce qui le garde lisible sur une capture blanche comme sur le brun. Le
+   thème clair inverse les deux (voir html.light). La couleur ne peut pas venir
+   d'une variable CSS — un SVG en data: ne les voit pas — d'où un token par
+   thème. Point chaud en 16 16, le centre ; « pointer » en repli. */
+:root {
+  --cursor-cross: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='none' stroke-linecap='round'%3E%3Cpath d='M11.5 10Q7.5 16 11.5 22M20.5 10Q24.5 16 20.5 22' stroke='%23000' stroke-opacity='.75' stroke-width='4'/%3E%3Ccircle cx='16' cy='16' r='2.7' fill='%23000' fill-opacity='.75'/%3E%3Cpath d='M11.5 10Q7.5 16 11.5 22M20.5 10Q24.5 16 20.5 22' stroke='%23f0e7d2' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='1.6' fill='%23f0e7d2'/%3E%3C/svg%3E") 16 16;
+}
+
 ::-webkit-scrollbar { width: 12px; }
 ::-webkit-scrollbar-track { background: var(--bg-deep); }
 ::-webkit-scrollbar-thumb {
@@ -409,7 +428,7 @@ html.light body::after {
   letter-spacing: .02em;
   padding: .7rem 1.5rem;
   border: none;
-  cursor: pointer;
+  cursor: var(--cursor-cross), pointer;   /* on vise un bouton : le réticule */
   color: var(--ink);
   background: var(--btn);
   clip-path: polygon(

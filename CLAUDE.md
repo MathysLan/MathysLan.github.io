@@ -141,7 +141,11 @@ démarre qu'après un seuil de 6 px pour que le lien « Jouer » reste cliquable
   posées sur `.section-halo::after`. ⚠️ Le filtre SVG doit avoir une région =
   la tuile (`filterUnits='userSpaceOnUse'`), sinon coutures tous les 720 px.
   En Blueprint la tache assombrit le papier : `--ink-3` / `--orange-ink` y ont
-  été foncés pour tenir 4.5:1 sur la tache la plus sombre. Puis polish : 6 réticule SVG, 7 easter egg (sur
+  été foncés pour tenir 4.5:1 sur la tache la plus sombre. Puis polish : 6
+  réticule ✅ : ( • ) en SVG, token `--cursor-cross` (un par thème, un SVG en
+  data: ne voit pas les variables CSS), UNIQUEMENT sur `.tf-btn`, `.bp-cell` et
+  le carousel (main fermée pendant le glissement) — choix de Mathys, pas sur
+  tout le site ; 7 easter egg (sur
   `js/easter.js`), 8 barre « SIGNAL SÉCURISÉ ✓ » du guichet. Le 9 (icônes de
   nav) était déjà fait. Règle : aucun asset Valve (images, sons, voix), tout
   est refait en CSS/SVG. Mis de côté sauf demande : switch RED/BLU, sons du
