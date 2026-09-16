@@ -13,7 +13,7 @@
     wrap.classList.remove('hidden');
     if (!canvas) init();
     reset();
-    wrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    wrap.scrollIntoView({ behavior: scrollBehavior(), block: 'center' });
   };
 
   function init() {

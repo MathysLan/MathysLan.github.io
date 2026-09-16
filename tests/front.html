@@ -8,15 +8,21 @@
   body { margin:0; background:#111; color:#8f8; font:13px/1.6 monospace; }
   #log { padding:10px; white-space:pre-wrap; }
   iframe { width:1100px; height:900px; border:0; position:fixed; left:-9999px; }
+  #m { width:390px; height:800px; }
   .ko { color:#f77; }
 </style>
 </head>
 <body>
 <div id="log">chargement…</div>
 <iframe id="f" src="../index.html"></iframe>
+<!-- Largeur telephone : menu burger. -->
+<iframe id="m" src="../index.html"></iframe>
+<!-- Sans JS : sandbox sans allow-scripts. Ce qui doit rester lisible et juste. -->
+<iframe id="nojs" sandbox="allow-same-origin" src="../index.html"></iframe>
 <script>
 // Pilote le vrai index.html dans une iframe (meme origine avec
 // --allow-file-access-from-files) : on ne touche pas au fichier livre.
+// Lancer aussi avec --force-prefers-reduced-motion : les tests suivent le mode.
 var out = [], errs = [];
 function t(name, ok) { out.push((ok ? 'OK   ' : 'KO   ') + name); if (!ok) out.ko = true; }
 var ran = false;   // un mailto: peut recharger l'iframe : on ne rejoue pas la suite
@@ -25,6 +31,8 @@ document.getElementById('f').addEventListener('load', function () {
   var w = this.contentWindow, d = this.contentDocument;
   w.addEventListener('error', function (e) { errs.push(e.message + ' @' + String(e.filename).split('/').pop() + ':' + e.lineno); });
   setTimeout(function () {
+    var reduced = w.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    out.push('--- mode : ' + (reduced ? 'MOUVEMENT REDUIT' : 'mouvement normal'));
     try {
       // Sac a dos
       var cells = d.querySelectorAll('#projects-grid .bp-cell');
@@ -52,7 +60,9 @@ document.getElementById('f').addEventListener('load', function () {
       // Un projet sans depot ne doit pas afficher un lien GitHub mort.
       cells[0].click();
       t('lien GitHub masque si absent', im.querySelector('.im-gh').hidden);
+      // .click() seul = ce que declenchent Entree et Espace sur le bouton.
       im.querySelector('.im-close').click();
+      t('la croix de la fiche fonctionne au clavier', im.hidden);
 
       var slides = d.querySelectorAll('.game-slide');
       t('cartes jeux rendues (' + slides.length + ')', slides.length === 7);
@@ -78,22 +88,45 @@ document.getElementById('f').addEventListener('load', function () {
         /inset/.test(w.getComputedStyle(bac).boxShadow));
 
       // Lightbox : ouverte depuis la modale, elle doit passer AU-DESSUS d'elle.
+      var lb = d.getElementById('lightbox');
+      t('lightbox fermee : hors clavier et lecteurs (visibility)', w.getComputedStyle(lb).visibility === 'hidden');
       cells[1].click();
-      im.querySelector('.im-shots').click();
-      t('lightbox ouverte depuis la modale', d.getElementById('lightbox').classList.contains('open'));
+      var shotsBtn = im.querySelector('.im-shots');
+      shotsBtn.focus();
+      shotsBtn.click();
+      t('lightbox ouverte depuis la modale', lb.classList.contains('open'));
       t('lightbox au-dessus de la modale',
-        +w.getComputedStyle(d.getElementById('lightbox')).zIndex > +w.getComputedStyle(im).zIndex);
-      d.getElementById('lightbox-close').click();
-      t('lightbox refermee', !d.getElementById('lightbox').classList.contains('open'));
+        +w.getComputedStyle(lb).zIndex > +w.getComputedStyle(im).zIndex);
+      t('focus dans la lightbox', d.activeElement === d.getElementById('lightbox-close'));
+      d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
+      t('Tab reste dans la lightbox', lb.contains(d.activeElement));
+      d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      t('Echap ferme la lightbox', !lb.classList.contains('open'));
+      // Deux ecouteurs Echap sur document : la fiche dessous ne doit PAS se fermer aussi.
+      t('... mais pas la fiche d objet dessous', !im.hidden);
+      t('focus rendu au bouton captures', d.activeElement === shotsBtn);
       im.querySelector('.im-close').click();
+      t('fiche refermee avant la suite', im.hidden);
 
       // Palette de commandes
+      var langBtn = d.getElementById('lang-toggle');
+      langBtn.focus();
       d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }));
       t('palette Ctrl+K ouverte', d.getElementById('cmdk-overlay').classList.contains('open'));
+      var ck = d.querySelector('#cmdk input');
+      t('palette : champ nomme, liste d options',
+        ck.getAttribute('role') === 'combobox' && ck.hasAttribute('aria-label')
+        && d.querySelectorAll('#cmdk-list [role="option"]').length > 5);
+      t('palette : option active annoncee', ck.getAttribute('aria-activedescendant') === 'cmdk-opt-0');
+      ck.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+      t('palette : fleche bas deplace l option active',
+        ck.getAttribute('aria-activedescendant') === 'cmdk-opt-1'
+        && d.getElementById('cmdk-opt-1').getAttribute('aria-selected') === 'true');
       // Echap est ecoute sur le champ de saisie (qui recoit le focus a
       // l'ouverture), pas sur le document : on dispatche donc au bon endroit.
       d.querySelector('#cmdk input').dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       t('palette refermee (Echap)', !d.getElementById('cmdk-overlay').classList.contains('open'));
+      t('palette : focus rendu a l element d origine', d.activeElement === langBtn);
 
       // Langue
       d.getElementById('lang-toggle').click();
@@ -101,6 +134,9 @@ document.getElementById('f').addEventListener('load', function () {
       t('bascule EN [' + h2.textContent.trim().slice(0, 16) + ']', /project/i.test(h2.textContent));
       t('competences traduites [' + d.getElementById('loadout-name').textContent + ']',
         d.getElementById('loadout-name').textContent === 'Strange DB Admin');
+      t('aria-label traduits en EN [' + d.getElementById('lightbox-close').getAttribute('aria-label') + ']',
+        d.getElementById('lightbox-close').getAttribute('aria-label') === 'Close'
+        && d.getElementById('games-next').getAttribute('aria-label') === 'Next game');
       t('pictogrammes de nav conserves (' + d.querySelectorAll('.nav-link svg').length + '/6)', d.querySelectorAll('.nav-link svg').length === 6);
       d.getElementById('lang-toggle').click();
       t('retour FR', /Projets/.test(d.querySelector('#projects h2').textContent));
@@ -207,11 +243,15 @@ document.getElementById('f').addEventListener('load', function () {
       t('declencheur = bouton nomme', spy.tagName === 'BUTTON' && spy.textContent.trim().length > 0);
       t('crabe et fiche caches au depart', crab.hidden && note.hidden);
       spy.click();
-      t('clic : le Spy entre en marchant', !crab.hidden && crab.classList.contains('is-walking') && note.hidden);
+      if (reduced) {
+        t('mouvement reduit : le Spy apparait sans marcher', !crab.hidden && !crab.classList.contains('is-walking'));
+      } else {
+        t('clic : le Spy entre en marchant', !crab.hidden && crab.classList.contains('is-walking') && note.hidden);
+      }
       t('le crabe ne bloque aucun clic', w.getComputedStyle(crab).pointerEvents === 'none');
       spy.click();
-      t('un seul Spy a la fois', d.querySelectorAll('.spycrab').length === 1 && crab.classList.contains('is-entering'));
-      arrive('crab-in');
+      t('un seul Spy a la fois', d.querySelectorAll('.spycrab').length === 1);
+      if (!reduced) arrive('crab-in');
       t('arrive au milieu : la fiche s ouvre', !note.hidden && crab.classList.contains('is-idle'));
       t('focus sur OK', d.activeElement === note.querySelector('.secret-ok'));
       t('fiche annoncee ouverte', spy.getAttribute('aria-expanded') === 'true');
@@ -219,13 +259,53 @@ document.getElementById('f').addEventListener('load', function () {
         && note.querySelectorAll('.attr-list li').length >= 3);
       d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       t('Echap ferme la fiche, focus rendu au masque', note.hidden && d.activeElement === spy);
-      t('puis le Spy repart', crab.classList.contains('is-leaving') && !crab.hidden);
-      arrive('crab-out');
+      if (!reduced) {
+        t('puis le Spy repart', crab.classList.contains('is-leaving') && !crab.hidden);
+        arrive('crab-out');
+      }
       t('sorti : crabe cache, rejouable', crab.hidden && crab.className === 'spycrab');
 
       // Nav au scroll
       var nav = d.querySelector('#navbar nav');
       t('nav sans panneau en haut de page', !nav.classList.contains('panel'));
+
+      // Killfeed : decoratif, pas annonce.
+      t('killfeed cache des lecteurs d ecran',
+        d.getElementById('killfeed').getAttribute('aria-hidden') === 'true' && !d.getElementById('killfeed').hasAttribute('aria-live'));
+      t('menu mobile inerte quand il est ferme', d.getElementById('mobile-menu').inert === true);
+
+      // Carousel au clavier et au lecteur d'ecran
+      var car = d.getElementById('games-carousel');
+      t('carousel : role region + description', car.getAttribute('role') === 'region' && car.hasAttribute('aria-roledescription'));
+      var dotsEl = d.querySelectorAll('#games-dots .game-dot');
+      t('carousel : points nommes par le jeu [' + dotsEl[0].getAttribute('aria-label') + ']',
+        dotsEl[0].getAttribute('aria-label') === d.querySelector('.game-slide .game-title').textContent);
+      t('carousel : point actif signale', d.querySelectorAll('#games-dots [aria-current="true"]').length === 1);
+      var pb = d.getElementById('games-pause');
+      if (reduced) {
+        t('mouvement reduit : pas de bouton pause (pas de rotation)', pb.hidden);
+      } else {
+        pb.click();
+        t('pause : etat annonce', pb.getAttribute('aria-pressed') === 'true' && /Reprendre|Resume/.test(pb.getAttribute('aria-label')));
+        pb.click();
+        t('reprise : etat annonce', pb.getAttribute('aria-pressed') === 'false');
+      }
+      var slidesNow = d.querySelectorAll('.game-slide');
+      var sideLink = slidesNow[2].querySelector('.game-cta');
+      sideLink.focus();
+      t('focus sur une carte laterale : elle vient au centre', slidesNow[2].classList.contains('is-active'));
+      sideLink.blur();
+
+      // Mouvement reduit : les animations JS doivent suivre la preference.
+      var term = d.getElementById('term-line');
+      if (reduced) {
+        t('mouvement reduit : terminal sans frappe (ligne complete)',
+          term.textContent === w.eval('TERM_LINES').fr[0] && !term.classList.contains('terminal-caret'));
+        t('mouvement reduit : compteurs directement a leur valeur',
+          [].every.call(d.querySelectorAll('[data-count]'), function (c) { return c.textContent === c.dataset.count; }));
+      } else {
+        t('mouvement normal : le terminal tape', term.classList.contains('terminal-caret'));
+      }
 
     } catch (e) {
       out.push('EXCEPTION: ' + e.message);
@@ -267,10 +347,48 @@ document.getElementById('f').addEventListener('load', function () {
         cfm.dispatchEvent(new w.Event('submit', { cancelable: true, bubbles: true }));
         t('un champ vide masque la barre', cap.hidden);
       } catch (e) { out.push('EXCEPTION capture fin: ' + e.message); out.ko = true; }
+
+      // --- Telephone (390 px) : le menu burger ---
+      try {
+        var mw = document.getElementById('m').contentWindow, md = mw.document;
+        var burger = md.getElementById('burger'), menu = md.getElementById('mobile-menu');
+        var links = menu.querySelectorAll('a');
+        t('mobile : burger visible', mw.getComputedStyle(burger).display !== 'none');
+        t('mobile : burger relie au menu, ferme', burger.getAttribute('aria-controls') === 'mobile-menu'
+          && burger.getAttribute('aria-expanded') === 'false' && menu.inert);
+        burger.click();
+        t('mobile : ouverture annoncee, menu actif', burger.getAttribute('aria-expanded') === 'true' && !menu.inert
+          && /Fermer|Close/.test(burger.getAttribute('aria-label')));
+        t('mobile : focus sur le premier lien', md.activeElement === links[0]);
+        t('mobile : page derriere bloquee', md.body.style.overflow === 'hidden');
+        links[links.length - 1].focus();
+        md.dispatchEvent(new mw.KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
+        t('mobile : Tab apres le dernier lien revient au burger', md.activeElement === burger);
+        md.dispatchEvent(new mw.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+        t('mobile : Echap ferme et rend le focus au burger', burger.getAttribute('aria-expanded') === 'false'
+          && menu.inert && md.activeElement === burger && md.body.style.overflow === '');
+        burger.click();
+        links[1].click();
+        t('mobile : un lien ferme le menu', burger.getAttribute('aria-expanded') === 'false' && menu.inert);
+        t('mobile : pas de debordement horizontal (' + md.documentElement.scrollWidth + 'px)',
+          md.documentElement.scrollWidth <= 390);
+      } catch (e) { out.push('EXCEPTION mobile: ' + e.message); out.ko = true; }
+
+      // --- Sans JavaScript ---
+      try {
+        var nd = document.getElementById('nojs').contentDocument;
+        t('sans JS : pas de classe js', !nd.documentElement.classList.contains('js'));
+        t('sans JS : compteurs a leur vraie valeur (' +
+          [].map.call(nd.querySelectorAll('[data-count]'), function (c) { return c.textContent; }).join('/') + ')',
+          [].every.call(nd.querySelectorAll('[data-count]'), function (c) { return c.textContent === c.dataset.count; }));
+        var nw = document.getElementById('nojs').contentWindow;
+        t('sans JS : le contenu .reveal reste visible',
+          [].every.call(nd.querySelectorAll('.reveal'), function (r) { return nw.getComputedStyle(r).opacity === '1'; }));
+      } catch (e) { out.push('EXCEPTION sans JS: ' + e.message); out.ko = true; }
       t('aucune erreur JS', errs.length === 0);
       var head = out.ko ? 'DES TESTS ECHOUENT' : 'TOUT PASSE';
       document.getElementById('log').textContent =
-        head + ' — ' + out.length + ' verifications\n\n' + out.join('\n') +
+        head + ' — ' + out.filter(function (l) { return /^(OK|KO)/.test(l); }).length + ' verifications\n\n' + out.join('\n') +
         (errs.length ? '\n\nERREURS JS:\n' + errs.join('\n') : '');
     }, 1700);
   }, 900);

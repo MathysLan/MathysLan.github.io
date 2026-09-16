@@ -1,7 +1,8 @@
 // Command palette (Ctrl+K / Cmd+K) - navigation instantanée, zéro dépendance.
 // Le DOM n'est construit qu'à la première ouverture : coût nul pour qui ne s'en sert pas.
 (function () {
-  let overlay = null, input, list, items = [], active = 0;
+  let overlay = null, dialog, input, list, items = [], active = 0;
+  let opener = null;   // l'élément qui avait le focus, rendu à la fermeture
 
   const t = (fr, en) => (window.LANG === 'en' ? en : fr);
   const click = (id) => { const el = document.getElementById(id); if (el) el.click(); };
@@ -27,10 +28,14 @@
   function build() {
     overlay = document.createElement('div');
     overlay.id = 'cmdk-overlay';
-    overlay.innerHTML = '<div id="cmdk" role="dialog" aria-label="Palette de commandes">'
-      + '<input type="text" autocomplete="off" spellcheck="false">'
-      + '<div id="cmdk-list"></div></div>';
+    // Motif « combobox + listbox » : le focus reste dans le champ, la commande
+    // active est annoncée via aria-activedescendant.
+    overlay.innerHTML = '<div id="cmdk" role="dialog" aria-modal="true">'
+      + '<input type="text" autocomplete="off" spellcheck="false" role="combobox"'
+      + ' aria-expanded="true" aria-controls="cmdk-list" aria-autocomplete="list">'
+      + '<div id="cmdk-list" role="listbox"></div></div>';
     document.body.appendChild(overlay);
+    dialog = overlay.querySelector('#cmdk');
     input = overlay.querySelector('input');
     list = overlay.querySelector('#cmdk-list');
     overlay.addEventListener('mousedown', (e) => { if (e.target === overlay) close(); });
@@ -40,14 +45,24 @@
 
   function open() {
     if (!overlay) build();
+    if (!isOpen()) opener = document.activeElement;
     input.value = '';
     input.placeholder = t('Tape une commande…', 'Type a command…');
+    dialog.setAttribute('aria-label', t('Palette de commandes', 'Command palette'));
+    input.setAttribute('aria-label', t('Rechercher une commande', 'Search a command'));
     overlay.classList.add('open');
     render('');
     input.focus();
   }
 
-  function close() { if (overlay) overlay.classList.remove('open'); }
+  function close() {
+    if (!isOpen()) return;
+    overlay.classList.remove('open');
+    // preventScroll : une commande « Aller à » vient de faire défiler la page,
+    // rendre le focus ne doit pas la ramener en arrière.
+    if (opener && document.contains(opener) && opener !== document.body) opener.focus({ preventScroll: true });
+    opener = null;
+  }
   const isOpen = () => overlay && overlay.classList.contains('open');
 
   function render(filter) {
@@ -56,23 +71,32 @@
     active = 0;
     list.innerHTML = '';
     if (!items.length) {
-      list.innerHTML = '<p class="cmdk-empty">' + t('0 rows selected.', '0 rows selected.') + '</p>';
+      input.removeAttribute('aria-activedescendant');
+      list.innerHTML = '<p class="cmdk-empty" role="status">' + t('0 rows selected.', '0 rows selected.') + '</p>';
       return;
     }
     items.forEach((c, i) => {
       const el = document.createElement('div');
       el.className = 'cmdk-item' + (i === 0 ? ' active' : '');
-      el.innerHTML = '<span>' + c.icon + '</span><span>' + c.label + '</span>'
+      el.id = 'cmdk-opt-' + i;
+      el.setAttribute('role', 'option');
+      el.setAttribute('aria-selected', String(i === 0));
+      el.innerHTML = '<span aria-hidden="true">' + c.icon + '</span><span>' + c.label + '</span>'
         + (c.hint ? '<span class="k">' + c.hint + '</span>' : '');
       el.addEventListener('click', () => { close(); c.run(); });
       el.addEventListener('mousemove', () => setActive(i));
       list.appendChild(el);
     });
+    input.setAttribute('aria-activedescendant', 'cmdk-opt-0');
   }
 
   function setActive(i) {
     active = i;
-    [...list.children].forEach((el, j) => el.classList.toggle('active', j === i));
+    [...list.children].forEach((el, j) => {
+      el.classList.toggle('active', j === i);
+      el.setAttribute('aria-selected', String(j === i));
+    });
+    input.setAttribute('aria-activedescendant', 'cmdk-opt-' + i);
     const el = list.children[i];
     if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
   }
@@ -81,20 +105,30 @@
     if (e.key === 'ArrowDown') { e.preventDefault(); if (items.length) setActive((active + 1) % items.length); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); if (items.length) setActive((active - 1 + items.length) % items.length); }
     else if (e.key === 'Enter') { e.preventDefault(); const c = items[active]; if (c) { close(); c.run(); } }
-    else if (e.key === 'Escape') close();
+    // preventDefault : Échap est « consommé », les autres fenêtres ouvertes
+    // dessous (fiche d'objet) ne doivent pas se fermer avec.
+    else if (e.key === 'Escape') { e.preventDefault(); close(); }
+    // Le champ est le seul élément focusable de la palette : Tab ne doit pas
+    // partir sur la page cachée derrière le voile.
+    else if (e.key === 'Tab') e.preventDefault();
   }
 
   function jump(sel) {
     close();
     const el = document.querySelector(sel);
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
+    if (el) el.scrollIntoView({ behavior: scrollBehavior() });
   }
 
   function copyMail() {
-    navigator.clipboard.writeText('mathys.langiny@gmail.com').then(() => {
+    // Presse-papiers indisponible (contexte non sécurisé, permission refusée) :
+    // on le dit plutôt que d'échouer en silence.
+    const done = (ok) => {
       open();
-      input.placeholder = t('email copié ✔', 'email copied ✔');
-    });
+      input.placeholder = ok ? t('email copié ✔', 'email copied ✔')
+                             : 'mathys.langiny@gmail.com — ' + t('copie impossible', 'copy failed');
+    };
+    if (!navigator.clipboard) { done(false); return; }
+    navigator.clipboard.writeText('mathys.langiny@gmail.com').then(() => done(true), () => done(false));
   }
 
   document.addEventListener('keydown', (e) => {

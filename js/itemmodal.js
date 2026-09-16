@@ -16,15 +16,24 @@
     panel = modal.querySelector('.im-panel');
     closeBtn = modal.querySelector('.im-close');
 
-    // Le fond et la croix ferment ; un clic DANS le panneau ne doit pas fermer.
-    modal.addEventListener('mousedown', (e) => {
-      if (e.target.closest('[data-im-close]')) close();
-    });
+    // Le fond ferme au mousedown (une sélection de texte relâchée sur le fond ne
+    // doit pas fermer). La croix, elle, écoute « click » : c'est le seul
+    // événement qu'Entrée et Espace déclenchent sur un bouton. Au mousedown,
+    // elle était inutilisable au clavier.
+    modal.querySelector('.im-backdrop').addEventListener('mousedown', close);
+    closeBtn.addEventListener('click', close);
     document.addEventListener('keydown', onKeys);
   }
 
   function onKeys(e) {
     if (!isOpen()) return;
+    // La lightbox s'ouvre PAR-DESSUS la fiche : tant qu'elle est là, c'est elle
+    // qui répond au clavier. Deux gardes, parce que l'ordre des écouteurs n'est
+    // pas garanti : touche déjà traitée (la lightbox fait preventDefault sur
+    // Échap, puis se ferme), ou lightbox encore ouverte (Tab). Sans eux, Échap
+    // fermait les deux d'un coup et Tab tournait dans la fiche cachée dessous.
+    if (e.defaultPrevented) return;
+    if (window.isLightboxOpen && window.isLightboxOpen()) return;
     if (e.key === 'Escape') { e.preventDefault(); close(); return; }
     // Piège à focus : tant que la modale est ouverte, Tab tourne à l'intérieur.
     // Sans ça on tabule derrière la modale, sur une page qu'on ne voit plus.

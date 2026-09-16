@@ -9,6 +9,24 @@ const I18N = {
     'nav.games': 'Jeux',
     'nav.contact': 'Contact',
 
+    // Libellés accessibles (aria-label), posés via data-i18n-aria.
+    'a11y.home': 'Retour en haut',
+    'a11y.theme': 'Changer de thème',
+    'a11y.lang': 'English version',
+    'a11y.menuOpen': 'Ouvrir le menu',
+    'a11y.menuClose': 'Fermer le menu',
+    'a11y.close': 'Fermer',
+    'a11y.gallery': "Galerie d'images",
+    'a11y.prevImg': 'Image précédente',
+    'a11y.nextImg': 'Image suivante',
+    'a11y.carousel': 'Jeux jouables',
+    'a11y.prevGame': 'Jeu précédent',
+    'a11y.nextGame': 'Jeu suivant',
+    'a11y.pause': 'Mettre en pause la rotation',
+    'a11y.play': 'Reprendre la rotation',
+    'a11y.c4': 'Grille de Puissance 4',
+    'a11y.palette': 'Palette de commandes',
+
     'hero.status': 'CDI @ AgiLab',
     'hero.location': 'Reims, France',
     'hero.tagline': "Data & admin BDD chez AgiLab. Mon job : protéger la donnée, automatiser ce qui doit l'être, et dire non aux usines à gaz. Le soir : central au volley, régie de stream maison, fosse en concert de rap.",
@@ -181,6 +199,23 @@ const I18N = {
     'nav.passions': 'Hobbies',
     'nav.games': 'Games',
     'nav.contact': 'Contact',
+
+    'a11y.home': 'Back to top',
+    'a11y.theme': 'Toggle theme',
+    'a11y.lang': 'Version française',
+    'a11y.menuOpen': 'Open menu',
+    'a11y.menuClose': 'Close menu',
+    'a11y.close': 'Close',
+    'a11y.gallery': 'Image gallery',
+    'a11y.prevImg': 'Previous image',
+    'a11y.nextImg': 'Next image',
+    'a11y.carousel': 'Playable games',
+    'a11y.prevGame': 'Previous game',
+    'a11y.nextGame': 'Next game',
+    'a11y.pause': 'Pause rotation',
+    'a11y.play': 'Resume rotation',
+    'a11y.c4': 'Connect 4 board',
+    'a11y.palette': 'Command palette',
 
     'hero.status': 'Full-time @ AgiLab',
     'hero.location': 'Reims, France',
@@ -391,6 +426,12 @@ function applyLang(lang) {
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.dataset.i18n;
     if (dict[key] !== undefined) el.innerHTML = dict[key];
+  });
+  // Les aria-label suivent la langue, sinon un lecteur d'écran en anglais
+  // entend « Fermer » et « Jeu suivant ».
+  document.querySelectorAll('[data-i18n-aria]').forEach(el => {
+    const key = el.dataset.i18nAria;
+    if (dict[key] !== undefined) el.setAttribute('aria-label', dict[key]);
   });
   const btn = document.getElementById('lang-toggle');
   if (btn) btn.textContent = lang === 'fr' ? 'EN' : 'FR';

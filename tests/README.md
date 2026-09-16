@@ -19,6 +19,20 @@ Deux façons :
 
 Le verdict s'affiche en haut : `TOUT PASSE` ou la liste des `KO`.
 
+**Lancer la suite deux fois.** Une partie des tests suit la préférence
+« mouvement réduit » (terminal sans frappe, compteurs immédiats, Spy qui ne
+marche pas, pas de bouton pause). Le second passage se force avec
+`--force-prefers-reduced-motion` ajouté à la commande headless ci-dessus. La
+première ligne du journal indique le mode détecté.
+
+La page charge `index.html` dans trois iframes : bureau (1100 px), téléphone
+(390 px, menu burger) et **sans JavaScript** (`sandbox` sans `allow-scripts`,
+pour vérifier que le contenu et les compteurs restent justes).
+
+En headless, un vrai `mailto:` bloque le navigateur : le guichet émet
+l'événement annulable `guichet:send` juste avant d'ouvrir le client mail, et le
+test l'annule.
+
 `../styleguide.html` est l'autre outil de contrôle : il montre les primitives
 (panneau, bouton, étiquette, qualités, case d'objet) côte à côte, dans les deux
 thèmes. Les deux sont exclus de l'indexation dans `robots.txt`.

@@ -304,12 +304,14 @@ html.light #hero-title {
 @keyframes scroll-marquee { to { transform: translateX(-50%); } }
 
 /* ---------------------------------------------------------------- Reveal */
-.reveal {
+/* Caché seulement si JS est là pour révéler (classe posée dans le <head>).
+   Sans JS, tout le contenu reste visible. */
+.js .reveal {
   opacity: 0;
   transform: translateY(26px);
   transition: opacity .7s cubic-bezier(.16,.8,.3,1), transform .7s cubic-bezier(.16,.8,.3,1);
 }
-.reveal.is-visible { opacity: 1; transform: translateY(0); }
+.js .reveal.is-visible { opacity: 1; transform: translateY(0); }
 .reveal-delay-1 { transition-delay: .08s; }
 .reveal-delay-2 { transition-delay: .16s; }
 .reveal-delay-3 { transition-delay: .24s; }
@@ -838,6 +840,11 @@ body.modal-open { overflow: hidden; }
   transition: background .25s ease, width .25s ease;
 }
 .game-dot:hover { background: var(--ink-3); }
+/* Rangée points + bouton pause sous le carousel. */
+.games-controls { display: flex; align-items: center; justify-content: center; gap: .9rem; margin-top: 1.5rem; }
+#games-pause .icon-play { display: none; }
+#games-pause.is-paused .icon-play { display: block; }
+#games-pause.is-paused .icon-pause { display: none; }
 .game-dot.active { background: var(--orange); width: 24px; }
 
 .arcade-border { box-shadow: inset 0 0 0 2px var(--panel-edge); }
@@ -1018,9 +1025,12 @@ body.modal-open { overflow: hidden; }
   justify-content: center;
   opacity: 0;
   pointer-events: none;
-  transition: opacity .3s ease;
+  /* visibility en plus de l'opacité : fermée, ses boutons ne doivent plus être
+     tabulables ni lus. Le délai laisse le fondu se terminer avant de masquer. */
+  visibility: hidden;
+  transition: opacity .3s ease, visibility 0s linear .3s;
 }
-#lightbox.open { opacity: 1; pointer-events: auto; }
+#lightbox.open { opacity: 1; pointer-events: auto; visibility: visible; transition: opacity .3s ease, visibility 0s; }
 #lightbox img {
   max-width: min(92vw, 1100px);
   max-height: 74vh;
@@ -1193,7 +1203,8 @@ body.crt::after {
   /* Le Spy apparaît directement à sa place, sans marcher (easter.js saute
      aussi les étapes d'entrée et de sortie). */
   .spycrab *, .spycrab.is-walking .crab-svg, .secret-note { animation: none !important; }
-  .reveal { transition: none; opacity: 1; transform: none; }
+  .js .reveal { transition: none; opacity: 1; transform: none; }
+  .terminal-caret::after { animation: none; }
   .marquee-track, .fader::after, .live-dot, .insert-coin { animation: none; }
   #timeline-line { transition: none; }
   body.crt { animation: none; }

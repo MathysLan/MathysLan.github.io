@@ -3,6 +3,18 @@ function githubIcon() {
   return `<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55 0-.27-.01-1-.02-1.96-3.2.7-3.87-1.54-3.87-1.54-.53-1.33-1.29-1.69-1.29-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.56-.29-5.26-1.28-5.26-5.71 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.47.11-3.06 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.64 1.59.24 2.77.12 3.06.74.8 1.18 1.83 1.18 3.09 0 4.44-2.7 5.42-5.28 5.7.42.36.78 1.07.78 2.16 0 1.56-.02 2.82-.02 3.2 0 .31.21.67.79.55A10.51 10.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"/></svg>`;
 }
 
+// Mouvement réduit : lu AU MOMENT de l'animation, pas une fois au chargement —
+// la préférence système peut changer pendant la visite. Global : carousel.js,
+// palette.js et connect4.js s'en servent aussi.
+function prefersReducedMotion() {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+// Défilement doux… sauf si la personne a demandé moins de mouvement. Le CSS
+// (scroll-behavior) ne couvre pas les défilements lancés en JS.
+function scrollBehavior() {
+  return prefersReducedMotion() ? 'auto' : 'smooth';
+}
+
 // Renvoie le champ dans la langue active, avec repli sur le français
 function tr(obj, field) {
   if (window.LANG === 'en' && obj[field + '_en']) return obj[field + '_en'];
@@ -102,6 +114,8 @@ document.addEventListener('DOMContentLoaded', () => {
   applyLang(window.LANG);
   document.getElementById('lang-toggle').addEventListener('click', () => {
     applyLang(window.LANG === 'fr' ? 'en' : 'fr');
+    setBurgerLabel();
+    if (prefersReducedMotion()) showStaticTerm();
   });
 
   document.getElementById('year').textContent = new Date().getFullYear();
@@ -150,7 +164,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // Ligne de terminal auto-tapée (suit la langue active)
   const termEl = document.getElementById('term-line');
   let li = 0, ci = 0, deleting = false;
+  // Mouvement réduit : pas de frappe, la première ligne s'affiche en entier.
+  function showStaticTerm() {
+    termEl.textContent = (TERM_LINES[window.LANG] || TERM_LINES.fr)[0];
+    termEl.classList.remove('terminal-caret');
+  }
   function typeLoop() {
+    if (prefersReducedMotion()) { showStaticTerm(); return; }
     const lines = TERM_LINES[window.LANG] || TERM_LINES.fr;
     const line = lines[li % lines.length];
     if (!deleting) {
@@ -234,59 +254,87 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Barre de progression
+  // Au scroll : barre de progression, panneau de nav, section allumée.
+  // Un seul écouteur, une seule passe par image (rAF), et toutes les LECTURES
+  // de mise en page avant les ÉCRITURES : trois écouteurs séparés, dont un
+  // lisait offsetTop juste après qu'un autre avait modifié des classes,
+  // pouvaient forcer des recalculs de mise en page à chaque événement.
   const progressBar = document.getElementById('progress-bar');
-  function updateProgress() {
-    const dh = document.documentElement.scrollHeight - window.innerHeight;
-    progressBar.style.transform = `scaleX(${dh > 0 ? window.scrollY / dh : 0})`;
-  }
-  window.addEventListener('scroll', updateProgress, { passive: true });
-  updateProgress();
-
-  // Nav : le panneau n'apparaît qu'une fois la page descendue. En haut, la
-  // barre de sélection de classe flotte directement sur l'affiche du hero.
-  const navbar = document.getElementById('navbar');
-  function updateNavbar() {
-    navbar.querySelector('nav').classList.toggle('panel', window.scrollY > 20);
-  }
-  window.addEventListener('scroll', updateNavbar, { passive: true });
-  updateNavbar();
-
-  // Nav : la section en cours de lecture s'allume. Le repère est pris au tiers
-  // haut de l'écran, pas en haut : une section s'allume quand on la lit vraiment.
+  const navEl = document.querySelector('#navbar nav');
   const navLinks = [...document.querySelectorAll('#navbar .nav-link')];
   const navTargets = navLinks.map((a) => document.querySelector(a.getAttribute('href')));
-  function updateSpy() {
-    const mark = window.scrollY + window.innerHeight * 0.35;
+  let scrollQueued = false;
+  function onScrollFrame() {
+    scrollQueued = false;
+    // --- lectures ---
+    const y = window.scrollY, vh = window.innerHeight;
+    const docH = document.documentElement.scrollHeight;
+    const tops = navTargets.map((s) => (s ? s.offsetTop : Infinity));
+    // --- écritures ---
+    progressBar.style.transform = `scaleX(${docH - vh > 0 ? y / (docH - vh) : 0})`;
+    // Le panneau n'apparaît qu'une fois la page descendue : en haut, la barre
+    // flotte directement sur l'affiche du hero.
+    navEl.classList.toggle('panel', y > 20);
+    // La section lue s'allume, repère au tiers haut de l'écran.
+    const mark = y + vh * 0.35;
     let active = -1;
-    navTargets.forEach((s, i) => { if (s && s.offsetTop <= mark) active = i; });
+    tops.forEach((top, i) => { if (top <= mark) active = i; });
     // Le footer est plus court que le repère : arrivé en bas, il ne peut donc
     // jamais l'atteindre. Sans ce rattrapage, « Contact » ne s'allume jamais.
-    if (window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2) {
-      active = navTargets.length - 1;
-    }
+    if (y + vh >= docH - 2) active = navTargets.length - 1;
     navLinks.forEach((a, i) => a.classList.toggle('is-active', i === active));
   }
-  window.addEventListener('scroll', updateSpy, { passive: true });
-  updateSpy();
+  window.addEventListener('scroll', () => {
+    if (!scrollQueued) { scrollQueued = true; requestAnimationFrame(onScrollFrame); }
+  }, { passive: true });
+  onScrollFrame();
 
-  // Menu mobile
+  // Menu mobile. Fermé, il est `inert` : ni tabulable ni lu (avant, il n'était
+  // qu'invisible et ses liens restaient atteignables au clavier). Ouvert : le
+  // focus entre sur le premier lien, Tab tourne entre le burger et les liens,
+  // Échap ferme et rend le focus au burger.
   const burger = document.getElementById('burger');
   const mobileMenu = document.getElementById('mobile-menu');
   const burgerLines = document.querySelectorAll('.burger-line');
+  const mobileLinks = [...mobileMenu.querySelectorAll('a')];
   let menuOpen = false;
-  function toggleMenu() {
-    menuOpen = !menuOpen;
-    mobileMenu.classList.toggle('opacity-0', !menuOpen);
-    mobileMenu.classList.toggle('pointer-events-none', !menuOpen);
-    burgerLines[0].style.transform = menuOpen ? 'translateY(8px) rotate(45deg)' : '';
-    burgerLines[1].style.opacity = menuOpen ? '0' : '1';
-    burgerLines[2].style.transform = menuOpen ? 'translateY(-8px) rotate(-45deg)' : '';
-    document.body.style.overflow = menuOpen ? 'hidden' : '';
+  function setBurgerLabel() {
+    const dict = I18N[window.LANG] || I18N.fr;
+    burger.setAttribute('aria-label', dict[menuOpen ? 'a11y.menuClose' : 'a11y.menuOpen']);
   }
-  burger.addEventListener('click', toggleMenu);
-  document.querySelectorAll('.mobile-link').forEach(l =>
-    l.addEventListener('click', () => { if (menuOpen) toggleMenu(); }));
+  function setMenu(open, returnFocus) {
+    menuOpen = open;
+    mobileMenu.classList.toggle('opacity-0', !open);
+    mobileMenu.classList.toggle('pointer-events-none', !open);
+    mobileMenu.inert = !open;
+    burgerLines[0].style.transform = open ? 'translateY(8px) rotate(45deg)' : '';
+    burgerLines[1].style.opacity = open ? '0' : '1';
+    burgerLines[2].style.transform = open ? 'translateY(-8px) rotate(-45deg)' : '';
+    document.body.style.overflow = open ? 'hidden' : '';
+    burger.setAttribute('aria-expanded', String(open));
+    setBurgerLabel();
+    if (open) mobileLinks[0].focus();
+    else if (returnFocus) burger.focus();
+  }
+  mobileMenu.inert = true;
+  setBurgerLabel();
+  burger.addEventListener('click', () => setMenu(!menuOpen, true));
+  // Un lien mène ailleurs dans la page : on ferme sans ramener le focus au burger.
+  mobileLinks.forEach((l) => l.addEventListener('click', () => { if (menuOpen) setMenu(false, false); }));
+  document.addEventListener('keydown', (e) => {
+    if (!menuOpen) return;
+    if (e.key === 'Escape') { e.preventDefault(); setMenu(false, true); return; }
+    if (e.key !== 'Tab') return;
+    const ring = [burger, ...mobileLinks];
+    const i = ring.indexOf(document.activeElement);
+    if (e.shiftKey && i <= 0) { e.preventDefault(); ring[ring.length - 1].focus(); }
+    else if (!e.shiftKey && (i === ring.length - 1 || i === -1)) { e.preventDefault(); ring[0].focus(); }
+  });
+  // Passage en largeur bureau menu ouvert (rotation, redimensionnement) : le
+  // burger disparaît, le menu ne doit pas rester ouvert avec le scroll coupé.
+  window.matchMedia('(min-width: 768px)').addEventListener('change', (mq) => {
+    if (mq.matches && menuOpen) setMenu(false, false);
+  });
 
   // Ancres avec offset
   document.querySelectorAll('a[href^="#"]').forEach(a => {
@@ -294,7 +342,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const t = document.querySelector(this.getAttribute('href'));
       if (t) {
         e.preventDefault();
-        window.scrollTo({ top: t.getBoundingClientRect().top + window.scrollY - 80, behavior: 'smooth' });
+        window.scrollTo({ top: t.getBoundingClientRect().top + window.scrollY - 80, behavior: scrollBehavior() });
       }
     });
   });
@@ -351,13 +399,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }, { threshold: 0.2 }).observe(tl.parentElement);
   }
 
-  // Compteurs animés
+  // Compteurs. La VRAIE valeur est dans le HTML (lecteurs d'écran, moteurs,
+  // visite sans JS) ; l'animation n'est qu'une couche visuelle : on ne remet à 0
+  // que si l'on va vraiment animer, et on finit toujours sur data-count.
+  const counters = document.querySelectorAll('[data-count]');
+  if (!prefersReducedMotion()) counters.forEach((el) => { el.textContent = '0'; });
   const countObs = new IntersectionObserver((entries) => {
     entries.forEach(en => {
       if (!en.isIntersecting) return;
       countObs.unobserve(en.target);
       const el = en.target;
       const target = parseInt(el.dataset.count, 10);
+      if (prefersReducedMotion()) { el.textContent = target; return; }
       const dur = 1400;
       const t0 = performance.now();
       function tick(t) {
@@ -368,5 +421,5 @@ document.addEventListener('DOMContentLoaded', () => {
       requestAnimationFrame(tick);
     });
   }, { threshold: 0.5 });
-  document.querySelectorAll('[data-count]').forEach(el => countObs.observe(el));
+  counters.forEach(el => countObs.observe(el));
 });

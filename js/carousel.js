@@ -6,7 +6,8 @@
   let index = 0;       // carte cible (entier)
   let autoTimer = null;
   const AUTO_MS = 4500;
-  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let paused = false;   // pause demandée par le bouton : prime sur tout le reste
+  let inView = false;   // pas de rotation hors écran : travail inutile
 
   // Réglages visuels du coverflow
   const SPACING = 84;   // écartement horizontal par cran (% de largeur de carte) — le « rayon »
@@ -70,8 +71,9 @@
     if (!track) return;
     const en = window.LANG === 'en';
     track.innerHTML = GAMES.map(slideHTML).join('');
-    dots.innerHTML = GAMES.map((_, i) =>
-      `<button class="game-dot" data-i="${i}" aria-label="${(en ? 'Game ' : 'Jeu ') + (i + 1)}"></button>`).join('');
+    // Les points portent le nom du jeu : « Jeu 4 » ne disait rien à l'oreille.
+    dots.innerHTML = GAMES.map((game, i) =>
+      `<button type="button" class="game-dot" data-i="${i}" aria-label="${g(game, 'title')}"></button>`).join('');
     dots.querySelectorAll('.game-dot').forEach((d) =>
       d.addEventListener('click', () => { go(+d.dataset.i); restartAuto(); }));
 
@@ -106,8 +108,11 @@
     });
 
     const activeDot = ((Math.round(p) % N) + N) % N;
-    document.querySelectorAll('#games-dots .game-dot').forEach((d, i) =>
-      d.classList.toggle('active', i === activeDot));
+    document.querySelectorAll('#games-dots .game-dot').forEach((d, i) => {
+      d.classList.toggle('active', i === activeDot);
+      if (i === activeDot) d.setAttribute('aria-current', 'true');
+      else d.removeAttribute('aria-current');
+    });
   }
 
   const update = () => applyLayout(index);
@@ -116,9 +121,20 @@
   const prev = () => go(index - 1);
 
   function restartAuto() {
-    if (reduceMotion) return;
     clearInterval(autoTimer);
+    if (paused || !inView || prefersReducedMotion()) return;
     autoTimer = setInterval(next, AUTO_MS);
+  }
+
+  function setPaused(p) {
+    paused = p;
+    const btn = document.getElementById('games-pause');
+    const dict = I18N[window.LANG] || I18N.fr;
+    btn.setAttribute('aria-pressed', String(p));
+    btn.setAttribute('aria-label', dict[p ? 'a11y.play' : 'a11y.pause']);
+    btn.dataset.i18nAria = p ? 'a11y.play' : 'a11y.pause';
+    btn.classList.toggle('is-paused', p);
+    restartAuto();
   }
 
   function init() {
@@ -128,6 +144,16 @@
 
     document.getElementById('games-prev').addEventListener('click', () => { prev(); restartAuto(); });
     document.getElementById('games-next').addEventListener('click', () => { next(); restartAuto(); });
+    const pauseBtn = document.getElementById('games-pause');
+    pauseBtn.addEventListener('click', () => setPaused(!paused));
+    // En mouvement réduit il n'y a pas de rotation : le bouton n'aurait rien à mettre en pause.
+    pauseBtn.hidden = prefersReducedMotion();
+
+    // Rotation seulement quand le carousel est à l'écran.
+    new IntersectionObserver((entries) => {
+      inView = entries[0].isIntersecting;
+      restartAuto();
+    }, { threshold: 0.2 }).observe(root);
 
     const track = document.getElementById('games-track');
     const vp = document.getElementById('games-viewport');
@@ -202,10 +228,19 @@
     // pause l'auto-rotation au survol / focus
     root.addEventListener('mouseenter', () => clearInterval(autoTimer));
     root.addEventListener('mouseleave', restartAuto);
-    root.addEventListener('focusin', () => clearInterval(autoTimer));
-    root.addEventListener('focusout', restartAuto);
-
-    restartAuto();
+    root.addEventListener('focusin', (e) => {
+      clearInterval(autoTimer);
+      // Tab sur le lien d'une carte latérale (presque transparente) : la carte
+      // vient au centre, sinon le focus est sur quelque chose qu'on ne voit pas.
+      const slide = e.target.closest && e.target.closest('.game-slide');
+      if (slide) {
+        const i = [...track.children].indexOf(slide);
+        if (i !== -1 && i !== index) go(i);
+      }
+    });
+    root.addEventListener('focusout', (e) => {
+      if (!root.contains(e.relatedTarget)) restartAuto();
+    });
   }
 
   // rerender quand la langue change (applyLang déclenche renderGames)
