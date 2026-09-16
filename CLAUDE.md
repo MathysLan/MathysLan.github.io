@@ -145,8 +145,15 @@ démarre qu'après un seuil de 6 px pour que le lien « Jouer » reste cliquable
   réticule ✅ : ( • ) en SVG, token `--cursor-cross` (un par thème, un SVG en
   data: ne voit pas les variables CSS), UNIQUEMENT sur `.tf-btn`, `.bp-cell` et
   le carousel (main fermée pendant le glissement) — choix de Mathys, pas sur
-  tout le site ; 7 easter egg (sur
-  `js/easter.js`), 8 barre « SIGNAL SÉCURISÉ ✓ » du guichet. Le 9 (icônes de
+  tout le site ; 7 easter egg ✅ : masque du Spy dans le bandeau du footer →
+  un Spy BLU (SVG maison dans `index.html`) traverse en crabe, s'arrête au
+  milieu et « déterre » le projet abandonné de Mathys (cache-cache sur
+  téléphone, zone qui se referme, même idée que Gotcha), en `.item-desc`.
+  Enchaînement sur `animationend` dans `js/easter.js`. ⚠️ En headless à temps
+  virtuel les animations CSS restent figées à 0 ms : pour tester la vraie
+  chaîne, avancer avec `el.getAnimations().forEach(a => a.finish())` et
+  laisser ~1,5 s avant de lire l'état ; 8 barre
+  « SIGNAL SÉCURISÉ ✓ » du guichet. Le 9 (icônes de
   nav) était déjà fait. Règle : aucun asset Valve (images, sons, voix), tout
   est refait en CSS/SVG. Mis de côté sauf demande : switch RED/BLU, sons du
   jeu, vidéo « Meet the Team ». Les textes écrits à la place de Mathys

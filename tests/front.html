@@ -198,6 +198,29 @@ document.getElementById('f').addEventListener('load', function () {
       t('les champs gardent leur curseur', !cross(d.getElementById('cf-name')) && !cross(d.getElementById('cf-message')));
       t('l etat indisponible n a pas le reticule', !ghost || !cross(ghost));
 
+      // Easter egg : le Spy crabe. Les etapes s'enchainent sur animationend ;
+      // on les declenche a la main pour ne pas attendre les 3 s de marche.
+      var spy = d.getElementById('spy-trigger'), crab = d.getElementById('spycrab'), note = d.getElementById('secret-note');
+      function arrive(name) { crab.dispatchEvent(new w.AnimationEvent('animationend', { animationName: name, bubbles: true })); }
+      t('declencheur = bouton nomme', spy.tagName === 'BUTTON' && spy.textContent.trim().length > 0);
+      t('crabe et fiche caches au depart', crab.hidden && note.hidden);
+      spy.click();
+      t('clic : le Spy entre en marchant', !crab.hidden && crab.classList.contains('is-walking') && note.hidden);
+      t('le crabe ne bloque aucun clic', w.getComputedStyle(crab).pointerEvents === 'none');
+      spy.click();
+      t('un seul Spy a la fois', d.querySelectorAll('.spycrab').length === 1 && crab.classList.contains('is-entering'));
+      arrive('crab-in');
+      t('arrive au milieu : la fiche s ouvre', !note.hidden && crab.classList.contains('is-idle'));
+      t('focus sur OK', d.activeElement === note.querySelector('.secret-ok'));
+      t('fiche annoncee ouverte', spy.getAttribute('aria-expanded') === 'true');
+      t('fiche = description d objet', note.querySelector('.item-desc [data-q], .item-desc[data-q]') !== null
+        && note.querySelectorAll('.attr-list li').length >= 3);
+      d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      t('Echap ferme la fiche, focus rendu au masque', note.hidden && d.activeElement === spy);
+      t('puis le Spy repart', crab.classList.contains('is-leaving') && !crab.hidden);
+      arrive('crab-out');
+      t('sorti : crabe cache, rejouable', crab.hidden && crab.className === 'spycrab');
+
       // Nav au scroll
       var nav = d.querySelector('#navbar nav');
       t('nav sans panneau en haut de page', !nav.classList.contains('panel'));

@@ -30,7 +30,7 @@ const I18N = {
     'skills.p7': 'Immunité totale aux usines à gaz',
     'skills.n1': 'Pas de coups critiques aléatoires : tout passe par les tests',
     'skills.n2': '6 h par semaine au volley : injoignable ces soirs-là',
-    'skills.flavor': '« On ne casse pas un modèle de données. »',
+    'skills.flavor': '« On ne casse pas un modèle de données. »',
 
     'projects.kicker': '01 - Projets',
     'projects.title': 'Projets data & dev<span class="ac">.</span>',
@@ -157,6 +157,19 @@ const I18N = {
     'contact.store.missing': 'Il manque un champ - remplis les trois.',
     'footer.credit': 'conçu & codé avec soin.',
     'footer.valve': "Not affiliated with Valve Corporation. Aucun mercenaire n'a été blessé.",
+
+    // Easter egg du footer : le Spy crabe déterre le projet abandonné. Un Spy
+    // pour un jeu de cache-cache, c'est le seul lien logique qu'il fallait.
+    'secret.trigger': 'Il y a un Spy ici ?',
+    'secret.found': 'Le Spy a déterré un dossier',
+    'secret.name': 'Cache-cache',
+    'secret.level': 'Projet secret de niveau abandonné',
+    'secret.p1': 'Sur téléphone, une zone de jeu délimitée',
+    'secret.p2': 'Tout le monde se cache, et la zone se referme au fur et à mesure',
+    'secret.p3': 'Même idée que Gotcha',
+    'secret.n1': 'Mis de côté en cours de route',
+    'secret.flavor': "« Quelque part, il attend toujours qu'on le retrouve. »",
+    'secret.ok': 'OK',
   },
 
   en: {
@@ -310,6 +323,17 @@ const I18N = {
     'contact.store.missing': 'A field is missing - fill all three.',
     'footer.credit': 'designed & coded with care.',
     'footer.valve': 'Not affiliated with Valve Corporation. No mercenaries were harmed.',
+
+    'secret.trigger': 'Is there a Spy around?',
+    'secret.found': 'The Spy dug up a file',
+    'secret.name': 'Hide-and-seek',
+    'secret.level': 'Level: abandoned secret project',
+    'secret.p1': 'On your phone, a bounded play zone',
+    'secret.p2': 'Everyone hides, and the zone keeps closing in',
+    'secret.p3': 'Same idea as Gotcha',
+    'secret.n1': 'Shelved along the way',
+    'secret.flavor': '"Somewhere, it\'s still waiting to be found."',
+    'secret.ok': 'OK',
   },
 };
 

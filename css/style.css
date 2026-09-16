@@ -1044,9 +1044,101 @@ body.crt::after {
 }
 
 /* ============================================================================
+   Easter egg du footer : le Spy crabe
+   ----------------------------------------------------------------------------
+   Le déroulé (piloté par js/easter.js, qui lit animationend) :
+     is-entering → il arrive par la droite en marchant en crabe ;
+     is-idle     → il s'arrête au milieu, pinces en l'air, la fiche s'ouvre ;
+     is-leaving  → OK ou Échap : il repart par la gauche.
+   z-index 92 : au-dessus du grain (90), sous la modale (95) et la lightbox.
+   ========================================================================= */
+.spy-trigger {
+  display: inline-flex;
+  padding: .2rem;
+  border: none;
+  background: none;
+  color: var(--ink-3);
+  cursor: var(--cursor-cross), pointer;
+  transition: color .2s ease;
+}
+.spy-trigger svg { width: 14px; height: 14px; }
+.spy-trigger:hover, .spy-trigger[aria-expanded="true"] { color: var(--blu-ink); }
+
+/* Palette d'illustration FIXE : le Spy est BLU dans les deux thèmes, et son
+   contour sombre doit se détacher du papier comme du carton. */
+.spycrab {
+  --crab-ink: #1b1510;
+  --crab-suit: #5885a2;
+  --crab-mask: #3f6782;
+  position: fixed;
+  left: 0; bottom: 4px;
+  z-index: 92;
+  width: 116px;
+  pointer-events: none;                 /* ne bloque jamais un clic */
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, .25));
+}
+.spycrab[hidden] { display: none; }
+.crab-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.crab-line      { fill: none; stroke: var(--crab-ink); stroke-width: 11; stroke-linecap: round; stroke-linejoin: round; }
+.crab-suit-line { fill: none; stroke: var(--crab-suit); stroke-width: 6.5; stroke-linecap: round; stroke-linejoin: round; }
+.crab-suit  { fill: var(--crab-suit); stroke: var(--crab-ink); stroke-width: 2.5; stroke-linejoin: round; }
+.crab-shirt { fill: #e9dfc6; }
+.crab-tie   { fill: #25384a; }
+.crab-mask  { fill: var(--crab-mask); stroke: var(--crab-ink); stroke-width: 2.5; }
+.crab-face  { fill: #d9a77c; }
+.crab-eye, .crab-shoe, .crab-glove { fill: var(--crab-ink); }
+
+/* Les membres pivotent autour de la hanche et de l'épaule (coordonnées du
+   viewBox, d'où transform-box: view-box). */
+.crab-leg, .crab-arm { transform-box: view-box; }
+.crab-leg-l { transform-origin: 52px 76px; }
+.crab-leg-r { transform-origin: 68px 76px; }
+.crab-arm-l { transform-origin: 46px 55px; }
+.crab-arm-r { transform-origin: 74px 55px; }
+
+.spycrab.is-entering { animation: crab-in 3.2s linear forwards; }
+.spycrab.is-idle     { transform: translateX(calc(50vw - 58px)); }
+.spycrab.is-leaving  { animation: crab-out 2.8s linear forwards; }
+@keyframes crab-in  { from { transform: translateX(100vw); } to { transform: translateX(calc(50vw - 58px)); } }
+@keyframes crab-out { from { transform: translateX(calc(50vw - 58px)); } to { transform: translateX(-130px); } }
+
+/* La démarche : le corps rebondit, les jambes alternent, les pinces claquent. */
+.spycrab.is-walking .crab-svg { animation: crab-bob .28s ease-in-out infinite alternate; }
+.spycrab.is-walking .crab-leg-l { animation: crab-step .28s ease-in-out infinite alternate; }
+.spycrab.is-walking .crab-leg-r { animation: crab-step .28s ease-in-out infinite alternate-reverse; }
+.spycrab .crab-arm-l { animation: crab-claw-l .5s ease-in-out infinite alternate; }
+.spycrab .crab-arm-r { animation: crab-claw-r .5s ease-in-out infinite alternate; }
+@keyframes crab-bob    { to { transform: translateY(-4px); } }
+@keyframes crab-step   { from { transform: rotate(-11deg); } to { transform: rotate(11deg); } }
+@keyframes crab-claw-l { from { transform: rotate(-8deg); } to { transform: rotate(10deg); } }
+@keyframes crab-claw-r { from { transform: rotate(8deg); } to { transform: rotate(-10deg); } }
+
+/* La fiche déterrée : posée au-dessus du crabe, centrée. */
+.secret-note {
+  position: fixed;
+  left: 50%; bottom: 128px;
+  z-index: 93;
+  width: min(390px, calc(100vw - 2rem));
+  transform: translateX(-50%);
+  /* Elle flotte sur la page sans voile : une ombre franche la détache. En
+     filter, pas en box-shadow, que le clip-path du panneau rognerait. */
+  filter: drop-shadow(0 10px 22px rgba(0, 0, 0, .55));
+  /* Pas im-in : son transform écraserait le centrage le temps de l'animation. */
+  animation: note-in .22s cubic-bezier(.16, .8, .3, 1);
+}
+@keyframes note-in { from { opacity: 0; transform: translate(-50%, 12px); } }
+.secret-note[hidden] { display: none; }
+.secret-card[data-q] { background: var(--q); }
+.secret-card { padding: 1.3rem 1.2rem 1.2rem; }
+.secret-ok { margin-top: 1rem; }
+
+/* ============================================================================
    Mouvement réduit
    ========================================================================= */
 @media (prefers-reduced-motion: reduce) {
+  /* Le Spy apparaît directement à sa place, sans marcher (easter.js saute
+     aussi les étapes d'entrée et de sortie). */
+  .spycrab *, .spycrab.is-walking .crab-svg, .secret-note { animation: none !important; }
   .reveal { transition: none; opacity: 1; transform: none; }
   .marquee-track, .fader::after, .live-dot, .insert-coin { animation: none; }
   #timeline-line { transition: none; }
