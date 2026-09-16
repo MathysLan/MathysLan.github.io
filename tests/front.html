@@ -156,6 +156,9 @@ document.getElementById('f').addEventListener('load', function () {
       d.querySelector('#cmdk input').dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       t('palette refermee (Echap)', !d.getElementById('cmdk-overlay').classList.contains('open'));
       t('palette : focus rendu a l element d origine', d.activeElement === langBtn);
+      // Copier l'adresse : clic ici, resultat lu dans la phase finale (le
+      // presse-papiers repond de facon asynchrone, filet d'1 s cote site).
+      d.getElementById('copy-mail').click();
 
       // SEO : ce que lisent les moteurs et les apercus de partage.
       var head = function (sel, attr) { var el = d.head.querySelector(sel); return el ? el.getAttribute(attr) : null; };
@@ -393,7 +396,13 @@ document.getElementById('f').addEventListener('load', function () {
         cfm.elements.name.value = '';
         cfm.dispatchEvent(new w.Event('submit', { cancelable: true, bubbles: true }));
         t('un champ vide masque la barre', cap.hidden);
+
       } catch (e) { out.push('EXCEPTION capture fin: ' + e.message); out.ko = true; }
+
+      var cms = d.getElementById('copy-mail-status').textContent;
+      t('copier l adresse : resultat annonce [' + cms + ']', /copiée|copied|impossible|not available/i.test(cms));
+      t('message du guichet honnete (rien ne part sans l utilisateur)',
+        /ne part que quand tu l'envoies/.test(w.eval('I18N').fr['contact.store.sent']));
 
       // --- Telephone (390 px) : le menu burger ---
       try {

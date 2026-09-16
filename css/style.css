@@ -931,6 +931,7 @@ body.modal-open { overflow: hidden; }
   text-transform: uppercase;
   color: var(--ink-3);
 }
+.copy-mail { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .7rem; margin: .8rem 0 0; }
 .store-price b { color: var(--qi-unique); font-family: 'TF2 Build', 'Anton', sans-serif; font-size: 1.1rem; }
 
 /* La barre de capture : la jauge d'un point de contrôle qui passe à l'équipe.

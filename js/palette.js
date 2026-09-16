@@ -120,15 +120,15 @@
   }
 
   function copyMail() {
-    // Presse-papiers indisponible (contexte non sécurisé, permission refusée) :
-    // on le dit plutôt que d'échouer en silence.
+    // Même logique que le bouton du guichet (main.js) : repli et filet d'1 s
+    // compris. En cas d'échec on affiche l'adresse plutôt qu'un faux succès.
     const done = (ok) => {
       open();
       input.placeholder = ok ? t('email copié ✔', 'email copied ✔')
                              : 'mathys.langiny@gmail.com — ' + t('copie impossible', 'copy failed');
     };
-    if (!navigator.clipboard) { done(false); return; }
-    navigator.clipboard.writeText('mathys.langiny@gmail.com').then(() => done(true), () => done(false));
+    if (window.copyEmailAddress) window.copyEmailAddress(done);
+    else done(false);
   }
 
   document.addEventListener('keydown', (e) => {

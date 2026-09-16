@@ -227,6 +227,50 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Copier l'adresse mail. Presse-papiers moderne d'abord ; s'il est refusé
+  // (page non sécurisée, permission), repli sur l'ancienne commande copy ; et
+  // si rien ne marche, on le DIT plutôt que d'afficher un faux succès.
+  // Partagé avec la palette Ctrl+K (window.copyEmailAddress).
+  const copyBtn = document.getElementById('copy-mail');
+  const copyStatus = document.getElementById('copy-mail-status');
+  {
+    const ADDRESS = 'mathys.langiny@gmail.com';
+    const legacyCopy = () => {
+      const ta = document.createElement('textarea');
+      ta.value = ADDRESS;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;left:-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      ta.remove();
+      return ok;
+    };
+    // report(ok) est appelé exactement une fois.
+    window.copyEmailAddress = function (report) {
+      if (navigator.clipboard && window.isSecureContext) {
+        // Filet : une promesse du presse-papiers peut rester en suspens (page
+        // sans focus, permission jamais tranchée). Au-delà d'1 s, on n'attend
+        // plus : repli, et résultat annoncé dans tous les cas.
+        let settled = false;
+        const settle = (ok) => { if (!settled) { settled = true; report(ok); } };
+        const timer = setTimeout(() => settle(legacyCopy()), 1000);
+        navigator.clipboard.writeText(ADDRESS).then(
+          () => { clearTimeout(timer); settle(true); },
+          () => { clearTimeout(timer); settle(legacyCopy()); });
+      } else {
+        report(legacyCopy());
+      }
+    };
+    if (copyBtn) {
+      copyBtn.addEventListener('click', () => {
+        const dict = I18N[window.LANG] || I18N.fr;
+        window.copyEmailAddress((ok) => { copyStatus.textContent = dict[ok ? 'contact.copied' : 'contact.copyFailed']; });
+      });
+    }
+  }
+
   // Au scroll : barre de progression, panneau de nav, section allumée.
   // Un seul écouteur, une seule passe par image (rAF), et toutes les LECTURES
   // de mise en page avant les ÉCRITURES : trois écouteurs séparés, dont un
