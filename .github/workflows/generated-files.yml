@@ -1,0 +1,22 @@
+# Vérifie que les fichiers générés par tools/build.mjs sont à jour :
+# le contenu pré-rendu dans index.html et css/tailwind.css.
+#
+# Ce workflow NE déploie rien : GitHub Pages sert toujours la branche telle
+# quelle. Il signale seulement un oubli (données modifiées sans relancer
+# « node tools/build.mjs », ou classe Tailwind ajoutée sans recompiler).
+name: Fichiers générés à jour
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: node tools/build.mjs --check
+        run: node tools/build.mjs --check
