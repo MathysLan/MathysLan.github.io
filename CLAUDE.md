@@ -129,6 +129,20 @@ démarre qu'après un seuil de 6 px pour que le lien « Jouer » reste cliquable
   mobile à 390 px il faut passer par une iframe, pas par `--window-size`. Et
   `--screenshot` capture toujours depuis le haut du document, donc pour cadrer
   une section on masque les autres plutôt que de scroller.
+  Astuce : sous Windows, `msedge --dump-dom` ne rend rien depuis PowerShell
+  (stdout d'un exe GUI) ; passer par l'outil Bash, où la sortie arrive bien.
+- **Pousser le thème TF2, section par section** (liste de Mathys, dans l'ordre) :
+  1 ConTracker (parcours en contrats dépliables) ✅ ; 2 sac à dos (projets en
+  cases + fiche d'objet en modale, `js/itemmodal.js`) ✅ ; 3 CTA tous sur
+  `.tf-btn` ✅ ; 4 compétences en « stats d'arme » ✅ : infobulle d'objet
+  (primitive `.item-desc`) à droite du nom dans le hero, sous les CTA en
+  dessous de 1180 px, texte dans `i18n.js` (`skills.*`) ; 5 textures de fond
+  par section (à faire). Puis polish : 6 réticule SVG, 7 easter egg (sur
+  `js/easter.js`), 8 barre « SIGNAL SÉCURISÉ ✓ » du guichet. Le 9 (icônes de
+  nav) était déjà fait. Règle : aucun asset Valve (images, sons, voix), tout
+  est refait en CSS/SVG. Mis de côté sauf demande : switch RED/BLU, sons du
+  jeu, vidéo « Meet the Team ». Les textes écrits à la place de Mathys
+  (objectifs, stats) lui sont soumis avant publication.
 - **Précision** (nouveau) : back `precision-server` livré à part
   (`engine-precision.js` pur + `server.js` avec les setTimeout de phase), front
   `games/precision/` sur `wss://precision-server.onrender.com`. Le MJ choisit

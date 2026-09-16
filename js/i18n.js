@@ -15,6 +15,23 @@ const I18N = {
     'hero.cta': 'Voir mes projets',
     'hero.contact': 'me contacter ↓',
 
+    // Compétences en description d'objet. Le « + » / « − » vient du CSS
+    // (.attr-list) : ne pas l'écrire dans le texte. Les lignes n1/n2 sont les
+    // attributs négatifs, en rouge — l'autodérision.
+    'skills.slot': 'Arme principale',
+    'skills.name': 'Strange Admin BDD',
+    'skills.level': 'Data / Admin BDD de niveau CDI',
+    'skills.p1': 'Oracle APEX et PL/SQL, en production',
+    'skills.p2': 'Données sales nettoyées, normalisées, et la base tient',
+    'skills.p3': 'Tests qualité automatisés sur plusieurs environnements',
+    'skills.p4': 'Dashboards Power BI et Grafana qui répondent à une question',
+    'skills.p5': 'Python et Docker pour les pipelines de données',
+    'skills.p6': 'Serveurs WebSocket Node.js pour arbitrer des parties',
+    'skills.p7': 'Immunité totale aux usines à gaz',
+    'skills.n1': 'Pas de coups critiques aléatoires : tout passe par les tests',
+    'skills.n2': '6 h par semaine au volley : injoignable ces soirs-là',
+    'skills.flavor': '« On ne casse pas un modèle de données. »',
+
     'projects.kicker': '01 - Projets',
     'projects.title': 'Projets data & dev<span class="ac">.</span>',
     'projects.sub': "Pas de vitrine marketing : ce que j'ai construit, avec quoi, et pourquoi. Clique sur une case pour ouvrir la fiche de l'objet.",
@@ -155,6 +172,20 @@ const I18N = {
     'hero.tagline': "Data & database admin at AgiLab. My job: protect the data, automate what needs automating, and say no to over-engineering. After hours: volleyball middle blocker, homemade streaming setup, front row at rap concerts.",
     'hero.cta': 'See my projects',
     'hero.contact': 'contact me ↓',
+
+    'skills.slot': 'Primary weapon',
+    'skills.name': 'Strange DB Admin',
+    'skills.level': 'Level: full-time Data / DB Admin',
+    'skills.p1': 'Oracle APEX & PL/SQL, in production',
+    'skills.p2': 'Messy data cleaned, normalized, and the database holds',
+    'skills.p3': 'QA tests automated across several environments',
+    'skills.p4': 'Power BI & Grafana dashboards that answer a real question',
+    'skills.p5': 'Python & Docker for data pipelines',
+    'skills.p6': 'Node.js WebSocket servers refereeing live games',
+    'skills.p7': 'Full immunity to over-engineering',
+    'skills.n1': 'No random critical hits: everything goes through tests',
+    'skills.n2': '6 hours a week at volleyball: unreachable those evenings',
+    'skills.flavor': '"You don\'t break a data model."',
 
     'projects.kicker': '01 - Projects',
     'projects.title': 'Data & dev projects<span class="ac">.</span>',

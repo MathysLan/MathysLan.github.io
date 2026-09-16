@@ -234,6 +234,35 @@ html.light #hero-title {
 
 /* Le CTA principal : le bouton d'achat du Mann Co. Store. */
 
+/* --------------------------------------------- Compétences : l'arme équipée
+   La description d'objet se pose à droite du nom sur grand écran, et passe
+   sous les CTA en dessous de 1180 px : plus étroit, le nom en 8rem et la carte
+   se marchent dessus. */
+.hero-grid { display: grid; gap: 3rem; align-items: center; }
+@media (min-width: 1180px) {
+  .hero-grid { grid-template-columns: minmax(0, 1fr) 26.5rem; }
+}
+.loadout { width: 100%; max-width: 30rem; }
+.loadout-slot {
+  margin: 0 0 .5rem;
+  font-size: .72rem;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  text-align: center;
+}
+/* La bordure prend la qualité, comme une case du sac à dos. */
+.loadout-card[data-q] { background: var(--q); }
+.loadout-card { padding: 1.5rem 1.25rem 1.35rem; }
+.loadout-card .attr-list { font-size: .86rem; line-height: 1.5; }
+.loadout-card .attr-list li + li { margin-top: .3rem; }
+/* Un filet entre le bleu et le rouge : on lit les forces, puis la contrepartie. */
+.loadout-card .attr-list li:not(.neg) + li.neg {
+  margin-top: .7rem;
+  padding-top: .7rem;
+  border-top: 1px solid var(--line);
+}
+
 /* ------------------------------------------------------------- Marquee */
 .marquee {
   mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);

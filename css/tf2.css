@@ -482,6 +482,33 @@ html.light body::after {
 .attr-list li.neutral { color: var(--ink-3); }
 .attr-list li.neutral::before { content: '·'; color: var(--ink-3); }
 
+/* -------------------------------------------------- La description d'objet
+   L'infobulle qu'on lit en survolant une arme : TOUT est centré. Le nom dans
+   l'encre de la qualité (à poser avec data-q), la ligne de niveau en gris, les
+   attributs bleus puis rouges, et la phrase d'ambiance en dernier.
+   Centré, le « + » ne peut plus pendre en marge : il repasse dans le flux. */
+.item-desc { text-align: center; }
+.item-desc-name {
+  margin: 0;
+  font-size: 1.6rem;
+  line-height: 1.1;
+  color: var(--q-ink, var(--ink));
+}
+.item-desc-level {
+  margin: .3rem 0 0;
+  font-size: .8rem;
+  letter-spacing: .04em;
+  color: var(--ink-3);
+}
+.item-desc .attr-list { margin-top: 1rem; }
+.item-desc .attr-list li { padding-left: 0; }
+.item-desc .attr-list li::before { position: static; margin-right: .3em; }
+.item-desc-flavor {
+  margin: 1rem 0 0;
+  font-size: .85rem;
+  color: var(--ink);
+}
+
 /* --------------------------------------------------------- La case d'objet
    Une vignette d'inventaire : fond creux, bordure de rareté, et au survol le
    « pop d'objet » (l'objet se soulève et sa rareté s'allume). La lueur passe

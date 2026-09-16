@@ -20,8 +20,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <!-- tf2.css = le socle (palette, polices, primitives) ; style.css = les
      composants du portfolio. L'ordre compte : le second s'appuie sur le premier. -->
-<link rel="stylesheet" href="css/tf2.css?v=3">
-<link rel="stylesheet" href="css/style.css?v=11">
+<link rel="stylesheet" href="css/tf2.css?v=4">
+<link rel="stylesheet" href="css/style.css?v=12">
 </head>
 <body class="antialiased">
 
@@ -91,34 +91,61 @@
   <!-- ============ HERO ============ -->
   <section id="hero" data-team="red" class="relative min-h-screen flex items-center overflow-hidden">
     <div class="section-halo halo-red"></div>
-    <div class="max-w-6xl mx-auto px-6 w-full pt-28 pb-16 relative z-10">
-      <div class="flex items-center gap-3 mb-8 reveal">
-        <span class="font-mono text-xs px-3 py-1.5  panel ac-green">
-          <span class="live-dot inline-block w-2 h-2  dot-live mr-1.5 align-middle"></span><span data-i18n="hero.status">CDI @ AgiLab</span>
-        </span>
-        <span class="font-mono text-xs px-3 py-1.5  panel muted" data-i18n="hero.location">Reims, France</span>
+    <div class="hero-grid max-w-6xl mx-auto px-6 w-full pt-28 pb-16 relative z-10">
+      <div class="hero-main">
+        <div class="flex items-center gap-3 mb-8 reveal">
+          <span class="font-mono text-xs px-3 py-1.5  panel ac-green">
+            <span class="live-dot inline-block w-2 h-2  dot-live mr-1.5 align-middle"></span><span data-i18n="hero.status">CDI @ AgiLab</span>
+          </span>
+          <span class="font-mono text-xs px-3 py-1.5  panel muted" data-i18n="hero.location">Reims, France</span>
+        </div>
+
+        <h1 id="hero-title" class="font-tf text-6xl sm:text-7xl md:text-9xl tracking-tight leading-[0.95] reveal reveal-delay-1">
+          Mathys<br>Langiny
+        </h1>
+
+        <p class="mt-8 max-w-xl text-lg md:text-xl muted leading-relaxed reveal reveal-delay-2" data-i18n="hero.tagline">
+          Data &amp; admin BDD chez AgiLab. Mon job : protéger la donnée, automatiser ce qui doit l'être,
+          et dire non aux usines à gaz. Le soir : central au volley, régie de stream maison, fosse en concert de rap.
+        </p>
+
+        <div class="mt-6 panel  px-5 py-3.5 max-w-xl font-mono text-sm ink-2 reveal reveal-delay-2">
+          <span class="ac-green">&gt;&nbsp;</span><span id="term-line" class="terminal-caret"></span>
+        </div>
+
+        <div class="mt-10 flex flex-wrap items-center gap-4 reveal reveal-delay-3">
+          <a href="#projects" class="tf-btn tf-btn-buy">
+            <span data-i18n="hero.cta">Voir mes projets</span>
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+          <a href="#contact" class="font-mono text-sm muted hov-ink transition-colors px-2 py-3.5" data-i18n="hero.contact">me contacter ↓</a>
+        </div>
       </div>
 
-      <h1 id="hero-title" class="font-tf text-6xl sm:text-7xl md:text-9xl tracking-tight leading-[0.95] reveal reveal-delay-1">
-        Mathys<br>Langiny
-      </h1>
-
-      <p class="mt-8 max-w-xl text-lg md:text-xl muted leading-relaxed reveal reveal-delay-2" data-i18n="hero.tagline">
-        Data &amp; admin BDD chez AgiLab. Mon job : protéger la donnée, automatiser ce qui doit l'être,
-        et dire non aux usines à gaz. Le soir : central au volley, régie de stream maison, fosse en concert de rap.
-      </p>
-
-      <div class="mt-6 panel  px-5 py-3.5 max-w-xl font-mono text-sm ink-2 reveal reveal-delay-2">
-        <span class="ac-green">&gt;&nbsp;</span><span id="term-line" class="terminal-caret"></span>
-      </div>
-
-      <div class="mt-10 flex flex-wrap items-center gap-4 reveal reveal-delay-3">
-        <a href="#projects" class="tf-btn tf-btn-buy">
-          <span data-i18n="hero.cta">Voir mes projets</span>
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-        </a>
-        <a href="#contact" class="font-mono text-sm muted hov-ink transition-colors px-2 py-3.5" data-i18n="hero.contact">me contacter ↓</a>
-      </div>
+      <!-- COMPÉTENCES : la description d'objet, celle qu'on lit en survolant
+           une arme. Bleu = ce que je sais faire, rouge = l'autodérision.
+           Le « + » et le « − » sont posés par .attr-list en CSS : le texte des
+           lignes ne doit pas les répéter. Pas interactive, donc pas de pop au
+           survol : c'est un .panel, pas un .item. -->
+      <aside class="loadout reveal reveal-delay-3" aria-labelledby="loadout-name">
+        <p class="loadout-slot" data-i18n="skills.slot">Arme principale</p>
+        <div class="panel loadout-card item-desc" data-q="strange">
+          <h2 class="item-desc-name" id="loadout-name" data-i18n="skills.name">Strange Admin BDD</h2>
+          <p class="item-desc-level" data-i18n="skills.level">Data / Admin BDD de niveau CDI</p>
+          <ul class="attr-list">
+            <li data-i18n="skills.p1">Oracle APEX et PL/SQL, en production</li>
+            <li data-i18n="skills.p2">Données sales nettoyées, normalisées, et la base tient</li>
+            <li data-i18n="skills.p3">Tests qualité automatisés sur plusieurs environnements</li>
+            <li data-i18n="skills.p4">Dashboards Power BI et Grafana qui répondent à une question</li>
+            <li data-i18n="skills.p5">Python et Docker pour les pipelines de données</li>
+            <li data-i18n="skills.p6">Serveurs WebSocket Node.js pour arbitrer des parties</li>
+            <li data-i18n="skills.p7">Immunité totale aux usines à gaz</li>
+            <li class="neg" data-i18n="skills.n1">Pas de coups critiques aléatoires : tout passe par les tests</li>
+            <li class="neg" data-i18n="skills.n2">6 h par semaine au volley : injoignable ces soirs-là</li>
+          </ul>
+          <p class="item-desc-flavor" data-i18n="skills.flavor">« On ne casse pas un modèle de données. »</p>
+        </div>
+      </aside>
     </div>
   </section>
 
@@ -809,7 +836,7 @@
   <script src="data/projects.js?v=6"></script>
   <script src="data/games.js?v=1"></script>
   <script src="data/favgames.js?v=2"></script>
-  <script src="js/i18n.js?v=5"></script>
+  <script src="js/i18n.js?v=6"></script>
   <script src="js/lightbox.js?v=2"></script>
   <script src="js/itemmodal.js?v=1"></script>
   <script src="js/main.js?v=10"></script>

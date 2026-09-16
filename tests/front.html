@@ -97,6 +97,8 @@ document.getElementById('f').addEventListener('load', function () {
       d.getElementById('lang-toggle').click();
       var h2 = d.querySelector('#projects h2');
       t('bascule EN [' + h2.textContent.trim().slice(0, 16) + ']', /project/i.test(h2.textContent));
+      t('competences traduites [' + d.getElementById('loadout-name').textContent + ']',
+        d.getElementById('loadout-name').textContent === 'Strange DB Admin');
       t('pictogrammes de nav conserves (' + d.querySelectorAll('.nav-link svg').length + '/6)', d.querySelectorAll('.nav-link svg').length === 6);
       d.getElementById('lang-toggle').click();
       t('retour FR', /Projets/.test(d.querySelector('#projects h2').textContent));
@@ -138,6 +140,29 @@ document.getElementById('f').addEventListener('load', function () {
       var ghost = d.querySelector('.tf-btn-ghost');
       t('l etat indisponible n est pas cliquable',
         !ghost || w.getComputedStyle(ghost).cursor !== 'pointer');
+
+      // Competences : la description d'objet du hero
+      var lo = d.querySelector('#hero .loadout');
+      t('carte de competences dans le hero', lo !== null);
+      var pos = lo.querySelectorAll('.attr-list li:not(.neg)'), neg = lo.querySelectorAll('.attr-list li.neg');
+      t('attributs bleus (' + pos.length + ') et rouges (' + neg.length + ')', pos.length >= 5 && neg.length >= 1 && neg.length <= 2);
+      // Le + et le − viennent du CSS : les ecrire aussi dans le texte les doublerait.
+      t('pas de +/− en dur dans le texte',
+        [].every.call(lo.querySelectorAll('.attr-list li'), function (li) { return !/^[+\-−]/.test(li.textContent.trim()); }));
+      t('attribut negatif en rouge',
+        w.getComputedStyle(neg[0]).color !== w.getComputedStyle(pos[0]).color
+        && w.getComputedStyle(neg[0], '::before').content.indexOf('−') > -1);
+      // Sonde : un span colore en var(--q-ink) dans la carte donne l'encre attendue.
+      var probe = d.createElement('span');
+      probe.style.color = 'var(--q-ink)';
+      lo.querySelector('[data-q]').appendChild(probe);
+      t('nom a l encre de sa qualite',
+        w.getComputedStyle(d.getElementById('loadout-name')).color === w.getComputedStyle(probe).color);
+      probe.remove();
+      t('carte nommee pour les lecteurs d ecran', lo.getAttribute('aria-labelledby') === 'loadout-name');
+      var rt = d.getElementById('hero-title').getBoundingClientRect(), rl = lo.getBoundingClientRect();
+      t('la carte ne chevauche pas le nom',
+        rl.left >= rt.right || rl.top >= rt.bottom || rl.right <= rt.left || rl.bottom <= rt.top);
 
       // Nav au scroll
       var nav = d.querySelector('#navbar nav');
