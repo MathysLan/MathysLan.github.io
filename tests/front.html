@@ -59,6 +59,18 @@ document.getElementById('f').addEventListener('load', function () {
       d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       t('Echap ferme la modale', im.hidden);
       t('focus rendu a la case', d.activeElement === cells[1]);
+      // Fiche structuree : objectif / ma part / resultat / equipe.
+      cells[0].click();
+      var facts0 = im.querySelectorAll('.im-facts .facts-row');
+      t('fiche AgiLab : objectif, ma part, resultat (' + facts0.length + ' lignes)',
+        facts0.length >= 3 && im.querySelector('.im-facts .facts-row.is-role') !== null);
+      t('fiche : recit complet garde sous « En detail »',
+        !im.querySelector('.im-desc-label').hidden && im.querySelector('.im-desc').textContent.length > 200);
+      d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      cells[1].click();
+      t('fiche d equipe : taille de l equipe affichee',
+        /Projet à 4/.test(im.querySelector('.im-facts').textContent));
+      d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
       // Un projet sans depot ne doit pas afficher un lien GitHub mort.
       cells[0].click();
       t('lien GitHub masque si absent', im.querySelector('.im-gh').hidden);
@@ -69,6 +81,21 @@ document.getElementById('f').addEventListener('load', function () {
       var slides = d.querySelectorAll('.game-slide');
       t('cartes jeux rendues (' + slides.length + ')', slides.length === 7);
       t('carte de jeu = objet', d.querySelector('.game-slide .item.game-card') !== null);
+      // Jeux : Code et Architecture a cote de Jouer.
+      var codes = d.querySelectorAll('.game-slide .game-code');
+      t('jeux : 6 liens Code vers GitHub',
+        codes.length === 6 && [].every.call(codes, function (a) { return a.href.indexOf('https://github.com/MathysLan/') === 0 && a.target === '_blank'; }));
+      var archBtns = d.querySelectorAll('.game-slide .game-arch');
+      t('jeux : 6 boutons Architecture', archBtns.length === 6);
+      archBtns[0].focus();
+      archBtns[0].click();
+      t('Architecture ouvre la fiche technique du jeu',
+        !im.hidden && im.querySelector('.im-title').textContent === d.querySelectorAll('.game-slide .game-title')[0].textContent
+        && im.querySelectorAll('.im-arch li').length >= 3 && im.querySelectorAll('.im-stack li').length > 0);
+      t('fiche technique : lien vers le code', !im.querySelector('.im-gh').hidden && /github.com/.test(im.querySelector('.im-gh').href));
+      d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      t('fiche technique : Echap ferme, focus rendu au bouton', im.hidden && d.activeElement === archBtns[0]);
+      archBtns[0].blur();
       t('jeux preferes (' + d.querySelectorAll('#fav-games .fav-game').length + ')', d.querySelectorAll('#fav-games .fav-game').length > 0);
 
       // ConTracker
@@ -149,6 +176,11 @@ document.getElementById('f').addEventListener('load', function () {
       t('bascule EN [' + h2.textContent.trim().slice(0, 16) + ']', /project/i.test(h2.textContent));
       t('competences traduites [' + d.getElementById('loadout-name').textContent + ']',
         d.getElementById('loadout-name').textContent === 'Strange DB Admin');
+      d.querySelector('#projects-grid .bp-cell').click();
+      t('fiche projet en anglais (My part / Goal)',
+        /My part/.test(d.querySelector('#item-modal .im-facts').textContent) && /Goal/.test(d.querySelector('#item-modal .im-facts').textContent)
+        && /Designed and industrialized/.test(d.querySelector('#item-modal .im-facts').textContent));
+      d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
       t('aria-label traduits en EN [' + d.getElementById('lightbox-close').getAttribute('aria-label') + ']',
         d.getElementById('lightbox-close').getAttribute('aria-label') === 'Close'
         && d.getElementById('games-next').getAttribute('aria-label') === 'Next game');
@@ -409,6 +441,10 @@ document.getElementById('f').addEventListener('load', function () {
           nd.querySelectorAll('#games-track .game-slide').length === 7
           && nw.getComputedStyle(nd.querySelector('.game-slide')).position === 'static');
         t('sans JS : jeux preferes presents', nd.querySelectorAll('#fav-games .fav-game').length > 0);
+        t('sans JS : architecture des jeux lisible dans les cartes',
+          nd.querySelectorAll('.game-arch-list').length === 6
+          && nw.getComputedStyle(nd.querySelector('.game-arch-list')).display !== 'none');
+        t('sans JS : fiches de projet structurees', nd.querySelectorAll('#projects-sheets .facts').length === 8);
         t('sans JS : boutons qui dependent du JS masques',
           [].every.call(nd.querySelectorAll('.js-only'), function (b) { return nw.getComputedStyle(b).display === 'none'; }));
         t('sans JS : objectifs des contrats lisibles',

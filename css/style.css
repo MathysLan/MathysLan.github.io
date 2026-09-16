@@ -449,6 +449,27 @@ body.modal-open { overflow: hidden; }
 .im-img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
 .im-img.is-contain { object-fit: contain; padding: 1rem; }
 .im-desc { color: var(--ink-2); font-size: .9rem; line-height: 1.6; margin: 0; }
+.im-desc[hidden], .im-desc-label[hidden] { display: none; }
+/* Le résumé de la fiche : objectif, ma part, résultat, équipe. Libellés en
+   petites capitales, comme les étiquettes du guichet ; « Ma part » ressort à
+   l'encre Mann Co., c'est la ligne qu'un recruteur cherche. */
+.facts { display: grid; gap: .55rem; margin: 0 0 1rem; }
+.facts-row { display: grid; grid-template-columns: 6.2rem 1fr; gap: .8rem; align-items: baseline; }
+.facts dt {
+  font-size: .68rem; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+.facts dd { margin: 0; color: var(--ink); font-size: .9rem; line-height: 1.5; }
+.facts-row.is-role dt { color: var(--orange-ink); }
+@media (max-width: 480px) {
+  .facts-row { grid-template-columns: 1fr; gap: .1rem; }
+}
+.im-desc-label {
+  margin: 0 0 .3rem;
+  font-size: .68rem; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+.im-emoji { font-size: 5rem; line-height: 1; }
 .im-stack { margin-top: 1rem; }
 .im-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1.3rem; }
 .im-actions [hidden] { display: none; }
@@ -789,6 +810,9 @@ body.modal-open { overflow: hidden; }
 /* La carte elle-même est un objet : sa bordure porte la qualité du jeu. */
 .game-card { height: 100%; }
 .game-card-body { height: 100%; display: flex; flex-direction: column; padding: 1.6rem 1.5rem; }
+/* Jouer, puis Code et Architecture : la partie technique à côté de l'action. */
+.game-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.game-arch-list { margin-top: .8rem; }
 .game-card:hover { transform: none; filter: none; }   /* le pop gênerait le glissement */
 .game-slide.is-active .game-card {
   filter: drop-shadow(0 0 22px color-mix(in srgb, var(--q) 45%, transparent));

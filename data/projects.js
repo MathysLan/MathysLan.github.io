@@ -8,6 +8,14 @@
 //   ordre). « australium » (doré) est libre, en réserve pour un projet phare.
 //   Voir .q-badge et [data-q] dans css/tf2.css.
 // Les champs *_en fournissent la version anglaise (fallback : version française).
+//
+// Fiche structurée (tous facultatifs, affichés seulement s'ils sont remplis) :
+//   goal    le problème / l'objectif
+//   role    CE QUE J'AI FAIT MOI — à remplir pour chaque projet d'équipe : sans
+//           lui, on comprend le projet mais pas ma contribution
+//   result  le résultat concret
+//   team    'solo' ou le nombre de personnes (vérifié : auteurs du dépôt)
+// Le champ desc reste le récit complet, affiché sous « En détail ».
 const PROJECTS = [
   {
     id: 'tests-qualite',
@@ -20,6 +28,12 @@ const PROJECTS = [
     title_en: 'QA test automation',
     desc: "Un système d'automatisation des tests qualité en Oracle APEX / PL/SQL, déployé sur plusieurs environnements clients. Ma règle sur ce projet : on ne modifie pas l'architecture d'une base pour un besoin temporaire. Quand il fallait piloter les tests, j'ai fait passer les paramètres par URL plutôt que de toucher au modèle - la base reste propre, le besoin est couvert. Suivi synchronisé automatiquement dans Monday.com. Le reste est confidentiel, c'est le jeu.",
     desc_en: "A QA test automation system in Oracle APEX / PL/SQL, deployed across several client environments. My rule on this project: you don't modify a database's architecture for a temporary need. When the tests needed driving, I passed parameters through the URL instead of touching the model - the database stays clean, the need is covered. Tracking synced automatically into Monday.com. The rest is confidential, that's the deal.",
+    goal: "Automatiser les tests qualité, sur plusieurs environnements clients.",
+    goal_en: "Automate quality-assurance testing across several client environments.",
+    role: "Conception et industrialisation du système, pendant mon alternance chez AgiLab (sept. 2025 - juin 2026). Choix clé : piloter les tests par paramètres d'URL plutôt que modifier le modèle de données.",
+    role_en: "Designed and industrialized the system during my apprenticeship at AgiLab (Sept. 2025 - June 2026). Key decision: drive the tests through URL parameters instead of modifying the data model.",
+    result: "Système déployé sur plusieurs environnements clients, suivi synchronisé automatiquement dans Monday.com. Code et détails fonctionnels confidentiels.",
+    result_en: "System deployed across several client environments, with tracking synced automatically into Monday.com. Code and functional details are confidential.",
     stack: ['Oracle APEX', 'PL/SQL', 'Python', 'Monday.com'],
     images: [],
     github: null,
@@ -33,7 +47,12 @@ const PROJECTS = [
     title_en: 'Speed cameras & accidents - data visualization',
     desc: "Les radars réduisent-ils vraiment les accidents ? On a pris les données publiques et on a vérifié, à quatre. Le vrai boulot : nettoyer et normaliser des données sales, puis les poser dans une base relationnelle carrée. Ensuite seulement, les dashboards Power BI et Grafana : 3 268 radars cartographiés, 54 822 accidents analysés, heatmaps et analyses croisées. Les chiffres parlent d'eux-mêmes.",
     desc_en: "Do speed cameras actually reduce accidents? We took the open data and checked, as a team of four. The real work: cleaning and normalizing messy data, then putting it into a solid relational database. Only then the Power BI and Grafana dashboards: 3,268 speed cameras mapped, 54,822 accidents analyzed, heatmaps and cross analyses. The numbers speak for themselves.",
-    stack: ['SQL', 'Power BI', 'Grafana', 'Adminer'],
+    goal: "Vérifier, à partir des données publiques, si les radars réduisent vraiment les accidents.",
+    goal_en: "Check, using open data, whether speed cameras actually reduce accidents.",
+    result: "3 268 radars cartographiés et 54 822 accidents analysés, dans une base relationnelle et des dashboards Power BI et Grafana.",
+    result_en: "3,268 speed cameras mapped and 54,822 accidents analyzed, in a relational database and Power BI and Grafana dashboards.",
+    team: 4,
+    stack: ['SQL', 'PostgreSQL', 'Power BI', 'Grafana', 'Adminer'],
     cover: 'assets/projects/thumbs/radars-powerbi-carte.webp',
     images: [
       { src: 'assets/projects/radars-powerbi-carte.webp', cap: 'Carte Power BI des 3 268 radars en France, par type', cap_en: 'Power BI map of the 3,268 speed cameras in France, by type' },
@@ -53,6 +72,11 @@ const PROJECTS = [
     title_en: 'Influence analysis - Bluesky × GTA VI',
     desc: "Qui fait l'opinion autour de GTA VI sur Bluesky ? Pipeline entièrement conteneurisé sous Docker : collecte des posts via l'API, puis analyse de sentiments. Un seul LLM, je n'y crois pas - alors j'en ai mis deux en face à face : Qwen en local via Ollama contre Gemini en API, et on compare leurs verdicts sur les mêmes posts. Score d'influence par compte, et analyse du mème « we got X before GTA 6 » en bonus.",
     desc_en: "Who shapes the GTA VI conversation on Bluesky? Fully containerized Docker pipeline: post collection through the API, then sentiment analysis. Trusting a single LLM? No thanks - so I put two head to head: Qwen locally via Ollama vs Gemini through its API, comparing their verdicts on the same posts. Influence score per account, plus an analysis of the \"we got X before GTA 6\" meme as a bonus.",
+    goal: "Identifier les comptes qui font l'opinion autour de GTA VI sur Bluesky.",
+    goal_en: "Identify the accounts shaping the GTA VI conversation on Bluesky.",
+    result: "Pipeline Docker en trois services (collecte, analyse de sentiments par deux LLM, calcul d'influence) et graphiques générés automatiquement.",
+    result_en: "A three-service Docker pipeline (collection, sentiment analysis by two LLMs, influence scoring) with automatically generated charts.",
+    team: 3,
     stack: ['Python', 'Docker', 'Ollama', 'Gemini API', 'Bluesky API'],
     cover: 'assets/projects/thumbs/bluesky-top-influence.webp',
     images: [
@@ -61,7 +85,7 @@ const PROJECTS = [
       { src: 'assets/projects/bluesky-meme-gta6.webp', cap: 'Le mème « we got X before GTA 6 » : part des posts et classement par modèle', cap_en: 'The "we got X before GTA 6" meme: share of posts and per-model classification' },
       { src: 'assets/projects/bluesky-volume-posts.webp', cap: 'Volume de posts collectés par jour, avec moyenne glissante sur 7 jours', cap_en: 'Posts collected per day, with 7-day rolling average' },
     ],
-    github: null,
+    github: 'https://github.com/MathysLan/Organisation-et-protection-de-donn-es',
   },
   {
     id: 'back2play',
@@ -72,6 +96,10 @@ const PROJECTS = [
     title: 'Back2Play',
     desc: "Zéro code ici, et c'était le but : un business plan complet pour une aire de jeux indoor pour adultes à Reims. Étude de marché sur 77 répondants, identité de marque, charte graphique, prévisions financières et plan de financement de 500 000 €. Slogan : « Parce qu'on ne grandit jamais ».",
     desc_en: "Zero code here, and that was the point: a complete business plan for an adults-only indoor playground in Reims. Market study with 77 respondents, brand identity, style guide, financial forecasts and a €500,000 financing plan. Tagline: \"Because we never grow up\".",
+    goal: "Monter le business plan complet d'une aire de jeux indoor pour adultes à Reims.",
+    goal_en: "Build the complete business plan for an adults-only indoor playground in Reims.",
+    result: "Étude de marché sur 77 répondants, identité de marque, prévisions financières et plan de financement de 500 000 €.",
+    result_en: "Market study with 77 respondents, brand identity, financial forecasts and a €500,000 financing plan.",
     stack: ['Business plan', 'Étude de marché', 'Charte graphique'],
     cover: 'assets/projects/thumbs/back2play-logo.webp',
     coverFit: 'contain',
@@ -90,7 +118,12 @@ const PROJECTS = [
     title_en: 'Hospital scheduling',
     desc: "Un service hospitalier qui gère ses plannings sous Excel, ça finit toujours par casser. On a tout centralisé dans une appli web : recherche de créneaux, profils du personnel, notifications mail et un petit chatbot à réponses pré-enregistrées. Méthode agile (MoSCoW), maquettes Figma. Simple, robuste, ça fait le job.",
     desc_en: "A hospital department running its schedules on Excel always ends up breaking. We centralized everything into a web app: slot search, staff profiles, email notifications and a small chatbot with canned answers. Agile methodology (MoSCoW), Figma mockups. Simple, robust, gets the job done.",
-    stack: ['PHP', 'MySQL', 'Figma', 'Agile'],
+    goal: "Remplacer les plannings sous Excel d'un service hospitalier par une application web.",
+    goal_en: "Replace a hospital department's Excel schedules with a web application.",
+    result: "Application centralisée : recherche de créneaux, profils du personnel, notifications mail et chatbot à réponses pré-enregistrées.",
+    result_en: "A centralized app: slot search, staff profiles, email notifications and a canned-answer chatbot.",
+    team: 5,
+    stack: ['PHP', 'Symfony', 'MySQL', 'Figma', 'Agile'],
     cover: 'assets/projects/thumbs/hopital-recherche-creneau.webp',
     images: [
       { src: 'assets/projects/hopital-recherche-creneau.webp', cap: 'Recherche de créneaux disponibles', cap_en: 'Searching for available slots' },
@@ -111,6 +144,11 @@ const PROJECTS = [
     title_en: 'TV series browser',
     desc: "Application web mobile-first pour parcourir des séries : liste, saisons, épisodes, formulaires d'édition. En binôme, trois jours, livré.",
     desc_en: "Mobile-first web app to browse TV shows: list, seasons, episodes, edit forms. Two of us, three days, shipped.",
+    goal: "Développer une application web mobile-first de consultation et d'édition de séries TV.",
+    goal_en: "Build a mobile-first web app to browse and edit TV series.",
+    result: "Livrée en trois jours : séries, saisons et épisodes, filtre par genre, ajout, modification et suppression.",
+    result_en: "Shipped in three days: series, seasons and episodes, genre filter, create, edit and delete.",
+    team: 2,
     stack: ['PHP', 'MySQL', 'HTML / CSS'],
     cover: 'assets/projects/thumbs/series-liste.webp',
     images: [
@@ -131,6 +169,10 @@ const PROJECTS = [
     title_en: 'Connect 4',
     desc: "Puissance 4 en Python (pygame), une semaine de dev : détection des victoires, chute des jetons, et un mode étendu où on pousse les jetons par les côtés de la grille. Pas de fioritures, juste un jeu qui tourne.",
     desc_en: "Connect 4 in Python (pygame), one week of dev: win detection, falling tokens, and an extended mode where tokens get pushed in from the sides of the grid. No frills, just a game that runs.",
+    goal: "Programmer un Puissance 4 jouable en Python avec pygame.",
+    goal_en: "Program a playable Connect 4 in Python with pygame.",
+    result: "Détection des victoires, chute des jetons et un mode étendu où l'on pousse les jetons par les côtés de la grille.",
+    result_en: "Win detection, falling tokens and an extended mode where tokens are pushed in from the sides of the grid.",
     stack: ['Python', 'pygame'],
     cover: 'assets/projects/thumbs/puissance4-jeu.webp',
     images: [
@@ -147,6 +189,11 @@ const PROJECTS = [
     title: 'A Maze in Python',
     desc: "Générateur de labyrinthes : cinq algorithmes de génération, trois méthodes de résolution automatique affichées pas à pas. En binôme, deux semaines. De l'algo pur, et c'est ce que j'aime.",
     desc_en: "Maze generator: five generation algorithms, three automatic solving methods displayed step by step. Two of us, two weeks. Pure algorithmics, and that's what I like.",
+    goal: "Générer des labyrinthes et les résoudre automatiquement.",
+    goal_en: "Generate mazes and solve them automatically.",
+    result: "Cinq algorithmes de génération et trois méthodes de résolution affichées pas à pas, en deux semaines.",
+    result_en: "Five generation algorithms and three solving methods displayed step by step, in two weeks.",
+    team: 2,
     stack: ['Python', 'Algorithmique'],
     cover: 'assets/projects/thumbs/labyrinthe.webp',
     images: [

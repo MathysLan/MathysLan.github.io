@@ -161,7 +161,7 @@ const I18N = {
 
     'games.kicker': '05 - Jeux',
     'games.title': 'Jeux web<span class="ac">.</span>',
-    'games.sub': "Des jeux jouables direct dans le navigateur - sans install, sans compte. Front statique, serveur arbitre maison.",
+    'games.sub': "Jouables direct dans le navigateur, sans install ni compte. Chaque jeu en ligne a son serveur Node.js qui arbitre tout : le navigateur n'envoie que des intentions. Le code et l'architecture de chacun sont sur sa carte.",
 
     'contact.kicker': '06 - Contact',
     'contact.title': 'On se capte ?',
@@ -349,7 +349,7 @@ const I18N = {
 
     'games.kicker': '05 - Games',
     'games.title': 'Web games<span class="ac">.</span>',
-    'games.sub': "Games playable straight in your browser - no install, no account. Static front, homemade referee server.",
+    'games.sub': "Playable straight in your browser, no install, no account. Every online game has its own Node.js server refereeing everything: the browser only sends intents. Each card links to the game's code and architecture.",
 
     'contact.kicker': '06 - Contact',
     'contact.title': "Let's talk",

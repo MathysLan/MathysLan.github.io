@@ -26,6 +26,33 @@ function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// Libellés des fiches. Ici plutôt que dans i18n.js : le pré-rendu
+// (tools/build.mjs) charge ce fichier sans i18n.js.
+const SHEET_LABELS = {
+  fr: { goal: 'Objectif', role: 'Ma part', result: 'Résultat', team: 'Équipe', details: 'En détail',
+        arch: 'Architecture', code: 'Code', play: 'Jouer' },
+  en: { goal: 'Goal', role: 'My part', result: 'Outcome', team: 'Team', details: 'Details',
+        arch: 'Architecture', code: 'Code', play: 'Play' },
+};
+const sheetLabels = (lang) => SHEET_LABELS[lang] || SHEET_LABELS.fr;
+
+function teamLabel(team, lang) {
+  if (team === 'solo') return 'Solo';
+  return lang === 'en' ? `Team of ${team}` : `Projet à ${team}`;
+}
+
+// Le résumé qu'un recruteur lit en premier : objectif, ma part, résultat,
+// équipe. Chaque ligne n'apparaît que si le champ est rempli dans data/.
+function projectFactsHTML(p, lang) {
+  const L = sheetLabels(lang);
+  const rows = ['goal', 'role', 'result']
+    .map((k) => [k, trLang(p, k, lang)])
+    .filter(([, v]) => v)
+    .map(([k, v]) => `<div class="facts-row${k === 'role' ? ' is-role' : ''}"><dt>${L[k]}</dt><dd>${esc(v)}</dd></div>`);
+  if (p.team) rows.push(`<div class="facts-row"><dt>${L.team}</dt><dd>${teamLabel(p.team, lang)}</dd></div>`);
+  return rows.length ? `<dl class="facts">${rows.join('')}</dl>` : '';
+}
+
 // ------------------------------------------------------------------ Projets
 // Une case du sac à dos. Un vrai <button> : focus clavier, Entrée et Espace
 // viennent du navigateur ; aria-haspopup="dialog" annonce qu'il ouvre une
@@ -62,6 +89,7 @@ function projectSheetHTML(p, lang) {
     <article class="nojs-sheet">
       <h3>${trLang(p, 'title', lang)}</h3>
       <p class="nojs-sheet-meta">${esc(trLang(p, 'badge', lang))}${p.confidential ? (en ? ' · confidential' : ' · confidentiel') : ''}</p>
+      ${projectFactsHTML(p, lang)}
       <p>${esc(trLang(p, 'desc', lang))}</p>
       ${stack ? `<ul class="attr-list">${stack}</ul>` : ''}
       ${gh}
@@ -119,6 +147,25 @@ function gameSlideHTML(game, idx, lang) {
              </button>`;
   }
 
+  // Code (dépôt public) et Architecture (fiche technique en modale) : la partie
+  // technique des jeux, à côté de « Jouer ». Les points d'architecture sont
+  // aussi écrits dans la carte, visibles seulement sans JS (et lisibles par
+  // les moteurs) ; avec JS, le bouton ouvre la fiche.
+  const L = sheetLabels(lang);
+  const title = trLang(game, 'title', lang);
+  const code = game.code
+    ? `<a href="${game.code}" class="tf-btn tf-btn-sm game-code" target="_blank" rel="noopener noreferrer"
+               aria-label="${L.code} — ${title}">${L.code}</a>`
+    : '';
+  const archItems = trLang(game, 'arch', lang) || [];
+  const arch = archItems.length
+    ? `<button type="button" class="tf-btn tf-btn-sm game-arch js-only" data-arch="${idx}" aria-haspopup="dialog"
+               aria-label="${L.arch} — ${title}">${L.arch}</button>`
+    : '';
+  const archList = archItems.length
+    ? `<ul class="attr-list game-arch-list nojs-only">${archItems.map((a) => `<li>${esc(a)}</li>`).join('')}</ul>`
+    : '';
+
   return `
     <div class="game-slide" role="group" aria-roledescription="${en ? 'slide' : 'diapositive'}" aria-label="${trLang(game, 'title', lang)}">
       <div class="item game-card" data-q="${qual}">
@@ -134,7 +181,8 @@ function gameSlideHTML(game, idx, lang) {
           <p class="muted text-sm leading-relaxed game-desc">${trLang(game, 'desc', lang)}</p>
           <div class="flex flex-wrap gap-2 mt-4">${tags}</div>
           ${stack ? `<ul class="attr-list mt-3">${stack}</ul>` : ''}
-          <div class="mt-6">${cta}</div>
+          ${archList}
+          <div class="mt-6 game-actions">${cta}${code}${arch}</div>
         </div>
       </div>
     </div>`;

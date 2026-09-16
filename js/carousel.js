@@ -169,6 +169,9 @@
       if (i !== index) { e.preventDefault(); go(i); restartAuto(); return; }
       const action = e.target.closest('[data-action="connect4"]');
       if (action) window.launchConnect4 && window.launchConnect4();
+      // Bouton « Architecture » : la fiche technique du jeu, en modale.
+      const arch = e.target.closest('[data-arch]');
+      if (arch && window.openGameSheet) window.openGameSheet(+arch.dataset.arch, arch);
     });
 
     // clavier quand le carousel a le focus

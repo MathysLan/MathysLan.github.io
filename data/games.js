@@ -1,6 +1,9 @@
 // Jeux de la section carousel. Ajouter un jeu = ajouter un objet ici, rien d'autre.
 // status: 'live' = jouable (href OU action), 'soon' = teaser à venir.
 // Les champs *_en fournissent la version anglaise (repli : version française).
+// code : dépôt public du code (serveur arbitre pour les jeux en ligne).
+// arch : points d'architecture affichés dans la fiche « Architecture ». Des
+//        faits vérifiables sur le code, pas du discours.
 const GAMES = [
   {
     id: 'morpion',
@@ -15,6 +18,19 @@ const GAMES = [
     tags: ['en ligne', '2 joueurs', 'temps réel'],
     tags_en: ['online', '2 players', 'real-time'],
     stack: ['WebSocket', 'Node.js', 'Canvas'],
+    code: 'https://github.com/MathysLan/morpion-server',
+    arch: [
+      "Serveur Node.js (ws) seul arbitre : le client n'envoie que son intention de jeu",
+      "Règles isolées dans un moteur pur (engine.js), séparé du réseau",
+      "Parties privées par code à 4 lettres (rooms)",
+      "Front statique sur GitHub Pages, serveur hébergé sur Render",
+    ],
+    arch_en: [
+      "Node.js (ws) server is the only referee: the client only sends its move intent",
+      "Rules isolated in a pure engine (engine.js), separate from networking",
+      "Private games through a 4-letter code (rooms)",
+      "Static front on GitHub Pages, server hosted on Render",
+    ],
     href: 'games/morpion/',
     status: 'live',
   },
@@ -31,6 +47,19 @@ const GAMES = [
     tags: ['en ligne', 'multi', 'micro'],
     tags_en: ['online', 'multi', 'mic'],
     stack: ['WebSocket', 'MediaRecorder', 'Web Audio', 'R2'],
+    code: 'https://github.com/MathysLan/imitation-server',
+    arch: [
+      "Enregistrement au micro avec MediaRecorder, double waveform en Web Audio pour se caler",
+      "Prises envoyées en binaire par WebSocket, gardées en RAM le temps de la manche puis purgées",
+      "Vidéos de référence sur Cloudflare R2 (CORS) : elles ne passent jamais par le serveur Node",
+      "Le host pilote les phases, le serveur valide chaque transition",
+    ],
+    arch_en: [
+      "Mic recording with MediaRecorder, dual Web Audio waveform to sync up",
+      "Takes sent as binary over WebSocket, kept in RAM for the round then purged",
+      "Reference videos on Cloudflare R2 (CORS): they never go through the Node server",
+      "The host drives the phases, the server validates every transition",
+    ],
     href: 'games/imitation/',
     status: 'live',
   },
@@ -47,6 +76,19 @@ const GAMES = [
     tags: ['en ligne', 'multi', 'bluff'],
     tags_en: ['online', 'multi', 'bluff'],
     stack: ['WebSocket', 'Node.js', 'SVG'],
+    code: 'https://github.com/MathysLan/demicercle-server',
+    arch: [
+      "La cible n'est envoyée qu'au Guide, jamais aux autres joueurs avant la révélation",
+      "Les curseurs en direct ne partent qu'au Guide, pas entre devineurs (anti-triche)",
+      "Scores calculés côté serveur ; le cadran est dessiné en SVG",
+      "Deux modes : thèmes du catalogue, ou thème inventé par le Guide (la cible reste tirée par le serveur)",
+    ],
+    arch_en: [
+      "The target is only sent to the Guide, never to the other players before the reveal",
+      "Live cursors only go to the Guide, not between guessers (anti-cheat)",
+      "Scores computed server-side; the dial is drawn in SVG",
+      "Two modes: catalogue themes, or a theme invented by the Guide (the server still draws the target)",
+    ],
     href: 'games/demicercle/',
     status: 'live',
   },
@@ -63,6 +105,17 @@ const GAMES = [
     tags: ['solo', 'vs bot'],
     tags_en: ['solo', 'vs bot'],
     stack: ['Canvas', 'JS natif'],
+    code: 'https://github.com/MathysLan/MathysLan.github.io/blob/main/js/connect4.js',
+    arch: [
+      "Entièrement dans le navigateur, rendu sur Canvas, sans serveur",
+      "Bot à heuristique : gagner si possible, sinon bloquer, sinon viser le centre",
+      "Lancé aussi par INSERT COIN, la palette Ctrl+K et le Konami code",
+    ],
+    arch_en: [
+      "Runs entirely in the browser, rendered on Canvas, no server",
+      "Heuristic bot: win if possible, otherwise block, otherwise aim for the center",
+      "Also launched by INSERT COIN, the Ctrl+K palette and the Konami code",
+    ],
     action: 'connect4',
     status: 'live',
   },
@@ -79,6 +132,19 @@ const GAMES = [
     tags: ['en ligne', 'multi', 'sang-froid'],
     tags_en: ['online', 'multi', 'nerve'],
     stack: ['WebSocket', 'Node.js', 'R2', 'setTimeout'],
+    code: 'https://github.com/MathysLan/ban-server',
+    arch: [
+      "Le temps « fatal » d'une vidéo n'est jamais envoyé aux joueurs avant les résultats",
+      "Chaque arrêt est recoupé avec l'horloge du serveur (anti-triche)",
+      "Rythme et filet anti-blocage tenus par le serveur ; ordre de passage aléatoire",
+      "Catalogue des vidéos en JSON sur GitHub Pages, relu par le serveur : ajouter une vidéo ne demande aucun redéploiement",
+    ],
+    arch_en: [
+      "A video's « fatal » time is never sent to players before the results",
+      "Every stop is cross-checked against the server clock (anti-cheat)",
+      "Pace and anti-stall safety net held by the server; random turn order",
+      "Video catalogue as JSON on GitHub Pages, read by the server: adding a video needs no redeploy",
+    ],
     href: 'games/ban/',
     status: 'live',
   },
@@ -95,6 +161,19 @@ const GAMES = [
     tags: ['en ligne', 'multi', '4 épreuves'],
     tags_en: ['online', 'multi', '4 tests'],
     stack: ['WebSocket', 'Node.js', 'Web Audio', 'SVG'],
+    code: 'https://github.com/MathysLan/precision-server',
+    arch: [
+      "Moteur de score pur : teinte circulaire, symétrie du triangle, écart en cents pour le son",
+      "Le serveur tire la cible et tient les phases mémoriser puis jouer, selon la difficulté",
+      "Cible envoyée seulement pendant la mémorisation ; les timings sont recoupés à l'horloge serveur",
+      "Sons synthétisés en Web Audio et formes en SVG : aucun fichier média",
+    ],
+    arch_en: [
+      "Pure scoring engine: circular hue, triangle symmetry, pitch error in cents",
+      "The server draws the target and runs the memorize-then-play phases, by difficulty",
+      "Target only sent during memorization; timings cross-checked against the server clock",
+      "Sounds synthesized with Web Audio and shapes in SVG: no media files",
+    ],
     href: 'games/precision/',
     status: 'live',
   },
