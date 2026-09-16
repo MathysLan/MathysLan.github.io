@@ -5,11 +5,11 @@ Certaines cartes de la section « Mes jeux préférés » utilisent une image lo
 
 | Jeu                       | Fichier attendu           |
 |---------------------------|---------------------------|
-| Minecraft                 | `minecraft.jpg`           |
-| Clair Obscur : Expédition 33 | `expedition33.jpg`     |
-| Fortnite                  | `fortnite.jpg`            |
+| Minecraft                 | `minecraft.webp`           |
+| Clair Obscur : Expédition 33 | `expedition33.webp`     |
+| Fortnite                  | `fortnite.webp`            |
 
-- Format bannière conseillé (paysage, ~16:9), en `.jpg`.
+- Format bannière conseillé (paysage, ~16:9), en `.webp`.
 - Si une image est absente, la carte retombe proprement sur son emoji + dégradé
   (aucune carte cassée).
 - Les autres jeux (TF2, Rust, Garry's Mod, DBZ Kakarot, YOMI Hustle, SCP: SL)

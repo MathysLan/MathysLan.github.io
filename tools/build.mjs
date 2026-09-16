@@ -97,8 +97,21 @@ function fillBlock(src, name, inner) {
   return src.replace(re, () => block);
 }
 
+// Toute image locale citée dans les données doit exister : une faute de frappe
+// dans un chemin casse le build plutôt que d'afficher un trou sur le site.
+function checkAssets(S) {
+  const local = (p) => p && !/^https?:\/\//.test(p);
+  const refs = [
+    ...S.PROJECTS.flatMap((p) => [p.cover, ...(p.images || []).map((i) => i.src)]),
+    ...S.FAV_GAMES.map((g) => g.img),
+  ].filter(local);
+  const missing = refs.filter((p) => !fs.existsSync(path.join(ROOT, p)));
+  if (missing.length) throw new Error(`images introuvables :\n  ${missing.join('\n  ')}`);
+}
+
 function buildIndex() {
   const S = loadBrowserScripts();
+  checkAssets(S);
   const L = PRERENDER_LANG;
   let src = read('index.html');
   src = fillBlock(src, 'projects', S.PROJECTS.map((p, i) => S.projectCellHTML(p, i, L)).join(''));
@@ -133,8 +146,13 @@ function buildTailwind() {
 
 // ----------------------------------------------------------------------- main
 console.log(CHECK ? 'Vérification des fichiers générés…' : 'Génération…');
-buildIndex();
-if (!process.argv.includes('--no-css')) buildTailwind();
+try {
+  buildIndex();
+  if (!process.argv.includes('--no-css')) buildTailwind();
+} catch (e) {
+  console.error(`\nÉCHEC : ${e.message}`);
+  process.exit(1);
+}
 // Le sitemap n'est pas vérifié en --check : ses dates dépendent du commit
 // lui-même (un fichier à jour avant commit ne l'est plus juste après).
 if (!CHECK) buildSitemap();

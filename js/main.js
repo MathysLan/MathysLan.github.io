@@ -134,8 +134,16 @@ document.addEventListener('DOMContentLoaded', () => {
     termEl.textContent = (TERM_LINES[window.LANG] || TERM_LINES.fr)[0];
     termEl.classList.remove('terminal-caret');
   }
+  // Hors écran, la frappe s'arrête : elle réécrivait le terminal toutes les
+  // 55 ms pendant toute la visite, même en bas de page.
+  let heroInView = true, typingPaused = false;
+  new IntersectionObserver((entries) => {
+    heroInView = entries[0].isIntersecting;
+    if (heroInView && typingPaused) { typingPaused = false; typeLoop(); }
+  }).observe(document.getElementById('hero'));
   function typeLoop() {
     if (prefersReducedMotion()) { showStaticTerm(); return; }
+    if (!heroInView) { typingPaused = true; return; }
     const lines = TERM_LINES[window.LANG] || TERM_LINES.fr;
     const line = lines[li % lines.length];
     if (!deleting) {

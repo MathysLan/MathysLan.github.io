@@ -67,7 +67,13 @@
   document.documentElement.classList.add('js');
   try { if (localStorage.getItem('theme') === 'light') document.documentElement.classList.add('light'); } catch (e) {}
 </script>
-<link rel="stylesheet" href="css/tf2.css?v=8">
+<!-- Les deux polices du premier écran, demandées dès le <head> : sans ça, le
+     navigateur ne les découvre qu'en lisant tf2.css, et le titre s'affiche
+     d'abord dans la police de repli. crossorigin est requis pour une police,
+     même servie par le site lui-même. -->
+<link rel="preload" href="assets/fonts/tf2build.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/TF2secondary.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/tf2.css?v=9">
 <link rel="stylesheet" href="css/style.css?v=22">
 <!-- Tailwind COMPILÉ (tools/build.mjs), à la place du script
      cdn.tailwindcss.com qui générait ces styles dans le navigateur à chaque
@@ -243,7 +249,7 @@
     <button type="button" class="reveal is-visible item bp-cell" data-q="strange" data-index="1"
             aria-haspopup="dialog">
       <span class="bp-thumb panel-inset">
-        <img src="assets/projects/radars-powerbi-carte.png" alt="" loading="lazy"
+        <img src="assets/projects/thumbs/radars-powerbi-carte.webp" alt="" loading="lazy"
               class="bp-img ">
         <span class="q-badge bp-q" data-q="strange">★ strange</span>
         
@@ -253,7 +259,7 @@
     <button type="button" class="reveal is-visible item bp-cell" data-q="collectors" data-index="2"
             aria-haspopup="dialog">
       <span class="bp-thumb panel-inset">
-        <img src="assets/projects/bluesky-top-influence.png" alt="" loading="lazy"
+        <img src="assets/projects/thumbs/bluesky-top-influence.webp" alt="" loading="lazy"
               class="bp-img ">
         <span class="q-badge bp-q" data-q="collectors">★ Collector's</span>
         
@@ -263,7 +269,7 @@
     <button type="button" class="reveal is-visible item bp-cell" data-q="haunted" data-index="3"
             aria-haspopup="dialog">
       <span class="bp-thumb panel-inset">
-        <img src="assets/projects/back2play-logo.jpg" alt="" loading="lazy"
+        <img src="assets/projects/thumbs/back2play-logo.webp" alt="" loading="lazy"
               class="bp-img is-contain">
         <span class="q-badge bp-q" data-q="haunted">★ haunted</span>
         
@@ -273,7 +279,7 @@
     <button type="button" class="reveal is-visible item bp-cell" data-q="genuine" data-index="4"
             aria-haspopup="dialog">
       <span class="bp-thumb panel-inset">
-        <img src="assets/projects/hopital-recherche-creneau.png" alt="" loading="lazy"
+        <img src="assets/projects/thumbs/hopital-recherche-creneau.webp" alt="" loading="lazy"
               class="bp-img ">
         <span class="q-badge bp-q" data-q="genuine">★ genuine</span>
         
@@ -283,7 +289,7 @@
     <button type="button" class="reveal is-visible item bp-cell" data-q="vintage" data-index="5"
             aria-haspopup="dialog">
       <span class="bp-thumb panel-inset">
-        <img src="assets/projects/series-liste.png" alt="" loading="lazy"
+        <img src="assets/projects/thumbs/series-liste.webp" alt="" loading="lazy"
               class="bp-img ">
         <span class="q-badge bp-q" data-q="vintage">★ vintage</span>
         
@@ -293,7 +299,7 @@
     <button type="button" class="reveal is-visible item bp-cell" data-q="unique" data-index="6"
             aria-haspopup="dialog">
       <span class="bp-thumb panel-inset">
-        <img src="assets/projects/puissance4-jeu.png" alt="" loading="lazy"
+        <img src="assets/projects/thumbs/puissance4-jeu.webp" alt="" loading="lazy"
               class="bp-img ">
         <span class="q-badge bp-q" data-q="unique">★ unique</span>
         
@@ -303,7 +309,7 @@
     <button type="button" class="reveal is-visible item bp-cell" data-q="unique" data-index="7"
             aria-haspopup="dialog">
       <span class="bp-thumb panel-inset">
-        <img src="assets/projects/labyrinthe.png" alt="" loading="lazy"
+        <img src="assets/projects/thumbs/labyrinthe.webp" alt="" loading="lazy"
               class="bp-img ">
         <span class="q-badge bp-q" data-q="unique">★ unique</span>
         
@@ -615,12 +621,12 @@
         <!-- Polaroids des événements (vraies affiches quand disponibles) -->
         <div class="reveal reveal-delay-1 grid grid-cols-2 gap-5 sm:gap-6">
           <div class="polaroid " style="transform: rotate(-2.5deg)">
-            <img src="assets/assos/carnaval-2023.jpg" alt="Affiche du Carnaval 2023" loading="lazy" class="">
+            <img src="assets/assos/carnaval-2023.webp" alt="Affiche du Carnaval 2023" loading="lazy" class="">
             <p class="font-mono text-xs mt-2.5 font-medium">Carnaval</p>
             <p class="font-mono text-[10px] ink-3" data-i18n="assos.p.carnaval">défilé, brûlage de la poupée & Mario</p>
           </div>
           <div class="polaroid " style="transform: rotate(2deg)">
-            <img src="assets/assos/marche-artisanal.jpg" alt="Affiche du marché artisanal" loading="lazy" class="">
+            <img src="assets/assos/marche-artisanal.webp" alt="Affiche du marché artisanal" loading="lazy" class="">
             <p class="font-mono text-xs mt-2.5 font-medium" data-i18n="assos.p.marche.title">Marché artisanal</p>
             <p class="font-mono text-[10px] ink-3" data-i18n="assos.p.marche">complet - 300 visiteurs</p>
           </div>
@@ -818,7 +824,7 @@
     <div class="item fav-game" data-q="strange">
       <div class="fav-cover panel-inset" style="background:linear-gradient(135deg, #6d4fd0, #241b3a)">
         <span class="fav-emoji">🎨</span>
-        <img src="assets/games/expedition33.jpg" alt="Clair Obscur : Expédition 33" loading="lazy" class="fav-img" onerror="this.remove()">
+        <img src="assets/games/expedition33.webp" alt="Clair Obscur : Expédition 33" loading="lazy" class="fav-img" onerror="this.remove()">
       </div>
       <p class="fav-note">Claque visuelle et narrative — RPG au tour par tour.</p>
       <p class="item-label fav-name">Clair Obscur : Expédition 33</p>
@@ -834,7 +840,7 @@
     <div class="item fav-game" data-q="genuine">
       <div class="fav-cover panel-inset" style="background:linear-gradient(135deg, #3a7d34, #1f4d2b)">
         <span class="fav-emoji">⛏️</span>
-        <img src="assets/games/minecraft.jpg" alt="Minecraft" loading="lazy" class="fav-img" onerror="this.remove()">
+        <img src="assets/games/minecraft.webp" alt="Minecraft" loading="lazy" class="fav-img" onerror="this.remove()">
       </div>
       <p class="fav-note">Je montais les serveurs — mes meilleurs souvenirs à jouer avec toute la bande.</p>
       <p class="item-label fav-name">Minecraft</p>
@@ -858,7 +864,7 @@
     <div class="item fav-game" data-q="normal">
       <div class="fav-cover panel-inset" style="background:linear-gradient(135deg, #3b82f6, #7c3aed)">
         <span class="fav-emoji">🪂</span>
-        <img src="assets/games/fortnite.jpg" alt="Fortnite" loading="lazy" class="fav-img" onerror="this.remove()">
+        <img src="assets/games/fortnite.webp" alt="Fortnite" loading="lazy" class="fav-img" onerror="this.remove()">
       </div>
       <p class="fav-note">L'époque prime, la vraie.</p>
       <p class="item-label fav-name">Fortnite</p>
@@ -1351,14 +1357,14 @@
     <button id="lightbox-next" type="button" aria-label="Image suivante" data-i18n-aria="a11y.nextImg" class="absolute right-3 md:right-8 top-1/2 -translate-y-1/2 hov-ink text-4xl font-light px-3">›</button>
   </div>
 
-  <script src="data/projects.js?v=6"></script>
+  <script src="data/projects.js?v=7"></script>
   <script src="data/games.js?v=1"></script>
-  <script src="data/favgames.js?v=2"></script>
+  <script src="data/favgames.js?v=3"></script>
   <script src="js/i18n.js?v=10"></script>
   <script src="js/templates.js?v=2"></script>
   <script src="js/lightbox.js?v=3"></script>
   <script src="js/itemmodal.js?v=2"></script>
-  <script src="js/main.js?v=13"></script>
+  <script src="js/main.js?v=14"></script>
   <script src="js/carousel.js?v=6"></script>
   <script src="js/palette.js?v=2"></script>
   <script src="js/connect4.js?v=2"></script>

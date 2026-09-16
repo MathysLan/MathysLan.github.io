@@ -26,14 +26,18 @@
    font-display: swap → le texte s'affiche tout de suite dans le fallback. */
 @font-face {
   font-family: 'TF2 Build';
-  src: url('../assets/fonts/tf2build.ttf') format('truetype');
+  /* WOFF2 d'abord (18 Ko au lieu de 57 Ko, rendu vérifié identique glyphe par
+     glyphe) ; le TTF ne sert qu'aux navigateurs qui ne lisent pas le WOFF2. */
+  src: url('../assets/fonts/tf2build.woff2') format('woff2'),
+       url('../assets/fonts/tf2build.ttf') format('truetype');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'TF2 Secondary';
-  src: url('../assets/fonts/TF2secondary.ttf') format('truetype');
+  src: url('../assets/fonts/TF2secondary.woff2') format('woff2'),
+       url('../assets/fonts/TF2secondary.ttf') format('truetype');
   font-weight: 400;
   font-style: normal;
   font-display: swap;

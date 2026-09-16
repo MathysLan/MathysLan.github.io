@@ -1,6 +1,6 @@
 // Mes jeux vidéo préférés. Ajouter un jeu = ajouter un objet ici.
 // Image de la carte, par ordre de priorité :
-//   1. img   → une URL/chemin d'image explicite (ex: 'assets/games/xxx.jpg')
+//   1. img   → une URL/chemin d'image explicite (ex: 'assets/games/xxx.webp')
 //   2. steam → l'app ID Steam : la bannière officielle est tirée du CDN Steam
 //   3. sinon → fond dégradé (bg) + emoji, en repli
 // Un repli emoji s'affiche toujours si l'image ne charge pas (jamais de carte cassée).
@@ -15,7 +15,7 @@ const FAV_GAMES = [
   },
   {
     name: 'Clair Obscur : Expédition 33', emoji: '🎨', quality: 'strange',
-    img: 'assets/games/expedition33.jpg',
+    img: 'assets/games/expedition33.webp',
     bg: 'linear-gradient(135deg, #6d4fd0, #241b3a)',
     note: 'Claque visuelle et narrative — RPG au tour par tour.',
     note_en: 'A visual and narrative punch — turn-based RPG.',
@@ -27,7 +27,7 @@ const FAV_GAMES = [
   },
   {
     name: 'Minecraft', emoji: '⛏️', quality: 'genuine',
-    img: 'assets/games/minecraft.jpg',
+    img: 'assets/games/minecraft.webp',
     bg: 'linear-gradient(135deg, #3a7d34, #1f4d2b)',
     note: 'Je montais les serveurs — mes meilleurs souvenirs à jouer avec toute la bande.',
     note_en: 'I ran the servers — my best memories playing with the whole crew.',
@@ -44,7 +44,7 @@ const FAV_GAMES = [
   },
   {
     name: 'Fortnite', emoji: '🪂',
-    img: 'assets/games/fortnite.jpg',
+    img: 'assets/games/fortnite.webp',
     bg: 'linear-gradient(135deg, #3b82f6, #7c3aed)',
     note: "L'époque prime, la vraie.",
     note_en: 'The prime era, the real one.',
