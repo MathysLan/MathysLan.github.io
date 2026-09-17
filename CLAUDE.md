@@ -208,10 +208,11 @@ démarre qu'après un seuil de 6 px pour que le lien « Jouer » reste cliquable
     un seul écouteur de scroll (rAF), terminal en pause hors écran.
   - **Contenu** : `data/projects.js` a des champs `goal` / `role` / `result`
     / `team` ; `data/games.js` a `code` / `arch` (bouton Architecture →
-    même modale que les projets). ⚠️ **`role` (ma part) n'est rempli que pour
-    AgiLab** : pour les projets d'équipe, Mathys doit dire ce qu'il a fait —
-    NE PAS l'inventer. Le dépôt des radars n'est pas lié : son README publie
-    une IP interne et des identifiants par défaut.
+    même modale que les projets). `role` (ma part) est rempli pour les 8
+    projets avec les mots de Mathys : ne rien y ajouter sans lui. ⚠️ Le dépôt
+    des radars n'est PAS lié tant que Mathys n'a pas retiré l'IP interne et les
+    identifiants de son README (même si le service est hors ligne) ; ils
+    resteraient aussi dans l'historique git du dépôt.
   - **Tests** : `tests/front.html` (bureau + téléphone + sans JS) à lancer
     DEUX fois, dont une avec `--force-prefers-reduced-motion`.
 - **Précision** (nouveau) : back `precision-server` livré à part

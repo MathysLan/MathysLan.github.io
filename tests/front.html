@@ -68,6 +68,8 @@ document.getElementById('f').addEventListener('load', function () {
         !im.querySelector('.im-desc-label').hidden && im.querySelector('.im-desc').textContent.length > 200);
       d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
       cells[1].click();
+      t('« Ma part » renseignee pour les 8 projets',
+        w.eval('PROJECTS').every(function (p) { return p.role && p.role_en; }));
       t('fiche d equipe : taille de l equipe affichee',
         /Projet à 4/.test(im.querySelector('.im-facts').textContent));
       d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));

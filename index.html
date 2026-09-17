@@ -331,7 +331,7 @@
     <article class="nojs-sheet">
       <h3>Radars & accidents - data visualisation</h3>
       <p class="nojs-sheet-meta">SAE S5 - data</p>
-      <dl class="facts"><div class="facts-row"><dt>Objectif</dt><dd>Vérifier, à partir des données publiques, si les radars réduisent vraiment les accidents.</dd></div><div class="facts-row"><dt>Résultat</dt><dd>3 268 radars cartographiés et 54 822 accidents analysés, dans une base relationnelle et des dashboards Power BI et Grafana.</dd></div><div class="facts-row"><dt>Équipe</dt><dd>Projet à 4</dd></div></dl>
+      <dl class="facts"><div class="facts-row"><dt>Objectif</dt><dd>Vérifier, à partir des données publiques, si les radars réduisent vraiment les accidents.</dd></div><div class="facts-row is-role"><dt>Ma part</dt><dd>Récupération des données avec des scripts Python, puis réalisation des graphiques sur Grafana.</dd></div><div class="facts-row"><dt>Résultat</dt><dd>3 268 radars cartographiés et 54 822 accidents analysés, dans une base relationnelle et des dashboards Power BI et Grafana.</dd></div><div class="facts-row"><dt>Équipe</dt><dd>Projet à 4</dd></div></dl>
       <p>Les radars réduisent-ils vraiment les accidents ? On a pris les données publiques et on a vérifié, à quatre. Le vrai boulot : nettoyer et normaliser des données sales, puis les poser dans une base relationnelle carrée. Ensuite seulement, les dashboards Power BI et Grafana : 3 268 radars cartographiés, 54 822 accidents analysés, heatmaps et analyses croisées. Les chiffres parlent d'eux-mêmes.</p>
       <ul class="attr-list"><li>SQL</li><li>PostgreSQL</li><li>Power BI</li><li>Grafana</li><li>Adminer</li></ul>
       
@@ -339,7 +339,7 @@
     <article class="nojs-sheet">
       <h3>Analyse d'influence - Bluesky × GTA VI</h3>
       <p class="nojs-sheet-meta">SAE F.Admin.01 - data / IA</p>
-      <dl class="facts"><div class="facts-row"><dt>Objectif</dt><dd>Identifier les comptes qui font l'opinion autour de GTA VI sur Bluesky.</dd></div><div class="facts-row"><dt>Résultat</dt><dd>Pipeline Docker en trois services (collecte, analyse de sentiments par deux LLM, calcul d'influence) et graphiques générés automatiquement.</dd></div><div class="facts-row"><dt>Équipe</dt><dd>Projet à 3</dd></div></dl>
+      <dl class="facts"><div class="facts-row"><dt>Objectif</dt><dd>Identifier les comptes qui font l'opinion autour de GTA VI sur Bluesky.</dd></div><div class="facts-row is-role"><dt>Ma part</dt><dd>Récupération des données en Python, et script qui génère les prompts envoyés aux deux IA du projet.</dd></div><div class="facts-row"><dt>Résultat</dt><dd>Pipeline Docker en trois services (collecte, analyse de sentiments par deux LLM, calcul d'influence) et graphiques générés automatiquement.</dd></div><div class="facts-row"><dt>Équipe</dt><dd>Projet à 3</dd></div></dl>
       <p>Qui fait l'opinion autour de GTA VI sur Bluesky ? Pipeline entièrement conteneurisé sous Docker : collecte des posts via l'API, puis analyse de sentiments. Un seul LLM, je n'y crois pas - alors j'en ai mis deux en face à face : Qwen en local via Ollama contre Gemini en API, et on compare leurs verdicts sur les mêmes posts. Score d'influence par compte, et analyse du mème « we got X before GTA 6 » en bonus.</p>
       <ul class="attr-list"><li>Python</li><li>Docker</li><li>Ollama</li><li>Gemini API</li><li>Bluesky API</li></ul>
       <p><a href="https://github.com/MathysLan/Organisation-et-protection-de-donn-es" target="_blank" rel="noopener noreferrer">GitHub</a></p>
@@ -347,7 +347,7 @@
     <article class="nojs-sheet">
       <h3>Back2Play</h3>
       <p class="nojs-sheet-meta">SAE S5/S6 - entrepreneuriat</p>
-      <dl class="facts"><div class="facts-row"><dt>Objectif</dt><dd>Monter le business plan complet d'une aire de jeux indoor pour adultes à Reims.</dd></div><div class="facts-row"><dt>Résultat</dt><dd>Étude de marché sur 77 répondants, identité de marque, prévisions financières et plan de financement de 500 000 €.</dd></div></dl>
+      <dl class="facts"><div class="facts-row"><dt>Objectif</dt><dd>Monter le business plan complet d'une aire de jeux indoor pour adultes à Reims.</dd></div><div class="facts-row is-role"><dt>Ma part</dt><dd>L'idée initiale du projet, et toute la direction artistique / identité visuelle.</dd></div><div class="facts-row"><dt>Résultat</dt><dd>Étude de marché sur 77 répondants, identité de marque, prévisions financières et plan de financement de 500 000 €.</dd></div></dl>
       <p>Zéro code ici, et c'était le but : un business plan complet pour une aire de jeux indoor pour adultes à Reims. Étude de marché sur 77 répondants, identité de marque, charte graphique, prévisions financières et plan de financement de 500 000 €. Slogan : « Parce qu'on ne grandit jamais ».</p>
       <ul class="attr-list"><li>Business plan</li><li>Étude de marché</li><li>Charte graphique</li></ul>
       
@@ -355,7 +355,7 @@
     <article class="nojs-sheet">
       <h3>Plannings hospitaliers</h3>
       <p class="nojs-sheet-meta">SAE 3.01 - dev web</p>
-      <dl class="facts"><div class="facts-row"><dt>Objectif</dt><dd>Remplacer les plannings sous Excel d'un service hospitalier par une application web.</dd></div><div class="facts-row"><dt>Résultat</dt><dd>Application centralisée : recherche de créneaux, profils du personnel, notifications mail et chatbot à réponses pré-enregistrées.</dd></div><div class="facts-row"><dt>Équipe</dt><dd>Projet à 5</dd></div></dl>
+      <dl class="facts"><div class="facts-row"><dt>Objectif</dt><dd>Remplacer les plannings sous Excel d'un service hospitalier par une application web.</dd></div><div class="facts-row is-role"><dt>Ma part</dt><dd>Principalement le front-end, ainsi que la partie back-end liée au CRUD.</dd></div><div class="facts-row"><dt>Résultat</dt><dd>Application centralisée : recherche de créneaux, profils du personnel, notifications mail et chatbot à réponses pré-enregistrées.</dd></div><div class="facts-row"><dt>Équipe</dt><dd>Projet à 5</dd></div></dl>
       <p>Un service hospitalier qui gère ses plannings sous Excel, ça finit toujours par casser. On a tout centralisé dans une appli web : recherche de créneaux, profils du personnel, notifications mail et un petit chatbot à réponses pré-enregistrées. Méthode agile (MoSCoW), maquettes Figma. Simple, robuste, ça fait le job.</p>
       <ul class="attr-list"><li>PHP</li><li>Symfony</li><li>MySQL</li><li>Figma</li><li>Agile</li></ul>
       <p><a href="https://github.com/MathysLan/SAE3-01" target="_blank" rel="noopener noreferrer">GitHub</a></p>
@@ -363,7 +363,7 @@
     <article class="nojs-sheet">
       <h3>Consultation de séries TV</h3>
       <p class="nojs-sheet-meta">SAE S2 - dev web</p>
-      <dl class="facts"><div class="facts-row"><dt>Objectif</dt><dd>Développer une application web mobile-first de consultation et d'édition de séries TV.</dd></div><div class="facts-row"><dt>Résultat</dt><dd>Livrée en trois jours : séries, saisons et épisodes, filtre par genre, ajout, modification et suppression.</dd></div><div class="facts-row"><dt>Équipe</dt><dd>Projet à 2</dd></div></dl>
+      <dl class="facts"><div class="facts-row"><dt>Objectif</dt><dd>Développer une application web mobile-first de consultation et d'édition de séries TV.</dd></div><div class="facts-row is-role"><dt>Ma part</dt><dd>Le front-end et la partie back-end / CRUD.</dd></div><div class="facts-row"><dt>Résultat</dt><dd>Livrée en trois jours : séries, saisons et épisodes, filtre par genre, ajout, modification et suppression.</dd></div><div class="facts-row"><dt>Équipe</dt><dd>Projet à 2</dd></div></dl>
       <p>Application web mobile-first pour parcourir des séries : liste, saisons, épisodes, formulaires d'édition. En binôme, trois jours, livré.</p>
       <ul class="attr-list"><li>PHP</li><li>MySQL</li><li>HTML / CSS</li></ul>
       <p><a href="https://github.com/MathysLan/ApplicationWeb-Serie-television" target="_blank" rel="noopener noreferrer">GitHub</a></p>
@@ -371,7 +371,7 @@
     <article class="nojs-sheet">
       <h3>Puissance 4</h3>
       <p class="nojs-sheet-meta">BUT - projet</p>
-      <dl class="facts"><div class="facts-row"><dt>Objectif</dt><dd>Programmer un Puissance 4 jouable en Python avec pygame.</dd></div><div class="facts-row"><dt>Résultat</dt><dd>Détection des victoires, chute des jetons et un mode étendu où l'on pousse les jetons par les côtés de la grille.</dd></div></dl>
+      <dl class="facts"><div class="facts-row"><dt>Objectif</dt><dd>Programmer un Puissance 4 jouable en Python avec pygame.</dd></div><div class="facts-row is-role"><dt>Ma part</dt><dd>Tout le développement, notamment toute l'algorithmie derrière le jeu.</dd></div><div class="facts-row"><dt>Résultat</dt><dd>Détection des victoires, chute des jetons et un mode étendu où l'on pousse les jetons par les côtés de la grille.</dd></div><div class="facts-row"><dt>Équipe</dt><dd>Solo</dd></div></dl>
       <p>Puissance 4 en Python (pygame), une semaine de dev : détection des victoires, chute des jetons, et un mode étendu où on pousse les jetons par les côtés de la grille. Pas de fioritures, juste un jeu qui tourne.</p>
       <ul class="attr-list"><li>Python</li><li>pygame</li></ul>
       <p><a href="https://github.com/MathysLan/Puissance-4" target="_blank" rel="noopener noreferrer">GitHub</a></p>
@@ -379,7 +379,7 @@
     <article class="nojs-sheet">
       <h3>A Maze in Python</h3>
       <p class="nojs-sheet-meta">BUT - projet</p>
-      <dl class="facts"><div class="facts-row"><dt>Objectif</dt><dd>Générer des labyrinthes et les résoudre automatiquement.</dd></div><div class="facts-row"><dt>Résultat</dt><dd>Cinq algorithmes de génération et trois méthodes de résolution affichées pas à pas, en deux semaines.</dd></div><div class="facts-row"><dt>Équipe</dt><dd>Projet à 2</dd></div></dl>
+      <dl class="facts"><div class="facts-row"><dt>Objectif</dt><dd>Générer des labyrinthes et les résoudre automatiquement.</dd></div><div class="facts-row is-role"><dt>Ma part</dt><dd>Principalement l'algorithmie : les algorithmes de génération et de résolution.</dd></div><div class="facts-row"><dt>Résultat</dt><dd>Cinq algorithmes de génération et trois méthodes de résolution affichées pas à pas, en deux semaines.</dd></div><div class="facts-row"><dt>Équipe</dt><dd>Projet à 2</dd></div></dl>
       <p>Générateur de labyrinthes : cinq algorithmes de génération, trois méthodes de résolution automatique affichées pas à pas. En binôme, deux semaines. De l'algo pur, et c'est ce que j'aime.</p>
       <ul class="attr-list"><li>Python</li><li>Algorithmique</li></ul>
       
@@ -1392,7 +1392,7 @@
     <button id="lightbox-next" type="button" aria-label="Image suivante" data-i18n-aria="a11y.nextImg" class="absolute right-3 md:right-8 top-1/2 -translate-y-1/2 hov-ink text-4xl font-light px-3">›</button>
   </div>
 
-  <script src="data/projects.js?v=8"></script>
+  <script src="data/projects.js?v=9"></script>
   <script src="data/games.js?v=2"></script>
   <script src="data/favgames.js?v=3"></script>
   <script src="js/i18n.js?v=12"></script>
