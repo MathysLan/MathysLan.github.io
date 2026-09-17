@@ -1,0 +1,133 @@
+/* ============================================================================
+   Socle commun des pages de jeux
+   ----------------------------------------------------------------------------
+   UN fichier, chargé AVANT le <style> de chaque jeu. Ce n'est pas un système de
+   design : c'est le minimum pour que les cinq jeux se comportent pareil là où
+   un joueur le remarque — le clavier, le mouvement réduit, le tactile, les
+   messages d'état — sans toucher à leur direction artistique.
+
+   Règle : ici on ne pose AUCUNE couleur de fond, aucune typo de titre, aucune
+   forme propre à un jeu. Chaque page garde son <style> et peut tout surcharger.
+   Les seuls jetons exposés sont préfixés --g- pour ne jamais entrer en conflit
+   avec les variables d'un jeu (precision définit déjà --bg, --ink, --accent…).
+
+   La spécificité est calculée pour gagner sans !important : les règles de
+   focus utilisent :where(…):focus-visible, soit (0,1,0), ce qui bat le
+   « input { outline: none } » (0,0,1) que chaque page déclare, quel que soit
+   l'ordre des feuilles.
+   ========================================================================= */
+
+/* ---------------------------------------------------------------- Polices
+   Auto-hébergées (SIL OFL 1.1), sous-ensemble latin de Google Fonts, fichiers
+   variables 400→700 : une seule requête par police, aucune connexion à un
+   tiers, et le même fichier que le portfolio pour JetBrains Mono. */
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('../../assets/fonts/JetBrainsMono-latin.woff2') format('woff2');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Space Grotesk';
+  src: url('../../assets/fonts/SpaceGrotesk-latin.woff2') format('woff2');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* Anneau de focus : le doré du portfolio. C'est le seul emprunt visuel au
+     site, et il ne s'affiche qu'au clavier — il signe la famille sans rien
+     imposer au reste de l'écran. ≥ 12:1 sur tous les fonds des cinq jeux. */
+  --g-focus: #ffd700;
+  --g-ok: #34d399;
+  --g-bad: #fca5a5;
+}
+
+/* ------------------------------------------------------------ Focus clavier
+   Les cinq pages déclaraient « outline: none » sur les champs et rien sur les
+   boutons : au clavier, on ne savait pas où on était. Un seul anneau, partout,
+   et uniquement au clavier (:focus-visible), donc la souris ne change pas. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--g-focus);
+  outline-offset: 2px;
+}
+/* Un élément qui reçoit le focus par programme (une case du plateau, le code
+   de room) doit rester dans l'écran même quand la page est centrée. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  scroll-margin: 1rem;
+}
+
+/* --------------------------------------------------------- État désactivé
+   Même convention partout : à moitié éteint, curseur normal, et surtout pas de
+   survol qui laisserait croire que c'est cliquable. */
+:where(button, input, select, textarea):disabled {
+  opacity: .45;
+  cursor: default;
+}
+
+/* ------------------------------------------------------------- Tactile
+   Sur un écran tactile, une cible de moins de 44 px se rate. Les avatars et
+   les petits boutons des lobbys étaient à ~34 px. On n'y touche qu'au doigt :
+   à la souris les mises en page restent exactement ce qu'elles étaient. */
+@media (pointer: coarse) {
+  :where(button, input, select, .avatar-pick) { min-height: 44px; }
+  :where(.avatar-pick) { min-width: 44px; }
+}
+
+/* --------------------------------------------------- Mouvement réduit
+   Aucun des cinq jeux ne respectait la préférence système. On coupe les
+   transitions et les animations décoratives — pas les vidéos ni les timers,
+   qui sont le jeu lui-même. Les écouteurs `animationend` continuent de se
+   déclencher (durée ramenée à ~0, pas supprimée). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ------------------------------------------------------- Code de room
+   Le code était un <b> avec un écouteur de clic : impossible à atteindre au
+   clavier, et annoncé comme du texte ordinaire. C'est maintenant un vrai
+   <button class="g-copy">, dépouillé de l'apparence de bouton pour que la
+   règle #room-code de chaque jeu continue de décider du reste (taille,
+   graisse, couleur, interlettrage). */
+.g-copy {
+  display: block;
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+
+/* ------------------------------------------------- Messages d'état
+   Une erreur et un état courant se lisent pareil dans les cinq jeux, et sont
+   annoncés aux lecteurs d'écran (role="alert" / role="status" dans le HTML).
+   La zone garde sa hauteur quand elle est vide, sinon la page saute. */
+:where(.g-error) {
+  min-height: 1.2em;
+  font-size: .8rem;
+  color: #ef4444;
+}
+:where(.g-status) { min-height: 1.4em; }
+
+/* ------------------------------------------------- Retour au portfolio
+   Présent en bas des cinq pages, au même endroit et avec le même mot. Le lien
+   est relatif (../../) : il marche sur GitHub Pages ET en ouverture locale.
+   Pas d'opacity ici : un gris déjà discret passé à .7 tombe sous 4.5:1 (mesuré
+   à 2,46:1). La discrétion se fait avec la couleur, que chaque jeu choisit. */
+:where(.back) {
+  display: inline-block;
+  margin-top: 1.6rem;
+  font-size: .75rem;
+  text-decoration: none;
+}

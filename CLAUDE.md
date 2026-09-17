@@ -220,3 +220,81 @@ démarre qu'après un seuil de 6 px pour que le lien « Jouer » reste cliquable
   `games/precision/` sur `wss://precision-server.onrender.com`. Le MJ choisit
   difficulté / manches / épreuve. Testé : moteur 60/60, ws e2e 23/23, front
   e2e 59/59.
+
+## Passe de finition (2026-09-17)
+
+Rien de l'identité n'a bougé : TF2/Mann Co., sac à dos, ConTracker, killfeed,
+réticule, easter eggs, carousel, FR/EN et les deux thèmes sont intacts.
+
+- **Zéro police externe.** Anton et Inter ne servaient que de repli à TF2
+  Build / TF2 Secondary ; mesuré glyphe par glyphe, ils ne changeaient le rendu
+  que de 7 signes de ponctuation (`« » ‹ › · … ↓`), qu'Arial Narrow et
+  system-ui dessinent aussi bien → supprimés. JetBrains Mono sert vraiment (le
+  terminal du hero, les 5 jeux) et **Space Grotesk** aussi (3 jeux) : les deux
+  sont maintenant dans `assets/fonts/`, en fichier **variable 400→700**
+  (31 + 22 Ko, sous-ensemble latin, SIL OFL 1.1). Plus aucun `preconnect`, plus
+  aucune feuille bloquante venue de Google, sur AUCUNE page (`index`, les 5
+  jeux, `404`, `styleguide`, `upload`, `calibrate`).
+- **Favicon** : `assets/favicon.svg`, la plaque Mann Co. + monogramme ML,
+  dessinée en traits (une favicon SVG ne peut compter sur aucune police).
+  Déclarée sur toutes les pages — c'est le lien visuel le plus direct entre le
+  portfolio et les jeux dans la barre d'onglets.
+- **Socle commun des jeux : `games/_shared/game-ui.css`, UN fichier.** Pas un
+  système de design — le strict minimum pour que les 5 jeux se comportent
+  pareil là où ça se remarque, sans toucher à leur DA (chaque page garde son
+  `<style>` et peut tout surcharger). Il contient : les deux `@font-face`, un
+  anneau de **focus clavier** doré (celui du portfolio, seul emprunt visuel),
+  `prefers-reduced-motion` (aucun jeu ne le respectait), cibles tactiles 44 px
+  en `pointer: coarse`, convention `disabled`, `.g-copy` (le code de room
+  devient un vrai `<button>`), `.g-error` / `.g-status`, et `.back`.
+  ⚠️ Les règles de focus s'écrivent `:where(…):focus-visible` = spécificité
+  (0,1,0), ce qui bat le `input { outline: none }` (0,0,1) de chaque page
+  **quel que soit l'ordre des feuilles**. Ne pas « simplifier » en enlevant le
+  `:where()`. ⚠️ Les jetons sont préfixés `--g-` : `precision` définit déjà
+  `--bg`, `--ink`, `--accent`…
+- **Morpion** : accepte enfin `?server=` comme les quatre autres, même phrase
+  d'erreur réseau, ses 9 cases ont un `aria-label` (« ligne 2, colonne 3 —
+  vide ») — elles s'annonçaient « bouton » neuf fois de suite — et son code de
+  room se copie au clic comme partout ailleurs. Nuance : il vit dans une rangée
+  de méta, donc son `#room-code` repasse `.g-copy` en `display: inline`.
+- **Presse-papiers** : les 4 jeux avalaient l'échec de copie du code en silence
+  (`catch` vide) ; ils le disent maintenant, comme le guichet du portfolio.
+- **Sans JS sur téléphone** : un `<details>` dans `index.html` (classe
+  `.nojs-nav`) donne accès aux 6 sections. Zéro script. ⚠️ Il est posé **hors
+  du `<header>`** : `#navbar nav` est découpé au `clip-path`, qui aurait rogné
+  le panneau dépliant.
+- **Contraste, mesuré et corrigé** (auditeur jetable qui compose les couches
+  alpha, lit les fonds peints en `::before` et applique l'`opacity` des
+  ancêtres) : gris `#6f6c80` → `#8b87a0` dans 4 jeux (3,59 → 5,30:1), blanc sur
+  violet `#8b5cf6` → `#7c3aed` (4,23 → 5,70:1), blanc sur rouge `#ef4444` →
+  `#dc2626` (3,76 → 4,84:1), `#4a4a52` → `#8a8a94` dans precision (2,24 →
+  5,74:1), `--qi-collectors` `#e87070` → `#ee8080` (4,14 → 4,76:1), billet
+  Bigflo `opacity-80` → `-90` (4,11 → 5,18:1 en Blueprint). Le `#stop-btn`
+  rouge vif du Ban est conservé : gros et gras, c'est du « grand texte » WCAG
+  (3:1 exigé, 3,76 mesuré).
+  ⚠️ **Deux pièges pour qui refera cet audit** : un auditeur qui lit seulement
+  `background-color` se trompe partout sur le portfolio (le dégradé d'un
+  panneau est dans `::before`, à cause du `clip-path`) ; et dans une iframe
+  hors écran l'IntersectionObserver ne se déclenche pas, donc tout `.reveal`
+  est à `opacity: 0` et sort à 1,00:1. Il faut couper les transitions, forcer
+  `.is-visible`, puis mesurer.
+- **Compromis gardés volontairement** : les cartes latérales du carousel
+  descendent à `opacity: .08` (c'est le coverflow) et sortent donc sous 4.5:1
+  dans l'audit — ce n'est pas un défaut, et le `focusin` du carousel ramène au
+  centre toute carte qu'on atteint au clavier. Les boutons `disabled` du Ban
+  aussi : WCAG exempte les composants inactifs.
+- **Sitemap** : `--check` vérifie désormais la **liste des `<loc>`** (un jeu
+  ajouté à `data/games.js` sans rebuild fait échouer la CI) mais toujours pas
+  les `<lastmod>`, qui dépendent du commit lui-même. Chaque page de jeu dépend
+  aussi de `games/_shared` pour sa date.
+- **`/data/` reste autorisé** dans robots.txt. Mesuré : sans `data/*.js`, le
+  texte pré-rendu survit mais `PROJECTS is not defined` casse le script (plus
+  de palette Ctrl+K). Le raisonnement complet est dans `robots.txt`.
+- **AVIF : non.** Mesuré : 225 Ko de vignettes WebP au total, ~20-30 % de gain
+  théorique, contre un encodeur à installer, du `<picture>` partout et 45
+  fichiers de plus. Le rapport ne vaut pas le coup.
+- **Tests** : trois suites, `tests/README.md` explique quoi lancer. Nouveau :
+  `tests/games.html` (socle commun des 5 jeux) et `tests/keyboard.mjs`, qui
+  pilote Edge par le protocole DevTools pour envoyer de **vraies frappes Tab**
+  — le seul moyen de prouver qu'un anneau de focus apparaît, `:focus-visible`
+  ne s'allumant pas sur un `el.focus()` programmé.

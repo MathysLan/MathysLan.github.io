@@ -49,12 +49,14 @@
 
 <meta name="theme-color" content="#241c14">
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<!-- Anton sert de repli à TF2 Build (même esprit d'affiche grasse et condensée)
-     le temps que la police locale charge ; JetBrains Mono ne sert qu'au
-     terminal du hero, qui a besoin d'une vraie chasse fixe. -->
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- Plus aucune police externe : les trois polices sont dans assets/fonts/.
+     Anton et Inter ne servaient que de repli à TF2 Build / TF2 Secondary ;
+     mesuré, ils ne changeaient le rendu que de 7 glyphes de ponctuation
+     (« » ‹ › · … ↓), qu'Arial Narrow et system-ui dessinent aussi bien.
+     JetBrains Mono, lui, sert vraiment (le terminal du hero) : il est
+     auto-hébergé. Bilan : deux preconnect et une feuille bloquante en moins. -->
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="alternate icon" href="assets/favicon.svg">
 <!-- tf2.css = le socle (palette, polices, primitives) ; style.css = les
      composants du portfolio. L'ordre compte : le second s'appuie sur le premier. -->
 <!-- Marque la page comme « JS actif » AVANT le rendu : les effets d'apparition
@@ -133,6 +135,27 @@
       </div>
     </nav>
   </header>
+
+  <!-- Menu de secours SANS JavaScript, sur téléphone. Le burger a besoin de JS
+       pour s'ouvrir, et la liste de nav du header est masquée sous 768 px :
+       sans script, un visiteur sur téléphone n'avait aucun moyen d'atteindre
+       une section. Un <details> suffit — repli natif, clavier et lecteurs
+       d'écran compris, zéro ligne de script. Il disparaît dès que JS est là.
+       Il est POSÉ HORS DU HEADER : #navbar nav est découpé au clip-path, qui
+       aurait rogné le panneau dépliant comme il rogne les ombres. -->
+  <details class="nojs-only md:hidden nojs-nav">
+    <summary class="tf-btn tf-icon-btn" aria-label="Menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="w-4 h-4" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </summary>
+    <ul class="panel">
+      <li><a href="#projects">Projets</a></li>
+      <li><a href="#timeline">Parcours</a></li>
+      <li><a href="#assos">Assos</a></li>
+      <li><a href="#passions">Passions</a></li>
+      <li><a href="#games">Jeux</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+  </details>
 
   <!-- Menu mobile (hors header : un backdrop-filter ancêtre piègerait ce fixed).
        Fermé, il est `inert` (posé par main.js) : ni tabulable ni lu, alors
@@ -918,7 +941,9 @@
               </div>
               <div class="barcode w-14 ink-3" aria-hidden="true"></div>
             </div>
-            <div class="ticket p-5 flex items-center gap-5 opacity-80">
+            <!-- opacity-90 et pas -80 : le billet "à venir" doit rester plus pâle que les
+                 autres, mais à 80 % le doré du thème Blueprint tombait à 4,11:1. -->
+            <div class="ticket p-5 flex items-center gap-5 opacity-90">
               <div class="font-display text-lg font-bold ac-gold">BIGFLO<br>&amp; OLI</div>
               <div class="flex-1 border-l-2 border-dashed border-white/15 pl-5">
                 <p class="text-sm ink-2" data-i18n="passions.bigflo">Prochain sur la liste</p>

@@ -1,5 +1,7 @@
 # Vérifie que les fichiers générés par tools/build.mjs sont à jour :
-# le contenu pré-rendu dans index.html et css/tailwind.css.
+# le contenu pré-rendu dans index.html, css/tailwind.css, et la LISTE des URL
+# du sitemap (pas ses dates : un <lastmod> dépend du commit qui le contient,
+# il ne peut donc jamais être « à jour » au moment où on le vérifie).
 #
 # Ce workflow NE déploie rien : GitHub Pages sert toujours la branche telle
 # quelle. Il signale seulement un oubli (données modifiées sans relancer

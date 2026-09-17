@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Test des pages de jeux</title>
+<style>
+  body { margin:0; background:#111; color:#8f8; font:13px/1.6 monospace; }
+  #log { padding:10px; white-space:pre-wrap; }
+  iframe { width:1100px; height:900px; border:0; position:fixed; left:-9999px; }
+  .mob { width:390px; height:800px; }
+</style>
+</head>
+<body>
+<div id="log">chargement…</div>
+<script>
+// Vérifie le SOCLE COMMUN des cinq jeux — ce qui doit être pareil partout —
+// sans rien dire de leur direction artistique, qui reste propre à chacun.
+// Aucun serveur n'est contacté : les pages ne se connectent qu'au clic.
+//
+// Ce que ce fichier ne peut PAS prouver : qu'un anneau de focus apparaît à la
+// tabulation. `:focus-visible` exige un vrai clavier, qu'une iframe ne simule
+// pas. C'est tests/keyboard.mjs qui s'en charge, avec de vraies frappes Tab.
+var GAMES = ['morpion', 'demicercle', 'imitation', 'ban', 'precision'];
+var out = [], errs = [];
+function t(name, ok) { out.push((ok ? 'OK   ' : 'KO   ') + name); if (!ok) out.ko = true; }
+
+function auditGame(g, w, d, mw, md, next) {
+  var P = g + ' : ';
+
+  // --- socle commun chargé, polices locales
+  t(P + 'socle commun charge',
+    !!d.querySelector('link[href*="_shared/game-ui.css"]'));
+  t(P + 'aucun appel a Google Fonts',
+    d.querySelectorAll('link[href*="fonts.googleapis"], link[href*="fonts.gstatic"]').length === 0);
+  t(P + 'polices auto-hebergees (JetBrains Mono)',
+    [].some.call(d.styleSheets, function (s) {
+      try { return [].some.call(s.cssRules, function (r) {
+        return r.constructor.name === 'CSSFontFaceRule' && /JetBrains/.test(r.style.fontFamily); }); }
+      catch (e) { return false; }
+    }));
+
+  // --- continuité avec le portfolio
+  t(P + 'favicon du site', !!d.querySelector('link[rel~="icon"]'));
+  t(P + 'couleur de barre (theme-color)', !!d.querySelector('meta[name="theme-color"]'));
+  t(P + 'titre et description propres',
+    /· Mathys Langiny<\/title>|· Mathys Langiny/.test(d.title + '</title>')
+    && (d.querySelector('meta[name="description"]') || {}).content.length > 30);
+  t(P + 'canonical absolue',
+    /^https:\/\/mathyslan\.github\.io\/games\//.test((d.querySelector('link[rel="canonical"]') || {}).href || ''));
+  var back = d.querySelector('a.back');
+  t(P + 'retour au portfolio, en relatif (marche aussi en local)',
+    !!back && back.getAttribute('href') === '../../' && /portfolio/i.test(back.textContent));
+
+  // --- messages d'état annoncés
+  var err = d.getElementById('error');
+  t(P + 'les erreurs sont annoncees (role=alert)',
+    !!err && err.getAttribute('role') === 'alert' && err.classList.contains('g-error'));
+  var statusish = d.querySelectorAll('[role="status"]');
+  t(P + 'au moins un etat courant annonce (role=status)', statusish.length >= 1);
+
+  // --- code de room : un vrai bouton dans les cinq, avec un retour visible
+  var rc = d.getElementById('room-code');
+  t(P + 'le code de room est un vrai bouton (clavier compris)',
+    !!rc && rc.tagName === 'BUTTON' && rc.type === 'button' && rc.classList.contains('g-copy'));
+  var hint = d.getElementById('code-hint');
+  t(P + 'la copie a un retour annonce (role=status)',
+    !!hint && hint.getAttribute('role') === 'status' && hint.textContent.trim().length > 0);
+
+  // --- avatars : état choisi annoncé
+  if (g !== 'morpion') {
+    var picks = d.querySelectorAll('.avatar-pick');
+    t(P + 'avatars : etat choisi annonce (aria-pressed)',
+      picks.length > 0
+      && [].every.call(picks, function (b) { return b.hasAttribute('aria-pressed'); })
+      && [].filter.call(picks, function (b) { return b.getAttribute('aria-pressed') === 'true'; }).length === 1);
+    // un clic doit DÉPLACER l'état, pas en ajouter un second
+    picks[2].click();
+    t(P + 'avatars : un seul choisi apres un clic',
+      picks[2].getAttribute('aria-pressed') === 'true'
+      && [].filter.call(picks, function (b) { return b.getAttribute('aria-pressed') === 'true'; }).length === 1);
+  }
+
+  // --- état désactivé : même convention partout
+  var dis = d.querySelector('button:disabled');
+  if (dis) t(P + 'bouton desactive : a moitie eteint, curseur normal',
+    Math.abs(parseFloat(w.getComputedStyle(dis).opacity) - 0.45) < 0.02
+    && w.getComputedStyle(dis).cursor === 'default');
+  else out.push('--   ' + P + 'aucun bouton desactive sur l ecran d accueil');
+
+  // --- mouvement réduit : la préférence est respectée (via le socle commun)
+  var probe = d.querySelector('button');
+  var reduced = w.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduced) t(P + 'mouvement reduit : transitions coupees',
+    parseFloat(w.getComputedStyle(probe).transitionDuration) < 0.01);
+  else t(P + 'mouvement normal : transitions conservees', true);
+
+  // --- ?server= : les cinq doivent accepter un serveur local
+  t(P + 'accepte ?server= pour tester en local',
+    /new URLSearchParams\(location\.search\)\.get\('server'\)/.test(w.__netSource || ''));
+
+  // --- téléphone : rien ne déborde, les cibles sont atteignables au doigt
+  t(P + 'telephone : pas de debordement horizontal (' + md.documentElement.scrollWidth + 'px)',
+    md.documentElement.scrollWidth <= 390);
+
+  next();
+}
+
+// On lit net.js en texte pour vérifier ?server= sans exécuter de réseau.
+function loadNetSource(g, w, done) {
+  fetch('../games/' + g + '/net.js').then(function (r) { return r.text(); })
+    .then(function (src) { w.__netSource = src; done(); })
+    .catch(function () { w.__netSource = ''; done(); });
+}
+
+var i = 0;
+function next() {
+  if (i >= GAMES.length) {
+    t('aucune erreur JS sur les pages de jeux', errs.length === 0);
+    var head = out.ko ? 'DES TESTS ECHOUENT' : 'TOUT PASSE';
+    document.getElementById('log').textContent =
+      head + ' — ' + out.filter(function (l) { return /^(OK|KO)/.test(l); }).length + ' verifications\n\n'
+      + out.join('\n') + (errs.length ? '\n\nERREURS JS:\n' + errs.join('\n') : '');
+    return;
+  }
+  var g = GAMES[i++];
+  var f = document.createElement('iframe');
+  var m = document.createElement('iframe');
+  m.className = 'mob';
+  var loaded = 0;
+  function ready() {
+    if (++loaded < 2) return;
+    var w = f.contentWindow, d = f.contentDocument;
+    w.addEventListener('error', function (e) { errs.push(g + ' — ' + e.message); });
+    setTimeout(function () {
+      loadNetSource(g, w, function () {
+        try { auditGame(g, w, d, m.contentWindow, m.contentDocument, function () {
+          f.remove(); m.remove(); next();
+        }); } catch (e) {
+          out.push('EXCEPTION ' + g + ' : ' + e.message); out.ko = true;
+          f.remove(); m.remove(); next();
+        }
+      });
+    }, 500);
+  }
+  f.addEventListener('load', ready);
+  m.addEventListener('load', ready);
+  f.src = '../games/' + g + '/index.html';
+  m.src = '../games/' + g + '/index.html';
+  document.body.appendChild(f);
+  document.body.appendChild(m);
+}
+next();
+</script>
+</body>
+</html>

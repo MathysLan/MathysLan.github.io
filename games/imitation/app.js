@@ -227,9 +227,11 @@ for (const em of AVATARS) {
   b.type = 'button';
   b.className = 'avatar-pick' + (em === myAvatar ? ' picked' : '');
   b.textContent = em;
+  b.setAttribute('aria-pressed', String(em === myAvatar));
   b.addEventListener('click', () => {
     myAvatar = em;
     for (const x of document.querySelectorAll('.avatar-pick')) x.classList.toggle('picked', x === b);
+    document.querySelectorAll('.avatar-pick').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
   });
   $('avatar-row').appendChild(b);
 }
@@ -274,11 +276,17 @@ $('start').addEventListener('click', () => {
 });
 
 $('room-code').addEventListener('click', async () => {
+  const hint = $('code-hint');
+  const back = () => setTimeout(() => { hint.textContent = 'clique sur le code pour le copier'; }, 2000);
   try {
     await navigator.clipboard.writeText($('room-code').textContent.trim());
-    $('code-hint').textContent = 'code copié ✔';
-    setTimeout(() => { $('code-hint').textContent = 'clique sur le code pour le copier'; }, 1500);
-  } catch { /* pas de clipboard : tant pis */ }
+    hint.textContent = 'code copié ✔';
+  } catch (_) {
+    // Presse-papiers refusé (permission, page non sécurisée) : on ne fait pas
+    // semblant, le joueur doit savoir qu'il faut lire le code à la main.
+    hint.textContent = 'copie impossible — recopie le code à la main';
+  }
+  back();
 });
 
 $('back-lobby').addEventListener('click', () => { inEndScreen = false; show('lobby'); });

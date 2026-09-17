@@ -127,8 +127,8 @@ const AVATARS = ['😎', '🤐', '🙊', '🤫', '🦊', '🐼', '🔥', '⚡', 
 myAvatar = AVATARS[Math.floor(Math.random() * AVATARS.length)];
 for (const em of AVATARS) {
   const b = document.createElement('button');
-  b.type = 'button'; b.className = 'avatar-pick' + (em === myAvatar ? ' picked' : ''); b.textContent = em;
-  b.addEventListener('click', () => { myAvatar = em; document.querySelectorAll('.avatar-pick').forEach((x) => x.classList.toggle('picked', x === b)); });
+  b.type = 'button'; b.className = 'avatar-pick' + (em === myAvatar ? ' picked' : ''); b.textContent = em; b.setAttribute('aria-pressed', String(em === myAvatar));
+  b.addEventListener('click', () => { myAvatar = em; document.querySelectorAll('.avatar-pick').forEach((x) => { x.classList.toggle('picked', x === b); x.setAttribute('aria-pressed', String(x === b)); }); });
   $('avatar-row').appendChild(b);
 }
 // Avertissement : on ne peut créer/rejoindre qu'après avoir coché la case.
@@ -158,7 +158,19 @@ async function enter(code) {
   catch (err) { showError(err.message); }
 }
 $('start').addEventListener('click', () => NET.send({ action: 'start', videos: +$('videos-select').value }));
-$('room-code').addEventListener('click', async () => { try { await navigator.clipboard.writeText($('room-code').textContent.trim()); $('code-hint').textContent = 'code copié ✔'; setTimeout(() => { $('code-hint').textContent = 'clique sur le code pour le copier'; }, 1500); } catch (_) {} });
+$('room-code').addEventListener('click', async () => {
+  const hint = $('code-hint');
+  const back = () => setTimeout(() => { hint.textContent = 'clique sur le code pour le copier'; }, 2000);
+  try {
+    await navigator.clipboard.writeText($('room-code').textContent.trim());
+    hint.textContent = 'code copié ✔';
+  } catch (_) {
+    // Presse-papiers refusé (permission, page non sécurisée) : on ne fait pas
+    // semblant, le joueur doit savoir qu'il faut lire le code à la main.
+    hint.textContent = 'copie impossible — recopie le code à la main';
+  }
+  back();
+});
 $('to-lobby').addEventListener('click', () => { phase = 'lobby'; show('lobby'); });
 
 // contrôles MJ

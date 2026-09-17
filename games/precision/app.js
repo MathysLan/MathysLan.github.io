@@ -545,9 +545,11 @@ myAvatar = AVATARS[Math.floor(Math.random() * AVATARS.length)];
 for (const em of AVATARS) {
   const b = document.createElement('button');
   b.type = 'button'; b.className = 'avatar-pick' + (em === myAvatar ? ' picked' : ''); b.textContent = em;
+  b.setAttribute('aria-pressed', String(em === myAvatar));
   b.addEventListener('click', () => {
     myAvatar = em; AUDIO.pick();
     document.querySelectorAll('.avatar-pick').forEach((x) => x.classList.toggle('picked', x === b));
+    document.querySelectorAll('.avatar-pick').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
   });
   $('avatar-row').appendChild(b);
 }
@@ -577,8 +579,18 @@ window.addEventListener('keydown', (e) => {
 });
 
 $('room-code').addEventListener('click', async () => {
-  try { await navigator.clipboard.writeText($('room-code').textContent.trim()); AUDIO.pick();
-    $('code-hint').textContent = 'code copié ✔'; setTimeout(() => { $('code-hint').textContent = 'clique sur le code pour le copier'; }, 1500); } catch (_) {}
+  const hint = $('code-hint');
+  const back = () => setTimeout(() => { hint.textContent = 'clique sur le code pour le copier'; }, 2000);
+  try {
+    await navigator.clipboard.writeText($('room-code').textContent.trim());
+    AUDIO.pick();
+    hint.textContent = 'code copié ✔';
+  } catch (_) {
+    // Presse-papiers refusé (permission, page non sécurisée) : on ne fait pas
+    // semblant, le joueur doit savoir qu'il faut lire le code à la main.
+    hint.textContent = 'copie impossible — recopie le code à la main';
+  }
+  back();
 });
 
 let autoTimer = 0;

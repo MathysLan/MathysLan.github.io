@@ -21,8 +21,11 @@
 
 /* ---------------------------------------------------------------- Polices
    Les deux polices du jeu, chargées en local. Elles couvrent tous les accents
-   français (vérifié dans la table cmap) ; il leur manque en revanche « » → ✦ ★,
-   que le navigateur ira chercher tout seul dans le fallback, glyphe par glyphe.
+   français (vérifié dans la table cmap) ; il leur manque en revanche « » ‹ › ·
+   … ↓ ✦ ★, que le navigateur ira chercher tout seul dans le fallback, glyphe
+   par glyphe — Arial Narrow pour les titres, system-ui pour le corps. (Anton et
+   Inter tenaient ce rôle avant : mesuré, ils ne changeaient que ces 7 glyphes
+   de ponctuation, ce qui ne valait pas un aller-retour chez Google Fonts.)
    font-display: swap → le texte s'affiche tout de suite dans le fallback. */
 @font-face {
   font-family: 'TF2 Build';
@@ -39,6 +42,18 @@
   src: url('../assets/fonts/TF2secondary.woff2') format('woff2'),
        url('../assets/fonts/TF2secondary.ttf') format('truetype');
   font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+/* Seule police NON Valve du site : le terminal du hero a besoin d'une vraie
+   chasse fixe. Auto-hébergée (SIL OFL 1.1), sous-ensemble latin de Google
+   Fonts, fichier variable 400→700 : 31 Ko pour toute la plage de graisses, et
+   plus aucun appel à fonts.googleapis.com. Les pages de jeux chargent le même
+   fichier via games/_shared/game-ui.css. */
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('../assets/fonts/JetBrainsMono-latin.woff2') format('woff2');
+  font-weight: 400 700;
   font-style: normal;
   font-display: swap;
 }
@@ -119,7 +134,7 @@
   --qi-strange: #e8945f;
   --qi-unusual: #bb8ede;
   --qi-haunted: #38f3ab;
-  --qi-collectors: #e87070;
+  --qi-collectors: #ee8080;   /* 4,14:1 sur --panel-top : remonté à 4,76:1 */
   --qi-australium: #e7b53b;
 
   /* -- géométrie -- */
@@ -211,7 +226,7 @@ html.light {
 html { background: var(--bg); scroll-behavior: smooth; }
 body {
   margin: 0;
-  font-family: 'TF2 Secondary', 'Inter', system-ui, sans-serif;
+  font-family: 'TF2 Secondary', system-ui, sans-serif;
   font-size: 16px;
   line-height: 1.5;
   background: var(--bg);
@@ -223,7 +238,7 @@ body {
 
 /* Les titres sont des affiches : TF2 Build, capitales, serrées. */
 .font-tf, h1, h2, h3, h4 {
-  font-family: 'TF2 Build', 'Anton', 'Arial Narrow', sans-serif;
+  font-family: 'TF2 Build', 'Arial Narrow', sans-serif;
   font-weight: 400;
   text-transform: uppercase;
   letter-spacing: .01em;
@@ -231,11 +246,11 @@ body {
 }
 /* .font-display : sous-titres et chiffres. Même police, sans les capitales
    forcées, pour les endroits où le texte est déjà écrit avec des minuscules. */
-.font-display { font-family: 'TF2 Build', 'Anton', 'Arial Narrow', sans-serif; font-weight: 400; }
+.font-display { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-weight: 400; }
 /* .font-mono : dans un HUD Source il n'y a pas de chasse fixe. On récupère donc
    ces ~60 usages (labels, badges, méta) vers la police secondaire, espacée.
    Seul le terminal du hero garde une vraie mono — c'est un terminal. */
-.font-mono { font-family: 'TF2 Secondary', 'Inter', system-ui, sans-serif; letter-spacing: .05em; }
+.font-mono { font-family: 'TF2 Secondary', system-ui, sans-serif; letter-spacing: .05em; }
 .font-term { font-family: 'JetBrains Mono', ui-monospace, monospace; letter-spacing: 0; }
 
 ::selection { background: var(--orange); color: #fff; }
@@ -426,7 +441,7 @@ html.light body::after {
   display: inline-flex;
   align-items: center;
   gap: .55rem;
-  font-family: 'TF2 Build', 'Anton', 'Arial Narrow', sans-serif;
+  font-family: 'TF2 Build', 'Arial Narrow', sans-serif;
   font-size: 1.05rem;
   text-transform: uppercase;
   letter-spacing: .02em;
@@ -650,7 +665,7 @@ html.light body::after {
   background: linear-gradient(180deg, var(--label-top), var(--label-bot));
   border-top: 1px solid color-mix(in srgb, var(--q) 45%, transparent);
   color: var(--ink);
-  font-family: 'TF2 Build', 'Anton', sans-serif;
+  font-family: 'TF2 Build', 'Arial Narrow', sans-serif;
   text-transform: uppercase;
   letter-spacing: .02em;
   padding: .5rem .75rem;

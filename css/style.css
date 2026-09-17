@@ -118,7 +118,7 @@
 #navbar nav::before { transition: opacity .3s ease; }
 
 .nav-logo {
-  font-family: 'TF2 Build', 'Anton', sans-serif;
+  font-family: 'TF2 Build', 'Arial Narrow', sans-serif;
   font-size: 1.3rem;
   letter-spacing: .04em;
 }
@@ -165,7 +165,7 @@ html.light .nav-link:hover, html.light .nav-link.is-active { background: rgba(74
 }
 #mobile-menu a {
   color: var(--ink);
-  font-family: 'TF2 Build', 'Anton', sans-serif;
+  font-family: 'TF2 Build', 'Arial Narrow', sans-serif;
   text-transform: uppercase;
   letter-spacing: .04em;
   padding: .4rem 2rem;
@@ -574,7 +574,7 @@ body.modal-open { overflow: hidden; }
   color: var(--ink-3);
 }
 .contract-title {
-  font-family: 'TF2 Build', 'Anton', sans-serif;
+  font-family: 'TF2 Build', 'Arial Narrow', sans-serif;
   text-transform: uppercase;
   font-size: 1.1rem;
   line-height: 1.2;
@@ -762,7 +762,7 @@ body.modal-open { overflow: hidden; }
 
 /* Fiche joueur volley. */
 .jersey-number {
-  font-family: 'TF2 Build', 'Anton', sans-serif;
+  font-family: 'TF2 Build', 'Arial Narrow', sans-serif;
   font-size: clamp(5rem, 10vw, 8rem);
   line-height: 1;
   color: var(--panel-edge);
@@ -832,7 +832,7 @@ body.modal-open { overflow: hidden; }
 /* Dans TF2 on choisit sa classe au clavier, de 1 à 9. Le numéro n'est pas
    décoratif : les touches 1-9 changent vraiment de carte (voir carousel.js). */
 .slot-num {
-  font-family: 'TF2 Build', 'Anton', sans-serif;
+  font-family: 'TF2 Build', 'Arial Narrow', sans-serif;
   font-size: 1.6rem; line-height: 1;
   color: var(--q-ink);
   opacity: .9;
@@ -932,7 +932,7 @@ body.modal-open { overflow: hidden; }
   color: var(--ink-3);
 }
 .copy-mail { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .7rem; margin: .8rem 0 0; }
-.store-price b { color: var(--qi-unique); font-family: 'TF2 Build', 'Anton', sans-serif; font-size: 1.1rem; }
+.store-price b { color: var(--qi-unique); font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 1.1rem; }
 
 /* La barre de capture : la jauge d'un point de contrôle qui passe à l'équipe.
    Teinte = --team (la section contact est RED), encre = --team-ink.
@@ -943,7 +943,7 @@ body.modal-open { overflow: hidden; }
 .capture[hidden] { display: none; }
 .capture-head {
   display: flex; align-items: center; gap: .55rem;
-  font-family: 'TF2 Build', 'Anton', sans-serif;
+  font-family: 'TF2 Build', 'Arial Narrow', sans-serif;
   text-transform: uppercase;
   letter-spacing: .04em;
 }
@@ -1232,6 +1232,45 @@ body.crt::after {
    ========================================================================= */
 .js .nojs-only { display: none !important; }   /* bat les règles par id (#projects-sheets) */
 html:not(.js) .js-only { display: none !important; }
+
+/* Menu de secours sans JS, sur téléphone (<details> dans index.html, posé hors
+   du header pour échapper à son clip-path). Il se cale sur la rangée du
+   header : 1rem de marge du header + 0.5rem de padding de la barre = 1.5rem du
+   haut ; 1rem (px-4 du header) + 1rem (px-4 de la barre) = 2rem de la droite.
+   Sans JS, les boutons thème/langue/burger sont masqués : la place est libre.
+   On ne touche PAS à `display` ici — c'est md:hidden (Tailwind, chargé après)
+   qui décide de le faire disparaître au-dessus de 768 px. */
+.nojs-nav {
+  position: fixed;
+  top: 1.5rem;
+  right: 2rem;
+  z-index: 60;
+}
+.nojs-nav > summary {
+  list-style: none;          /* le triangle natif n'a rien à faire sur un bouton */
+  justify-content: center;
+}
+.nojs-nav > summary::-webkit-details-marker { display: none; }
+.nojs-nav > ul {
+  position: absolute;
+  right: 0;
+  top: calc(100% + .5rem);
+  min-width: 11rem;
+  padding: .4rem;
+  margin: 0;
+  list-style: none;
+  text-align: right;
+}
+.nojs-nav > ul a {
+  display: block;
+  padding: .55rem .8rem;
+  font-family: 'TF2 Build', 'Arial Narrow', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: .02em;
+  color: var(--ink-2);
+  text-decoration: none;
+}
+.nojs-nav > ul a:hover { color: var(--ink); background: var(--bg-deep); }
 html:not(.js) .contract-body[hidden] { display: block; }
 html:not(.js) #games-viewport { height: auto; perspective: none; overflow: visible; cursor: auto; }
 html:not(.js) #games-track {

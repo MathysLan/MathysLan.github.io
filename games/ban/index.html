@@ -16,9 +16,12 @@
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0a0a12">
+<!-- Socle commun des pages de jeux : focus clavier, mouvement réduit, cibles
+     tactiles, messages d'état, et les deux polices auto-hébergées (plus aucun
+     appel à Google Fonts). La DA du jeu reste dans le <style> ci-dessous. -->
+<link rel="stylesheet" href="../_shared/game-ui.css?v=1">
 <style>
   * { margin: 0; box-sizing: border-box; }
   body {
@@ -28,19 +31,19 @@
   main { width: min(880px, 100%); text-align: center; }
   h1 { font-family: 'Space Grotesk', sans-serif; font-size: 1.4rem; margin-bottom: .3rem; }
   h1 .a { color: #ef4444; }
-  .sub { color: #6f6c80; font-size: .75rem; margin-bottom: 2rem; }
+  .sub { color: #8b87a0; font-size: .75rem; margin-bottom: 2rem; }
 
   section { background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.1); border-radius: 14px; padding: 1.6rem; }
   #home, #lobby { max-width: 460px; margin: 0 auto; }
-  button { font: inherit; cursor: pointer; background: #ef4444; color: #fff; border: none; border-radius: 10px; padding: .8rem 1.4rem; }
-  button:hover { background: #dc2626; }
+  button { font: inherit; cursor: pointer; background: #dc2626; color: #fff; border: none; border-radius: 10px; padding: .8rem 1.4rem; }
+  button:hover { background: #b91c1c; }
   button:disabled { opacity: .45; cursor: default; }
   .ghost { background: #11111c; border: 1px solid rgba(255,255,255,.18); color: #e7e5f4; }
   .ghost:hover { border-color: #34d399; background: #11111c; }
   input, select { font: inherit; background: transparent; border: 1px solid rgba(255,255,255,.18); border-radius: 10px; color: #e7e5f4; padding: .8rem 1rem; outline: none; width: 100%; }
   select { background: #11111c; }
   input:focus { border-color: #ef4444; }
-  .or { color: #6f6c80; font-size: .75rem; margin: 1.1rem 0; }
+  .or { color: #8b87a0; font-size: .75rem; margin: 1.1rem 0; }
   .join-row { display: flex; gap: .6rem; }
   .join-row input { width: 8rem; text-align: center; text-transform: uppercase; letter-spacing: .3em; }
   .join-row button { flex: 1; background: transparent; border: 1px solid rgba(255,255,255,.18); color: #e7e5f4; }
@@ -53,14 +56,14 @@
   .avatar-pick.picked { border-color: #34d399; background: #12241d; }
   #room-code { display: block; font-family: 'Space Grotesk', sans-serif; font-size: 2.4rem; font-weight: 700; letter-spacing: .45em; text-indent: .45em; color: #34d399; cursor: pointer; margin: .3rem 0 .2rem; }
   #room-code:hover { color: #6ee7b7; }
-  #code-hint { color: #6f6c80; font-size: .7rem; margin-bottom: 1.1rem; }
+  #code-hint { color: #8b87a0; font-size: .7rem; margin-bottom: 1.1rem; }
   ul { list-style: none; text-align: left; font-size: .85rem; }
   #players li { padding: .5rem .2rem; border-bottom: 1px solid rgba(255,255,255,.06); display: flex; align-items: center; gap: .5rem; }
   .tag { color: #f59e0b; font-size: .7rem; }
   .pp { margin-right: .2rem; }
   #host-config { margin-top: 1.2rem; padding-top: 1.2rem; border-top: 1px solid rgba(255,255,255,.08); display: flex; align-items: center; justify-content: center; gap: .8rem; flex-wrap: wrap; }
   #host-config label { font-size: .75rem; color: #9b98ad; }
-  #need-players { color: #6f6c80; font-size: .75rem; margin-top: 1rem; }
+  #need-players { color: #8b87a0; font-size: .75rem; margin-top: 1rem; }
 
   /* ---------- écran de jeu ---------- */
   #game { padding: 1.2rem; }
@@ -73,7 +76,7 @@
   #order-chips { display: flex; flex-wrap: wrap; gap: .5rem; }
   .chip { display: inline-flex; align-items: center; gap: .35rem; font-size: .74rem; padding: .35rem .6rem; border-radius: 8px;
     border: 1px solid rgba(255,255,255,.14); background: #11111c; color: #cbd5e1; }
-  .chip .num { color: #6f6c80; }
+  .chip .num { color: #8b87a0; }
   .chip .tc { color: #9b98ad; }
   .chip.done { border-color: rgba(52,211,153,.5); background: #0f1f18; color: #86efac; }
   .chip.over { border-color: rgba(239,68,68,.5); background: #23121a; color: #fca5a5; }
@@ -107,7 +110,7 @@
     background: #11111c; border: 1px solid rgba(255,255,255,.2); border-radius: 5px; padding: .05rem .3rem; }
   .res-out { position: absolute; left: 6px; white-space: nowrap; font-size: .62rem; color: #9b98ad; background: #11111c;
     border: 1px solid rgba(255,255,255,.15); border-radius: 5px; padding: .08rem .35rem; }
-  #res-bounds { display: flex; justify-content: space-between; font-size: .62rem; color: #6f6c80; margin-bottom: 1rem; }
+  #res-bounds { display: flex; justify-content: space-between; font-size: .62rem; color: #8b87a0; margin-bottom: 1rem; }
   #res-table { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
   .res-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: .8rem; padding: .7rem .9rem;
     border: 1px solid rgba(255,255,255,.1); border-radius: 10px; background: #11111c; font-size: .82rem; }
@@ -115,7 +118,7 @@
   .res-row .rd { color: #9b98ad; font-variant-numeric: tabular-nums; }
   .res-row .rp { font-weight: 700; min-width: 2.2rem; text-align: right; }
   .res-row .rp.pos { color: #facc15; }
-  .res-row .rp.zero { color: #6f6c80; }
+  .res-row .rp.zero { color: #8b87a0; }
   .res-row .rp.neg { color: #fca5a5; }
   @media (max-width: 620px) { #res-table { grid-template-columns: 1fr; } }
 
@@ -125,14 +128,14 @@
   #play-btn, #host-next { background: #34d399; color: #0a0a12; font-weight: 700; }
   #play-btn:hover, #host-next:hover { background: #2cbd87; }
   #stop-btn { background: #ef4444; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 1.3rem; padding: 1rem 2.6rem; border-radius: 14px; box-shadow: 0 6px 20px rgba(239,68,68,.35); }
-  #wait-turn { color: #6f6c80; font-size: .8rem; }
+  #wait-turn { color: #8b87a0; font-size: .8rem; }
   #status-bar { margin-top: 1rem; font-size: .72rem; letter-spacing: .12em; color: #9b98ad; }
   #scores { margin-top: 1rem; }
   #scores li { padding: .5rem .2rem; border-bottom: 1px solid rgba(255,255,255,.06); display: flex; align-items: center; gap: .5rem; }
   #scores .pts { color: #9b98ad; margin-left: auto; }
 
   #error { margin-top: 1rem; font-size: .8rem; color: #ef4444; min-height: 1.2em; }
-  .back { display: inline-block; margin-top: 1.6rem; color: #6f6c80; font-size: .75rem; text-decoration: none; }
+  .back { display: inline-block; margin-top: 1.6rem; color: #8b87a0; font-size: .75rem; text-decoration: none; }
   .back:hover { color: #e7e5f4; }
   /* avertissement (TW) affiché avant de pouvoir jouer */
   #tw { border: 1px solid rgba(239,68,68,.4); background: rgba(239,68,68,.07);
@@ -177,8 +180,8 @@
 
     <!-- lobby -->
     <section id="lobby" hidden>
-      <b id="room-code" title="clique pour copier">····</b>
-      <p id="code-hint">clique sur le code pour le copier</p>
+      <button type="button" id="room-code" class="g-copy" title="clique pour copier">····</button>
+      <p id="code-hint" role="status">clique sur le code pour le copier</p>
       <ul id="players"></ul>
       <p id="need-players">il faut au moins 2 joueurs</p>
       <div id="host-config" hidden>
@@ -195,7 +198,7 @@
 
     <!-- jeu -->
     <section id="game" hidden>
-      <p id="turn-title"></p>
+      <p id="turn-title" role="status"></p>
 
       <div id="order-panel">
         <p class="panel-title">ORDRE DE PASSAGE</p>
@@ -238,8 +241,8 @@
       <ul id="scores" hidden></ul>
     </section>
 
-    <p id="error"></p>
-    <a class="back" href="/">← retour au portfolio</a>
+    <p id="error" class="g-error" role="alert"></p>
+    <a class="back" href="../../">← retour au portfolio</a>
   </main>
   <script src="net.js"></script>
   <script src="app.js"></script>

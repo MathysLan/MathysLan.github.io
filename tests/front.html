@@ -8,7 +8,7 @@
   body { margin:0; background:#111; color:#8f8; font:13px/1.6 monospace; }
   #log { padding:10px; white-space:pre-wrap; }
   iframe { width:1100px; height:900px; border:0; position:fixed; left:-9999px; }
-  #m { width:390px; height:800px; }
+  #m, #nojsm { width:390px; height:800px; }
   .ko { color:#f77; }
 </style>
 </head>
@@ -19,6 +19,9 @@
 <iframe id="m" src="../index.html"></iframe>
 <!-- Sans JS : sandbox sans allow-scripts. Ce qui doit rester lisible et juste. -->
 <iframe id="nojs" sandbox="allow-same-origin" src="../index.html"></iframe>
+<!-- Sans JS ET en 390 px : le cas où le burger n'existe pas. C'est le seul
+     endroit où le menu de secours <details> est censé apparaître. -->
+<iframe id="nojsm" sandbox="allow-same-origin" src="../index.html"></iframe>
 <script>
 // Pilote le vrai index.html dans une iframe (meme origine avec
 // --allow-file-access-from-files) : on ne touche pas au fichier livre.
@@ -460,12 +463,111 @@ document.getElementById('f').addEventListener('load', function () {
           [].every.call(nd.querySelectorAll('.js-only'), function (b) { return nw.getComputedStyle(b).display === 'none'; }));
         t('sans JS : objectifs des contrats lisibles',
           [].every.call(nd.querySelectorAll('.contract-body'), function (b) { return nw.getComputedStyle(b).display !== 'none'; }));
+
+        // Le menu de secours <details> : le SEUL moyen d'atteindre une section
+        // sans JS sur telephone (le burger a besoin de JS, la liste du header
+        // est masquee sous 768 px).
+        var mw2 = document.getElementById('nojsm').contentWindow, md2 = mw2.document;
+        var det = md2.querySelector('.nojs-nav');
+        t('sans JS (390 px) : menu de secours present et visible',
+          !!det && mw2.getComputedStyle(det).display !== 'none');
+        var dlinks = det ? det.querySelectorAll('ul a') : [];
+        t('sans JS (390 px) : les 6 sections sont atteignables',
+          [].map.call(dlinks, function (a) { return a.getAttribute('href'); }).join(',')
+          === '#projects,#timeline,#assos,#passions,#games,#contact');
+        t('sans JS (390 px) : le menu est un <details> replie, avec un nom',
+          det && det.tagName === 'DETAILS' && !det.open
+          && det.querySelector('summary').getAttribute('aria-label').length > 0);
+        t('sans JS (390 px) : il s ouvre sans script',
+          (function () { det.open = true; var ul = det.querySelector('ul');
+            var vis = mw2.getComputedStyle(ul).display !== 'none' && ul.getBoundingClientRect().height > 0;
+            det.open = false; return vis; })());
+        t('sans JS (390 px) : pas de debordement horizontal',
+          md2.documentElement.scrollWidth <= 390);
+        t('avec JS : le menu de secours disparait',
+          w.getComputedStyle(d.querySelector('.nojs-nav')).display === 'none');
+
+        // Plus aucune police externe, sur aucune page.
+        t('aucun appel a Google Fonts dans le <head>',
+          d.querySelectorAll('link[href*="fonts.googleapis"], link[href*="fonts.gstatic"]').length === 0);
+        t('JetBrains Mono auto-hebergee',
+          [].some.call(d.styleSheets, function (s) {
+            try { return [].some.call(s.cssRules, function (r) {
+              return r.constructor.name === 'CSSFontFaceRule' && /JetBrains/.test(r.style.fontFamily); }); }
+            catch (e) { return false; }
+          }));
+        t('favicon declaree', !!d.querySelector('link[rel~="icon"]'));
       } catch (e) { out.push('EXCEPTION sans JS: ' + e.message); out.ko = true; }
-      t('aucune erreur JS', errs.length === 0);
-      var head = out.ko ? 'DES TESTS ECHOUENT' : 'TOUT PASSE';
-      document.getElementById('log').textContent =
-        head + ' — ' + out.filter(function (l) { return /^(OK|KO)/.test(l); }).length + ' verifications\n\n' + out.join('\n') +
-        (errs.length ? '\n\nERREURS JS:\n' + errs.join('\n') : '');
+
+      // --- Presse-papiers : les chemins qu'un clic normal ne montre jamais.
+      // On ne peut PAS vérifier en headless qu'un vrai writeText() réussit (ni
+      // permission, ni page sécurisée). Ce qui est vérifiable, et vérifié ici,
+      // c'est toute la mécanique autour : le repli, le filet d'1 s, le fait que
+      // report() soit appelé exactement une fois, et surtout qu'aucun faux
+      // « Adresse copiée ✓ » ne puisse s'afficher quand rien n'a été copié.
+      var nav = w.navigator;
+      var realClip = Object.getOwnPropertyDescriptor(nav, 'clipboard');
+      var realSecure = Object.getOwnPropertyDescriptor(w, 'isSecureContext');
+      var realExec = d.execCommand;
+      function stubClipboard(writeText, execOk) {
+        Object.defineProperty(nav, 'clipboard', { value: { writeText: writeText }, configurable: true });
+        Object.defineProperty(w, 'isSecureContext', { value: true, configurable: true });
+        d.execCommand = function () { return execOk; };
+      }
+      function restoreClipboard() {
+        if (realClip) Object.defineProperty(nav, 'clipboard', realClip); else delete nav.clipboard;
+        if (realSecure) Object.defineProperty(w, 'isSecureContext', realSecure); else delete w.isSecureContext;
+        d.execCommand = realExec;
+      }
+      var rejected = function () { return Promise.reject(new Error('refusé')); };
+
+      // 1. Refus du presse-papiers, repli qui marche.
+      var c1 = [];
+      stubClipboard(rejected, true);
+      w.copyEmailAddress(function (ok) { c1.push(ok); });
+
+      setTimeout(function () {
+        t('presse-papiers refuse : repli utilise, une seule reponse', c1.length === 1 && c1[0] === true);
+
+        // 2. Tout echoue : le bouton doit le DIRE, jamais annoncer un succes.
+        stubClipboard(rejected, false);
+        d.getElementById('copy-mail-status').textContent = '';
+        d.getElementById('copy-mail').click();
+
+        setTimeout(function () {
+          var m = d.getElementById('copy-mail-status').textContent;
+          t('echec total : message affiche, et aucun faux succes [' + m + ']',
+            m.length > 0 && !/copiée|copied/i.test(m));
+
+          // 3. Promesse qui ne se regle jamais : le filet doit prendre le relais.
+          var c3 = [], t0 = Date.now(), late;
+          stubClipboard(function () { return new Promise(function (r) { late = r; }); }, true);
+          w.copyEmailAddress(function (ok) { c3.push([ok, Date.now() - t0]); });
+
+          setTimeout(function () {
+            t('promesse en suspens : rien n est annonce trop tot', c3.length === 0);
+          }, 400);
+          setTimeout(function () {
+            t('promesse en suspens : le filet repond (~1 s) et une seule fois',
+              c3.length === 1 && c3[0][0] === true && c3[0][1] >= 900);
+            // 4. Le vrai presse-papiers repond APRES le filet : pas de doublon.
+            if (late) late();
+            setTimeout(function () {
+              t('reponse tardive du presse-papiers : pas de seconde annonce', c3.length === 1);
+              restoreClipboard();
+              finish();
+            }, 150);
+          }, 1300);
+        }, 80);
+      }, 80);
+
+      function finish() {
+        t('aucune erreur JS', errs.length === 0);
+        var head = out.ko ? 'DES TESTS ECHOUENT' : 'TOUT PASSE';
+        document.getElementById('log').textContent =
+          head + ' — ' + out.filter(function (l) { return /^(OK|KO)/.test(l); }).length + ' verifications\n\n' + out.join('\n') +
+          (errs.length ? '\n\nERREURS JS:\n' + errs.join('\n') : '');
+      }
     }, 1700);
   }, 900);
 });

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Favicon du site : la plaque Mann Co. du portfolio, réduite à ce qui reste
+       lisible à 16 px — coins coupés en diagonale (jamais d'arrondi), liseré
+       orange, monogramme ML. Dessiné en traits, pas en texte : une favicon SVG
+       ne peut compter sur aucune police. Rien ne vient de Valve. -->
+  <path d="M9 2H30V23L23 30H2V9Z" fill="#241c14" stroke="#cf7336" stroke-width="2"/>
+  <g fill="none" stroke="#f0e7d2" stroke-width="3" stroke-linejoin="miter" stroke-linecap="butt">
+    <path d="M7 23V10l4.5 6L16 10v13"/>
+    <path d="M20 10v13h6"/>
+  </g>
+</svg>

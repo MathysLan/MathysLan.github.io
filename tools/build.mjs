@@ -54,18 +54,42 @@ function lastmod(paths) {
   }
 }
 
-function buildSitemap() {
+function sitemapURLs() {
   const games = loadData('data/games.js', 'GAMES').filter((g) => g.href);
-  const urls = [
+  return [
     { loc: `${SITE}/`, paths: ['index.html', 'css', 'js', 'data', 'assets'] },
-    ...games.map((g) => ({ loc: `${SITE}/${g.href}`, paths: [g.href] })),
+    // Une page de jeu dépend AUSSI du socle commun : sans games/_shared, une
+    // refonte du focus clavier ne bougerait la date d'aucune des cinq pages.
+    ...games.map((g) => ({ loc: `${SITE}/${g.href}`, paths: [g.href, 'games/_shared'] })),
   ];
-  const body = urls.map((u) =>
+}
+
+function buildSitemap() {
+  const body = sitemapURLs().map((u) =>
     `  <url>\n    <loc>${u.loc}</loc>\n    <lastmod>${lastmod(u.paths)}</lastmod>\n  </url>`).join('\n');
   emit('sitemap.xml',
     `<?xml version="1.0" encoding="UTF-8"?>\n`
     + `<!-- Généré par tools/build.mjs depuis data/games.js : ne pas éditer à la main. -->\n`
     + `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</urlset>\n`);
+}
+
+// En --check on ne peut pas comparer le fichier entier : <lastmod> vaut « la
+// date du dernier commit touchant la page », donc un sitemap juste avant un
+// commit ne l'est plus juste après — la CI échouerait à chaque fois.
+// Ce qui PEUT périmer en silence, en revanche, c'est la LISTE : un jeu ajouté
+// à data/games.js et un build oublié, et la page n'entre jamais au sitemap.
+// On vérifie donc les <loc>, dans l'ordre, et on laisse les dates tranquilles.
+function checkSitemap() {
+  const want = sitemapURLs().map((u) => u.loc);
+  const file = 'sitemap.xml';
+  const have = [...read(file).matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+  if (have.join('\n') === want.join('\n')) return;
+  stale.push(file);
+  const only = (a, b) => a.filter((x) => !b.includes(x));
+  const missing = only(want, have), extra = only(have, want);
+  if (missing.length) console.error(`  sitemap.xml : URL manquantes → ${missing.join(', ')}`);
+  if (extra.length) console.error(`  sitemap.xml : URL en trop → ${extra.join(', ')}`);
+  if (!missing.length && !extra.length) console.error('  sitemap.xml : les URL ne sont plus dans le même ordre');
 }
 
 // ------------------------------------------------- pré-rendu dans index.html
@@ -153,9 +177,7 @@ try {
   console.error(`\nÉCHEC : ${e.message}`);
   process.exit(1);
 }
-// Le sitemap n'est pas vérifié en --check : ses dates dépendent du commit
-// lui-même (un fichier à jour avant commit ne l'est plus juste après).
-if (!CHECK) buildSitemap();
+if (CHECK) checkSitemap(); else buildSitemap();
 
 if (stale.length) {
   console.error(`\nFichiers générés périmés : ${stale.join(', ')}\n→ lancer « node tools/build.mjs » puis commiter.`);

@@ -77,7 +77,7 @@ Chaque serveur a son dépôt : [`morpion-server`](https://github.com/MathysLan/m
 ├── index.html            la page du portfolio (contenu pré-rendu entre les marqueurs build:)
 ├── 404.html              page d'erreur façon session SQL*Plus (ORA-00942)
 ├── css/
-│   ├── tf2.css           le socle : polices, palette, primitives (panneau, bouton, objet…)
+│   ├── tf2.css           le socle : polices (toutes locales), palette, primitives
 │   ├── style.css         les composants du portfolio, construits sur le socle
 │   └── tailwind.css      GÉNÉRÉ par tools/build.mjs
 ├── data/
@@ -94,11 +94,16 @@ Chaque serveur a son dépôt : [`morpion-server`](https://github.com/MathysLan/m
 │   ├── palette.js        palette de commandes (Ctrl/Cmd + K)
 │   ├── connect4.js       Puissance 4 (Canvas)
 │   └── easter.js         Konami code, Spy crabe, secrets console
-├── games/                les clients des jeux (morpion, imitation, demicercle, ban, precision)
+├── games/
+│   ├── _shared/game-ui.css   socle commun des 5 jeux : focus clavier, mouvement réduit, tactile
+│   └── …                 les clients (morpion, imitation, demicercle, ban, precision)
 ├── tools/
 │   ├── build.mjs         pré-rendu, Tailwind, sitemap
 │   └── og-image.html     l'image de partage (assets/og-image.png)
-└── tests/front.html      tests du front, pilotés dans le navigateur
+└── tests/
+    ├── front.html        le portfolio, piloté dans le navigateur
+    ├── games.html        le socle commun des 5 pages de jeux
+    └── keyboard.mjs      focus clavier, avec de vraies frappes Tab (CDP)
 ```
 
 ## Modifier le contenu
@@ -125,7 +130,7 @@ Puis `http://localhost:8000`. Pour tester un jeu multijoueur, lancer son serveur
 
 ## Tests
 
-`tests/front.html` pilote le vrai `index.html` (bureau, téléphone et **sans JavaScript**) : fiches, lightbox, clavier, lecteurs d'écran, SEO, guichet… Mode d'emploi dans [`tests/README.md`](tests/README.md). La suite se lance deux fois : mouvement normal et « mouvement réduit ».
+Trois suites, décrites dans [`tests/README.md`](tests/README.md). `tests/front.html` pilote le vrai `index.html` (bureau, téléphone, **sans JavaScript**, et sans JavaScript en 390 px) : fiches, lightbox, presse-papiers, SEO, guichet… `tests/games.html` vérifie ce que les cinq pages de jeux ont en commun. `tests/keyboard.mjs` envoie de vraies frappes Tab par le protocole DevTools, seul moyen de prouver qu'un anneau de focus apparaît vraiment. Les deux suites HTML se lancent deux fois : mouvement normal et « mouvement réduit ».
 
 ## Secrets & easter eggs
 

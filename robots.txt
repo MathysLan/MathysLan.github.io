@@ -3,8 +3,16 @@ Allow: /
 Disallow: /404.html
 Disallow: /tests/
 Disallow: /tools/
+Disallow: /upload/
 Disallow: /styleguide.html
-# /data/ n'est PAS bloqué : data/projects.js et data/games.js servent au rendu.
-# Les bloquer empêchait les moteurs qui exécutent le JS de voir les projets.
+
+# /data/ reste AUTORISÉ, même si le contenu est désormais pré-rendu dans
+# index.html. Mesuré (2026-09-17) en rechargeant la page sans data/*.js, comme
+# le ferait un robot à qui on les interdit : le texte des projets reste lisible
+# (il est dans le HTML), mais `PROJECTS is not defined` casse le script au
+# milieu — la palette Ctrl+K ne s'initialise plus, et le reste du JS s'arrête.
+# Bloquer /data/ ne gagne rien (ce ne sont pas des pages indexables) et fait
+# exactement ce que Google demande d'éviter : cacher au robot une ressource
+# nécessaire au rendu. Donc on n'y touche pas.
 
 Sitemap: https://mathyslan.github.io/sitemap.xml

@@ -16,9 +16,12 @@
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0a0a12">
+<!-- Socle commun des pages de jeux : focus clavier, mouvement réduit, cibles
+     tactiles, messages d'état, et les deux polices auto-hébergées (plus aucun
+     appel à Google Fonts). La DA du jeu reste dans le <style> ci-dessous. -->
+<link rel="stylesheet" href="../_shared/game-ui.css?v=1">
 <style>
   * { margin: 0; box-sizing: border-box; }
   body {
@@ -35,7 +38,7 @@
   h1 { font-size: 1.3rem; margin-bottom: .4rem; }
   h1 .x { color: #8b5cf6; }
   h1 .o { color: #f59e0b; }
-  .sub { color: #6f6c80; font-size: .75rem; margin-bottom: 2rem; }
+  .sub { color: #8b87a0; font-size: .75rem; margin-bottom: 2rem; }
 
   .card {
     background: rgba(255, 255, 255, 0.045);
@@ -46,14 +49,14 @@
   button {
     font: inherit;
     cursor: pointer;
-    background: #8b5cf6;
+    background: #7c3aed;
     color: #fff;
     border: none;
     border-radius: 10px;
     padding: .8rem 1.4rem;
   }
-  button:hover { background: #7c3aed; }
-  .or { color: #6f6c80; font-size: .75rem; margin: 1.1rem 0; }
+  button:hover { background: #6d28d9; }
+  .or { color: #8b87a0; font-size: .75rem; margin: 1.1rem 0; }
   .join-row { display: flex; gap: .6rem; justify-content: center; }
   input {
     font: inherit;
@@ -72,8 +75,13 @@
   .join-row button { background: transparent; border: 1px solid rgba(255, 255, 255, 0.18); color: #e7e5f4; }
   .join-row button:hover { border-color: #34d399; color: #34d399; background: transparent; }
 
-  .meta { display: flex; justify-content: space-between; font-size: .75rem; color: #9b98ad; margin-bottom: 1.1rem; }
+  .meta { display: flex; justify-content: space-between; font-size: .75rem; color: #9b98ad; margin-bottom: .4rem; }
   .meta b { color: #34d399; letter-spacing: .2em; }
+  /* Le code se copie au clic, comme dans les quatre autres jeux. Ici il vit
+     dans une rangee de meta : en ligne, pas en bloc comme .g-copy par defaut. */
+  #room-code { display: inline; width: auto; color: #34d399; letter-spacing: .2em; }
+  #room-code:hover { color: #6ee7b7; }
+  #code-hint { color: #8b87a0; font-size: .7rem; margin-bottom: .9rem; min-height: 1.2em; }
   #board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .cell {
     aspect-ratio: 1;
@@ -92,7 +100,7 @@
 
   #status { margin-top: 1.2rem; font-size: .85rem; color: #9b98ad; min-height: 1.4em; }
   #error { margin-top: 1rem; font-size: .8rem; color: #ef4444; min-height: 1.2em; }
-  .back { display: inline-block; margin-top: 1.6rem; color: #6f6c80; font-size: .75rem; text-decoration: none; }
+  .back { display: inline-block; margin-top: 1.6rem; color: #8b87a0; font-size: .75rem; text-decoration: none; }
   .back:hover { color: #e7e5f4; }
   [hidden] { display: none !important; }
 </style>
@@ -113,15 +121,16 @@
 
     <section id="game" class="card" hidden>
       <div class="meta">
-        <span>room <b id="room-code">····</b></span>
+        <span>room <button type="button" id="room-code" class="g-copy" title="clique pour copier">····</button></span>
         <span>tu joues <b id="you">·</b></span>
       </div>
+      <p id="code-hint" role="status">clique sur le code pour le copier</p>
       <div id="board"></div>
-      <p id="status"></p>
+      <p id="status" role="status"></p>
     </section>
 
-    <p id="error"></p>
-    <a class="back" href="/">← retour au portfolio</a>
+    <p id="error" class="g-error" role="alert"></p>
+    <a class="back" href="../../">← retour au portfolio</a>
   </main>
   <script src="net.js"></script>
 </body>

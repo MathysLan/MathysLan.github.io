@@ -16,9 +16,12 @@
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0a0a12">
+<!-- Socle commun des pages de jeux : focus clavier, mouvement réduit, cibles
+     tactiles, messages d'état, et les deux polices auto-hébergées (plus aucun
+     appel à Google Fonts). La DA du jeu reste dans le <style> ci-dessous. -->
+<link rel="stylesheet" href="../_shared/game-ui.css?v=1">
 <style>
   * { margin: 0; box-sizing: border-box; }
   body {
@@ -29,7 +32,7 @@
   main { width: min(760px, 100%); text-align: center; }
   h1 { font-family: 'Space Grotesk', sans-serif; font-size: 1.4rem; margin-bottom: .3rem; }
   h1 .a { color: #8b5cf6; }
-  .sub { color: #6f6c80; font-size: .75rem; margin-bottom: 2rem; }
+  .sub { color: #8b87a0; font-size: .75rem; margin-bottom: 2rem; }
 
   section {
     background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.1);
@@ -37,10 +40,10 @@
   }
   #home, #lobby { max-width: 460px; margin: 0 auto; }
   button {
-    font: inherit; cursor: pointer; background: #8b5cf6; color: #fff;
+    font: inherit; cursor: pointer; background: #7c3aed; color: #fff;
     border: none; border-radius: 10px; padding: .8rem 1.4rem;
   }
-  button:hover { background: #7c3aed; }
+  button:hover { background: #6d28d9; }
   button:disabled { opacity: .45; cursor: default; }
   input, select {
     font: inherit; background: transparent; border: 1px solid rgba(255,255,255,.18);
@@ -48,7 +51,7 @@
   }
   select { background: #11111c; }
   input:focus { border-color: #8b5cf6; }
-  .or { color: #6f6c80; font-size: .75rem; margin: 1.1rem 0; }
+  .or { color: #8b87a0; font-size: .75rem; margin: 1.1rem 0; }
   .join-row { display: flex; gap: .6rem; }
   .join-row input { width: 8rem; text-align: center; text-transform: uppercase; letter-spacing: .3em; }
   .join-row button { flex: 1; background: transparent; border: 1px solid rgba(255,255,255,.18); color: #e7e5f4; }
@@ -62,7 +65,7 @@
 
   #room-code { display: block; font-family: 'Space Grotesk', sans-serif; font-size: 2.4rem; font-weight: 700; letter-spacing: .45em; text-indent: .45em; color: #34d399; cursor: pointer; margin: .3rem 0 .2rem; }
   #room-code:hover { color: #6ee7b7; }
-  #code-hint { color: #6f6c80; font-size: .7rem; margin-bottom: 1.1rem; }
+  #code-hint { color: #8b87a0; font-size: .7rem; margin-bottom: 1.1rem; }
   ul { list-style: none; text-align: left; font-size: .85rem; }
   li { padding: .5rem .2rem; border-bottom: 1px solid rgba(255,255,255,.06); display: flex; align-items: center; gap: .5rem; }
   .tag { color: #f59e0b; font-size: .7rem; }
@@ -70,7 +73,7 @@
   .pts { color: #9b98ad; margin-left: auto; }
   #host-config { margin-top: 1.2rem; padding-top: 1.2rem; border-top: 1px solid rgba(255,255,255,.08); display: flex; align-items: center; justify-content: center; gap: .8rem; flex-wrap: wrap; }
   #host-config label { font-size: .75rem; color: #9b98ad; }
-  #need-players { color: #6f6c80; font-size: .75rem; margin-top: 1rem; }
+  #need-players { color: #8b87a0; font-size: .75rem; margin-top: 1rem; }
 
   /* --- écran de jeu : scoreboard + scène --- */
   .game-wrap { display: flex; gap: 1.2rem; align-items: flex-start; text-align: left; }
@@ -84,7 +87,7 @@
   #stage-sub { color: #9b98ad; font-size: .82rem; margin-bottom: .4rem; min-height: 1.2em; }
   #next-btn { background: #34d399; color: #0a0a12; font-weight: 700; }
   #next-btn:hover { background: #2cbd87; }
-  .wait { color: #6f6c80; font-size: .78rem; }
+  .wait { color: #8b87a0; font-size: .78rem; }
   #scores-live li .rd { color: #34d399; margin-left: .3rem; }
 
   /* cadran */
@@ -109,7 +112,7 @@
 
   #scores { margin-top: 1rem; }
   #error { margin-top: 1rem; font-size: .8rem; color: #ef4444; min-height: 1.2em; }
-  .back { display: inline-block; margin-top: 1.6rem; color: #6f6c80; font-size: .75rem; text-decoration: none; }
+  .back { display: inline-block; margin-top: 1.6rem; color: #8b87a0; font-size: .75rem; text-decoration: none; }
   .back:hover { color: #e7e5f4; }
   [hidden] { display: none !important; }
   @media (max-width: 640px) { .game-wrap { flex-direction: column; } #scorepanel { width: 100%; flex: none; } }
@@ -135,8 +138,8 @@
 
     <!-- lobby -->
     <section id="lobby" hidden>
-      <b id="room-code" title="clique pour copier">····</b>
-      <p id="code-hint">clique sur le code pour le copier</p>
+      <button type="button" id="room-code" class="g-copy" title="clique pour copier">····</button>
+      <p id="code-hint" role="status">clique sur le code pour le copier</p>
       <ul id="players"></ul>
       <p id="need-players">il faut au moins 2 joueurs</p>
       <div id="host-config" hidden>
@@ -166,7 +169,7 @@
         </aside>
         <div class="stage">
           <p id="stage-title"></p>
-          <p id="stage-sub"></p>
+          <p id="stage-sub" role="status"></p>
 
           <div id="dial-box">
             <svg id="dial" viewBox="0 0 400 226" aria-label="cadran demi-cercle">
@@ -215,8 +218,8 @@
       </div>
     </section>
 
-    <p id="error"></p>
-    <a class="back" href="/">← retour au portfolio</a>
+    <p id="error" class="g-error" role="alert"></p>
+    <a class="back" href="../../">← retour au portfolio</a>
   </main>
   <script src="net.js"></script>
   <script src="app.js"></script>

@@ -5,10 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>404 — ORA-00942</title>
 <meta name="robots" content="noindex">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#241c14">
 <style>
+  /* Police déclarée ici plutôt que chargée chez Google : la page reste
+     autonome (voir plus bas) et le site n'a plus aucune dépendance externe.
+     Chemin absolu : une 404 peut être servie depuis n'importe quelle URL. */
+  @font-face {
+    font-family: 'JetBrains Mono';
+    src: url('/assets/fonts/JetBrainsMono-latin.woff2') format('woff2');
+    font-weight: 400 700;
+    font-style: normal;
+    font-display: swap;
+  }
   /* Page autonome : elle ne charge ni tf2.css ni Tailwind (une 404 doit
      s'afficher même si tout le reste casse), mais elle reprend à la main la
      palette Mann Co. et le panneau biseauté, pour ne pas dépayser. */
