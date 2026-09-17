@@ -25,12 +25,41 @@ var GAMES = ['morpion', 'demicercle', 'imitation', 'ban', 'precision'];
 var out = [], errs = [];
 function t(name, ok) { out.push((ok ? 'OK   ' : 'KO   ') + name); if (!ok) out.ko = true; }
 
+// Précision fait un bip (Web Audio) au clic sur un avatar, et construit son
+// AudioContext à ce moment-là. En headless il n'y a pas de périphérique audio :
+// la construction peut échouer, l'exception remonte en erreur de page, et la
+// suite échoue par intermittence pour une raison qui n'a rien à voir avec ce
+// qu'elle teste. On neutralise donc l'audio avant de piloter l'interface — ces
+// tests parlent d'aria-pressed et de cascade CSS, pas de son.
+function muteAudio(w) {
+  var node = {
+    connect: function () { return node; }, disconnect: function () {},
+    start: function () {}, stop: function () {},
+    type: '', buffer: null,
+    frequency: { setValueAtTime: function () {}, exponentialRampToValueAtTime: function () {} },
+    gain: { setValueAtTime: function () {}, exponentialRampToValueAtTime: function () {},
+            linearRampToValueAtTime: function () {} },
+  };
+  function FakeCtx() {}
+  FakeCtx.prototype = {
+    currentTime: 0, state: 'running', sampleRate: 44100,
+    resume: function () { return Promise.resolve(); },
+    close: function () { return Promise.resolve(); },
+    createOscillator: function () { return node; },
+    createGain: function () { return node; },
+    createBufferSource: function () { return node; },
+    createBuffer: function () { return { getChannelData: function () { return new Float32Array(1); } }; },
+    destination: node,
+  };
+  try { w.AudioContext = FakeCtx; w.webkitAudioContext = FakeCtx; } catch (e) {}
+}
+
 function auditGame(g, w, d, mw, md, next) {
   var P = g + ' : ';
 
   // --- socle commun chargé, polices locales
   t(P + 'socle commun charge',
-    !!d.querySelector('link[href*="_shared/game-ui.css"]'));
+    !!d.querySelector('link[href*="shared/game-ui.css"]'));
   t(P + 'aucun appel a Google Fonts',
     d.querySelectorAll('link[href*="fonts.googleapis"], link[href*="fonts.gstatic"]').length === 0);
   t(P + 'polices auto-hebergees (JetBrains Mono)',
@@ -67,6 +96,34 @@ function auditGame(g, w, d, mw, md, next) {
   t(P + 'la copie a un retour annonce (role=status)',
     !!hint && hint.getAttribute('role') === 'status' && hint.textContent.trim().length > 0);
 
+  // Non-régression : le code de room est un <button>, donc le `button { … }`
+  // générique de chaque jeu lui remettrait un fond plein, du padding et un
+  // arrondi si le socle ne les déshabillait pas. On compare au bouton d'action
+  // principal — les deux ne doivent PAS se ressembler.
+  var wasHidden = [];
+  d.querySelectorAll('section[hidden], div[hidden]').forEach(function (e) { wasHidden.push(e); e.hidden = false; });
+  var main = d.getElementById('host') || d.querySelector('button');
+  var rcs = w.getComputedStyle(rc), ms = w.getComputedStyle(main);
+  var chrome = function (s) {
+    return [s.backgroundColor, s.backgroundImage, s.borderTopWidth, s.borderTopStyle,
+      s.borderTopLeftRadius, s.paddingTop, s.paddingLeft, s.boxShadow].join(' | ');
+  };
+  var transparent = function (c) { return c === 'rgba(0, 0, 0, 0)' || c === 'transparent'; };
+  t(P + 'le code de room n a pas l apparence d un bouton d action',
+    transparent(rcs.backgroundColor) && rcs.backgroundImage === 'none'
+    && parseFloat(rcs.borderTopWidth) === 0
+    && parseFloat(rcs.borderTopLeftRadius) === 0
+    && parseFloat(rcs.paddingTop) === 0 && parseFloat(rcs.paddingLeft) === 0
+    && rcs.boxShadow === 'none');
+  // …et le test n'est pas creux : le bouton d'action, lui, est bien plein.
+  t(P + 'le bouton d action reste plein (donc les deux different)',
+    !transparent(ms.backgroundColor) && parseFloat(ms.paddingTop) > 0
+    && chrome(rcs) !== chrome(ms));
+  // Ce que le jeu décide, lui, doit survivre au déshabillage.
+  t(P + 'le code de room garde la typo et la couleur du jeu',
+    parseFloat(rcs.fontSize) > 0 && rcs.color !== ms.color);
+  wasHidden.forEach(function (e) { e.hidden = true; });
+
   // --- avatars : état choisi annoncé
   if (g !== 'morpion') {
     var picks = d.querySelectorAll('.avatar-pick');
@@ -82,11 +139,30 @@ function auditGame(g, w, d, mw, md, next) {
   }
 
   // --- état désactivé : même convention partout
-  var dis = d.querySelector('button:disabled');
-  if (dis) t(P + 'bouton desactive : a moitie eteint, curseur normal',
-    Math.abs(parseFloat(w.getComputedStyle(dis).opacity) - 0.45) < 0.02
-    && w.getComputedStyle(dis).cursor === 'default');
-  else out.push('--   ' + P + 'aucun bouton desactive sur l ecran d accueil');
+  // On ne CHERCHE pas un bouton que le jeu aurait désactivé au bon moment (ça
+  // dépend d'un état : case d'avertissement cochée, nombre de joueurs) — on en
+  // désactive un nous-mêmes.
+  // Deux pièges, tous deux rencontrés ici :
+  //  - Précision déclare `transition: opacity .12s` sur ses boutons. Lire le
+  //    style juste après avoir posé `disabled` renvoie la valeur de DÉPART (1),
+  //    pas celle d'arrivée. On coupe donc les transitions le temps de la
+  //    mesure, sinon le test est un tirage au sort.
+  //  - La convention commune est « visiblement éteint », pas une valeur : le
+  //    socle fournit .45 par défaut, mais imitation préfère .4 et precision
+  //    .35, et leurs règles (0,1,1) gagnent légitimement sur le `:where()`
+  //    (0,1,0) du socle. On vérifie donc l'intention, pas le chiffre.
+  var noTrans = d.createElement('style');
+  noTrans.textContent = '*, *::before, *::after { transition: none !important; }';
+  d.head.appendChild(noTrans);
+  var probeBtn = d.getElementById('host') || d.querySelector('button');
+  var wasDisabled = probeBtn.disabled;
+  probeBtn.disabled = true;
+  var ds = w.getComputedStyle(probeBtn);
+  t(P + 'bouton desactive : visiblement eteint, curseur normal'
+    + ' [opacity=' + ds.opacity + ' cursor=' + ds.cursor + ']',
+    parseFloat(ds.opacity) <= 0.5 && ds.cursor === 'default');
+  probeBtn.disabled = wasDisabled;
+  noTrans.remove();
 
   // --- mouvement réduit : la préférence est respectée (via le socle commun)
   var probe = d.querySelector('button');
@@ -131,7 +207,11 @@ function next() {
   function ready() {
     if (++loaded < 2) return;
     var w = f.contentWindow, d = f.contentDocument;
+    muteAudio(w);
     w.addEventListener('error', function (e) { errs.push(g + ' — ' + e.message); });
+    w.addEventListener('unhandledrejection', function (e) {
+      errs.push(g + ' — promesse rejetée : ' + (e.reason && e.reason.message || e.reason));
+    });
     setTimeout(function () {
       loadNetSource(g, w, function () {
         try { auditGame(g, w, d, m.contentWindow, m.contentDocument, function () {

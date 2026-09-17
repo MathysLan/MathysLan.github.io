@@ -60,8 +60,11 @@
 }
 
 /* --------------------------------------------------------- État désactivé
-   Même convention partout : à moitié éteint, curseur normal, et surtout pas de
-   survol qui laisserait croire que c'est cliquable. */
+   Même convention partout : visiblement éteint, curseur normal, et surtout pas
+   de survol qui laisserait croire que c'est cliquable. La valeur ci-dessous est
+   un DÉFAUT, pas un dogme : imitation préfère .4 et precision .35, et leurs
+   `button:disabled` (0,1,1) gagnent sur ce `:where()` (0,1,0). C'est voulu —
+   ce qui compte, c'est que ça se voie. */
 :where(button, input, select, textarea):disabled {
   opacity: .45;
   cursor: default;
@@ -95,13 +98,37 @@
    clavier, et annoncé comme du texte ordinaire. C'est maintenant un vrai
    <button class="g-copy">, dépouillé de l'apparence de bouton pour que la
    règle #room-code de chaque jeu continue de décider du reste (taille,
-   graisse, couleur, interlettrage). */
+   graisse, couleur, interlettrage).
+
+   Le déshabillage se fait en DEUX règles, et la séparation est le fond du
+   sujet : ce qui doit battre les styles de bouton des jeux, et ce qui doit au
+   contraire leur céder.
+
+   1. Le « chrome » (fond, bordure, arrondi, padding, ombre, apparence native)
+      est écrit avec la classe DOUBLÉE, `.g-copy.g-copy` = spécificité (0,2,0).
+      C'est plus que le `button { background: …; padding: …; border-radius: … }`
+      générique de chaque page (0,0,1), et plus qu'un `.card button` (0,1,1)
+      qu'un jeu pourrait ajouter demain. Aucun `!important` : juste assez de
+      spécificité pour que le code de room ne redevienne jamais un bouton
+      d'action plein. Un jeu qui voudrait VRAIMENT lui poser un fond garde le
+      dernier mot avec son `#room-code { … }` (1,0,0) — c'est le bon équilibre.
+   2. La mise en page par défaut reste à `.g-copy` seul, spécificité (0,1,0) :
+      taille, graisse, couleur, interlettrage, alignement et display sont
+      justement ce que chaque jeu personnalise, et son `#room-code { … }`
+      (1,0,0) doit gagner. Il gagne. */
+.g-copy.g-copy {
+  background: none;
+  border: 0;
+  border-radius: 0;          /* sinon le 10-12px du `button {}` de chaque jeu reste */
+  padding: 0;
+  box-shadow: none;
+  text-transform: none;
+  -webkit-appearance: none;  /* Safari redessine un <button> sinon */
+  appearance: none;
+}
 .g-copy {
   display: block;
   width: 100%;
-  background: none;
-  border: 0;
-  padding: 0;
   margin: 0;
   font: inherit;
   color: inherit;

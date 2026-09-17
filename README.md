@@ -95,7 +95,7 @@ Chaque serveur a son dépôt : [`morpion-server`](https://github.com/MathysLan/m
 │   ├── connect4.js       Puissance 4 (Canvas)
 │   └── easter.js         Konami code, Spy crabe, secrets console
 ├── games/
-│   ├── _shared/game-ui.css   socle commun des 5 jeux : focus clavier, mouvement réduit, tactile
+│   ├── shared/game-ui.css   socle commun des 5 jeux : focus clavier, mouvement réduit, tactile
 │   └── …                 les clients (morpion, imitation, demicercle, ban, precision)
 ├── tools/
 │   ├── build.mjs         pré-rendu, Tailwind, sitemap

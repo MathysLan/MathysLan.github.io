@@ -58,9 +58,9 @@ function sitemapURLs() {
   const games = loadData('data/games.js', 'GAMES').filter((g) => g.href);
   return [
     { loc: `${SITE}/`, paths: ['index.html', 'css', 'js', 'data', 'assets'] },
-    // Une page de jeu dépend AUSSI du socle commun : sans games/_shared, une
+    // Une page de jeu dépend AUSSI du socle commun : sans games/shared, une
     // refonte du focus clavier ne bougerait la date d'aucune des cinq pages.
-    ...games.map((g) => ({ loc: `${SITE}/${g.href}`, paths: [g.href, 'games/_shared'] })),
+    ...games.map((g) => ({ loc: `${SITE}/${g.href}`, paths: [g.href, 'games/shared'] })),
   ];
 }
 
@@ -90,6 +90,40 @@ function checkSitemap() {
   if (missing.length) console.error(`  sitemap.xml : URL manquantes → ${missing.join(', ')}`);
   if (extra.length) console.error(`  sitemap.xml : URL en trop → ${extra.join(', ')}`);
   if (!missing.length && !extra.length) console.error('  sitemap.xml : les URL ne sont plus dans le même ordre');
+}
+
+// --------------------------------------------- chemins publiables par Pages
+// GitHub Pages passe le dépôt par Jekyll, qui IGNORE tout fichier ou dossier
+// dont le nom commence par « _ » : il n'est jamais publié, et la page qui le
+// référence reçoit un 404 — en silence, puisque en local le fichier existe.
+// C'est arrivé le 2026-09-17 avec games/_shared/game-ui.css : les cinq jeux se
+// sont retrouvés SANS socle commun en production (code de room redevenu un gros
+// bouton plein, plus d'anneau de focus, polices en repli), alors que tout était
+// vert en local. Le dossier s'appelle games/shared/ depuis, et ce garde-fou
+// refuse désormais le cas au build plutôt que de le laisser filer.
+function htmlFiles(dir = '.', found = []) {
+  for (const e of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
+    if (e.name === '.git' || e.name === 'node_modules') continue;
+    const rel = dir === '.' ? e.name : `${dir}/${e.name}`;
+    if (e.isDirectory()) htmlFiles(rel, found);
+    else if (e.name.endsWith('.html')) found.push(rel);
+  }
+  return found;
+}
+
+function checkPagesPaths() {
+  const bad = [];
+  for (const f of htmlFiles()) {
+    for (const m of read(f).matchAll(/(?:href|src)="([^"]+)"/g)) {
+      const p = m[1];
+      if (/^(?:[a-z]+:|\/\/|#)/i.test(p)) continue;              // externe, data:, ancre
+      if (p.split('/').some((seg) => seg.startsWith('_'))) bad.push(`${f} → ${p}`);
+    }
+  }
+  if (bad.length) {
+    throw new Error('chemins que Jekyll refusera de publier (nom commençant par « _ ») :\n  '
+      + bad.join('\n  ') + '\n→ renommer sans le tiret bas.');
+  }
 }
 
 // ------------------------------------------------- pré-rendu dans index.html
@@ -171,6 +205,7 @@ function buildTailwind() {
 // ----------------------------------------------------------------------- main
 console.log(CHECK ? 'Vérification des fichiers générés…' : 'Génération…');
 try {
+  checkPagesPaths();
   buildIndex();
   if (!process.argv.includes('--no-css')) buildTailwind();
 } catch (e) {

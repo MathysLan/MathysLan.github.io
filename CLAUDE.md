@@ -239,7 +239,18 @@ réticule, easter eggs, carousel, FR/EN et les deux thèmes sont intacts.
   dessinée en traits (une favicon SVG ne peut compter sur aucune police).
   Déclarée sur toutes les pages — c'est le lien visuel le plus direct entre le
   portfolio et les jeux dans la barre d'onglets.
-- **Socle commun des jeux : `games/_shared/game-ui.css`, UN fichier.** Pas un
+- ⚠️⚠️ **GitHub Pages passe le dépôt par Jekyll, qui IGNORE tout fichier ou
+  dossier dont le nom commence par `_`.** Il n'est jamais publié, et la page
+  qui le référence prend un 404 — invisible en local, puisque le fichier
+  existe sur le disque. Le socle commun s'est d'abord appelé `games/_shared/`
+  et les cinq jeux sont partis en production **sans socle du tout** : code de
+  room redevenu un gros bouton plein (le `button { background: … }` de chaque
+  page reprenait la main), plus d'anneau de focus, plus de mouvement réduit,
+  polices en repli. Tout était vert en local. D'où deux choses : le dossier
+  s'appelle `games/shared/`, et `tools/build.mjs` refuse maintenant au build
+  tout `href`/`src` local dont un segment commence par `_` (`checkPagesPaths`).
+  Ne pas « ranger » un dossier en le préfixant d'un tiret bas.
+- **Socle commun des jeux : `games/shared/game-ui.css`, UN fichier.** Pas un
   système de design — le strict minimum pour que les 5 jeux se comportent
   pareil là où ça se remarque, sans toucher à leur DA (chaque page garde son
   `<style>` et peut tout surcharger). Il contient : les deux `@font-face`, un
@@ -252,6 +263,17 @@ réticule, easter eggs, carousel, FR/EN et les deux thèmes sont intacts.
   **quel que soit l'ordre des feuilles**. Ne pas « simplifier » en enlevant le
   `:where()`. ⚠️ Les jetons sont préfixés `--g-` : `precision` définit déjà
   `--bg`, `--ink`, `--accent`…
+  ⚠️ **`.g-copy` est écrit en DEUX règles, et c'est délibéré.** Le code de room
+  est un `<button>` : le `button { background: …; padding: …; border-radius: }`
+  générique de chaque jeu lui remettrait l'apparence d'un bouton d'action. Le
+  « chrome » est donc déshabillé avec la classe **doublée** — `.g-copy.g-copy`,
+  spécificité (0,2,0) — ce qui bat ce `button {}` (0,0,1) et un futur
+  `.card button` (0,1,1) sans un seul `!important` ; tandis que la mise en page
+  (display, font, color, text-align) reste à `.g-copy` seul (0,1,0), pour que
+  le `#room-code { … }` (1,0,0) de chaque jeu garde la main sur la taille, la
+  graisse, la couleur et l'interlettrage. Ne pas fusionner les deux règles.
+  `tests/games.html` compare le code de room au bouton d'action principal des
+  cinq jeux : c'est ce test qui rattrape la fusion.
 - **Morpion** : accepte enfin `?server=` comme les quatre autres, même phrase
   d'erreur réseau, ses 9 cases ont un `aria-label` (« ligne 2, colonne 3 —
   vide ») — elles s'annonçaient « bouton » neuf fois de suite — et son code de
@@ -286,7 +308,7 @@ réticule, easter eggs, carousel, FR/EN et les deux thèmes sont intacts.
 - **Sitemap** : `--check` vérifie désormais la **liste des `<loc>`** (un jeu
   ajouté à `data/games.js` sans rebuild fait échouer la CI) mais toujours pas
   les `<lastmod>`, qui dépendent du commit lui-même. Chaque page de jeu dépend
-  aussi de `games/_shared` pour sa date.
+  aussi de `games/shared` pour sa date.
 - **`/data/` reste autorisé** dans robots.txt. Mesuré : sans `data/*.js`, le
   texte pré-rendu survit mais `PROJECTS is not defined` casse le script (plus
   de palette Ctrl+K). Le raisonnement complet est dans `robots.txt`.

@@ -49,7 +49,7 @@
    chasse fixe. Auto-hébergée (SIL OFL 1.1), sous-ensemble latin de Google
    Fonts, fichier variable 400→700 : 31 Ko pour toute la plage de graisses, et
    plus aucun appel à fonts.googleapis.com. Les pages de jeux chargent le même
-   fichier via games/_shared/game-ui.css. */
+   fichier via games/shared/game-ui.css. */
 @font-face {
   font-family: 'JetBrains Mono';
   src: url('../assets/fonts/JetBrainsMono-latin.woff2') format('woff2');

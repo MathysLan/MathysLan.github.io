@@ -54,6 +54,24 @@ Deux points méritent d'être connus :
   s'afficher. Les stubs remplacent `navigator.clipboard`, `isSecureContext` et
   `document.execCommand` le temps du test, puis les remettent.
 
+## games.html
+
+Deux tests méritent un mot, parce qu'ils rattrapent des bugs qui sont déjà
+passés en production :
+
+- **L'apparence du code de room.** C'est un `<button>` (pour le clavier), donc
+  le `button { background: …; padding: …; border-radius: … }` générique de
+  chaque jeu lui remettrait l'allure d'un bouton d'action si le socle ne le
+  déshabillait pas. Le test le compare au bouton d'action principal des cinq
+  jeux, et vérifie aussi que ce dernier est bien resté plein — sinon le test
+  passerait pour de mauvaises raisons.
+- **L'état désactivé.** Deux pièges de mesure y sont désamorcés : Précision
+  déclare `transition: opacity .12s`, donc lire le style juste après avoir posé
+  `disabled` renvoie la valeur de *départ* (le test coupe les transitions le
+  temps de la mesure) ; et la convention est « visiblement éteint », pas une
+  valeur — le socle fournit `.45` par défaut, imitation préfère `.4` et
+  precision `.35`, chacun avec une règle qui gagne légitimement.
+
 ## keyboard.mjs
 
     node tests/keyboard.mjs
