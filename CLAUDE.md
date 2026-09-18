@@ -390,3 +390,344 @@ premier échec pour une panne.
 Dernier passage vert : front 195/194, jeux 146/146 (deux modes), clavier 8/8,
 `passeur-server` 28 + 24, `qui-ment-server` 52 + 57, une partie complète de Qui
 Ment ? jouée par trois clients dans un navigateur 42/42, et 10/10 en production.
+
+## Le Passeur : le terrain SVG (2026-09-18, après playtest)
+
+Le jeu était juste techniquement mais trop abstrait : on choisissait parmi cinq
+boutons de texte. Le choix se fait maintenant **sur un terrain**.
+
+- **`games/passeur/court.js`** dessine le terrain à partir de la `scene` que le
+  serveur envoie avec la manche. Il ne connaît **aucune situation** : il sait
+  dessiner une réception, un bloc, quatre attaquants et un passeur. Ajouter une
+  situation côté serveur ne demande donc rien ici.
+- **`scene` vit dans `situations.js`, côté serveur** (réception, origine, état
+  du passeur, bloc, état de chaque attaquant). Ce n'est pas un secret : c'est ce
+  que `ctx`/`detail` disaient déjà en prose. Les deux suites de tests vérifient
+  qu'aucune note ne s'y glisse — c'est exactement le champ où un barème finit
+  par arriver « juste pour l'affichage ».
+  ⚠️ Ajouter un état demande de toucher **aux deux dépôts** (la valeur côté
+  serveur, son dessin dans `court.js`). C'est voulu : un état que le client ne
+  sait pas dessiner ne doit pas pouvoir exister. `test-engine.mjs` refuse toute
+  valeur inconnue, parce qu'une faute de frappe sortirait un terrain muet chez
+  le joueur **sans aucune erreur JS**.
+- **Repli** : si la manche arrive sans `scene` (serveur pas encore redéployé),
+  `court.js` dessine un terrain neutre et le jeu reste entièrement jouable.
+  Vérifié contre la production : 34/34 avec l'ancien serveur en ligne.
+- **Les cinq zones** sont de vrais éléments interactifs du SVG (`role="button"`,
+  `tabindex`, `aria-pressed`, `aria-label` qui annonce le raccourci). Les
+  touches 1 à 5 marchent toujours, mais **elles suivent maintenant l'ordre
+  spatial** — gauche, courte, deuxième main, droite, arrière — et le chiffre est
+  écrit dans chaque zone. L'ordre de `PASSES` dans `situations.js` a été aligné
+  dessus (rien n'en dépendait : tout se fait par `id`).
+  ⚠️ L'anneau de focus est **dessiné dans le SVG** (`.z-focus`), pas un
+  `outline` : un `outline` sur un `<g>` n'est pas rendu pareil partout, et c'est
+  la seule indication pour qui joue au clavier. Ne pas « simplifier ».
+  ⚠️ Aucun état ne repose sur la seule couleur : bloc en retard = pointillés,
+  attaquant au sol = croix, zone choisie = trait épais + coche + `aria-pressed`.
+- **`.court-wrap` porte le même rapport que le viewBox (100 × 78)**, ce qui
+  permet de raisonner en unités du viewBox partout. Changer l'un sans l'autre
+  décale tout.
+- **Écran de résultats** : le même terrain, figé, avec ma zone (cadre pointillé
+  + coche) et la zone recommandée (cadre plein) — deux formes, pas deux
+  couleurs — plus le détail du score. Le serveur envoie maintenant `speed` et
+  `ms` en plus de `relevance`, pour pouvoir écrire « pertinence 100/100 ·
+  vitesse 92 % » au lieu d'un nombre sorti de nulle part.
+- **Champ pseudo** (Le Passeur et Qui Ment ?) : il faisait 50 px pour un bouton
+  à 40, et débordait de 33 px du panneau. Deux causes, aucune arbitraire — ces
+  deux pages ne posaient pas `box-sizing: border-box` (le portfolio le reçoit de
+  Tailwind, pas les pages de jeux), et `font: inherit` ramène aussi le
+  `line-height: 1.5` du corps alors que `.tf-btn` est en `normal`. Les cinq
+  autres jeux posaient déjà `border-box` : ils n'ont pas été touchés.
+  `tests/games.html` compare désormais la hauteur du champ à celle du bouton
+  d'action, pour les sept jeux.
+- **Tests** : `tests/games.html` pilote `Court.render()` **directement** avec une
+  scène fabriquée — vrai rendu, vrai clic, vraie touche, sans serveur. 179
+  vérifications (146 avant). Un harnais jetable a joué en plus une partie
+  complète contre un serveur local ET contre la production, 34/34 dans les deux
+  modes de mouvement.
+  ⚠️ Rappel qui a resservi : pour tout test réseau, **pas de
+  `--virtual-time-budget`**, il fait expirer les attentes avant la réponse du
+  WebSocket. Passer par le protocole DevTools, en temps réel.
+
+## Le Passeur : le terrain passe en fausse 3D (2026-09-18, soir)
+
+Le terrain existait mais ressemblait à des cartes posées sur un fond. Il
+ressemble maintenant à un terrain de volley vu en légère perspective. **Rien
+d'autre n'a bougé** : le contrat `scene`, l'API de `court.js`, `app.js`, le
+moteur, le barème et le serveur sont identiques.
+
+**Three.js a été écarté**, et c'est le bon choix : ~600 Ko pour une scène qui
+ne bouge pas, sur un client de 500 lignes sans dépendance. Tout l'effet tient
+dans une projection de six lignes.
+
+Trois idées, et il n'y en a pas d'autres :
+
+1. **Une projection à un point de fuite.** Le terrain est décrit en coordonnées
+   de monde (`wx` de −1 à +1) ; la profondeur, c'est l'ordonnée écran. `hw(y)`
+   rétrécit linéairement avec la profondeur, donc le terrain est un trapèze.
+2. **L'échelle se propage.** `sc(y) = hw(y)/NEAR_HW` sert à TOUT : les
+   silhouettes sont posées en `translate(...) scale(sc(y))`, et le ballon, les
+   numéros de zone et les libellés en héritent. C'est ça qui fait la
+   profondeur, pas les ombres.
+3. **L'ordre de tracé EST l'ordre de profondeur** : sol → bloc → filet → zones
+   → nos joueurs → ballon → trajectoires. ⚠️ Ne pas réordonner `paint()` sans y
+   penser : un contreur repasserait devant la bande du filet.
+
+Détails qui ont leur raison d'être :
+
+- Le filet est à **profondeur constante**, donc c'est un vrai rectangle à
+  l'écran : maillage en `<pattern>`, bande blanche, poteaux avec une face
+  sombre pour le volume. Aucune déformation à gérer.
+- Les silhouettes sont **huit poses** (`idle`, `run`, `set`, `block`, `attack`,
+  `receive`, `tired`, `down`) définies une fois dans un repère local, pieds en
+  (0,0). L'état d'un attaquant choisit sa pose — un joueur au sol est *couché*,
+  pas barré d'une croix.
+- **Trajectoires** : au survol et au focus d'une zone, une courbe passeur →
+  attaquant. C'est elle qui transforme « quatre cases » en « quatre passes
+  possibles ». Aux résultats, les deux trajectoires (ton choix + le meilleur)
+  sont tracées ensemble.
+- ⚠️ **La perspective écrase les cibles tactiles.** C'est LE risque de la
+  fausse 3D, et il est mesuré : `tests/games.html` vérifie les **cinq** zones à
+  390 px, pas une seule. « 2e main » a été élargie aux dépens de ses voisines,
+  et la zone arrière rallongée (elle était tombée à 40 px). Ne pas rééquilibrer
+  les largeurs à l'œil — le test est là pour ça.
+- Les bruns du sol (`#7a4a24` / `#573720`) ne sont **pas** des tokens TF2 :
+  c'est un sol de gymnase. Le thème Mann Co. reste sur le panneau, les boutons
+  et la typo autour. C'est voulu — le terrain doit être un terrain.
+- Accessibilité inchangée : zones en `role="button"` + `tabindex` +
+  `aria-pressed` + `aria-label` qui annonce la touche, anneau de focus dessiné
+  dans le SVG, description textuelle générée des mêmes données, touches 1 à 5.
+
+**Tests** : jeux 181/181 (deux modes), e2e navigateur 34/34 (deux modes),
+clavier 8/8, `passeur-server` 34 + 29. Le rendu a été jugé à l'image à chaque
+étape : trois collisions de libellés que les tests DOM ne pouvaient pas voir
+(numéro 5 masqué, « TOI » derrière le ballon, réceptionneur sur le libellé de
+la zone arrière) n'ont été trouvées que comme ça.
+
+## Le Passeur devient une vraie situation de volley (2026-09-18, nuit)
+
+Deux changements de fond, et ils sont liés : **le volley est désormais correct**,
+et **on regarde avant de jouer**.
+
+### Les règles, et où elles vivent
+
+Référence : **FIVB Official Volleyball Rules 2025-2028**. Elles sont dans
+**`rules.js` (passeur-server)**, module pur, testé par `test-rules.mjs`.
+⚠️ Le client n'en connaît AUCUNE — il reçoit une scène déjà résolue. Ne jamais
+remettre une règle de volley dans `court.js`.
+
+| Règle | Ce que le jeu en fait |
+|---|---|
+| **7.4** positions | P4 P3 P2 = ligne avant, P5 P6 P1 = ligne arrière. Une rotation légale est obtenue en TOURNANT la rotation de base, jamais saisie à la main |
+| **7.5** faute de position | seule la formation au service doit être légale |
+| **7.6** après le service | tout le monde se déplace. Le réceptionneur-attaquant attaque en poste 4 même s'il a tourné en P3, et **le passeur arrière monte au filet** |
+| **13.2.2** attaque arrière | un arrière peut attaquer, mais au-dessus du filet il doit prendre son appel **derrière la ligne des 3 m** |
+| **14.1.1 / 14.6.2** bloc | seuls les avants peuvent contrer → jamais plus de 3 contreurs |
+
+⚠️ **Ne JAMAIS écrire « il est arrière donc il ne peut pas aller devant ».**
+C'est faux (7.6), et un test est là pour l'empêcher de revenir. La ligne des
+3 m est une ligne de référence, pas un mur.
+
+**La conséquence de jeu la plus importante** : quand le passeur est arrière, il
+n'a **pas de deuxième main** (13.2.2). L'option reste visible sur le terrain,
+marquée `×` / « interdit », avec la raison dans son `aria-label` — et le serveur
+la refuse. 6 des 12 situations ont un passeur avant, 6 un passeur arrière.
+
+### Le modèle de situation
+
+Une situation ne décrit plus un dessin, elle décrit du volley : `rotation` (0-5),
+`serve`, `reception`, `block { count, start, target, late }`, `attackers`,
+`introMs`. **Tout le reste est déduit** : qui joue quelle distribution, qui est
+avant, ce qui est légal. On ne peut donc plus écrire une situation illégale sans
+que `npm test` le dise.
+
+⚠️ Deux pièges déjà rencontrés, tous deux couverts par des tests :
+- le réceptionneur par défaut est le **réceptionneur-attaquant arrière**, pas
+  « le joueur de P6 » — qui selon la rotation peut être le passeur ;
+- une option **interdite** ne doit pas être notée 50 ou plus dans `scores`,
+  sinon le barème vante une action que l'arbitre sifflerait.
+
+### Les deux temps d'une manche
+
+C'est le **serveur** qui tient les deux, pas le client :
+
+1. `round` → la mise en situation (`introMs`, 2,2 à 3,0 s selon la situation).
+   Service, réception, le passeur qui monte, le bloc qui se replace. Aucun
+   chrono ne tourne, les zones sont en retrait et **ne se jouent pas**.
+2. `go` → « À TOI ». Les zones s'activent, les 5 secondes partent.
+
+⚠️ Le chrono ne démarre PAS à la fin de l'animation locale : celui dont l'onglet
+a ramé jouerait plus longtemps. Mesuré à 3 joueurs dans un navigateur : **0 ms
+d'écart** sur l'ouverture de la fenêtre.
+
+Le serveur refuse une réponse envoyée pendant la phase `intro`.
+
+### L'animation
+
+Du **SMIL** (`animateMotion`, `animateTransform`, `set`), pas de boucle JS. Le
+gros avantage : le rendu de l'état FINAL est le même code que celui de
+l'animation (`animate: false`), donc **le mouvement réduit n'a pas de branche à
+part** — on dessine l'arrivée, tout est lisible.
+⚠️ Un joueur qui bouge est enveloppé dans un `<g class="mv">` qui ne fait qu'une
+translation ; le groupe intérieur garde l'échelle de profondeur. Ne pas fusionner
+les deux, il faudrait tout recalculer.
+⚠️ Pour capturer une animation SMIL à un instant précis :
+`svg.pauseAnimations()` puis `svg.setCurrentTime(t)`. Sous
+`--virtual-time-budget`, le SMIL a déjà FINI — une capture montre l'état final,
+pas le début.
+
+### Ce que l'image a attrapé et que les tests ne pouvaient pas voir
+
+Les classes d'équipe (`sil-us` / `sil-them` / `sil-set`) avaient disparu en
+réécrivant `paint()` : toutes les silhouettes tombaient en **noir**, et aucun
+test ne s'en plaignait. Idem pour trois collisions d'étiquettes (« zone avant »
+sur un joueur, « TOI » à l'autre bout du terrain au départ, le « 5 » derrière
+le réceptionneur). Se fier aux captures reste indispensable.
+
+**Tests** : `rules.js` 43, moteur 35, WebSocket 37, jeux 194/194 (deux modes),
+e2e navigateur **à trois joueurs** 46/46 (deux modes), clavier 8/8.
+
+## Le Passeur : la boucle de jeu (2026-09-18, tard)
+
+Le terrain était réussi mais la manche ne se lisait pas. Diagnostic mesuré
+avant de toucher au code, et **une cause dominait les autres**.
+
+### ⚠️⚠️ LE PIÈGE SMIL — c'est lui qui cassait tout
+
+En SMIL, **`begin` se compte sur la timeline du DOCUMENT**, pas depuis
+l'insertion de l'élément. Quand une manche démarre, la page vit déjà depuis un
+moment (accueil, salon, manches précédentes) : tous les `begin` sont donc
+**déjà passés**, et chaque animation est figée sur son état final à la
+milliseconde où on l'insère.
+
+Mesuré : manche 1 (document neuf) → le décalage évolue 0 → 7,3 → 17,7 → 20,7.
+Manche 2 (document vieux de 4 s) → **déjà 20,7 à +60 ms**, et plus rien.
+Autrement dit : le service, la réception, le passeur qui monte et le bloc qui
+se replace **ne jouaient jamais**. C'est ce qui expliquait à la fois « je ne
+vois pas les bloqueurs bouger » et « je ne comprends pas la séquence ».
+
+Correctif : `svg.setCurrentTime(0)` après chaque rendu animé. C'est la seule
+animation de ce SVG, il n'y a rien d'autre à préserver.
+**`tests/games.html` vérifie maintenant que la timeline repart de zéro** —
+sans ce test la régression est invisible, tout étant présent dans le DOM.
+
+### Les trois autres causes, mesurées aussi
+
+- **Le bloc ne bougeait pas** : 9 situations sur 12 ont `start === target`,
+  donc `mover()` ne créait aucune animation. Les contreurs partent maintenant
+  TOUJOURS en retrait du filet (`BLOCK_WAIT_Y`) pour venir s'y coller
+  (`BLOCK_READY_Y`) : le pas vers le filet se voit toujours, l'écart latéral
+  porte l'information. Ils partent en léger décalage l'un de l'autre, et un
+  bloc « en retard » part plus tard ET met plus longtemps — il est encore en
+  train de fermer quand il faut décider.
+- **Le chrono était invisible** : 19,2 px de haut, 45 px au-dessus du terrain,
+  soit **0,43 %** de la surface qu'on regarde. Il est maintenant **sur le
+  terrain**, en haut à droite, à ~31 px (`clamp(1.9rem, 7.5vw, 3rem)`), et il
+  chauffe (`warn` / `hot`). Mêmes identifiants qu'avant (`#timer-num`,
+  `#timer-fill`), seuls le placement et la taille changent.
+- **Les cinq choix étaient abstraits** : seuls le numéro et un sous-titre de
+  jargon en 3,1 px étaient dessinés — `ZONES[].label` n'était **jamais
+  affiché**. Chaque zone porte maintenant son NOM en grand (`lines`, 1 ou
+  2 lignes) et le raccourci clavier devient une pastille discrète.
+  ⚠️ La taille du nom (`fs = 10 * s`) est calibrée pour le **téléphone** : à
+  390 px le terrain ne fait que ~316 px, soit 1,58 px par unité de viewBox, et
+  un nom à 4,6 unités sortait à **6 px**. La largeur des zones laissait
+  pourtant trois fois la place. Ne pas la réduire sans remesurer à 390 px.
+
+### La règle de la deuxième main, reprise proprement
+
+« Passeur arrière = 2e main interdite » était un raccourci. `rules.js` décrit
+maintenant l'**action** de chaque option (`ACTION`) — hauteur du ballon au
+contact, et d'où part l'attaquant — et `attackFault()` applique 13.2.2 dessus :
+un arrière ne peut pas conclure **au-dessus du filet depuis la zone avant**. Il
+peut donc conclure avec un appel derrière la ligne, et il peut jouer le ballon
+**sous** le niveau du filet en zone avant. Ce que le jeu représente pour la 2e
+main, c'est le ballon poussé par-dessus le filet : d'où le refus. Si on ajoute
+un jour une poussette basse, il suffit de la déclarer `ball: 'below-net'`.
+Quatre tests couvrent les quatre combinaisons.
+
+### Tests de COMPORTEMENT, pas de présence
+
+Le e2e échantillonne les positions réelles à l'écran pendant la mise en
+situation : ballon **140 px** parcourus, passeur **69 px**, bloc **20 px** ; et
+en mouvement réduit **0 / 0 / 0** avec l'état final déjà en place. Le compte à
+rebours est observé 5 → 4 → 3. Le chrono est mesuré en taille et vérifié comme
+étant DANS les bornes du terrain.
+
+**Dernier passage** : `rules.js` 50, moteur 35, WebSocket 37, jeux 200/198
+(deux modes), e2e navigateur à trois joueurs 56/54 (deux modes), clavier 8/8,
+front 195, fichiers générés OK.
+
+## Le Passeur : jouabilité réelle (2026-09-18, très tard)
+
+Quatre causes trouvées **dans le code** (pas des hypothèses), dont une extérieure.
+
+### 1. ⚠️⚠️ LE SERVEUR DÉPLOYÉ ÉTAIT DEUX VERSIONS EN RETARD
+
+Mesuré contre `wss://passeur-server.onrender.com` : le message `round` ne
+contenait ni `scene`, ni `introMs`, et **`go` n'arrivait jamais**. Conséquences
+en cascade, qui expliquaient à elles seules presque tous les symptômes :
+
+- pas de `go` → `court.arm()` jamais appelé → **aucune zone cliquable** ;
+- pas de `go` → `startTimer()` jamais appelé → **chrono figé sur 5,0** ;
+- pas de `scene` → terrain de repli → **5 joueurs** et **bloc immobile**.
+
+**Le correctif n'est pas « redéployer »** : un client ne doit pas devenir
+injouable parce que le serveur a une version de retard. `app.js` a maintenant un
+filet — si `introMs` est absent, la fenêtre de décision s'ouvre tout de suite
+(l'ancien serveur l'avait déjà ouverte) ; si `introMs` est là mais que `go`
+tarde, on arme quand même après `introMs + 700 ms`. Le serveur reste l'arbitre :
+il mesure le temps à son horloge et refuse ce qui arrive trop tôt.
+**Vérifié : `tests/passeur-play.mjs` passe 49/49 contre la production périmée.**
+
+### 2. Les couches décoratives interceptaient le clic
+
+Les joueurs, le ballon et les trajectoires sont dessinés **après** les zones
+(c'est voulu : un joueur se tient SUR sa zone). Sans `pointer-events: none`,
+ce sont eux qui recevaient le clic. Mesuré avec `elementFromPoint` au centre de
+chaque zone : l'**ombre au sol du réceptionneur** bloquait tout le centre de la
+zone arrière. Cliquer sur un attaquant — le geste le plus naturel du jeu — ne
+faisait rien.
+⚠️ Ne pas retirer le bloc `pointer-events: none` des couches `.c-*`.
+
+### 3. Les cinq choix n'étaient pas nommés → corrigé au passage précédent
+
+### 4. Le bloc avançait tout droit, et souvent pas du tout
+
+Deux causes cumulées : 9 situations sur 12 ont `start === target` (donc aucun
+déplacement), et le mouvement était une interpolation directe. Les contreurs
+suivent maintenant un **chemin en L** (`moverL`, `animateMotion`) : pas vers le
+filet, puis glissement latéral. Et quand la scène ne demande pas de départ
+particulier, ils partent de leur position d'**avant-lecture** (`blockXs('base')`),
+ce qui garantit un trajet dans tous les cas.
+
+### Six joueurs par équipe (FIVB 7.3)
+
+Il en manquait un chez nous : cinq rôles portent une option, le sixième — le
+central de la ligne arrière — n'en porte aucune. Il se **déduit** de `lineup`
+moins les porteurs d'options : aucun changement de protocole. Les six adverses
+(trois au filet, trois en défense) sont du **décor** dessiné côté client, parce
+que le serveur n'a rien à en dire — ce qui compte, le nombre de contreurs et
+leur cible, vient bien de lui. Tout ce qui n'est pas un choix est en `.c-extra`
+(opacité .42).
+⚠️ Notre 6e joueur est placé près de sa ligne de touche, PAS sur sa position de
+rotation : posé là, il tombait pile sur le libellé de la zone arrière.
+
+### Le test qui manquait
+
+`tests/passeur-play.mjs` (nouveau) joue quatre manches avec de **vraies
+entrées** par le protocole DevTools, aux coordonnées réelles, et lit la passe
+que **le serveur** a enregistrée. `games.html` ne pouvait pas attraper ces bugs :
+il appelle `dispatchEvent` sur le `<g>` d'une zone, ce qui contourne le test de
+survol.
+
+Deux pièges de plomberie, documentés dans `tests/README.md` :
+- `text: 'Enter'` fait passer l'événement pour une saisie de texte et le
+  handler ne voit rien → `rawKeyDown` sans `text` (même piège que Tab) ;
+- `edge.kill()` ne tue que le parent : après quelques exécutions, **49 processus
+  msedge fantômes** saturaient la machine et le test échouait au second
+  passage. Il faut `taskkill /T` et un port de debug tiré au hasard.
+
+**Dernier passage** : partie réelle 49/49 (local et **production périmée**, deux
+modes de mouvement), jeux 206/201, front 195/194, clavier 8/8, `rules.js` 50,
+moteur 35, WebSocket 37, fichiers générés OK.

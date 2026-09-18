@@ -37,8 +37,20 @@
   /* --- accueil / salon --- */
   .rules { text-align: left; margin: 0 0 1.4rem; }
   .rules li { margin: .35rem 0; color: var(--ink-2); font-size: .92rem; }
+  /* Le champ ne doit pas être plus haut que le bouton d'à côté. Deux causes,
+     réglées ici plutôt qu'avec une hauteur arbitraire :
+       1. ces pages ne chargent PAS le reset de Tailwind (le portfolio, si),
+          donc `box-sizing` reste à `content-box` : `width: 100%` + padding +
+          bordure débordait de 33 px hors du panneau ;
+       2. `font: inherit` récupère AUSSI le `line-height: 1.5` du corps de page,
+          alors que `.tf-btn` est en `line-height: normal` — d'où 10 px de plus
+          que le bouton voisin, à padding identique.
+     On retombe à 40 px : la hauteur du bouton d'action, et celle du guichet du
+     portfolio. La cible tactile reste garantie par le `min-height: 44px` du
+     socle en `pointer: coarse` — ce n'est pas au doigt qu'on gagne 10 px. */
   input, select {
-    font: inherit; width: 100%; padding: .7rem .9rem;
+    font: inherit; line-height: 1.25; box-sizing: border-box;
+    width: 100%; padding: .5rem .8rem;
     background: var(--bg-deep); color: var(--ink);
     border: 2px solid var(--panel-edge);
   }

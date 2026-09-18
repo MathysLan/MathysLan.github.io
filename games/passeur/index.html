@@ -37,8 +37,20 @@
   /* --- accueil / salon --- */
   .rules { text-align: left; margin: 0 0 1.4rem; }
   .rules li { margin: .35rem 0; color: var(--ink-2); font-size: .92rem; }
+  /* Le champ ne doit pas être plus haut que le bouton d'à côté. Deux causes,
+     réglées ici plutôt qu'avec une hauteur arbitraire :
+       1. ces pages ne chargent PAS le reset de Tailwind (le portfolio, si),
+          donc `box-sizing` reste à `content-box` : `width: 100%` + padding +
+          bordure débordait de 33 px hors du panneau ;
+       2. `font: inherit` récupère AUSSI le `line-height: 1.5` du corps de page,
+          alors que `.tf-btn` est en `line-height: normal` — d'où 10 px de plus
+          que le bouton voisin, à padding identique.
+     On retombe à 40 px : la hauteur du bouton d'action, et celle du guichet du
+     portfolio. La cible tactile reste garantie par le `min-height: 44px` du
+     socle en `pointer: coarse` — ce n'est pas au doigt qu'on gagne 10 px. */
   input, select {
-    font: inherit; width: 100%; padding: .7rem .9rem;
+    font: inherit; line-height: 1.25; box-sizing: border-box;
+    width: 100%; padding: .5rem .8rem;
     background: var(--bg-deep); color: var(--ink);
     border: 2px solid var(--panel-edge);
   }
@@ -61,12 +73,27 @@
   /* --- barre de temps : c'est du gameplay. Pilotée en JS (pas une transition
          CSS) pour s'arrêter pile ; en mouvement réduit elle avance par paliers
          et le compte à rebours reste lisible en toutes lettres. --- */
-  .timer-wrap { display: flex; align-items: center; gap: .8rem; margin-bottom: 1rem; }
-  .timer-bar { flex: 1; height: 10px; background: var(--bg-deep); box-shadow: inset 0 0 0 2px var(--panel-edge); overflow: hidden; }
+  /* --- le chrono, POSÉ SUR LE TERRAIN ------------------------------------
+     En haut à droite : assez grand pour se lire du coin de l'œil sans quitter
+     l'action, assez à l'écart pour ne rien masquer. La barre juste dessous
+     donne la même information en périphérie. */
+  .timer-wrap { position: absolute; top: 1.5%; right: 2.5%; width: 30%;
+    display: flex; flex-direction: column; align-items: flex-end; gap: .25rem;
+    pointer-events: none; }
+  .timer-num { font-family: 'TF2 Build', 'Arial Narrow', sans-serif;
+    font-size: clamp(1.9rem, 7.5vw, 3rem); line-height: .95; color: #fff3d6;
+    font-variant-numeric: tabular-nums;
+    paint-order: stroke; -webkit-text-stroke: 4px #241c14; }
+  .timer-bar { width: 100%; height: 7px; background: rgba(0, 0, 0, .55);
+    box-shadow: inset 0 0 0 1.5px rgba(240, 227, 208, .35); overflow: hidden; }
   .timer-fill { height: 100%; width: 100%; background: var(--q-genuine); }
   .timer-fill.warn { background: var(--q-unique); }
   .timer-fill.hot { background: var(--red); }
-  .timer-num { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 1.2rem; min-width: 2.8rem; text-align: right; color: var(--ink); }
+  /* À l'arrêt pendant la mise en place : le chiffre est là, mais éteint — on
+     voit qu'on aura 5 secondes, et qu'elles ne tournent pas encore. */
+  .timer-wrap.is-idle .timer-num { color: var(--ink-3); -webkit-text-stroke-width: 3px; opacity: .8; }
+  .timer-num.warn { color: #ffe08a; }
+  .timer-num.hot { color: #ff9a8a; }
   .round-meta { display: flex; justify-content: space-between; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); margin-bottom: .6rem; }
   .round-meta b { color: var(--q-unique); }
 
@@ -74,14 +101,207 @@
   .ctx { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 1.3rem; line-height: 1.25; margin: 0 0 .4rem; color: var(--ink); }
   .detail { color: var(--ink-2); font-size: .9rem; margin: 0 0 1.2rem; }
 
-  /* --- les cinq passes --- */
-  .passes { display: grid; grid-template-columns: repeat(auto-fit, minmax(195px, 1fr)); gap: .6rem; }
-  .pass { text-align: left; display: flex; align-items: baseline; gap: .55rem; }
-  .pass .num { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; color: var(--q-unique); font-size: .9rem; }
-  .pass .hint { display: block; font-size: .7rem; color: var(--ink-3); text-transform: none; letter-spacing: 0; }
+  /* --- le terrain, en fausse 3D -------------------------------------------
+     Le conteneur porte le MÊME rapport que le viewBox (200 × 140). C'est ce
+     qui permet de raisonner en unités du viewBox partout : le SVG remplit
+     exactement la boîte, sans bande vide. Ne pas y toucher sans changer VIEW
+     dans court.js.
+     La perspective, elle, est entièrement dans court.js — ici il n'y a que des
+     couleurs et des épaisseurs. */
+  .court-wrap { width: 100%; aspect-ratio: 200 / 140; margin: 0 0 .6rem; position: relative; }
+
+  /* --- les deux temps d'une manche ---------------------------------------
+     On regarde, PUIS on joue. Le bandeau « À TOI » n'est pas décoratif : c'est
+     le seul signal qui dit que les cinq secondes ont commencé. */
+  .phase { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; letter-spacing: .08em;
+    font-size: .8rem; margin: 0 0 .4rem; text-align: center; }
+  .phase.is-intro { color: var(--ink-3); }
+  .phase.is-go { color: var(--orange-ink); }
+
+  .go-banner { position: absolute; inset: 0; display: grid; place-items: center;
+    pointer-events: none; }
+  .go-banner span { font-family: 'TF2 Build', 'Arial Narrow', sans-serif;
+    font-size: clamp(1.8rem, 9vw, 3.4rem); letter-spacing: .12em; color: #fff3d6;
+    paint-order: stroke; -webkit-text-stroke: 5px #241c14;
+    animation: go-pop .5s ease-out forwards; }
+  @keyframes go-pop {
+    from { opacity: 0; transform: scale(1.25); }
+    40% { opacity: 1; transform: scale(1); }
+    to { opacity: 0; transform: scale(1); }
+  }
+  /* Mouvement réduit : pas de bandeau qui surgit. L'information passe par
+     `#phase` (« À toi de distribuer »), qui est un `role="status"` — donc
+     annoncé — et par le chrono qui se met en route. Rien n'est perdu ; on ne
+     laisse simplement pas un mot en travers du terrain, faute d'animation pour
+     le faire disparaître. */
+  @media (prefers-reduced-motion: reduce) {
+    .go-banner { display: none; }
+  }
+
+  /* Le chrono à l'arrêt pendant la mise en place : plein, et éteint. */
+  .timer-fill.is-idle { background: var(--panel-edge); }
+
+  /* Pendant la mise en place, les zones sont là mais en retrait : on regarde
+     le jeu, pas les boutons. Elles s'allument au « à toi ». */
+  .court.is-live:not(.is-armed) .c-zones { opacity: .38; }
+  .court.is-live:not(.is-armed) .zone { cursor: default; }
+  .c-zones { transition: opacity .25s; }
+  @media (prefers-reduced-motion: reduce) { .c-zones { transition: none; } }
+
+  /* Une option interdite par les règles : visible, expliquée, pas jouable. */
+  .zone.is-illegal .z-hit { fill: #000; fill-opacity: .3; stroke: var(--ink-3);
+    stroke-dasharray: 2 2; stroke-opacity: .7; }
+  .zone.is-illegal .z-key { fill: var(--ink-3); }
+  .zone.is-illegal .z-name { fill: var(--ink-3); stroke-width: 1.6; }
+  .zone.is-illegal .z-sub { fill: var(--red-ink); fill-opacity: 1; }
+  .court.is-live .zone.is-illegal { cursor: not-allowed; }
+  .court.is-live .zone.is-illegal:hover .z-hit { fill-opacity: .3; stroke-width: .7; }
+
+  /* Les étiquettes « zone avant / zone arrière » de part et d'autre de la
+     ligne des 3 m : c'est ce qui la rend lisible sans un mot d'explication. */
+  .c-zone-tag { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 3.6px;
+    letter-spacing: .3px; fill: #f0e3d0; fill-opacity: .5; text-anchor: end; }
+  .c-server .sil-body { fill: #6f675c; }
+  /* Les joueurs qui ne sont pas un choix — notre 6e, leurs avants qui ne
+     contrent pas, leurs arrières en défense. Ils EXISTENT (six par équipe), mais
+     ils ne doivent pas concourir avec ce qu'il faut lire. */
+  .c-extra { opacity: .42; }
+  .c-extra .sil-shadow { opacity: .18; }
+  .court { width: 100%; height: 100%; display: block; touch-action: manipulation; }
+  .court-help { color: var(--ink-3); font-size: .78rem; margin: 0 0 .2rem; text-align: center; }
+
+  /* Le sol. Deux camps distincts — le nôtre plus clair, plus proche — et un
+     dégradé qui assombrit le fond : c'est le rappel de profondeur le moins
+     cher et le plus efficace. Ces bruns-là ne sont pas des tokens TF2 : c'est
+     un vrai sol de gymnase, et le thème reste sur le panneau autour. */
+  .f-us { fill: #7a4a24; }
+  .f-them { fill: #573720; }
+  .f-depth { fill: url(#pz-depth); }
+  .line { stroke: #f0e3d0; stroke-width: .9; fill: none; opacity: .85; }
+  .line-3m { stroke-dasharray: 4 3; opacity: .5; }
+  .net-shadow { fill: #000; opacity: .22; }
+
+  /* Le filet. À profondeur constante, donc un vrai rectangle : maillage en
+     motif, bande blanche en haut, poteaux avec une face sombre pour le volume. */
+  .net-bg { fill: #2b2119; fill-opacity: .30; }
+  .net-thread { stroke: #e8dcc8; stroke-opacity: .38; stroke-width: .35; }
+  .net-mesh { fill: url(#pz-mesh); }
+  .net-band { fill: #efe6d6; }
+  .net-band-lo { fill: #b9ad9b; }
+  .post { fill: #8b8375; }
+  .post-lo { fill: #5d574d; }
+
+  /* Les silhouettes. L'ombre au sol est ce qui les POSE sur le terrain — sans
+     elle, elles flottent. */
+  .sil-shadow { fill: #000; opacity: .3; }
+  .sil-us .sil-body { fill: var(--q-unique); }
+  .sil-them .sil-body { fill: #8e8578; }
+  .sil-set .sil-body { fill: var(--orange); }
+  .sil-ink { stroke: #241c14; stroke-width: .7; fill: none; stroke-linecap: round; }
+  .sil-tag { font-family: 'TF2 Secondary', system-ui, sans-serif; font-size: 3.6px;
+    fill: #f4e6cc; text-anchor: middle;
+    paint-order: stroke; stroke: #241c14; stroke-width: 1.4; stroke-linejoin: round; }
+  .c-far-note { font-family: 'TF2 Secondary', system-ui, sans-serif; font-size: 4px;
+    fill: var(--ink-2); text-anchor: middle; }
+  /* Un attaquant à terre ou fatigué se voit à sa POSE (court.js) ; la couleur
+     ne fait que confirmer. */
+  .c-att.is-down .sil-body, .c-att.is-tired .sil-body { fill: #8e8578; }
+
+  /* Le ballon : blanc cassé, coutures orange. Reconnaissable en un coup d'œil. */
+  .ball-o { fill: #f6f1e6; stroke: #241c14; stroke-width: .5; }
+  .ball-s { stroke: #c8531f; stroke-width: .6; fill: none; stroke-linecap: round; }
+  .ball-shadow { fill: #000; opacity: .25; }
+  .c-ball-path { fill: none; stroke: #f0e3d0; stroke-width: .6; opacity: .45; }
+  .c-ball-path.is-loose { stroke-dasharray: 2 2; }
+
+  /* --- les cinq zones jouables -------------------------------------------
+     Elles font partie du sol : un aplat très léger et un contour discret, pas
+     un bouton posé par-dessus. Le numéro, lui, doit se lire à un mètre. */
+  /* ⚠️ TOUT CE QUI EST DESSINÉ APRÈS LES ZONES DOIT LAISSER PASSER LE CLIC.
+     Les joueurs, le ballon et les trajectoires sont tracés par-dessus les zones
+     (c'est voulu : un joueur se tient SUR sa zone). Sans ces `pointer-events`,
+     ce sont eux qui reçoivent le clic — et cliquer sur un attaquant, le geste
+     le plus naturel du jeu, ne faisait rien. Mesuré : l'ombre au sol du
+     réceptionneur bloquait le centre entier de la zone arrière. */
+  .court .c-far-side, .court .c-net, .court .c-players,
+  .court .c-rec-path, .court .c-traj, .court .c-best-traj,
+  .court .c-ball-g { pointer-events: none; }
+  /* Et les zones, elles, doivent être cliquables sur toute leur surface. */
+  .zone { pointer-events: auto; }
+  .zone .z-hit { fill: #ffd34d; fill-opacity: .07; stroke: #ffe9a8; stroke-width: .7; stroke-opacity: .45; }
+  .zone .z-focus { fill: none; stroke: none; }
+  /* Le NOM de la distribution passe devant : c'est lui qu'on doit lire, pas un
+     numéro. Le raccourci clavier devient une pastille discrète. */
+  .zone .z-name { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; fill: #fff3d6;
+    text-anchor: middle; letter-spacing: .2px;
+    paint-order: stroke; stroke: #241c14; stroke-width: 2; stroke-linejoin: round; }
+  .zone .z-keycap circle { fill: #241c14; fill-opacity: .55; stroke: #f0e3d0;
+    stroke-width: .5; stroke-opacity: .5; }
+  .zone .z-key { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; fill: #f0e3d0;
+    text-anchor: middle; dominant-baseline: middle; }
+  .zone .z-sub { font-family: 'TF2 Secondary', system-ui, sans-serif; fill: #f4e6cc;
+    fill-opacity: .8; text-anchor: middle;
+    paint-order: stroke; stroke: #241c14; stroke-width: 1.4; stroke-linejoin: round; }
+  .zone .z-mark { display: none; }
+  .zone .z-mark path { fill: none; stroke: #8fd694; stroke-width: 1.8;
+    stroke-linecap: round; stroke-linejoin: round;
+    paint-order: stroke; }
+
+  .court.is-live .zone { cursor: pointer; }
+  .court.is-live .zone:hover .z-hit { fill-opacity: .2; stroke-opacity: 1; stroke-width: 1.3; }
+  /* L'anneau de focus est DESSINÉ : un `outline` sur un <g> SVG n'est pas rendu
+     pareil partout, et c'est la seule indication pour qui joue au clavier. */
+  .court.is-live .zone:focus { outline: none; }
+  .court.is-live .zone:focus-visible .z-focus { stroke: var(--q-unique); stroke-width: 1.6; }
+  .court.is-live .zone:focus-visible .z-hit { fill-opacity: .2; stroke-opacity: 1; }
+
+  /* Choix fait : contour renforcé + coche + aria-pressed. Trois signaux, dont
+     deux qui ne dépendent pas de la couleur. */
+  .zone.is-picked .z-hit { fill: #8fd694; fill-opacity: .26; stroke: #8fd694;
+    stroke-opacity: 1; stroke-width: 1.7; }
+  .zone.is-picked .z-mark { display: block; }
+  .court[data-locked="1"] .zone:not(.is-picked) { opacity: .45; }
+  .court[data-locked="1"] .zone { cursor: default; }
+
+  /* La trajectoire de passe, au survol et au focus : c'est elle qui transforme
+     quatre cases en quatre PASSES possibles. */
+  .traj { fill: none; stroke: #ffe9a8; stroke-width: 1.1; stroke-dasharray: 3 2.4;
+    opacity: 0; transition: opacity .12s; }
+  .traj.is-on { opacity: .95; }
+  @media (prefers-reduced-motion: reduce) { .traj { transition: none; } }
+
+  /* Terrain des résultats : ton choix (pointillé clair) et le meilleur choix
+     (trait plein vert), tracés tous les deux. */
+  .court.is-static .zone.is-chosen .z-hit { stroke: #f0e3d0; stroke-width: 1.4;
+    stroke-dasharray: 3 2; stroke-opacity: 1; }
+  .court.is-static .zone.is-chosen .z-mark { display: block; }
+  .court.is-static .zone.is-chosen .z-mark path { stroke: #f0e3d0; }
+  .court.is-static .zone.is-best .z-hit { fill: #8fd694; fill-opacity: .2;
+    stroke: #8fd694; stroke-opacity: 1; stroke-width: 1.7; }
+  .traj-chosen { stroke: #f0e3d0; opacity: .7; }
+  .traj-best { stroke: #8fd694; stroke-dasharray: none; stroke-width: 1.4; }
+
   #waiting { color: var(--ink-3); font-size: .85rem; margin-top: 1rem; }
 
   /* --- résultats de manche --- */
+  .court-legend { display: flex; gap: 1.1rem; justify-content: center; margin: 0 0 .9rem;
+    font-size: .72rem; color: var(--ink-3); }
+  .lg { display: inline-flex; align-items: center; gap: .35rem; }
+  .lg::before { content: ''; width: .8rem; height: .8rem; }
+  .lg-chosen::before { border: 2px dashed var(--ink); }
+  .lg-best::before { border: 2px solid var(--q-genuine); background: var(--q-genuine); opacity: .5; }
+
+  /* Le détail de MON score : d'où viennent les points, plutôt qu'un nombre
+     sorti de nulle part. Les trois chiffres viennent du serveur. */
+  .mine { text-align: center; margin: 0 0 1rem; }
+  .mine-pts { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 2rem;
+    line-height: 1; color: var(--q-unique); margin: 0; }
+  .mine-verdict { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 1rem;
+    color: var(--ink-2); margin: .25rem 0 .4rem; }
+  .mine-calc { font-size: .76rem; color: var(--ink-3); margin: 0; }
+  .mine-calc b { color: var(--ink-2); font-weight: normal; }
+  .mine-t { color: var(--ink-3); }
+
   .best { margin: 0 0 1rem; }
   .best-head { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 1.3rem; color: var(--q-genuine); margin: 0 0 .2rem; }
   .best-why { color: var(--ink-2); font-size: .9rem; margin: 0; }
@@ -121,7 +341,7 @@
     <section id="home" class="panel screen">
       <ul class="rules attr-list">
         <li>Une situation de jeu s'affiche : réception, bloc adverse, état de tes attaquants.</li>
-        <li>5 secondes pour choisir l'une des cinq passes (clavier : 1 à 5).</li>
+        <li>5 secondes pour choisir ta distribution : clique une zone du terrain, ou tape 1 à 5.</li>
         <li>Les points dépendent de la pertinence de la décision ET de ta vitesse.</li>
         <li>Tout le monde répond à la même situation, puis on compare.</li>
       </ul>
@@ -156,19 +376,47 @@
         <span>Manche <b id="round-num">1</b>/<span id="round-of">6</span></span>
         <span>Score <b id="score">0</b></span>
       </div>
-      <div class="timer-wrap">
-        <div class="timer-bar" role="presentation"><div id="timer-fill" class="timer-fill"></div></div>
-        <span id="timer-num" class="timer-num">5,0</span>
-      </div>
       <p id="ctx" class="ctx"></p>
       <p id="detail" class="detail"></p>
-      <div id="passes" class="passes"></div>
+      <!-- Le terrain est construit par court.js à partir de la scène envoyée
+           par le serveur. `#court-desc` en est la version écrite, pour qui ne
+           peut pas lire le dessin : même données, donc jamais désynchronisée.
+           `#go-banner` est annoncé (role=status) : au clavier comme au lecteur
+           d'écran, on doit savoir que c'est le moment de jouer.
+
+           ⚠️ LE CHRONO EST DANS LE TERRAIN, pas dans l'en-tête. Il y était, à
+           19 px de haut et 45 px au-dessus du terrain — soit 0,4 % de la
+           surface qu'on regarde. On ne quittait pas le terrain des yeux, donc
+           on ne le voyait pas. Mêmes identifiants qu'avant, seul le placement
+           et la taille changent. -->
+      <p id="phase" class="phase is-intro" role="status">Mise en place…</p>
+      <div class="court-wrap">
+        <svg id="court" class="court is-live" role="group"
+             aria-label="Terrain : choisis ta distribution"></svg>
+        <div class="timer-wrap" aria-hidden="true">
+          <span id="timer-num" class="timer-num">5,0</span>
+          <div class="timer-bar" role="presentation"><div id="timer-fill" class="timer-fill"></div></div>
+        </div>
+        <div id="go-banner" class="go-banner" aria-hidden="true" hidden><span>À TOI</span></div>
+      </div>
+      <p id="court-desc" class="sr-only"></p>
+      <p class="court-help">Clique une zone du terrain — ou tape 1 à 5.</p>
       <p id="waiting" hidden>Décision envoyée — on attend les autres…</p>
     </section>
 
     <!-- RÉSULTATS DE MANCHE -->
     <section id="results" class="panel screen" hidden>
       <p class="round-meta"><span>Résultats</span><span id="res-round"></span></p>
+      <!-- Le même terrain, figé : ta zone et la zone recommandée, marquées par
+           deux formes différentes (coche vs cadre plein) et pas seulement par
+           une couleur. La légende juste en dessous le dit en toutes lettres. -->
+      <div class="court-wrap">
+        <svg id="res-court" class="court is-static" role="img"
+             aria-label="Terrain de la manche : ton choix et le meilleur choix"></svg>
+      </div>
+      <p id="res-court-desc" class="sr-only"></p>
+      <p class="court-legend"><span class="lg lg-chosen">ton choix</span><span class="lg lg-best">meilleur choix</span></p>
+      <div id="res-mine" class="mine"></div>
       <div class="best">
         <p class="best-head" id="best-head"></p>
         <p class="best-why" id="best-why"></p>
@@ -196,6 +444,7 @@
   </main>
 
   <script src="net.js?v=1"></script>
-  <script src="app.js?v=1"></script>
+  <script src="court.js?v=5"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>

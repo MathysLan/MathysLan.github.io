@@ -1,12 +1,13 @@
 # Tests du front
 
-Trois suites, qui ne se recouvrent pas :
+Quatre suites, qui ne se recouvrent pas :
 
 | Fichier | Ce qu'il couvre |
 |---|---|
 | `front.html` | le portfolio : rendu des cartes, lightbox, palette Ctrl+K, FR/EN, thèmes, guichet, presse-papiers, menu mobile, sans JS |
 | `games.html` | le **socle commun** des pages de jeux : polices locales, favicon, retour au portfolio, messages d'état, avatars, `?server=`, mouvement réduit, téléphone |
 | `keyboard.mjs` | le focus clavier, avec de **vraies frappes Tab** (voir plus bas) |
+| `passeur-play.mjs` | **une partie réelle du Passeur**, avec de vrais clics, un vrai tactile et de vraies touches (voir plus bas) |
 
 Rien à installer pour les deux pages HTML. Les ouvrir dans un navigateur suffit
 **si** l'accès local aux fichiers est autorisé (une iframe `file://` est bloquée
@@ -95,3 +96,42 @@ inset parce que `clip-path` rogne les outlines).
 `../styleguide.html` montre les primitives (panneau, bouton, étiquette,
 qualités, case d'objet) côte à côte, dans les deux thèmes. `tests/`,
 `styleguide.html` et `upload/` sont exclus de l'indexation dans `robots.txt`.
+
+## passeur-play.mjs
+
+    node tests/passeur-play.mjs --server ws://localhost:8090
+    node tests/passeur-play.mjs --server wss://passeur-server.onrender.com
+    node tests/passeur-play.mjs --server ... --reduced
+
+**Le seul test de ce dépôt qui a besoin d'un serveur en face**, d'où le
+`--server` obligatoire. Il joue quatre manches, une par mode d'entrée : clic,
+touche 1, tactile, Entrée sur une zone focalisée.
+
+Il existe parce que `games.html` ne pouvait pas prouver ce qu'il avait l'air de
+prouver. Pour cliquer une zone, il appelle `dispatchEvent` sur son `<g>` — ce
+qui **contourne le test de survol du navigateur**. Deux bugs bloquants sont
+passés à travers cette suite :
+
+- les joueurs, le ballon et les trajectoires sont dessinés **après** les zones
+  et interceptaient le clic. L'ombre au sol du réceptionneur bloquait à elle
+  seule tout le centre de la zone arrière ;
+- contre un serveur d'une version antérieure, le message `go` n'arrive jamais :
+  les zones n'étaient jamais armées, donc rien n'était cliquable, et le chrono
+  restait figé sur 5,0.
+
+Ici les entrées passent par le protocole DevTools, **aux coordonnées réelles**
+de la zone, sur la page de jeu chargée telle quelle. Et la vérification ne
+porte pas sur le DOM local : on lit la passe que **le serveur** a enregistrée,
+dans son message `results`.
+
+Deux pièges de plomberie, tous deux rencontrés ici :
+
+- une touche « texte » (un chiffre) et une touche de commande (Entrée) ne
+  s'envoient pas pareil. Avec `text: 'Enter'`, Chromium traite l'événement
+  comme une saisie et le handler ne voit rien : il faut `rawKeyDown` sans
+  `text`. Même piège que pour Tab dans `keyboard.mjs` ;
+- `edge.kill()` ne tue que le processus parent. Chromium en lance une quinzaine
+  d'autres qui survivent, et après quelques exécutions la machine est saturée
+  de navigateurs fantômes — le test passait seul et échouait juste après un
+  autre. Il faut tuer l'arbre (`taskkill /T`), et un port de debug tiré au
+  hasard pour ne pas se connecter sans le savoir à l'instance précédente.

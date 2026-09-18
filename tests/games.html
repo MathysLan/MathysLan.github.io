@@ -124,6 +124,24 @@ function auditGame(g, w, d, mw, md, next) {
     parseFloat(rcs.fontSize) > 0 && rcs.color !== ms.color);
   wasHidden.forEach(function (e) { e.hidden = true; });
 
+  // --- les champs de saisie gardent la taille d'un champ
+  // Le pseudo du Passeur et de Qui Ment ? faisait 50 px de haut pour un bouton
+  // d'action à 40, et débordait de 33 px du panneau : `font: inherit` ramène
+  // aussi le `line-height: 1.5` du corps de page, et ces deux pages-là ne
+  // posaient pas `box-sizing: border-box` (le portfolio le reçoit de Tailwind,
+  // pas les pages de jeux). On teste le RAPPORT au bouton, pas une valeur en
+  // dur : chaque jeu a sa propre échelle.
+  var input = d.querySelector('input[type=text], input:not([type]), input[type=search]');
+  if (input) {
+    var ir = input.getBoundingClientRect();
+    var mr = main.getBoundingClientRect();
+    t(P + 'le champ de saisie n est pas plus haut qu un bouton'
+      + ' [' + ir.height.toFixed(0) + 'px vs ' + mr.height.toFixed(0) + 'px]',
+      ir.height - mr.height <= 6);
+    t(P + 'le champ de saisie ne deborde pas de son conteneur',
+      ir.width <= input.parentElement.getBoundingClientRect().width + 1);
+  }
+
   // --- avatars : état choisi annoncé
   if (g !== 'morpion') {
     var picks = d.querySelectorAll('.avatar-pick');
@@ -179,7 +197,303 @@ function auditGame(g, w, d, mw, md, next) {
   t(P + 'telephone : pas de debordement horizontal (' + md.documentElement.scrollWidth + 'px)',
     md.documentElement.scrollWidth <= 390);
 
+  if (g === 'passeur') auditCourt(w, d, mw, md);
+
   next();
+}
+
+// Le terrain du Passeur. On appelle Court.render() DIRECTEMENT avec une scène
+// fabriquée ici : ça teste le vrai rendu et la vraie interaction, sans avoir
+// besoin d'un serveur — et ça prouve au passage que le terrain ne connaît
+// aucune situation en particulier, puisqu'il dessine celle-ci sans broncher.
+function auditCourt(w, d, mw, md) {
+  var P = 'passeur/terrain : ';
+  // Une scene comme le serveur les envoie : une rotation, une reception, un
+  // bloc, et cinq options qui savent QUI les joue et si les regles les
+  // autorisent. Ici le passeur est ARRIERE (P1), donc la deuxieme main est
+  // interdite (FIVB 13.2.2) — c'est le cas le plus interessant a dessiner.
+  var opt = function (by, pos, front, state, legal, why) {
+    return { by: by, pos: pos, front: front, state: state,
+      legal: legal !== false, why: why || null };
+  };
+  var SCENE = {
+    lineup: ['setter', 'mb1', 'oh1', 'opp', 'mb2', 'oh2'],
+    rotation: 0,
+    setter: { pos: 1, front: false },
+    serve: 'left',
+    reception: { by: 'oh2', pos: 6, quality: 'scramble' },
+    block: { count: 3, start: 'spread', target: 'middle', late: true },
+    options: {
+      gauche: opt('oh1', 3, true, 'marked'),
+      courte: opt('mb1', 2, true, 'down'),
+      deuxieme: opt('setter', 1, false, 'ready', false, 'passeur arriere : pas de deuxieme main (13.2.2)'),
+      droite: opt('opp', 4, true, 'hot'),
+      arriere: opt('oh2', 6, false, 'ready'),
+    },
+    introMs: 2000,
+  };
+  if (!w.Court) { t(P + 'court.js est charge', false); return; }
+  t(P + 'court.js est charge', true);
+
+  // Le terrain vit dans #game, masque tant qu'une manche n'a pas commence. Un
+  // element cache n'a AUCUNE geometrie : sans ca, tout ce qui se mesure ici
+  // (silhouettes, cibles tactiles) sortirait a zero.
+  var game = d.getElementById('game'), gameWas = game.hidden;
+  var mGame = md.getElementById('game'), mGameWas = mGame.hidden;
+  game.hidden = false; mGame.hidden = false;
+
+  var svg = d.getElementById('court');
+  var desc = d.getElementById('court-desc');
+  var picked = [];
+  var api = w.Court.render(svg, SCENE, {
+    interactive: true, describeInto: desc, onPick: function (id) { picked.push(id); },
+  });
+
+  var zones = svg.querySelectorAll('.zone');
+  t(P + '5 zones jouables', zones.length === 5);
+  t(P + 'les zones sont les 5 passes du moteur',
+    [].map.call(zones, function (z) { return z.dataset.pass; }).sort().join(',')
+      === 'arriere,courte,deuxieme,droite,gauche');
+  t(P + 'chaque zone est un bouton accessible',
+    [].every.call(zones, function (z) {
+      return z.getAttribute('role') === 'button' && z.getAttribute('tabindex') === '0'
+        && z.getAttribute('aria-pressed') === 'false'
+        && (z.getAttribute('aria-label') || '').length > 5;
+    }));
+  t(P + 'chaque zone JOUABLE annonce son raccourci',
+    [].every.call(zones, function (z) {
+      return z.classList.contains('is-illegal')
+        || /touche [1-5]/.test(z.getAttribute('aria-label') || '');
+    }));
+
+  // --- LE PIEGE QUI RENDAIT L INTRO INVISIBLE ----------------------------
+  // En SMIL, `begin` se compte sur la timeline du DOCUMENT. Quand une manche
+  // demarre, la page vit deja depuis un moment (accueil, salon, manches
+  // precedentes) : tous les `begin` sont deja passes et chaque animation est
+  // figee sur son etat final a l insertion. court.js remet donc la timeline a
+  // zero. Sans ce test, la regression est INVISIBLE — tout est dans le DOM.
+  var reduced0 = w.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!reduced0) {
+    t(P + 'la timeline SVG repart de zero a chaque manche ('
+      + svg.getCurrentTime().toFixed(2) + ' s)', svg.getCurrentTime() < 0.35);
+    t(P + 'les animations ne sont donc PAS deja terminees',
+      [].every.call(svg.querySelectorAll('.mv animateTransform'), function (a) {
+        return parseFloat(a.getAttribute('begin')) > svg.getCurrentTime();
+      }));
+  }
+
+  // --- LE CHRONO DOIT ETRE EVIDENT ---------------------------------------
+  // Il etait dans l en-tete, a 19 px de haut : 0,4 % de la surface regardee.
+  var tnum = d.getElementById('timer-num');
+  var twrap = d.querySelector('.court-wrap');
+  if (tnum && twrap) {
+    var tr = tnum.getBoundingClientRect(), wr = twrap.getBoundingClientRect();
+    t(P + 'le chrono est gros (' + w.getComputedStyle(tnum).fontSize + ')',
+      parseFloat(w.getComputedStyle(tnum).fontSize) >= 28);
+    t(P + 'le chrono est pose SUR le terrain',
+      tr.top >= wr.top - 2 && tr.bottom <= wr.bottom + 2
+      && tr.left >= wr.left - 2 && tr.right <= wr.right + 2);
+  }
+
+  // --- LES CINQ CHOIX DOIVENT SE LIRE ------------------------------------
+  // On n affichait que le chiffre et un sous-titre de jargon en 3 px.
+  var noms = [].map.call(zones, function (z) {
+    return [].map.call(z.querySelectorAll('.z-name'), function (e) { return e.textContent; }).join(' ');
+  });
+  t(P + 'chaque zone affiche le nom de la distribution [' + noms.join(' | ') + ']',
+    noms.length === 5 && noms.every(function (s) { return s.trim().length >= 6; }));
+  t(P + 'le raccourci clavier est une pastille, pas le message principal',
+    [].every.call(zones, function (z) {
+      var name = z.querySelector('.z-name'), key = z.querySelector('.z-key');
+      return name && key
+        && parseFloat(name.getAttribute('font-size')) > parseFloat(key.getAttribute('font-size'));
+    }));
+
+  // --- LES DEUX TEMPS : on regarde, PUIS on joue -------------------------
+  // Avant le « a toi » du serveur, les zones sont la mais inertes. C'est le
+  // coeur de l'evolution : le temps de lecture n'est pas du temps de decision.
+  t(P + 'avant le « a toi », le terrain n est pas arme',
+    svg.getAttribute('data-armed') === '0');
+  var zPre = [].find.call(zones, function (z) { return z.dataset.pass === 'gauche'; });
+  zPre.dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  t(P + 'UN CLIC PENDANT LA MISE EN SITUATION NE JOUE RIEN', picked.length === 0);
+  t(P + 'la touche 1 non plus', api.pickByKey('1') === true && picked.length === 0);
+  api.arm();
+  t(P + 'apres arm(), le terrain est arme', svg.getAttribute('data-armed') === '1');
+
+  // --- une option interdite par les regles -------------------------------
+  var ill = [].find.call(zones, function (z) { return z.dataset.pass === 'deuxieme'; });
+  t(P + 'la 2e main est marquee interdite (passeur arriere)',
+    ill.classList.contains('is-illegal') && ill.getAttribute('aria-disabled') === 'true');
+  t(P + 'et son aria-label explique pourquoi',
+    /13\.2\.2|impossible/.test(ill.getAttribute('aria-label') || ''));
+  ill.dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  t(P + 'UNE OPTION INTERDITE NE SE JOUE PAS', picked.length === 0);
+  t(P + 'la touche 3 ne la joue pas non plus',
+    api.pickByKey('3') === false && picked.length === 0);
+
+  // Le dessin doit suivre la scène, pas une situation codée en dur.
+  t(P + 'le bloc en retard est dessine autrement (forme, pas couleur)',
+    svg.querySelectorAll('.c-blocker.is-late').length === 3);
+
+  // --- SIX JOUEURS PAR EQUIPE (FIVB 7.3) ---------------------------------
+  // Il en manquait un chez nous : cinq roles portent une option, le sixieme
+  // (le central de la ligne arriere) n en porte aucune mais il est sur le
+  // terrain. Il se deduit de `lineup`, sans toucher au protocole.
+  t(P + 'six joueurs dans notre camp ('
+    + (svg.querySelectorAll('.sil-us').length + svg.querySelectorAll('.sil-set').length) + ')',
+    svg.querySelectorAll('.sil-us').length + svg.querySelectorAll('.sil-set').length === 6);
+  t(P + 'six joueurs en face (' + svg.querySelectorAll('.sil-them').length + ')',
+    svg.querySelectorAll('.sil-them').length === 6);
+  t(P + 'les joueurs qui ne sont pas un choix restent en retrait',
+    svg.querySelectorAll('.c-extra').length >= 3
+    && parseFloat(w.getComputedStyle(svg.querySelector('.c-extra')).opacity) < 0.6);
+
+  // --- LE BLOC SE DEPLACE LATERALEMENT -----------------------------------
+  // Deux bugs cumules : 9 situations sur 12 ont `start === target` (donc aucun
+  // deplacement), et le mouvement etait une interpolation directe — les
+  // contreurs avancaient tout droit. Ils suivent maintenant un chemin en L,
+  // et leur depart est leur position d avant-lecture.
+  if (!reduced0) {
+    var lat = [].map.call(svg.querySelectorAll('.c-far-side .mv-l animateMotion'), function (a) {
+      var m = (a.getAttribute('path') || '').match(/l(-?[\d.]+),0/);
+      return m ? Math.abs(parseFloat(m[1])) : 0;
+    });
+    t(P + 'les contreurs suivent un chemin en L (' + lat.length + ' chemins)', lat.length === 3);
+    t(P + 'et leur segment LATERAL n est pas nul [' + lat.map(Math.round).join(' ') + ']',
+      lat.length === 3 && lat.every(function (v) { return v > 1; }));
+
+    // Meme quand la scene ne demande aucun changement de cible, ils partent de
+    // leur position d avant-lecture : il y a donc toujours quelque chose a lire.
+    var SAME = JSON.parse(JSON.stringify(SCENE));
+    SAME.block = { count: 2, start: 'spread', target: 'spread', late: false };
+    w.Court.render(svg, SAME, { interactive: true, onPick: function () {} });
+    var lat2 = [].map.call(svg.querySelectorAll('.c-far-side .mv-l animateMotion'), function (a) {
+      var m = (a.getAttribute('path') || '').match(/l(-?[\d.]+),0/);
+      return m ? Math.abs(parseFloat(m[1])) : 0;
+    });
+    t(P + 'depart = cible : les contreurs se deplacent quand meme ['
+      + lat2.map(Math.round).join(' ') + ']',
+      lat2.length === 2 && lat2.every(function (v) { return v > 1; }));
+    // On remet la scene d origine ET on rearme : ce rendu-ci a cree un nouveau
+    // terrain, donc l ancien `api` ne pilote plus rien.
+    api = w.Court.render(svg, SCENE, { interactive: true, describeInto: desc,
+      onPick: function (id) { picked.push(id); } });
+    api.arm();
+    zones = svg.querySelectorAll('.zone');
+  }
+  // Un attaquant au sol n'est plus une pastille barree : c'est une silhouette
+  // COUCHEE. On compare donc sa hauteur a celle d'un joueur debout — c'est la
+  // difference qu'un joueur voit, et elle ne depend d'aucune couleur.
+  var down = svg.querySelector('.c-att.is-down .sil-body');
+  var up = svg.querySelector('.c-att.is-hot .sil-body');
+  t(P + 'un attaquant au sol est dessine a terre (silhouette couchee)',
+    !!down && !!up && down.getBBox().height < up.getBBox().height * 0.6);
+  t(P + 'un attaquant lance et un attaquant debout n ont pas la meme pose',
+    !!svg.querySelector('.c-att.is-marked') && !!svg.querySelector('.c-att.is-hot'));
+  t(P + 'une balle de secours a un trace different',
+    !!svg.querySelector('.c-ball-path.is-loose'));
+  t(P + 'la scene est ecrite en toutes lettres pour les lecteurs d ecran',
+    /secours/i.test(desc.textContent) && /au sol/i.test(desc.textContent)
+    && /retard/i.test(desc.textContent));
+
+  // Clic.
+  var z2 = [].find.call(zones, function (z) { return z.dataset.pass === 'courte'; });
+  z2.dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  t(P + 'un clic sur une zone transmet le choix', picked[0] === 'courte');
+  t(P + 'la zone choisie est marquee (aria-pressed + coche)',
+    z2.getAttribute('aria-pressed') === 'true' && z2.classList.contains('is-picked')
+    && w.getComputedStyle(z2.querySelector('.z-mark')).display !== 'none');
+  z2.dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+  t(P + 'on ne joue qu une fois par manche', picked.length === 1);
+
+  // Clavier : Entree sur une zone, puis les raccourcis 1 a 5.
+  var api2 = w.Court.render(svg, SCENE, { interactive: true, onPick: function (id) { picked.push(id); } });
+  api2.arm();
+  var zones2 = svg.querySelectorAll('.zone');
+  zones2[0].dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  t(P + 'Entree sur une zone joue cette zone', picked[1] === 'gauche');
+
+  w.Court.render(svg, SCENE, { interactive: true, onPick: function (id) { picked.push(id); } });
+  t(P + 'un terrain redessine est rejouable (verrou leve)',
+    svg.getAttribute('data-locked') === null && svg.getAttribute('data-armed') === '0');
+  var api3 = w.Court.render(svg, SCENE, { interactive: true, onPick: function (id) { picked.push(id); } });
+  api3.arm();
+  api3.pickByKey('5');
+  t(P + 'la touche 5 joue la zone arriere', picked[picked.length - 1] === 'arriere');
+
+  // Terrain des resultats : deux marques distinctes, aucune interaction.
+  var res = d.getElementById('res-court');
+  w.Court.renderResult(res, SCENE, 'gauche', 'arriere');
+  var rz = res.querySelectorAll('.zone');
+  t(P + 'terrain des resultats : 5 zones, non interactives',
+    rz.length === 5 && [].every.call(rz, function (z) { return !z.hasAttribute('tabindex'); }));
+  t(P + 'terrain des resultats : mon choix et le meilleur sont distincts',
+    !!res.querySelector('.zone.is-chosen[data-pass="gauche"]')
+    && !!res.querySelector('.zone.is-best[data-pass="arriere"]'));
+  // Les deux trajectoires sont tracees : c'est ce qui rend la decision lisible
+  // d'un coup d'oeil, au lieu de deux cadres a comparer.
+  t(P + 'terrain des resultats : les deux trajectoires sont tracees',
+    !!res.querySelector('.traj-chosen[data-for="gauche"]')
+    && !!res.querySelector('.traj-best[data-for="arriere"]'));
+
+  // Mouvement reduit : le ballon SMIL doit avoir ete retire, pas juste masque.
+  var reduced = w.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  w.Court.render(svg, SCENE, { interactive: true, onPick: function () {} });
+  t(P + (reduced ? 'mouvement reduit : le ballon n est pas anime'
+    : 'mouvement normal : le ballon est anime'),
+    reduced ? !svg.querySelector('.c-ball-motion') : !!svg.querySelector('.c-ball-motion'));
+
+  // Sans scene (serveur pas encore redeploye) : le terrain reste jouable.
+  var apiF = w.Court.render(svg, null, { interactive: true, onPick: function () {} });
+  apiF.arm();
+  t(P + 'sans scene, le terrain reste jouable',
+    svg.querySelectorAll('.zone').length === 5 && !!svg.querySelector('.c-setter')
+    && apiF.pickByKey('1') === true);
+
+  // La mise en situation dessine aussi le SERVEUR adverse et fait BOUGER les
+  // joueurs : sans ca, il n'y a pas de situation a lire, juste un tableau.
+  var apiA = w.Court.render(svg, SCENE, { interactive: true, introMs: 2000, onPick: function () {} });
+  if (!reduced) {
+    t(P + 'la mise en situation montre le serveur adverse',
+      !!svg.querySelector('.c-server'));
+    t(P + 'la mise en situation fait se deplacer des joueurs',
+      svg.querySelectorAll('.mv animateTransform').length >= 3);
+    t(P + 'le ballon suit le service PUIS la reception (deux trajets)',
+      svg.querySelectorAll('.c-ball-serve').length === 1
+      && svg.querySelectorAll('.c-ball-pass').length === 1);
+    t(P + 'le passeur change de pose en cours de route',
+      svg.querySelectorAll('.c-setter .sil-b set').length >= 1);
+  } else {
+    t(P + 'mouvement reduit : aucun deplacement anime',
+      svg.querySelectorAll('.mv animateTransform').length === 0
+      && !svg.querySelector('.c-server'));
+    t(P + 'mouvement reduit : la situation est deja dans son etat final',
+      !!svg.querySelector('.c-setter') && !!svg.querySelector('.c-receiver')
+      && svg.querySelectorAll('.zone').length === 5);
+    t(P + 'mouvement reduit : la scene reste ecrite en toutes lettres',
+      w.Court.describe(SCENE).length > 60);
+    t(P + 'mouvement reduit : les zones s activent quand meme',
+      apiA.arm() === undefined && svg.getAttribute('data-armed') === '1');
+  }
+
+  // Au doigt : la perspective ECRASE les cibles, et c'est le vrai risque de la
+  // fausse 3D. On mesure donc les CINQ zones, pas une seule — la plus etroite
+  // est « 2e main », coincee entre la rapide et le poste 2.
+  var mSvg = md.getElementById('court');
+  mw.Court.render(mSvg, SCENE, { interactive: true, onPick: function () {} });
+  var small = [];
+  [].forEach.call(mSvg.querySelectorAll('.zone'), function (z) {
+    var r = z.querySelector('.z-hit').getBoundingClientRect();
+    if (r.width < 44 || r.height < 44) {
+      small.push(z.dataset.pass + ' ' + Math.round(r.width) + 'x' + Math.round(r.height));
+    }
+  });
+  t(P + 'telephone : les 5 zones restent visables au doigt'
+    + (small.length ? ' [trop petites : ' + small.join(', ') + ']' : ''),
+    small.length === 0);
+
+  game.hidden = gameWas; mGame.hidden = mGameWas;
 }
 
 // On lit net.js en texte pour vérifier ?server= sans exécuter de réseau.
