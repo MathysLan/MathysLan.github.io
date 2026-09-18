@@ -2,6 +2,28 @@
 // status: 'live' = jouable (href OU action), 'soon' = teaser à venir.
 // Les champs *_en fournissent la version anglaise (repli : version française).
 // code : dépôt public du code (serveur arbitre pour les jeux en ligne).
+//
+// hub : LE CONTRAT MACHINE, lu par le Game Hub et par le randomizer. Il est
+//   généré tel quel dans data/games.manifest.json par tools/build.mjs — c'est
+//   ce fichier-ci qui reste la source de vérité, jamais le JSON.
+//   Trois règles, et tools/build.mjs fait échouer le build si l'une saute :
+//
+//   1. SCHÉMA FERMÉ. Aucune clé en dehors de la liste autorisée. C'est ce qui
+//      empêche un identifiant de CONTENU (une situation, une vidéo, un thème)
+//      d'atterrir un jour ici : le Hub transporte l'historique de contenu, il
+//      ne l'interprète ni ne le fabrique. Le serveur du jeu reste seul maître
+//      de ce qu'il a consommé.
+//   2. minutes = { min, max } AU RÉGLAGE PAR DÉFAUT du MJ, et c'est le **max**
+//      que le filtre de durée compare. Un « ≤ 10 min » écarte donc un jeu dont
+//      le max est 12 : rien d'implicite. Le MJ peut toujours allonger une fois
+//      dans la partie — le Hub ne surveille pas les réglages d'un jeu.
+//   3. needs = DÉCLARATIF. Le Hub ne teste jamais une capacité : il ne fait que
+//      comparer ce que les joueurs ont déclaré. Il ne demandera JAMAIS la
+//      permission micro — c'est le jeu, et lui seul, qui demande et vérifie.
+//
+//   content / replay valent false tant que ce n'est pas VÉRIFIÉ dans le
+//   serveur concerné. false veut donc dire « non supporté ou pas encore
+//   vérifié » : dans les deux cas le Hub s'en passe.
 // arch : points d'architecture affichés dans la fiche « Architecture ». Des
 //        faits vérifiables sur le code, pas du discours.
 const GAMES = [
@@ -33,6 +55,18 @@ const GAMES = [
     ],
     href: 'games/morpion/',
     status: 'live',
+    hub: {
+      mode: 'online',
+      players: { min: 2, max: 2 },        // un duel : ni plus, ni moins
+      minutes: { min: 1, max: 5 },
+      needs: [],
+      categories: ['classique'],
+      server: 'wss://morpion-server-eygy.onrender.com',
+      health: 'https://morpion-server-eygy.onrender.com/',
+      join: 'anon',                       // le seul sans pseudo ni avatar
+      content: false,
+      replay: false,
+    },
   },
   {
     id: 'imitation',
@@ -62,6 +96,18 @@ const GAMES = [
     ],
     href: 'games/imitation/',
     status: 'live',
+    hub: {
+      mode: 'online',
+      players: { min: 2, max: 8 },
+      minutes: { min: 6, max: 15 },
+      needs: ['mic'],                     // déclaratif : le jeu demande, pas le Hub
+      categories: ['creatif', 'ambiance'],
+      server: 'wss://imitation-server.onrender.com',
+      health: 'https://imitation-server.onrender.com/',
+      join: 'v1',
+      content: false,
+      replay: false,
+    },
   },
   {
     id: 'demicercle',
@@ -91,6 +137,18 @@ const GAMES = [
     ],
     href: 'games/demicercle/',
     status: 'live',
+    hub: {
+      mode: 'online',
+      players: { min: 2, max: 10 },
+      minutes: { min: 2, max: 15 },
+      needs: [],
+      categories: ['discussion', 'deduction'],
+      server: 'wss://demicercle-server.onrender.com',
+      health: 'https://demicercle-server.onrender.com/',
+      join: 'v1',
+      content: false,
+      replay: false,
+    },
   },
   {
     id: 'puissance4',
@@ -118,6 +176,15 @@ const GAMES = [
     ],
     action: 'connect4',
     status: 'live',
+    hub: {
+      mode: 'local',                      // aucun serveur : tout est dans la page
+      players: { min: 1, max: 1 },
+      minutes: { min: 2, max: 6 },
+      needs: [],
+      categories: ['classique', 'solo'],
+      content: false,
+      replay: false,
+    },
   },
   {
     id: 'ban',
@@ -147,6 +214,18 @@ const GAMES = [
     ],
     href: 'games/ban/',
     status: 'live',
+    hub: {
+      mode: 'online',
+      players: { min: 2, max: 10 },
+      minutes: { min: 5, max: 12 },
+      needs: ['consent'],                 // la case d'avertissement, cochée par le joueur
+      categories: ['sang-froid', 'ambiance'],
+      server: 'wss://ban-server-68h9.onrender.com',
+      health: 'https://ban-server-68h9.onrender.com/',
+      join: 'v1',
+      content: false,
+      replay: false,
+    },
   },
   {
     id: 'precision',
@@ -176,6 +255,18 @@ const GAMES = [
     ],
     href: 'games/precision/',
     status: 'live',
+    hub: {
+      mode: 'online',
+      players: { min: 1, max: 12 },
+      minutes: { min: 3, max: 10 },
+      needs: [],
+      categories: ['reflexe', 'observation'],
+      server: 'wss://precision-server.onrender.com',
+      health: 'https://precision-server.onrender.com/',
+      join: 'v1',
+      content: false,
+      replay: false,
+    },
   },
   {
     id: 'passeur',
@@ -211,6 +302,18 @@ const GAMES = [
     ],
     href: 'games/passeur/',
     status: 'live',
+    hub: {
+      mode: 'online',
+      players: { min: 1, max: 8 },        // MAX_PLAYERS vérifié dans server.js
+      minutes: { min: 3, max: 8 },
+      needs: [],
+      categories: ['reflexe', 'sport'],
+      server: 'wss://passeur-server.onrender.com',
+      health: 'https://passeur-server.onrender.com/',
+      join: 'v1',
+      content: false,
+      replay: true,                       // action: 'lobby' vérifiée dans server.js
+    },
   },
   {
     id: 'quiment',
@@ -242,6 +345,18 @@ const GAMES = [
     ],
     href: 'games/quiment/',
     status: 'live',
+    hub: {
+      mode: 'online',
+      players: { min: 3, max: 8 },        // MIN 3 : en dessous le vote n'a aucun sens
+      minutes: { min: 8, max: 15 },
+      needs: [],
+      categories: ['bluff', 'discussion'],
+      server: 'wss://qui-ment-server.onrender.com',
+      health: 'https://qui-ment-server.onrender.com/',
+      join: 'v1',
+      content: false,
+      replay: true,                       // action: 'lobby' vérifiée dans server.js
+    },
   },
   {
     id: 'soon',

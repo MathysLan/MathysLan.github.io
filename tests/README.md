@@ -7,6 +7,8 @@ Quatre suites, qui ne se recouvrent pas :
 | `front.html` | le portfolio : rendu des cartes, lightbox, palette Ctrl+K, FR/EN, thèmes, guichet, presse-papiers, menu mobile, sans JS |
 | `games.html` | le **socle commun** des pages de jeux : polices locales, favicon, retour au portfolio, messages d'état, avatars, `?server=`, mouvement réduit, téléphone |
 | `keyboard.mjs` | le focus clavier, avec de **vraies frappes Tab** (voir plus bas) |
+| `manifest.mjs` | le **manifest des jeux** (`data/games.manifest.json`) : cohérence avec `data/games.js` et avec les clients, et les garde-fous du build |
+| `profile.mjs` | le **profil local** (pseudo + avatar) : tests unitaires du module, puis intégration sur les vraies pages de jeux |
 | `passeur-play.mjs` | **une partie réelle du Passeur**, avec de vrais clics, un vrai tactile et de vraies touches (voir plus bas) |
 
 Rien à installer pour les deux pages HTML. Les ouvrir dans un navigateur suffit
@@ -135,3 +137,62 @@ Deux pièges de plomberie, tous deux rencontrés ici :
   de navigateurs fantômes — le test passait seul et échouait juste après un
   autre. Il faut tuer l'arbre (`taskkill /T`), et un port de debug tiré au
   hasard pour ne pas se connecter sans le savoir à l'instance précédente.
+
+
+## manifest.mjs
+
+    node tests/manifest.mjs
+
+Le manifest est le contrat **machine** des jeux : c'est lui que lira le Game
+Hub pour savoir combien de joueurs un jeu accepte, combien de temps il dure et
+à quel serveur il parle. Il est généré depuis `data/games.js` par
+`tools/build.mjs`.
+
+Deux choses sont vérifiées, et aucune n'est visible à la relecture.
+
+**Le manifest dit-il vrai ?** L'URL `wss://` annoncée pour chaque jeu est
+comparée à celle que son `net.js` utilise réellement. Un copier-coller raté
+enverrait le Hub réveiller un serveur pendant que le joueur en contacte un
+autre — et tout aurait l'air normal des deux côtés. Le dialecte de connexion
+est vérifié de la même façon : un jeu déclaré `join: 'v1'` doit bien envoyer
+`name` et `avatar`, un `'anon'` (le Morpion) ne doit en envoyer aucun.
+
+**Les garde-fous du build mordent-ils encore ?** Six cas cassent volontairement
+`data/games.js` — un jeu jouable sans bloc `hub`, une clé hors schéma, une
+catégorie inventée, `needs: ['micro']` au lieu de `['mic']`, des bornes de
+joueurs à l'envers, un serveur en `ws://` — puis lancent le build et
+vérifient qu'il **échoue**. Un validateur qu'on ne teste jamais finit par tout
+accepter, et on ne s'en aperçoit que le jour où il aurait servi.
+
+⚠️ Ces cas écrivent vraiment dans `data/games.js` avant de le restaurer dans
+un `finally`. Si le test est interrompu au mauvais moment, vérifier
+`git diff data/games.js` avant de commiter.
+
+
+## profile.mjs
+
+    node tests/profile.mjs
+
+Le profil (`games/shared/game-profile.js`) retient pseudo et avatar d'un jeu à
+l'autre. Ce fichier lance deux choses : les tests unitaires du module, dans
+`tests/profile.html`, puis un parcours d'intégration sur les vraies pages.
+
+⚠️ **Il démarre un petit serveur HTTP, et ce n'est pas du confort.** Chromium
+refuse `localStorage` sur un document `file://`, et surtout chaque fichier
+local y est sa PROPRE origine. Or ce qu'on veut prouver, c'est justement qu'un
+profil renseigné dans un jeu se retrouve dans un autre. En `file://` tous les
+tests passeraient sans rien démontrer. Le serveur sert le dépôt sur
+`127.0.0.1`, sur un port tiré au hasard — deux exécutions qui se chevauchent ne
+doivent pas se parler sans le savoir.
+
+`tests/profile.html` peut aussi s'ouvrir seul, à condition de le servir en
+HTTP ; ouvert en `file://` il le dit lui-même dès la première ligne.
+
+Le parcours d'intégration fait ce qu'un joueur ferait : il tape un pseudo,
+clique un avatar, recharge, ouvre un autre jeu, change d'avis, pose une photo,
+la retire. Il vérifie aussi deux choses qui n'ont rien d'évident :
+
+- **un profil corrompu ne casse aucun des six jeux** — la clé est remplie avec
+  du texte qui n'est pas du JSON, puis chaque page est ouverte ;
+- **Morpion ne charge pas le module du tout**, parce que son serveur ne sait
+  recevoir ni pseudo ni avatar.

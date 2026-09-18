@@ -21,34 +21,138 @@
 <!-- Socle commun des pages de jeux : focus clavier, mouvement réduit, cibles
      tactiles, messages d'état, et les deux polices auto-hébergées (plus aucun
      appel à Google Fonts). La DA du jeu reste dans le <style> ci-dessous. -->
-<link rel="stylesheet" href="../shared/game-ui.css?v=1">
+<link rel="stylesheet" href="../../css/tf2.css?v=9">
+<link rel="stylesheet" href="../shared/game-ui.css?v=3">
 <style>
+
+  /* L'accent de Precision : celui qu'elle définit déjà dans :root.
+     Tout le chrome — fond, titres, panneaux, boutons, champs, salon, code de
+     salle, messages, retour — vient du socle commun (games/shared/game-ui.css)
+     exprimé avec les jetons de css/tf2.css. Ici il ne reste que la MISE EN
+     PAGE et le GAMEPLAY. */
+  :root { --g-accent: var(--accent); --g-accent-ink: #0f0b1a; }
+
+  body {
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 1.4rem 1rem;
+  }
   /* DA : carte sombre très épurée, HUD dans les coins, gros chiffres,
      bouton rond blanc. Tout est synthétisé (aucune image, aucun son fichier). */
   * { margin: 0; box-sizing: border-box; }
+  /* ⚠️ Ne PAS réintroduire ici --bg, --ink, --line ni --card : ce sont les
+     noms des jetons de css/tf2.css, et les redéfinir masquait le fond et les
+     bordures communes à toutes les pages de jeux. Le trait propre au jeu
+     s'appelle --p-line. */
   :root {
-    --bg: #1d1d1f;         /* fond hors carte */
-    --card: #0b0b0c;       /* la carte */
-    --line: rgba(255,255,255,.09);
+    --p-line: rgba(255,255,255,.09);
     --dim: #7d7d86;
-    --ink: #f2f2f4;
     --accent: #c4b5fd;
   }
-  body {
-    min-height: 100vh; display: flex; align-items: center; justify-content: center;
-    background: var(--bg); color: var(--ink);
-    font-family: 'JetBrains Mono', monospace; padding: 1.2rem;
-    -webkit-font-smoothing: antialiased;
-  }
   main { width: min(560px, 100%); }
-
-  /* ---------- carte ---------- */
-  .card {
-    position: relative; background: var(--card); border: 1px solid var(--line);
-    border-radius: 22px; overflow: hidden;
-    box-shadow: 0 24px 70px rgba(0,0,0,.55);
+  /* L'écran de jeu mérite plus de place que l'accueil : on élargit main
+     uniquement quand le plateau est affiché, et jamais au-delà de ce que la
+     hauteur de fenêtre autorise — c'est la largeur qui cède, le ratio 5/6
+     tient. Si :has() n'est pas compris, on retombe sur les 560 px d'avant. */
+  main:has(.play-card:not([hidden])) {
+    width: min(640px, 100%, calc((100svh - 3.6rem) * 5 / 6));
   }
-  .card.play-card { aspect-ratio: 5/6; }
+
+  /* ---------- la surface de jeu ----------
+     ⚠️ Toutes les épreuves vivent en "position: absolute; inset: 0" (.stage,
+     .fill, #shape-board, #sound-canvas, #time-canvas…). Elles ne participent
+     donc PAS à la hauteur de la section : sans aspect-ratio, le plateau
+     retombe sur son seul rembourrage — 45 px, une bande. C'est exactement ce
+     qui est arrivé le jour où class="card play-card" est devenu
+     class="panel g-screen play-card" et où .card.play-card s'est retrouvé
+     orphelin. Ces quatre lignes sont du GAMEPLAY, pas du décor : ne pas les
+     déplacer dans le socle commun, ne pas les retirer.
+     "padding: 0" bat ":where(.g-screen)" — spécificité nulle — sans un seul
+     !important ; "overflow: hidden" retaille le plateau sur les coins coupés
+     du panneau, comme le faisait l'ancienne .card. */
+  .play-card {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 5 / 6;
+    padding: 0;
+    overflow: hidden;
+    color: #f2f2f4;
+  }
+  /* La surface de jeu est un écran d'instrument : elle reste noire, quel que
+     soit le thème du portfolio. Ce n'est pas qu'une question de goût — l'épreuve
+     COULEUR ne se juge que sur un entourage neutre, et le brun Mann Co. faussait
+     l'œil. ⚠️ Écrire "background" sur .play-card ne suffirait PAS : .panel de
+     tf2.css peint son dégradé dans ::before, à z-index -1 sous isolation:
+     isolate, donc AU-DESSUS du fond de l'élément. C'est ce ::before qu'on
+     redéfinit — même spécificité (0,1,0), notre feuille passe après tf2.css. */
+  .play-card::before { background: linear-gradient(180deg, #121217, #08080a); }
+
+  /* ---------- le boîtier (décor, jamais cliquable) ----------
+     Precision n'est pas un terrain de sport : c'est un appareil de mesure.
+     Le plateau est donc encastré dans un boîtier — biseau, vignette,
+     gouttière, graduations de règle, équerres de visée, plaque gravée. Tout
+     tient dans UNE couche, posée au-dessus des épreuves (z-index 4) mais sous
+     le HUD (5), le bouton rond (6) et la barre de temps (7).
+     ⚠️ "pointer-events: none" porte sur #bezel : ses ::before/::after en
+     héritent, donc le canvas, le SVG, les poignées et les barres de couleur
+     restent seuls à recevoir les clics. Vérifié par elementFromPoint dans
+     tests/games.html — ne pas retirer. */
+  #bezel {
+    position: absolute; inset: 0; z-index: 4; pointer-events: none;
+    box-shadow:
+      inset 0 0 0 1px rgba(255,255,255,.08),   /* liseré vif sur l'arête */
+      inset 0 1px 0 rgba(255,255,255,.12),     /* lumière en haut */
+      inset 0 -1px 0 rgba(0,0,0,.6),           /* ombre en bas */
+      inset 0 0 44px 8px rgba(0,0,0,.5),       /* le verre est encastré */
+      inset 0 0 0 15px rgba(8,8,11,.5);        /* la gouttière du boîtier */
+  }
+  /* graduations : deux pas (fin partout, long tous les cinq) sur les quatre
+     bords. Aucune image — que des dégradés répétés. */
+  #bezel::before {
+    content: ''; position: absolute; inset: 0; opacity: .55;
+    background:
+      repeating-linear-gradient(90deg, rgba(255,255,255,.4) 0 1px, transparent 1px 80px) top    / 100% 11px no-repeat,
+      repeating-linear-gradient(0deg,  rgba(255,255,255,.4) 0 1px, transparent 1px 80px) left   / 11px 100% no-repeat,
+      repeating-linear-gradient(90deg, rgba(255,255,255,.22) 0 1px, transparent 1px 16px) top    / 100% 6px  no-repeat,
+      repeating-linear-gradient(90deg, rgba(255,255,255,.22) 0 1px, transparent 1px 16px) bottom / 100% 6px  no-repeat,
+      repeating-linear-gradient(0deg,  rgba(255,255,255,.22) 0 1px, transparent 1px 16px) left   / 6px  100% no-repeat,
+      repeating-linear-gradient(0deg,  rgba(255,255,255,.22) 0 1px, transparent 1px 16px) right  / 6px  100% no-repeat;
+  }
+  /* équerres de visée aux quatre angles + liseré interne : c'est ce qui dit
+     « instrument de mesure » plutôt que « carte ». */
+  #bezel::after {
+    content: ''; position: absolute; inset: 8px; opacity: .5;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
+    background:
+      linear-gradient(var(--accent),var(--accent)) 0    0    / 20px 1px no-repeat,
+      linear-gradient(var(--accent),var(--accent)) 0    0    / 1px 20px no-repeat,
+      linear-gradient(var(--accent),var(--accent)) 100% 0    / 20px 1px no-repeat,
+      linear-gradient(var(--accent),var(--accent)) 100% 0    / 1px 20px no-repeat,
+      linear-gradient(var(--accent),var(--accent)) 0    100% / 20px 1px no-repeat,
+      linear-gradient(var(--accent),var(--accent)) 0    100% / 1px 20px no-repeat,
+      linear-gradient(var(--accent),var(--accent)) 100% 100% / 20px 1px no-repeat,
+      linear-gradient(var(--accent),var(--accent)) 100% 100% / 1px 20px no-repeat;
+  }
+  /* la plaque gravée du flanc gauche : le seul endroit du plateau que ni le
+     HUD ni les épreuves n'occupent. */
+  #bezel b {
+    position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+    writing-mode: vertical-rl; padding: .6rem .1rem;
+    font-family: 'TF2 Build', 'Arial Narrow', sans-serif;
+    font-size: .56rem; letter-spacing: .24em; color: #fff; opacity: .28;
+  }
+  /* En dessous de 420 px la gouttière mangerait la surface utile : on la
+     resserre, mais le ratio 5/6 — donc la hauteur — ne bouge pas. */
+  @media (max-width: 420px) {
+    #bezel { box-shadow:
+      inset 0 0 0 1px rgba(255,255,255,.08),
+      inset 0 1px 0 rgba(255,255,255,.12),
+      inset 0 -1px 0 rgba(0,0,0,.6),
+      inset 0 0 30px 5px rgba(0,0,0,.5),
+      inset 0 0 0 9px rgba(8,8,11,.5); }
+    #bezel::after { inset: 5px; }
+    #bezel b { display: none; }
+  }
   .hud { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
   .hud .tl, .hud .tr { position: absolute; top: 1.1rem; font-size: .78rem; font-weight: 700; letter-spacing: .04em; }
   .hud .tl { left: 1.2rem; }
@@ -81,36 +185,13 @@
 
   /* ---------- accueil / lobby ---------- */
   .pad { padding: 1.8rem; }
-  h1 { font-family: 'Space Grotesk', sans-serif; font-size: 1.5rem; letter-spacing: -.01em; text-align: center; }
-  h1 .a { color: var(--accent); }
-  .sub { color: var(--dim); font-size: .72rem; margin: .35rem 0 1.6rem; text-align: center; }
-  button { font: inherit; cursor: pointer; background: #fff; color: #111; font-weight: 700;
-    border: none; border-radius: 12px; padding: .85rem 1.4rem; width: 100%; transition: opacity .12s; }
-  button:hover { opacity: .88; }
-  button:disabled { opacity: .35; cursor: default; }
-  .ghost { background: transparent; border: 1px solid var(--line); color: var(--ink); font-weight: 400; }
-  .ghost:hover { border-color: #6a6a74; opacity: 1; }
-  input, select { font: inherit; background: #141416; border: 1px solid var(--line); border-radius: 12px;
-    color: var(--ink); padding: .85rem 1rem; outline: none; width: 100%; }
-  input:focus, select:focus { border-color: #6a6a74; }
-  .or { color: #8a8a94; font-size: .7rem; margin: 1rem 0; text-align: center; letter-spacing: .1em; }
-  .join-row { display: flex; gap: .5rem; }
-  .join-row input { width: 7.5rem; text-align: center; text-transform: uppercase; letter-spacing: .3em; }
-  .join-row button { flex: 1; background: transparent; border: 1px solid var(--line); color: var(--ink); font-weight: 400; }
   #name-input { margin-bottom: 1rem; }
   .pick-hint { color: var(--dim); font-size: .7rem; margin-bottom: .5rem; text-align: center; }
-  #avatar-row { display: flex; flex-wrap: wrap; gap: .35rem; justify-content: center; margin-bottom: 1rem; }
-  .avatar-pick { font-size: 1.1rem; background: #141416; border: 1px solid var(--line); border-radius: 10px;
-    padding: .4rem .5rem; width: auto; font-weight: 400; }
-  .avatar-pick.picked { border-color: var(--accent); background: #1a1626; }
-  #room-code { display: block; font-family: 'Space Grotesk', sans-serif; font-size: 2.6rem; font-weight: 700;
-    letter-spacing: .4em; text-indent: .4em; text-align: center; cursor: pointer; margin: .2rem 0; }
-  #code-hint { color: #8a8a94; font-size: .66rem; margin-bottom: 1.2rem; text-align: center; }
   ul { list-style: none; font-size: .82rem; }
-  #players li { padding: .55rem .2rem; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: .5rem; }
+  #players li { padding: .55rem .2rem; border-bottom: 1px solid var(--p-line); display: flex; align-items: center; gap: .5rem; }
   .tag { color: var(--accent); font-size: .66rem; }
   .pp { margin-right: .15rem; }
-  #host-config { margin-top: 1.2rem; padding-top: 1.2rem; border-top: 1px solid var(--line); display: grid; gap: .5rem; }
+  #host-config { margin-top: 1.2rem; padding-top: 1.2rem; border-top: 1px solid var(--p-line); display: grid; gap: .5rem; }
   #host-config label { font-size: .66rem; color: var(--dim); letter-spacing: .1em; }
   #need-players { color: #8a8a94; font-size: .7rem; margin-top: .9rem; text-align: center; }
 
@@ -139,6 +220,13 @@
   #color-bars.on { width: 108px; }
   .cbar { position: relative; width: 36px; cursor: pointer; touch-action: none; }
   #bar-h { background: linear-gradient(to bottom,#f00 0%,#ff0 17%,#0f0 33%,#0ff 50%,#00f 67%,#f0f 83%,#f00 100%); }
+  /* ⚠️ Les trois barres de teinte sont des CONTRÔLES collés au flanc gauche,
+     exactement là où court la gouttière du boîtier : sous elle, le bord de la
+     barre H se retrouvait à moitié assombri — et une couleur se juge sur sa
+     vraie valeur. Elles passent donc AU-DESSUS du décor (z-index 5, le niveau
+     du HUD), ce qui au passage les met devant la plaque gravée. Ne pas
+     redescendre ce z-index sans regarder l'épreuve COULEUR. */
+  #color-bars { position: relative; z-index: 5; }
   .cbar .knob { position: absolute; left: 50%; width: 22px; height: 22px; border-radius: 50%; background: #fff;
     transform: translate(-50%,-50%); pointer-events: none; box-shadow: 0 2px 8px rgba(0,0,0,.6); }
   #color-preview { flex: 1; }
@@ -188,7 +276,10 @@
   #rv-score small { font-size: 1.2rem; color: var(--dim); }
   #rv-quip { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: .92rem; color: #6a6a74; margin-top: .35rem; }
 
-  #reveal-view { position: absolute; inset: 0; padding: 3.4rem 1.2rem 5rem; overflow-y: auto; }
+  /* Le classement est de la lecture, pas une surface de mesure : il passe
+     lui aussi devant le boîtier, sinon la vignette mange le contraste de ses
+     dernières lignes (et de son panneau bas en .sheet). */
+  #reveal-view { position: absolute; inset: 0; z-index: 5; padding: 3.4rem 1.2rem 5rem; overflow-y: auto; }
   /* quand la scène reste visible derrière (superposition des formes), le
      classement passe en panneau bas translucide au lieu de tout recouvrir */
   #reveal-view.sheet { top: auto; bottom: 0; max-height: 40%; padding: 1rem 1.2rem 4.4rem;
@@ -206,7 +297,7 @@
   .rv-big { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 1.5rem; text-align: center; }
   #rv-list { display: grid; gap: .4rem; }
   .rv-row { display: grid; grid-template-columns: 1.4rem 1fr auto; align-items: center; gap: .6rem;
-    padding: .55rem .8rem; border: 1px solid var(--line); border-radius: 12px; background: #141416; font-size: .76rem; }
+    padding: .55rem .8rem; border: 1px solid var(--p-line); border-radius: 12px; background: #141416; font-size: .76rem; }
   .rv-row .rk { color: #8a8a94; }
   .rv-row .rd { color: var(--dim); font-size: .66rem; font-variant-numeric: tabular-nums; }
   .rv-row .ra { font-weight: 700; font-family: 'Space Grotesk', sans-serif; }
@@ -215,19 +306,16 @@
   #rv-shape { width: 100%; aspect-ratio: 1/1; max-height: 200px; margin: 0 auto .8rem; display: block; }
 
   #scores { margin-top: 1rem; }
-  #scores li { padding: .5rem .2rem; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: .5rem; font-size: .8rem; }
+  #scores li { padding: .5rem .2rem; border-bottom: 1px solid var(--p-line); display: flex; align-items: center; gap: .5rem; font-size: .8rem; }
   #scores .pts { margin-left: auto; font-weight: 700; font-family: 'Space Grotesk', sans-serif; }
 
-  #error { margin-top: .9rem; font-size: .74rem; color: #fca5a5; min-height: 1.2em; text-align: center; }
-  .back { display: block; margin-top: 1.2rem; color: #8a8a94; font-size: .7rem; text-decoration: none; text-align: center; }
-  .back:hover { color: var(--ink); }
   [hidden] { display: none !important; }
 </style>
 </head>
 <body>
   <main>
     <!-- accueil -->
-    <section id="home" class="card pad">
+    <section id="home" class="panel g-screen pad">
       <h1>Précision<span class="a">.</span></h1>
       <p class="sub">mémorise… puis reproduis au plus juste</p>
       <input id="name-input" maxlength="16" placeholder="ton pseudo" autocomplete="off" spellcheck="false">
@@ -242,7 +330,7 @@
     </section>
 
     <!-- lobby -->
-    <section id="lobby" class="card pad" hidden>
+    <section id="lobby" class="panel g-screen pad" hidden>
       <button type="button" id="room-code" class="g-copy" title="clique pour copier">····</button>
       <p id="code-hint" role="status">clique sur le code pour le copier</p>
       <ul id="players"></ul>
@@ -275,8 +363,11 @@
     </section>
 
     <!-- jeu -->
-    <section id="game" class="card play-card" hidden>
+    <section id="game" class="panel g-screen play-card" hidden>
       <div id="timefill"></div>
+      <!-- boîtier : purement décoratif, hors de l’arbre d’accessibilité et
+           hors de portée du pointeur (voir #bezel dans le style ci-dessus) -->
+      <div id="bezel" aria-hidden="true"><b>CAL. 00—100</b></div>
 
       <div class="stage">
         <!-- SHAPE -->
@@ -379,6 +470,9 @@
     <p id="error" class="g-error" role="alert"></p>
     <a class="back" href="../../">← retour au portfolio</a>
   </main>
+  <!-- Profil local (pseudo + avatar) : chargé AVANT app.js, qui lui demande
+       l'emoji de départ. Aucun réseau, aucune règle de jeu. -->
+  <script src="../shared/game-profile.js"></script>
   <script src="net.js"></script>
   <script src="app.js"></script>
 </body>

@@ -23,6 +23,8 @@
 // pas. C'est tests/keyboard.mjs qui s'en charge, avec de vraies frappes Tab.
 var GAMES = ['morpion', 'demicercle', 'imitation', 'ban', 'precision', 'passeur', 'quiment'];
 var out = [], errs = [];
+// Les metriques de chrome de chaque jeu, jugees ensemble a la fin.
+var CHROME = [];
 function t(name, ok) { out.push((ok ? 'OK   ' : 'KO   ') + name); if (!ok) out.ko = true; }
 
 // Précision fait un bip (Web Audio) au clic sur un avatar, et construit son
@@ -193,11 +195,35 @@ function auditGame(g, w, d, mw, md, next) {
   t(P + 'accepte ?server= pour tester en local',
     /new URLSearchParams\(location\.search\)\.get\('server'\)/.test(w.__netSource || ''));
 
+  // --- l'écran de jeu est un panneau, comme l'accueil et le salon
+  // Morpion est sorti de l'harmonisation avec class="card" — une classe
+  // orpheline, plus aucune règle derrière : sa section de jeu n'avait donc
+  // plus ni fond, ni bordure, ni coins coupés. Invisible tant qu'on ne
+  // regarde que l'accueil.
+  var ecran = d.getElementById('game');
+  if (ecran) t(P + 'l ecran de jeu est un panneau (pas une boite nue)',
+    ecran.classList.contains('panel'));
+
   // --- téléphone : rien ne déborde, les cibles sont atteignables au doigt
   t(P + 'telephone : pas de debordement horizontal (' + md.documentElement.scrollWidth + 'px)',
     md.documentElement.scrollWidth <= 390);
 
+  // --- LE CHROME COMMUN : on releve les metriques, on juge a la fin --------
+  // C'est le garde-fou de games/shared/game-ui.css : une modification du
+  // fichier partage ne doit pas re-diverger un jeu qui a des styles locaux.
+  var inp2 = d.querySelector('input[type=text], input:not([type]), input[type=search]');
+  CHROME.push({
+    jeu: g,
+    bouton: Math.round(main.getBoundingClientRect().height),
+    champ: inp2 ? Math.round(inp2.getBoundingClientRect().height) : null,
+    titre: (w.getComputedStyle(d.querySelector('h1')).fontFamily || '').split(',')[0].replace(/["']/g, ''),
+    fond: w.getComputedStyle(d.body).backgroundColor,
+    panneau: d.querySelectorAll('.panel').length,
+  });
+
+  auditLayout(g, w, d, mw, md);
   if (g === 'passeur') auditCourt(w, d, mw, md);
+  if (g === 'precision') auditPlateau(w, d, mw, md);
 
   next();
 }
@@ -503,9 +529,343 @@ function loadNetSource(g, w, done) {
     .catch(function () { w.__netSource = ''; done(); });
 }
 
+// Le plateau de Précision. Le jour où class="card play-card" est devenu
+// class="panel g-screen play-card", le sélecteur .card.play-card est devenu
+// ORPHELIN : plus d'aspect-ratio. Et comme toutes les épreuves vivent en
+// position:absolute, la section est retombée sur son seul rembourrage —
+// 560x45, une bande horizontale. Rien ne manquait dans le DOM, tous les
+// éléments répondaient présents : c'est précisément pour ça qu'un test
+// d'existence n'aurait rien vu. On mesure donc la SURFACE.
+function auditPlateau(w, d, mw, md) {
+  var P = 'precision/plateau : ';
+
+  // Montre l'écran de jeu et une épreuve, rend l'état d'origine ensuite.
+  // ⚠️ Il faut AUSSI cacher l'accueil : en vrai le jeu remplace le salon, et
+  // si on empile les deux, le plateau part sous la ligne de flottaison — ses
+  // points bas sortent de la fenêtre et elementFromPoint ne renvoie plus rien.
+  // (C'est ce qui a fait échouer ce test la première fois : le harnais, pas
+  // la page.)
+  var montre = function (doc, epreuve) {
+    var rendus = [], caches = [];
+    var voir = function (e) { if (e && e.hidden) { rendus.push(e); e.hidden = false; } };
+    var cacher = function (e) { if (e && !e.hidden) { caches.push(e); e.hidden = true; } };
+    cacher(doc.getElementById('home'));
+    cacher(doc.getElementById('lobby'));
+    voir(doc.getElementById('game'));
+    voir(doc.querySelector('.stage'));
+    ['shape', 'color', 'sound', 'time'].forEach(function (n) {
+      var e = doc.getElementById('stage-' + n);
+      if (!e) return;
+      if (n === epreuve) voir(e); else e.hidden = true;
+    });
+    return function () {
+      rendus.forEach(function (e) { e.hidden = true; });
+      caches.forEach(function (e) { e.hidden = false; });
+    };
+  };
+
+  var finD = montre(d, 'shape');
+  var jeu = d.getElementById('game');
+  var r = jeu.getBoundingClientRect();
+  var cs = w.getComputedStyle(jeu);
+  var dim = Math.round(r.width) + 'x' + Math.round(r.height);
+  var ratio = r.width / r.height;
+
+  // --- la grande zone est revenue
+  t(P + 'la zone de jeu est haute (' + dim + ')', r.height >= 600);
+  t(P + 'la zone de jeu est large (' + Math.round(r.width) + 'px)', r.width >= 520);
+  t(P + 'la zone est un rectangle debout, pas une bande [ratio ' + ratio.toFixed(2) + ']',
+    ratio > 0.7 && ratio < 0.95);
+  t(P + 'la zone occupe une vraie surface (' + Math.round(r.width * r.height / 1000) + ' kpx)',
+    r.width * r.height >= 350000);
+
+  // --- la cause exacte de l'effondrement, prise à la racine
+  t(P + 'le ratio 5/6 est bien applique (' + cs.aspectRatio + ')',
+    cs.aspectRatio.replace(/\s/g, '') === '5/6');
+  // Le rembourrage du socle (:where(.g-screen), spécificité NULLE) ne doit pas
+  // s'appliquer au plateau — et il est battu sans un seul !important.
+  t(P + 'le plateau n a pas le rembourrage du socle [' + cs.padding + ']',
+    parseFloat(cs.paddingTop) === 0 && parseFloat(cs.paddingLeft) === 0);
+  // On compte les DÉCLARATIONS, pas les occurrences du mot : le commentaire
+  // qui explique qu'on s'en est passé en contient un.
+  var styleLocal = d.querySelector('style').textContent.replace(/\/\*[\s\S]*?\*\//g, '');
+  t(P + 'aucun !important ajoute pour y arriver ('
+    + (styleLocal.match(/!important/g) || []).length + ')',
+    (styleLocal.match(/!important/g) || []).length <= 1);
+
+  // --- le fond : un écran d'instrument, pas le brun Mann Co. du portfolio
+  // .panel::before de tf2.css peint son dégradé AU-DESSUS du background de
+  // l'élément : c'est lui qu'il faut redéfinir. On compare au panneau d'accueil.
+  var accueil = d.getElementById('home');
+  t(P + 'la surface de jeu a son propre fond, distinct du panneau du portfolio',
+    w.getComputedStyle(jeu, '::before').backgroundImage
+      !== w.getComputedStyle(accueil, '::before').backgroundImage);
+
+  // --- les quatre épreuves remplissent la zone, aucune n'a été rognée
+  var tailles = [];
+  var toutesPleines = ['shape', 'color', 'sound', 'time'].every(function (n) {
+    var fin = montre(d, n);
+    var e = d.getElementById('stage-' + n);
+    var rr = e.getBoundingClientRect();
+    tailles.push(n + ' ' + Math.round(rr.width) + 'x' + Math.round(rr.height));
+    fin();
+    return Math.abs(rr.width - r.width) <= 2 && Math.abs(rr.height - r.height) <= 2;
+  });
+  montre(d, 'shape');
+  t(P + 'les 4 epreuves remplissent toute la zone [' + tailles.join(', ') + ']', toutesPleines);
+
+  // --- le boîtier est du DÉCOR : il ne doit jamais recevoir un clic
+  var bz = d.getElementById('bezel');
+  t(P + 'le boitier existe', !!bz);
+  if (bz) {
+    var bs = w.getComputedStyle(bz);
+    t(P + 'le boitier est hors de portee du pointeur (' + bs.pointerEvents + ')',
+      bs.pointerEvents === 'none');
+    t(P + 'le boitier est hors de l arbre d accessibilite',
+      bz.getAttribute('aria-hidden') === 'true');
+    t(P + 'le boitier passe sous le HUD (' + bs.zIndex + ' < 5)',
+      parseInt(bs.zIndex, 10) < 5);
+    // Le vrai test : 9 points répartis sur la zone, bords compris — c'est là
+    // que vivent les graduations et les équerres. Aucun ne doit tomber sur le
+    // décor ; à chaque fois c'est le gameplay qui répond.
+    var touches = [], surDecor = 0;
+    [0.04, 0.5, 0.96].forEach(function (fy) {
+      [0.04, 0.5, 0.96].forEach(function (fx) {
+        var el = d.elementFromPoint(r.left + r.width * fx, r.top + r.height * fy);
+        var nom = el ? (el.id || el.className || el.tagName) : 'rien';
+        touches.push(nom);
+        if (el && (el === bz || bz.contains(el))) surDecor++;
+      });
+    });
+    t(P + 'le decor n intercepte aucun des 9 points testes [' + touches.join(' ') + ']',
+      surDecor === 0 && touches.every(function (n) { return n !== 'rien'; }));
+
+    // COULEUR : les barres sont des contrôles collés au flanc gauche, donc
+    // sous la gouttière. Elles doivent passer DEVANT le décor, sinon on juge
+    // une teinte sur un bord assombri.
+    var finC = montre(d, 'color');
+    var bars = d.getElementById('color-bars');
+    bars.classList.add('on');
+    t(P + 'les barres de couleur passent devant le decor',
+      parseInt(w.getComputedStyle(bars).zIndex, 10) > parseInt(bs.zIndex, 10));
+    var elH = d.elementFromPoint(r.left + 18, r.top + r.height * 0.5);
+    t(P + 'le bord de la barre de teinte repond bien (' + (elH && (elH.id || elH.className)) + ')',
+      !!elH && (elH.id === 'bar-h' || (elH.className || '').indexOf('cbar') >= 0));
+    bars.classList.remove('on');
+    finC();
+    montre(d, 'shape');
+  }
+
+  // --- téléphone : plus compact, mais toujours pas une bande
+  var finM = montre(md, 'shape');
+  var rm = md.getElementById('game').getBoundingClientRect();
+  t(P + 'telephone : la zone reste haute (' + Math.round(rm.width) + 'x' + Math.round(rm.height) + ')',
+    rm.height >= 380);
+  t(P + 'telephone : toujours un rectangle debout [ratio ' + (rm.width / rm.height).toFixed(2) + ']',
+    rm.width / rm.height < 0.95);
+  t(P + 'telephone : aucun debordement horizontal (' + md.documentElement.scrollWidth + 'px)',
+    md.documentElement.scrollWidth <= 390);
+  finM();
+
+  // --- la frontière d'architecture : le socle commun ne connaît RIEN du
+  // gameplay de Précision. Si une règle de plateau y migrait, elle
+  // s'appliquerait aux six autres jeux.
+  var partage = [].filter.call(d.styleSheets, function (sh) {
+    return /shared\/game-ui\.css/.test(sh.href || '');
+  })[0];
+  var txt = '';
+  try { txt = [].map.call(partage.cssRules, function (x) { return x.cssText; }).join('\n'); }
+  catch (e) { txt = ''; }
+  t(P + 'le socle commun ignore tout du gameplay de Precision',
+    txt.length > 100 && !/play-card|bezel|shape-board|color-bars|sound-canvas/.test(txt));
+
+  finD();
+}
+
+// ═══ LA GÉOMÉTRIE DES LOBBYS ═══
+// Ce bloc existe parce qu'un lobby peut être parfaitement correct dans le DOM
+// et illisible à l'écran. Les deux pannes qu'il attrape ont été trouvées à la
+// règle, pas à l'œil :
+//  - « Créer une partie » collé à la dernière rangée d'avatars (0 px d'écart,
+//    mesuré sur quatre jeux) : le :where(#avatar-row) du socle a une
+//    spécificité nulle, donc le `* { margin: 0 }` que ces pages déclarent
+//    ensuite gagnait ;
+//  - au Demi-Cercle, « thèmes : » restait en fin de ligne pendant que sa liste
+//    passait à la ligne suivante, à côté du bouton de lancement.
+// Aucun des deux ne fait se CHEVAUCHER deux boîtes : c'est pour ça qu'il faut
+// mesurer les écarts et les lignes, pas seulement les intersections.
+function auditLayout(g, w, d, mw, md) {
+  var P = g + '/layout : ';
+
+  // Deux rectangles se mordent-ils de plus de 2 px dans les DEUX sens ? Des
+  // voisins de flex qui se touchent ne comptent pas.
+  var mord = function (a, b) {
+    var x = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+    var y = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+    return (x > 2 && y > 2) ? Math.round(x) + 'x' + Math.round(y) : null;
+  };
+  var nom = function (e) {
+    return e.tagName.toLowerCase() + (e.id ? '#' + e.id : '')
+      + (typeof e.className === 'string' && e.className
+          ? '.' + e.className.trim().split(/\s+/)[0] : '');
+  };
+  var visible = function (e, win) {
+    var cs = win.getComputedStyle(e);
+    if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+    var r = e.getBoundingClientRect();
+    return r.width > 1 && r.height > 1;
+  };
+
+  // Montre UN écran à la fois, comme le vrai jeu, et rend l'état d'origine.
+  // On révèle aussi ce qui est caché DANS l'écran (la config du MJ) : c'est ce
+  // que voit l'hôte, et c'est justement là que ça cassait.
+  var montre = function (doc, win, id, fn) {
+    var secs = doc.querySelectorAll('main > section');
+    var etat = [];
+    [].forEach.call(secs, function (x) { etat.push(x.hidden); });
+    var sec = doc.getElementById(id);
+    if (!sec) return null;
+    [].forEach.call(secs, function (x) { x.hidden = (x !== sec); });
+    var rendus = [];
+    sec.querySelectorAll('[hidden]').forEach(function (e) { rendus.push(e); e.hidden = false; });
+    var r;
+    try { r = fn(sec); } finally {
+      rendus.forEach(function (e) { e.hidden = true; });
+      [].forEach.call(secs, function (x, n) { x.hidden = etat[n]; });
+    }
+    return r;
+  };
+
+  var SEL = 'button, input, select, textarea, a, label, p, li, h1, h2, .g-copy';
+
+  // --- 1. aucun chevauchement dans l'accueil ni dans le salon
+  ['home', 'lobby'].forEach(function (id) {
+    [[w, d, 'bureau'], [mw, md, 'telephone']].forEach(function (cas) {
+      var win = cas[0], doc = cas[1], ou = cas[2];
+      var det = montre(doc, win, id, function (sec) {
+        var els = [].filter.call(sec.querySelectorAll(SEL), function (e) { return visible(e, win); });
+        var bad = [];
+        for (var i = 0; i < els.length; i++) {
+          for (var j = i + 1; j < els.length; j++) {
+            if (els[i].contains(els[j]) || els[j].contains(els[i])) continue;
+            var m = mord(els[i].getBoundingClientRect(), els[j].getBoundingClientRect());
+            if (m) bad.push(nom(els[i]) + '><' + nom(els[j]) + ' ' + m);
+          }
+        }
+        return { n: els.length, bad: bad };
+      });
+      if (!det) return;
+      t(P + id + ' ' + ou + ' : aucun chevauchement (' + det.n + ' elements)'
+        + (det.bad.length ? ' [' + det.bad.slice(0, 3).join(' | ') + ']' : ''),
+        det.bad.length === 0 && det.n > 2);
+    });
+  });
+
+  // --- 2. le bloc d'avatars ne touche pas le bouton qui le suit
+  // C'est LE cas signalé : quand les avatars passent sur deux ou trois lignes,
+  // un bouton collé se lit comme la suite de la grille d'icônes.
+  [[w, d, 'bureau'], [mw, md, 'telephone']].forEach(function (cas) {
+    var win = cas[0], doc = cas[1], ou = cas[2];
+    var det = montre(doc, win, 'home', function () {
+      var row = doc.getElementById('avatar-row'), btn = doc.getElementById('host');
+      if (!row || !btn) return null;
+      var rr = row.getBoundingClientRect(), rb = btn.getBoundingClientRect();
+      var pick = row.querySelector('.avatar-pick');
+      var hp = pick ? pick.getBoundingClientRect().height : 0;
+      return {
+        ecart: Math.round(rb.top - rr.bottom),
+        mord: mord(rr, rb),
+        lignes: hp ? Math.round(rr.height / hp) : 1
+      };
+    });
+    if (!det) return;
+    t(P + 'avatars ' + ou + ' : le bouton ne les touche pas ('
+      + det.ecart + 'px, ' + det.lignes + ' ligne(s))',
+      det.mord === null && det.ecart >= 12);
+  });
+
+  // --- 3. chaque label reste sur la ligne de sa liste
+  // ⚠️ On compare les CENTRES, pas les bords hauts : sur une même ligne de
+  // flex, un label de 18 px et un select de 40 px centrés ensemble n'ont pas
+  // le même `top`. Comparer les tops donnait de faux « séparés » partout.
+  [[w, d, 'bureau'], [mw, md, 'telephone']].forEach(function (cas) {
+    var win = cas[0], doc = cas[1], ou = cas[2];
+    var det = montre(doc, win, 'lobby', function (sec) {
+      var hc = sec.querySelector('#host-config');
+      if (!hc) return null;
+      var separes = [], colles = [];
+      hc.querySelectorAll('label[for]').forEach(function (lab) {
+        var ctl = doc.getElementById(lab.getAttribute('for'));
+        if (!ctl) return;
+        var a = lab.getBoundingClientRect(), b = ctl.getBoundingClientRect();
+        var ca = a.top + a.height / 2, cb = b.top + b.height / 2;
+        // même ligne (centres alignés) OU empilé juste au-dessus (précision)
+        var memeLigne = Math.abs(ca - cb) < 12;
+        var empile = Math.abs(a.left - b.left) < 4 && b.top >= a.bottom - 2 && b.top - a.bottom < 24;
+        if (!memeLigne && !empile) separes.push(lab.textContent.trim());
+      });
+      // et le bouton de lancement ne recouvre aucune liste
+      var st = doc.getElementById('start');
+      if (st) hc.querySelectorAll('select').forEach(function (sl) {
+        if (mord(st.getBoundingClientRect(), sl.getBoundingClientRect()))
+          colles.push(sl.id);
+      });
+      return { separes: separes, colles: colles };
+    });
+    if (!det) return;
+    t(P + 'config MJ ' + ou + ' : chaque label reste avec sa liste'
+      + (det.separes.length ? ' [' + det.separes.join(', ') + ']' : ''),
+      det.separes.length === 0);
+    t(P + 'config MJ ' + ou + ' : « Lancer » ne recouvre aucune liste'
+      + (det.colles.length ? ' [' + det.colles.join(', ') + ']' : ''),
+      det.colles.length === 0);
+  });
+
+  // --- 4. rien ne sort du panneau, à 390 px
+  var det4 = montre(md, mw, 'home', function (sec) {
+    var rs = sec.getBoundingClientRect();
+    var out = [];
+    [].filter.call(sec.querySelectorAll(SEL), function (e) { return visible(e, mw); })
+      .forEach(function (e) {
+        var r = e.getBoundingClientRect();
+        if (r.right > rs.right + 2 || r.left < rs.left - 2) out.push(nom(e));
+      });
+    return out;
+  });
+  if (det4) t(P + 'telephone : rien ne sort du panneau'
+    + (det4.length ? ' [' + det4.slice(0, 3).join(', ') + ']' : ''), det4.length === 0);
+}
+
 var i = 0;
 function next() {
   if (i >= GAMES.length) {
+    // ═══ LA COHERENCE DU CHROME ENTRE LES 7 JEUX ═══
+    // Avant l'harmonisation : boutons de 40 a 48 px, champs de 40 a 50, trois
+    // familles de titre, deux fonds differents, panneaux dans 3 jeux sur 7.
+    var P = 'chrome commun : ';
+    var hb = CHROME.map(function (c) { return c.bouton; });
+    var hc = CHROME.map(function (c) { return c.champ; }).filter(function (v) { return v; });
+    var fonds = CHROME.map(function (c) { return c.fond; });
+    var titres = CHROME.map(function (c) { return c.titre; });
+    var spread = function (a) { return Math.max.apply(null, a) - Math.min.apply(null, a); };
+
+    t(P + 'meme hauteur de bouton partout [' + hb.join(' ') + '] px',
+      spread(hb) <= 6);
+    t(P + 'meme hauteur de champ partout [' + hc.join(' ') + '] px',
+      spread(hc) <= 6);
+    t(P + 'le champ n est jamais plus haut que le bouton',
+      CHROME.every(function (c) { return c.champ === null || c.champ - c.bouton <= 6; }));
+    t(P + 'un seul fond pour les 7 jeux (' + fonds[0] + ')',
+      new Set(fonds).size === 1);
+    t(P + 'une seule famille de titre (' + titres[0] + ')',
+      new Set(titres).size === 1);
+    t(P + 'les 7 jeux utilisent le panneau commun',
+      CHROME.every(function (c) { return c.panneau >= 1; }));
+    // Et ce qui doit RESTER different : chaque jeu garde son accent.
+    var accents = CHROME.map(function (c) { return c.jeu; });
+    t(P + 'les 7 jeux sont bien tous passes en revue (' + accents.length + ')',
+      accents.length === GAMES.length);
+
     t('aucune erreur JS sur les pages de jeux', errs.length === 0);
     var head = out.ko ? 'DES TESTS ECHOUENT' : 'TOUT PASSE';
     document.getElementById('log').textContent =

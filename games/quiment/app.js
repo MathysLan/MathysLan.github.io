@@ -28,7 +28,7 @@
   };
 
   // ------------------------------------------------------------- accueil
-  let myAvatar = AVATARS[Math.floor(Math.random() * AVATARS.length)];
+  let myAvatar = GameProfile.startEmoji(AVATARS); // profil local, sinon un repli stable
   for (const em of AVATARS) {
     const b = document.createElement('button');
     b.type = 'button';

@@ -126,6 +126,108 @@ function checkPagesPaths() {
   }
 }
 
+// ------------------------------------------- data/games.manifest.json
+// Le contrat MACHINE des jeux, pour le Game Hub et le randomizer. Il est
+// GÉNÉRÉ depuis le bloc `hub` de data/games.js, qui reste la seule source de
+// vérité : on ne veut pas deux catalogues qui divergent en silence.
+//
+// Le validateur ci-dessous n'est pas de la décoration. Il tient trois
+// promesses qu'un commentaire ne tiendrait pas :
+//
+//   1. SCHÉMA FERMÉ (`CLES`). Toute clé inconnue fait échouer le build. C'est
+//      ce qui empêche un identifiant de CONTENU — une situation, une vidéo, un
+//      thème — d'arriver un jour dans le manifest. Le Hub transporte
+//      l'historique de contenu ; il ne l'interprète ni ne le fabrique, et le
+//      serveur du jeu reste seul maître de ce qu'il a consommé.
+//   2. Un jeu « live » SANS bloc `hub` fait échouer le build. Ajouter un jeu au
+//      carousel sans le déclarer au Hub devient donc impossible.
+//   3. Vocabulaires fermés pour `needs` et `categories` : une faute de frappe
+//      (« micro » au lieu de « mic ») créerait un filtre que rien ne satisfait,
+//      en silence. C'est le genre de panne qu'on ne découvre qu'en soirée.
+const CLES = {
+  commun: ['mode', 'players', 'minutes', 'needs', 'categories', 'content', 'replay'],
+  online: ['server', 'health', 'join'],
+};
+// `needs` est DÉCLARATIF : le Hub compare ce que les joueurs annoncent, il ne
+// teste jamais rien lui-même et ne demandera JAMAIS la permission micro. C'est
+// le jeu qui demande et qui vérifie, à l'entrée.
+const NEEDS = ['mic', 'cam', 'consent'];
+const CATEGORIES = ['classique', 'solo', 'reflexe', 'observation', 'bluff',
+  'discussion', 'deduction', 'creatif', 'ambiance', 'sang-froid', 'sport'];
+
+function checkHub(g) {
+  const err = (m) => { throw new Error(`data/games.js — ${g.id} : ${m}`); };
+  const h = g.hub;
+  if (g.status === 'live' && !h) err('jeu « live » sans bloc hub (le Hub ne peut pas le proposer)');
+  if (!h) return;
+  if (g.status !== 'live') err('bloc hub sur un jeu qui n\'est pas « live »');
+
+  if (h.mode !== 'online' && h.mode !== 'local') err(`mode inconnu : ${h.mode}`);
+  const permis = [...CLES.commun, ...(h.mode === 'online' ? CLES.online : [])];
+  for (const k of Object.keys(h)) {
+    if (!permis.includes(k)) err(`clé interdite dans hub : ${k} — le schéma est fermé`);
+  }
+  for (const k of permis) if (!(k in h)) err(`clé manquante : ${k}`);
+
+  // Bornes : min ≤ max, entiers positifs. Un max à 0 sortirait le jeu de tous
+  // les tirages sans rien dire à personne.
+  for (const k of ['players', 'minutes']) {
+    const v = h[k];
+    if (!v || typeof v.min !== 'number' || typeof v.max !== 'number') err(`${k} : { min, max } attendus`);
+    if (!Number.isInteger(v.min) || !Number.isInteger(v.max)) err(`${k} : entiers attendus`);
+    if (v.min < 1 || v.max < v.min) err(`${k} : bornes incohérentes (${v.min}..${v.max})`);
+  }
+  // ⚠️ `minutes` se lit AU RÉGLAGE PAR DÉFAUT du MJ, et c'est `max` que le
+  // filtre de durée compare — jamais `min`. Un « ≤ 10 min » écarte donc un jeu
+  // dont le max est 12 : rien d'implicite. Le MJ peut allonger une fois dans
+  // la partie, et le Hub ne surveille pas les réglages d'un jeu.
+
+  if (!Array.isArray(h.needs)) err('needs : tableau attendu');
+  for (const n of h.needs) if (!NEEDS.includes(n)) err(`capacité inconnue : ${n} (connues : ${NEEDS.join(', ')})`);
+  if (!Array.isArray(h.categories) || !h.categories.length) err('categories : tableau non vide attendu');
+  for (const c of h.categories) if (!CATEGORIES.includes(c)) err(`catégorie inconnue : ${c}`);
+
+  if (typeof h.content !== 'boolean' || typeof h.replay !== 'boolean') err('content et replay : booléens attendus');
+
+  if (h.mode === 'online') {
+    if (!/^wss:\/\//.test(h.server)) err('server : wss:// attendu');
+    if (!/^https:\/\//.test(h.health)) err('health : https:// attendu');
+    if (h.join !== 'v1' && h.join !== 'anon') err(`dialecte join inconnu : ${h.join}`);
+    if (!g.href) err('jeu en ligne sans href');
+  } else if (!g.action) {
+    err('jeu local sans action');
+  }
+}
+
+function buildManifest() {
+  const games = loadData('data/games.js', 'GAMES');
+  games.forEach(checkHub);
+  const out = games.filter((g) => g.hub).map((g) => ({
+    id: g.id,
+    title: g.title,
+    emoji: g.emoji,
+    ...(g.href ? { url: g.href } : { action: g.action }),
+    mode: g.hub.mode,
+    players: g.hub.players,
+    minutes: g.hub.minutes,
+    needs: g.hub.needs,
+    categories: g.hub.categories,
+    ...(g.hub.mode === 'online'
+      ? { server: g.hub.server, health: g.hub.health, join: g.hub.join }
+      : {}),
+    content: g.hub.content,
+    replay: g.hub.replay,
+  }));
+  emit('data/games.manifest.json', JSON.stringify({
+    // `version` est celle du SCHÉMA, pas du catalogue : le Hub refusera un
+    // manifest dont la majeure ne lui parle pas, plutôt que de deviner.
+    version: 1,
+    note: 'Généré par tools/build.mjs depuis data/games.js — ne pas éditer à la main.',
+    minutesBasis: 'reglage par defaut du MJ ; le filtre de duree compare max',
+    games: out,
+  }, null, 2) + '\n');
+}
+
 // ------------------------------------------------- pré-rendu dans index.html
 // Les données (data/*.js) et les gabarits (js/templates.js) sont chargés dans
 // UN même bac à sable, comme le navigateur les charge dans la page : les
@@ -206,6 +308,7 @@ function buildTailwind() {
 console.log(CHECK ? 'Vérification des fichiers générés…' : 'Génération…');
 try {
   checkPagesPaths();
+  buildManifest();
   buildIndex();
   if (!process.argv.includes('--no-css')) buildTailwind();
 } catch (e) {

@@ -124,7 +124,7 @@ function renderResults(msg) {
 
 // --- accueil ---------------------------------------------------------------
 const AVATARS = ['😎', '🤐', '🙊', '🤫', '🦊', '🐼', '🔥', '⚡', '🎬', '🎧', '🍿', '🚫'];
-myAvatar = AVATARS[Math.floor(Math.random() * AVATARS.length)];
+myAvatar = GameProfile.startEmoji(AVATARS); // profil local, sinon un repli stable
 for (const em of AVATARS) {
   const b = document.createElement('button');
   b.type = 'button'; b.className = 'avatar-pick' + (em === myAvatar ? ' picked' : ''); b.textContent = em; b.setAttribute('aria-pressed', String(em === myAvatar));

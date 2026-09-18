@@ -731,3 +731,425 @@ Deux pièges de plomberie, documentés dans `tests/README.md` :
 **Dernier passage** : partie réelle 49/49 (local et **production périmée**, deux
 modes de mouvement), jeux 206/201, front 195/194, clavier 8/8, `rules.js` 50,
 moteur 35, WebSocket 37, fichiers générés OK.
+
+## Harmonisation visuelle des 7 jeux (2026-09-19)
+
+Les cinq premiers jeux avaient leur propre DA (fond indigo, police mono,
+boutons violets arrondis) ; Le Passeur et Qui Ment ? portaient celle du
+portfolio. Les sept partagent maintenant le même **chrome**, chacun gardant son
+**gameplay** et son **accent**.
+
+### Le principe : chrome commun, gameplay propre
+
+`games/shared/game-ui.css` ne portait que du COMPORTEMENT (focus, tactile,
+mouvement réduit, messages). Il porte maintenant aussi l'HABILLAGE commun :
+fond, titres, panneaux, boutons, champs, salon, code de salle, retour.
+
+**On n'a pas créé un second système de design** : le vocabulaire vient de
+`css/tf2.css`, que les 7 pages de jeux chargent désormais (32 Ko, polices déjà
+auto-hébergées, aucune ressource externe). tf2.css ne touche globalement que
+`html` et `body` — son emprise est contenue.
+
+Et **il n'y avait presque rien à réécrire dans le balisage** : les 7 pages
+partageaient déjà les mêmes identifiants (`#name-input`, `#code-input`, `#host`,
+`#join`, `#start`, `#room-code`, `#code-hint`, `#error`, `#players`,
+`#avatar-row`) et les mêmes classes (`.join-row`, `.or`, `.sub`, `.avatar-pick`,
+`.back`). Le socle habille ces sélecteurs une fois. Seul le panneau a demandé
+une classe : `class="panel g-screen"`.
+
+⚠️ **LA RÈGLE QUI REND ÇA SÛR** : le socle est chargé AVANT le `<style>` de
+chaque jeu et ne cible que des éléments (0,0,1) ou des classes (0,1,0). Tout ce
+qu'un jeu déclare ensuite gagne. C'est ce qui permet aux boutons de GAMEPLAY —
+`.cell` du morpion, `.rate` de l'imitation, `.fab` de precision, `#stop-btn` du
+ban — de garder leur apparence sans toucher à leur balisage.
+
+Chaque jeu choisit **un** jeton : `--g-accent` (+ `--g-accent-ink`).
+Morpion violet, Demi-Cercle violet, Imitation violet, Ban rouge, Precision son
+lavande, Passeur et Qui Ment ? l'orange Mann Co.
+
+### Trois pièges rencontrés, tous les trois invisibles à l'œil nu
+
+1. ⚠️ **`:where()` a une spécificité NULLE.** Mon `button { … }` commun (0,0,1)
+   écrasait donc `:where(.avatar-pick)`, et les avatars se retrouvaient avec le
+   fond plein et les coins coupés d'un bouton d'action. `.avatar-pick` et
+   `.ghost` s'écrivent en classe NUE (0,1,0). Ne pas les remettre en `:where()`.
+2. ⚠️ **Precision redéfinissait `--bg`, `--ink`, `--line` et `--card`** — les
+   noms mêmes des jetons de tf2.css. Le fond commun ne passait pas et les
+   règles partagées résolvaient sur sa palette. Ces quatre-là ne servaient plus
+   qu'au chrome retiré (zéro usage restant) : supprimés, et son trait propre
+   renommé `--p-line`. **Ne jamais redéfinir un nom de jeton de tf2.css dans un
+   jeu** — c'est l'avertissement qui était déjà en tête de game-ui.css.
+3. ⚠️ **Le commentaire de chaque page contient les mots « dans le `<style>`
+   ci-dessous ».** Un script d'édition qui ancre sur `<style>` injecte donc son
+   CSS DANS LE COMMENTAIRE : rien ne s'applique, et rien ne le signale. Ancrer
+   sur `\n<style>\n`.
+
+### Ce qui reste volontairement différent
+
+Grille et ✕/◯ du Morpion, cadran du Demi-Cercle, double waveform de
+l'Imitation, vidéo et `#stop-btn` du Ban (gros et rouge vif : c'est du « grand
+texte » WCAG, 3:1 exigé), les 4 épreuves de Precision, terrain 2.5D du Passeur,
+carte de rôle de Qui Ment ?. Le Mann Co. est le langage de l'INTERFACE, pas
+celui du terrain.
+
+Deux différences assumées en plus :
+- le code de salle du Morpion reste **en ligne et à la taille du texte** : il
+  vit dans une rangée de méta, pas en bloc. C'est la surcharge que `.g-copy`
+  laisse passer par construction ;
+- Le Passeur et Qui Ment ? gardent des copies locales de quelques règles que le
+  socle porte aussi (champs, avatars, code de salle). Elles sont identiques —
+  c'est d'elles que le socle a été tiré — donc aucune divergence visuelle. Je ne
+  les ai pas retirées pour ne pas risquer une régression sur les deux jeux qui
+  venaient d'être validés.
+
+### Le test qui garde tout ça
+
+`tests/games.html` compare désormais **les 7 jeux entre eux** : même hauteur de
+bouton, même hauteur de champ, un seul fond, une seule famille de titre, le
+panneau commun partout. Avant : boutons de 40 à 48 px, champs de 40 à 50, trois
+familles de titre, deux fonds, panneaux dans 3 jeux sur 7. Après : **40 / 40
+partout**. C'est ce test qui rattrapera une modification du fichier partagé qui
+re-diverge un jeu ayant des styles locaux.
+
+**Dernier passage** : jeux 213/208 (deux modes), front 195, clavier 8/8 sur les
+8 pages, partie réelle du Passeur 49/49, fichiers générés OK.
+
+
+## Précision : la zone de jeu redevenue grande, et encastrée (2026-09-18)
+
+L'harmonisation avait écrasé le plateau de Précision en **bande horizontale de
+45 px de haut**. Trois causes, toutes de la migration de la veille :
+
+1. La section est passée de `class="card play-card"` à
+   `class="panel g-screen play-card"`, ce qui a rendu le sélecteur
+   **`.card.play-card` orphelin** — donc plus d'`aspect-ratio: 5/6`.
+   ⚠️ **C'est LE piège à retenir** : toutes les épreuves de Précision vivent en
+   `position: absolute; inset: 0`. Elles ne participent donc pas à la hauteur
+   de la section, qui retombe sur son seul rembourrage. Mesuré : 560×672 avant,
+   **560×45** après, ratio 12,5:1. Rien ne manquait dans le DOM, tous les
+   éléments répondaient présents — un test d'existence n'aurait rien vu.
+   Quand on renomme la classe d'un élément, **relire les sélecteurs composés**
+   qui la mentionnaient.
+2. `:where(.g-screen) { padding: 1.4rem 1.2rem }` du socle s'appliquait au
+   plateau. Ce sont ces 45 px. Le bon côté du `:where()` : spécificité nulle,
+   donc `.play-card { padding: 0 }` le bat **sans un seul `!important`**.
+3. L'ancienne `.card` portait aussi `overflow: hidden` et un fond noir, perdus
+   au passage : le plateau débordait des coins coupés et la surface de jeu était
+   **brune** (le dégradé Mann Co. du panneau) au lieu d'être noire.
+
+Corrigé, avec un écart : le plateau est maintenant **plus grand qu'avant** —
+`main:has(.play-card:not([hidden]))` l'élargit à 640 px sur grand écran, mais
+plafonné par `calc((100svh - 3.6rem) * 5/6)`, donc **c'est la largeur qui cède,
+jamais le ratio**. 1280×900 → 640×768 (+31 % d'aire) ; 1280×720 → 552×662 ;
+390×780 → 358×430. Sans `:has()`, on retombe sur les 560×672 d'avant.
+
+### Deux pièges CSS, notés pour la prochaine fois
+
+- ⚠️ **`background` sur un `.panel` ne se voit pas.** `.panel::before` de
+  tf2.css peint son dégradé à `z-index: -1` sous `isolation: isolate`, donc
+  **au-dessus** du fond de l'élément. Pour donner au plateau son noir
+  d'instrument il faut redéfinir **`.play-card::before`** — même spécificité
+  (0,1,0), notre feuille passe après tf2.css.
+- ⚠️ **Le décor ne doit jamais intercepter le gameplay.** Le boîtier est un seul
+  `<div id="bezel" aria-hidden="true">` en `pointer-events: none`, à
+  **z-index 4** : au-dessus des épreuves, sous le HUD (5), le bouton rond (6) et
+  la barre de temps (7). Vérifié par `elementFromPoint` sur 9 points, bords
+  compris — c'est là que vivent les graduations.
+  Et **les barres de teinte de l'épreuve COULEUR sont remontées à z-index 5** :
+  collées au flanc gauche, elles passaient sous la gouttière du boîtier, qui
+  assombrissait le bord de la barre H. On ne juge pas une couleur sur un bord
+  teinté. Idem pour `#reveal-view` (le classement est de la lecture, pas une
+  surface de mesure).
+
+### Ce que le boîtier dessine
+
+Précision n'est pas un terrain de sport : c'est un **appareil de mesure**, et
+c'est ce qui la distingue du Passeur. Biseau en `box-shadow` inset (lumière en
+haut, ombre en bas), vignette d'encastrement, gouttière, graduations de règle à
+deux pas sur les quatre bords, équerres de visée dans l'accent violet, liseré
+interne, plaque gravée verticale « CAL. 00—100 » en TF2 Build. **Aucune image,
+aucun fichier** : des dégradés répétés et des ombres. Tout est **local à
+`games/precision/`** — `tests/games.html` vérifie que le socle commun ne
+contient aucune règle de plateau.
+
+**Compromis assumé** : l'aperçu de l'épreuve COULEUR garde la vignette sur ses
+bords (seules les barres sont remontées). Elle se juge sur sa masse centrale,
+et remonter l'aperçu ferait disparaître le cadre pendant cette épreuve.
+
+### Au passage
+
+**Morpion avait perdu son panneau** dans la même migration : sa section de jeu
+portait encore `class="card"`, classe orpheline elle aussi — plus de fond, plus
+de bordure, plus de coins coupés. `tests/games.html` vérifie désormais pour les
+7 jeux que l'écran de jeu est bien un `.panel`.
+
+**Dernier passage** : jeux **239/234** (deux modes), front **195/194** (deux
+modes), clavier 8/8 sur les 8 pages, fichiers générés OK. Les 7 tests de
+géométrie du plateau **échouent bien sur l'état d'avant** (640×45, ratio 14,3) —
+vérifié en remettant la bande.
+
+
+## Passe de layout sur les 7 lobbys (2026-09-18)
+
+Audit à la règle des 7 jeux, accueil et salon, à 1280 et 390 px : chevauchements
+de boîtes, labels séparés de leur liste, débordements. **Deux pannes réelles**,
+et cinq jeux sortis propres — je n'ai pas touché à ce qui ne cassait pas.
+
+### ⚠️⚠️ `* { margin: 0 }` bat `:where()` — la troisième fois que ce piège mord
+
+`:where(#avatar-row) { … margin-bottom: 1rem }` du socle a une spécificité
+**nulle**. Or cinq des sept pages ouvrent leur `<style>` par
+`* { margin: 0; box-sizing: border-box }` — **spécificité nulle elle aussi**, et
+leur feuille est chargée APRÈS le socle. C'est donc l'étoile qui gagnait.
+
+Résultat mesuré : **0 px** entre la dernière rangée d'avatars et « Créer une
+partie » sur ban, demicercle, imitation et precision — contre 21 px sur passeur
+et quiment, les deux seuls à déclarer leur propre `#avatar-row` (1,0,0). Quand
+les avatars passent sur deux ou trois lignes, le bouton se lit comme la suite de
+la grille d'icônes.
+
+Correctif : la marge sort du `:where()` et s'écrit `#avatar-row { margin-bottom:
+1.25rem }` — un ID (1,0,0) passe devant l'étoile, et un jeu garde le dernier mot
+avec son propre `#avatar-row` déclaré plus loin. Écart après : 20-21 px partout.
+
+**La règle à retenir** : dans game-ui.css, `:where()` convient pour ce qu'un jeu
+doit pouvoir surcharger facilement, mais **jamais pour une propriété qu'un reset
+universel remet à zéro**. Marges et rembourrages en font partie.
+
+### Demi-Cercle : un `flex-wrap` qui cassait entre un label et sa liste
+
+`#host-config` était un `display: flex; flex-wrap: wrap` de **cinq éléments
+indépendants** (manches, liste, thèmes, liste, bouton). Rien n'y tenait un label
+avec sa liste : dès que la première ligne était pleine, « thèmes : » y restait
+pendant que son select passait à la ligne suivante, **à côté du bouton de
+lancement**. Mesuré aux DEUX largeurs — ce n'était pas un problème de téléphone
+mais de méthode.
+
+Correctif local : une grille `grid-template-columns: auto minmax(0, 1fr)`, qui
+soude chaque paire, plus `#start { grid-column: 1 / -1 }` pour que « Lancer la
+partie » ait sa propre ligne. Les listes sont plafonnées à `15rem` : sans ça un
+select de 360 px affichait « 3 ».
+
+**Les autres jeux gardent leur flex, volontairement.** Mesurés : une seule paire
+label+liste, trop étroite pour se scinder (116 px dans un conteneur de 320). Sur
+bureau ils tiennent sur une ligne — c'est la présentation compacte voulue, pas
+un défaut. Ne pas les passer en grille « par cohérence » : ça leur ajouterait une
+rangée pour rien.
+
+### Un mot sur les faux positifs
+
+Deux pistes ont été écartées après mesure, et c'est aussi bien de le noter :
+
+- ⚠️ **Comparer les bords hauts de deux éléments d'une même ligne de flex ne
+  prouve rien.** Un label de 18 px et un select de 40 px centrés ensemble ont
+  22 px d'écart de `top` alors qu'ils sont parfaitement alignés. Mon premier
+  détecteur criait « label séparé » sur les 6 jeux. **Comparer les centres.**
+- Les scores non alignés à droite dans les salons : artefact de mon harnais de
+  capture, qui ajoutait un `<span class="pts">` que le vrai `app.js` ne produit
+  jamais. Aucun jeu n'affiche de score dans son salon.
+
+Au passage : l'icône 🎙 de la note micro d'imitation tombait seule sur sa ligne
+→ espace insécable.
+
+### Les tests
+
+`tests/games.html` mesure désormais, **pour les 7 jeux et aux deux largeurs** :
+aucun chevauchement de boîtes dans l'accueil et le salon (comparaison deux à
+deux de tous les éléments de texte et de contrôle), l'écart avatars→bouton avec
+le nombre de lignes d'avatars, chaque label sur la ligne de sa liste, « Lancer »
+qui ne recouvre aucune liste, et rien qui sorte du panneau à 390 px.
+**Vérifié : 10 de ces tests échouent sur l'état d'avant**, avec les bons
+libellés (« 0px, 2 ligne(s) », « thèmes : »).
+
+**Dernier passage** : jeux **308/303** (deux modes), front 195/194 (deux modes),
+clavier 8/8, fichiers générés OK. Precision et Le Passeur n'ont pas été touchés
+et leurs tests de plateau et de terrain passent tous.
+
+
+## Game Hub, phase 1 : le manifest des jeux (2026-09-18)
+
+Première brique du futur **Mathys Game Hub** (`/games/`, orchestrateur de
+session). Le design review complet est hors dépôt ; ce qui compte ici est que
+**seule la phase 1 est faite** : le catalogue machine. Aucun serveur de hub,
+aucune room, aucun handoff, aucun randomizer.
+
+### Ce qui existe maintenant
+
+- **`data/games.js` reste la source de vérité**, avec un bloc `hub` par jeu
+  jouable (8 sur 9 — « La suite » n'en a pas, et ne doit pas en avoir).
+- **`data/games.manifest.json` est GÉNÉRÉ** par `tools/build.mjs`, comme le
+  sitemap. Ne jamais l'éditer à la main. C'est le fichier que le Hub ira
+  chercher sur GitHub Pages, exactement comme `ban-server` va déjà chercher
+  `games/ban/videos.json`.
+
+### Les trois règles du schéma, et pourquoi elles sont dans le CODE
+
+Elles sont validées par `tools/build.mjs` et testées par `tests/manifest.mjs`.
+Écrites seulement en commentaire, elles auraient dérivé en trois mois.
+
+1. ⚠️ **SCHÉMA FERMÉ.** Toute clé hors de `CLES` fait échouer le build. C'est
+   ce qui empêche un identifiant de **contenu** (situation, vidéo, thème)
+   d'entrer un jour dans le manifest : le Hub transporte l'historique de
+   contenu, il ne l'interprète ni ne le fabrique. Le serveur du jeu reste seul
+   maître de ce qu'il a consommé.
+2. ⚠️ **`minutes` = `{ min, max }` au réglage par défaut du MJ, et le filtre
+   de durée compare le `max`.** Un « ≤ 10 min » écarte donc un jeu dont le max
+   est 12 : rien d'implicite, au prix d'un filtre conservateur. Le MJ peut
+   allonger une fois dans la partie — le Hub ne surveille pas les réglages d'un
+   jeu.
+3. ⚠️ **`needs` est DÉCLARATIF.** Le Hub compare ce que les joueurs annoncent
+   et ne teste JAMAIS une capacité : il ne déclenchera aucune demande de
+   permission micro ou caméra. C'est le jeu qui demande et qui vérifie, à
+   l'entrée. Ne pas « améliorer » le Hub en lui faisant appeler
+   `getUserMedia`.
+
+Vocabulaires fermés aussi pour `needs` (`mic`, `cam`, `consent`) et
+`categories` : `needs: ['micro']` créerait un filtre que rien ne satisfait, en
+silence — le genre de panne qu'on ne découvre qu'en soirée.
+
+### Les bornes de joueurs, vérifiées
+
+| Jeu | min | max | Source |
+|-----|-----|-----|--------|
+| Morpion | 2 | 2 | duel strict |
+| Imitation | 2 | 8 | dépôt |
+| Demi-Cercle | 2 | 10 | dépôt |
+| Ban | 2 | 10 | dépôt |
+| Précision | 1 | 12 | dépôt |
+| Le Passeur | 1 | 8 | `MAX_PLAYERS` dans server.js |
+| Qui Ment ? | **3** | 8 | `E.MIN_PLAYERS` — sous 3 le vote n'a aucun sens |
+| Puissance 4 | 1 | 1 | local, sans serveur |
+
+`content` et `replay` valent `false` partout sauf `replay` sur passeur et
+quiment, où `action: 'lobby'` est vérifiée dans le serveur. **`false` veut
+dire « non supporté OU pas encore vérifié »** : dans les deux cas le Hub s'en
+passe. Ces drapeaux passeront à `true` jeu par jeu, plus tard.
+
+### Le test qui compte
+
+`tests/manifest.mjs` (`node tests/manifest.mjs`, 71 vérifications) ne se
+contente pas de relire le JSON :
+
+- il compare l'URL `wss://` annoncée à celle que le `net.js` du jeu utilise
+  **vraiment** — un copier-coller raté enverrait le Hub réveiller un serveur
+  pendant que le joueur en contacte un autre, et tout aurait l'air normal des
+  deux côtés ;
+- il vérifie le dialecte : un jeu `join: 'v1'` doit bien envoyer `name` et
+  `avatar`, un `'anon'` (Morpion) ne doit en envoyer aucun ;
+- il **casse volontairement `data/games.js`** six fois et vérifie que le build
+  échoue à chaque fois. ⚠️ Ces cas écrivent vraiment dans le fichier avant de
+  le restaurer dans un `finally` : si le test est interrompu, regarder
+  `git diff data/games.js` avant de commiter.
+
+### Décisions déjà prises pour la suite (ne pas les rouvrir sans raison)
+
+Pilote **Le Passeur** ; navigation **même onglet** (donc un `resumeToken` sera
+nécessaire dès le serveur de hub) ; photo de profil **au Hub seulement**, emoji
+conservé dans les jeux ; pré-réveil Render **au moment du tirage** ; public
+**entre amis** ; `/games/` **remplacera** le faux randomizer de `js/gamehub.js`.
+
+⚠️ Deux limites de l'existant, mesurées, qui commanderont les phases tardives :
+les serveurs tronquent l'avatar à 4 caractères (`slice(0, 4)`), donc une image
+ne peut pas les atteindre ; et `E.deal()` est rappelé à chaque `start`, donc
+« rejouer » efface l'anti-répétition de contenu.
+
+**Dernier passage** : manifest 71/71, jeux 308, front 195, fichiers générés OK.
+
+
+## Game Hub, phase 2 : le profil local (2026-09-18)
+
+Deuxième brique du Game Hub : **une identité commune au portfolio**, pseudo +
+avatar, retenue d'un jeu à l'autre. Toujours aucun serveur de hub, aucune room,
+aucun handoff, aucun randomizer.
+
+    localStorage  →  games/shared/game-profile.js  →  pages de jeux
+
+Et rien de plus. Le module n'ouvre aucun socket et ne connaît ni serveur, ni
+règle, ni score.
+
+### Le contrat
+
+```js
+{ v: 1, id: 'p_7f3a91c2', name: 'Mathys',
+  avatar: { kind: 'emoji' | 'image', emoji: '🦊', src?: 'data:image/webp;…' } }
+```
+
+Clé `localStorage` : **`mathys_game_profile`**. `id` est LOCAL — aucun serveur
+ne le reçoit, et il ne prouve rien : le jour où le Hub existera, l'autorité
+viendra du socket, comme dans les sept jeux aujourd'hui.
+
+**L'emoji est toujours présent, même en mode image.** C'est lui le repli, et
+c'est lui qui voyage.
+
+### Trois bornes, toutes prises dans les vrais serveurs
+
+- `name` : 16 caractères — c'est le `slice(0, 16)` des six serveurs.
+- ⚠️ `emoji` : **4 unités UTF-16 maximum**. Les serveurs font
+  `String(avatar || '🙂').slice(0, 4)`, et ce `slice` compte des unités UTF-16,
+  pas des emojis. Les douze icônes actuelles en font 2 ou 3, donc tout passe —
+  mais un emoji à ZWJ (👨‍👩‍👧 = 8 unités) serait coupé en plein milieu et
+  arriverait cassé chez les autres joueurs. Le module le refuse ici plutôt que
+  de laisser le serveur trancher.
+- `src` : 12 Ko, et uniquement une data-URL **webp ou png** produite par notre
+  canvas. SVG refusé par construction (il peut porter du script, et un canvas
+  n'en écrit jamais).
+
+Un profil illisible, une version inconnue, un champ du mauvais type : on repart
+sur un profil neuf **sans jamais lever d'exception**. `sanitize()` est le seul
+point d'entrée, et c'est là que viendra se brancher une migration le jour où
+`v` changera.
+
+### ⚠️ L'image ne part PAS en jeu, et c'est voulu
+
+`slice(0, 4)` : une URL n'y tient pas, une image encore moins. La photo reste
+donc **locale** (elle servira au futur Hub) et c'est l'emoji qui voyage.
+L'interface le dit au joueur : « gardée pour toi — en jeu, c'est ton icône qui
+s'affiche ». Ne pas « corriger » ça sans étendre d'abord les six serveurs.
+
+### ⚠️ Morpion : l'exception, et elle est structurelle
+
+`morpion-server/src/server.js` lit `onJoin(ws, msg.code)` : **ni pseudo, ni
+avatar**. Sa page n'a d'ailleurs ni `#name-input` ni `#avatar-row`.
+`game-profile.js` n'y est donc **pas chargé** — on ne lui envoie pas une
+identité qu'il ne sait pas recevoir. Un commentaire dans
+`games/morpion/index.html` le dit, et `tests/profile.mjs` le vérifie.
+
+### Ce qui a changé dans les six autres jeux
+
+**Une seule ligne par jeu.** `AVATARS[Math.floor(Math.random() * …)]` devient
+`GameProfile.startEmoji(AVATARS)`. Tout le reste — préremplissage du pseudo,
+enregistrement au clic sur un avatar, choix de photo — est branché par le
+module lui-même, par délégation sur `#avatar-row` et `#name-input`, sans
+toucher au balisage. Les écouteurs du jeu continuent de fonctionner à côté.
+
+`startEmoji(liste)` : garde l'emoji du profil s'il figure dans les douze de ce
+jeu ; sinon en choisit un **de façon stable** (dérivé de l'id local), et **ne
+réécrit jamais** le choix du joueur. Les six jeux ne proposent pas les mêmes
+douze icônes : un tirage au sort changerait d'avatar à chaque rechargement.
+
+Le pseudo est enregistré à l'événement `change` (sortie du champ), pas à chaque
+frappe, plus un filet en phase de capture sur `#host` et `#join`.
+
+### Deux pièges rencontrés, et notés
+
+- ⚠️ **`width: 1px` ne suffit pas à masquer un champ.** Le `input {}` générique
+  du socle pose 8/12,8 px de rembourrage, et en `box-sizing: border-box` une
+  largeur de 1px ne peut pas descendre sous rembourrage + bordure : le champ
+  fichier occupait encore **30 × 20 px**, invisible mais bien présent dans la
+  mise en page. Il faut `padding: 0; border: 0; min-height: 0`. C'est
+  `tests/games.html` qui l'a vu, en comparant les boîtes deux à deux.
+- ⚠️ **`tests/keyboard.mjs` passe de 14 à 18 tabulations** : sans ça le nouveau
+  bouton « ajouter une photo » n'était jamais atteint, et sa couverture aurait
+  baissé en silence.
+
+`games/shared/game-ui.css` est passé en `?v=3` sur les **sept** pages : la
+feuille a changé, le cache devait sauter.
+
+### Tests
+
+`node tests/profile.mjs` : **41 vérifications unitaires + 31 d'intégration**,
+sur un vrai serveur HTTP local (voir tests/README.md pour le pourquoi).
+
+**Dernier passage** : profil 41 + 31, jeux 308/303, front 195/194, clavier 8/8
+(18 tabulations), manifest 71, partie réelle du Passeur 49/49 contre un serveur
+local, fichiers générés OK.

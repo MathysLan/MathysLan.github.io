@@ -21,87 +21,66 @@
 <!-- Socle commun des pages de jeux : focus clavier, mouvement réduit, cibles
      tactiles, messages d'état, et les deux polices auto-hébergées (plus aucun
      appel à Google Fonts). La DA du jeu reste dans le <style> ci-dessous. -->
-<link rel="stylesheet" href="../shared/game-ui.css?v=1">
+<link rel="stylesheet" href="../../css/tf2.css?v=9">
+<link rel="stylesheet" href="../shared/game-ui.css?v=3">
 <style>
+  /* L'accent du Morpion : le violet de son X. Tout le chrome — panneaux,
+     boutons, champs, titres, salon, code de salle — vient du socle commun
+     (games/shared/game-ui.css) exprimé avec les jetons de css/tf2.css.
+     Ici il ne reste que la MISE EN PAGE et le PLATEAU. */
+  :root { --g-accent: #8b5cf6; --g-accent-ink: #0f0b1a; }
+
   * { margin: 0; box-sizing: border-box; }
   body {
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #0a0a12;
-    color: #e7e5f4;
-    font-family: 'JetBrains Mono', monospace;
     padding: 1.5rem;
   }
   main { width: min(420px, 100%); text-align: center; }
-  h1 { font-size: 1.3rem; margin-bottom: .4rem; }
-  h1 .x { color: #8b5cf6; }
-  h1 .o { color: #f59e0b; }
-  .sub { color: #8b87a0; font-size: .75rem; margin-bottom: 2rem; }
+  h1 .o { color: var(--q-unique); }
 
-  .card {
-    background: rgba(255, 255, 255, 0.045);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 14px;
-    padding: 1.6rem;
-  }
-  button {
-    font: inherit;
-    cursor: pointer;
-    background: #7c3aed;
-    color: #fff;
-    border: none;
-    border-radius: 10px;
-    padding: .8rem 1.4rem;
-  }
-  button:hover { background: #6d28d9; }
-  .or { color: #8b87a0; font-size: .75rem; margin: 1.1rem 0; }
-  .join-row { display: flex; gap: .6rem; justify-content: center; }
-  input {
-    font: inherit;
-    width: 7.5rem;
-    text-align: center;
-    text-transform: uppercase;
-    letter-spacing: .3em;
-    background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    border-radius: 10px;
-    color: #e7e5f4;
-    padding: .8rem .4rem;
-    outline: none;
-  }
-  input:focus { border-color: #8b5cf6; }
-  .join-row button { background: transparent; border: 1px solid rgba(255, 255, 255, 0.18); color: #e7e5f4; }
-  .join-row button:hover { border-color: #34d399; color: #34d399; background: transparent; }
+  .join-row { justify-content: center; }
+  .join-row button { flex: 0 0 auto; }
 
-  .meta { display: flex; justify-content: space-between; font-size: .75rem; color: #9b98ad; margin-bottom: .4rem; }
-  .meta b { color: #34d399; letter-spacing: .2em; }
-  /* Le code se copie au clic, comme dans les quatre autres jeux. Ici il vit
-     dans une rangee de meta : en ligne, pas en bloc comme .g-copy par defaut. */
-  #room-code { display: inline; width: auto; color: #34d399; letter-spacing: .2em; }
-  #room-code:hover { color: #6ee7b7; }
-  #code-hint { color: #8b87a0; font-size: .7rem; margin-bottom: .9rem; min-height: 1.2em; }
+  .meta { display: flex; justify-content: space-between; font-size: .75rem; color: var(--ink-3); margin-bottom: .4rem; }
+  .meta b { color: var(--g-accent); letter-spacing: .2em; }
+  /* Le code se copie au clic, comme partout. Ici il vit dans une rangee de
+     meta : en ligne et a la taille du texte, pas en bloc de 2,4rem comme le
+     defaut du socle. C'est la difference voulue que .g-copy laisse passer. */
+  #room-code { display: inline; width: auto; font-size: inherit; text-indent: 0;
+    color: var(--g-accent); letter-spacing: .2em; }
+  #room-code:hover { color: var(--ink); }
+  #code-hint { margin-bottom: .9rem; }
+  /* --- LE PLATEAU : le gameplay, et il reste lui-meme. Pas de coin coupe,
+         pas de biseau, pas de capitales : le Mann Co. est le langage de
+         l'interface, pas celui de la grille. --- */
   #board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .cell {
     aspect-ratio: 1;
+    font-family: 'JetBrains Mono', monospace;
     font-size: 2.1rem;
     font-weight: 700;
-    background: #11111c;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    text-transform: none;
+    letter-spacing: 0;
+    padding: 0;
+    background: var(--bg-deep);
+    border: 1px solid var(--line);
     border-radius: 12px;
-    color: #e7e5f4;
+    box-shadow: none;
+    clip-path: none;
+    color: var(--ink);
   }
-  .cell:hover { background: #171724; border-color: rgba(139, 92, 246, 0.5); }
-  .cell:disabled { cursor: default; background: #11111c; }
+  .cell:hover { filter: none; background: #171724; border-color: rgba(139, 92, 246, .5); }
+  .cell:active { transform: none; }
+  .cell:disabled { cursor: default; background: var(--bg-deep); }
   .cell.X { color: #8b5cf6; }
   .cell.O { color: #f59e0b; }
   .cell.win { border-color: #34d399; box-shadow: 0 0 14px -4px #34d399; }
 
-  #status { margin-top: 1.2rem; font-size: .85rem; color: #9b98ad; min-height: 1.4em; }
-  #error { margin-top: 1rem; font-size: .8rem; color: #ef4444; min-height: 1.2em; }
-  .back { display: inline-block; margin-top: 1.6rem; color: #8b87a0; font-size: .75rem; text-decoration: none; }
-  .back:hover { color: #e7e5f4; }
+  #status { margin-top: 1.2rem; font-size: .85rem; color: var(--ink-3); min-height: 1.4em; }
+  #error { margin-top: 1rem; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -110,7 +89,7 @@
     <h1>Morpion <span class="x">✕</span><span class="o">◯</span></h1>
     <p class="sub">multijoueur — le serveur arbitre, le front affiche</p>
 
-    <section id="home" class="card">
+    <section id="home" class="panel g-screen">
       <button id="host">Créer une partie</button>
       <p class="or">— ou —</p>
       <div class="join-row">
@@ -119,7 +98,7 @@
       </div>
     </section>
 
-    <section id="game" class="card" hidden>
+    <section id="game" class="panel g-screen" hidden>
       <div class="meta">
         <span>room <button type="button" id="room-code" class="g-copy" title="clique pour copier">····</button></span>
         <span>tu joues <b id="you">·</b></span>
@@ -132,6 +111,12 @@
     <p id="error" class="g-error" role="alert"></p>
     <a class="back" href="../../">← retour au portfolio</a>
   </main>
+  <!-- ⚠️ Pas de games/shared/game-profile.js ici, et c'est VOULU.
+       morpion-server lit `onJoin(ws, msg.code)` : ni pseudo, ni avatar —
+       vérifié dans morpion-server/src/server.js. Cette page n'a d'ailleurs
+       ni #name-input ni #avatar-row. On ne lui envoie donc pas une identité
+       qu'elle ne sait pas recevoir. À rebrancher le jour où le serveur
+       acceptera name + avatar, pas avant. -->
   <script src="net.js"></script>
 </body>
 </html>

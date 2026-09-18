@@ -24,7 +24,8 @@ const arg = (n) => { const i = process.argv.indexOf(n); return i > 0 ? process.a
 
 const EDGE = arg('--edge') || 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
 const PORT = 9333;
-const TABS = 14;   // assez pour parcourir l'accueil de chaque page
+const TABS = 18;   // assez pour parcourir l'accueil de chaque page,
+                   // y compris le choix de photo ajoute par game-profile.js
 
 const PAGES = [
   ['index.html', `file://${ROOT}/index.html`],

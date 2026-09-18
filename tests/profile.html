@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Test du profil local</title>
+<style>
+  body { margin:0; background:#111; color:#8f8; font:13px/1.6 monospace; }
+  #log { padding:10px; white-space:pre-wrap; }
+</style>
+</head>
+<body>
+<div id="log">chargement…</div>
+<!-- ⚠️ À SERVIR EN HTTP, pas en file:// — Chromium refuse localStorage sur un
+     document file://, et le module retomberait sur ses valeurs par défaut :
+     tous les tests passeraient sans rien prouver. `node tests/profile.mjs`
+     lance le petit serveur statique qu'il faut. -->
+<script src="../games/shared/game-profile.js"></script>
+<script>
+// Tests unitaires du module de profil. Cette page n'a ni #name-input ni
+// #avatar-row : le module ne branche donc rien, et on teste l'API seule.
+var out = [], ko = 0;
+function t(nom, ok, detail) {
+  out.push((ok ? 'OK   ' : 'KO   ') + nom + (detail ? ' — ' + detail : ''));
+  if (!ok) ko++;
+}
+var P = window.GameProfile;
+var K = P.KEY;
+var brut = function () { return localStorage.getItem(K); };
+
+function fini() {
+  var head = ko ? 'DES TESTS ECHOUENT' : 'TOUT PASSE';
+  document.getElementById('log').textContent =
+    head + ' — ' + out.length + ' verifications\n\n' + out.join('\n');
+  window.__RESULT = { total: out.length, ko: ko, lines: out };
+  document.title = 'FINI';
+}
+
+(async function () {
+  // --- le stockage est-il vraiment disponible ? sinon tout le reste ment
+  var dispo = false;
+  try { localStorage.setItem('__t', '1'); localStorage.removeItem('__t'); dispo = true; } catch (e) {}
+  t('localStorage disponible (sinon les tests ne prouvent rien)', dispo);
+  if (!dispo) return fini();
+
+  // --- profil vide
+  P.reset();
+  var p = P.load();
+  t('profil vide : version 1', p.v === 1);
+  t('profil vide : un id local est tiré', /^p_[a-z0-9]{1,16}$/.test(p.id), p.id);
+  t('profil vide : nom vide', p.name === '');
+  t('profil vide : un emoji de repli existe', typeof p.avatar.emoji === 'string' && p.avatar.emoji.length > 0);
+  t('profil vide : rien n\'est écrit tant qu\'on ne sauvegarde pas', brut() === null);
+
+  // --- sauvegarde puis relecture
+  P.setName('Mathys');
+  P.setEmoji('🦊');
+  var relu = P.load();
+  t('lecture après sauvegarde : le nom revient', relu.name === 'Mathys', relu.name);
+  t('lecture après sauvegarde : l\'emoji revient', relu.avatar.emoji === '🦊', relu.avatar.emoji);
+  t('l\'id ne change pas d\'une sauvegarde à l\'autre', relu.id === P.load().id);
+
+  // --- nom : bornes alignées sur les serveurs (slice(0, 16))
+  P.setName('Bartholomew-Alexandre-de-la-Tour');
+  t('nom trop long : tronqué à 16', P.load().name.length === 16, '« ' + P.load().name + ' »');
+  P.setName('   Léa   ');
+  t('nom : espaces retirés', P.load().name === 'Léa', '« ' + P.load().name + ' »');
+  P.setName('');
+  t('nom vide : accepté, rien ne casse', P.load().name === '');
+  P.setName('Mathys');
+
+  // --- emoji : le garde-fou du slice(0, 4) côté serveur
+  // Un emoji composé (ZWJ) fait 8 unités UTF-16 : le serveur le couperait en
+  // plein milieu et il arriverait cassé chez les autres. On le refuse ici.
+  var avant = P.load().avatar.emoji;
+  P.setEmoji('👨‍👩‍👧');
+  t('emoji trop long (ZWJ) refusé, l\'ancien est gardé',
+    P.load().avatar.emoji === avant, P.load().avatar.emoji + ' (' + '👨‍👩‍👧'.length + ' unités UTF-16)');
+  P.setEmoji('');
+  t('emoji vide refusé', P.load().avatar.emoji === avant);
+  P.setEmoji('🐼');
+  t('emoji valide accepté', P.load().avatar.emoji === '🐼');
+
+  // --- profil corrompu / version inconnue : jamais d'exception
+  localStorage.setItem(K, '{ ceci n\'est pas du JSON');
+  var c = null, boom = false;
+  try { c = P.load(); } catch (e) { boom = true; }
+  t('profil illisible : aucune exception', !boom);
+  t('profil illisible : on repart sur un profil valide', !!c && c.v === 1 && c.name === '');
+
+  localStorage.setItem(K, JSON.stringify({ v: 99, name: 'Zoé', avatar: { kind: 'emoji', emoji: '🦊' } }));
+  t('version inconnue : profil neuf, rien n\'est deviné', P.load().name === '');
+
+  localStorage.setItem(K, JSON.stringify({ v: 1, name: 42, avatar: 'pas un objet' }));
+  var n = P.load();
+  t('champs de mauvais type : ramenés à des valeurs sûres',
+    n.name === '' && n.avatar.kind === 'emoji' && typeof n.avatar.emoji === 'string');
+
+  // --- image : ce qui est refusé
+  var svg = new File(['<svg xmlns="http://www.w3.org/2000/svg"><script>x</scr' + 'ipt></svg>'],
+    'x.svg', { type: 'image/svg+xml' });
+  var r1 = await P.normalizeImage(svg);
+  t('SVG refusé (il peut porter du script)', r1.ok === false, r1.error);
+
+  var txt = new File(['bonjour'], 'x.txt', { type: 'text/plain' });
+  t('type non image refusé', (await P.normalizeImage(txt)).ok === false);
+  t('aucun fichier : refus propre', (await P.normalizeImage(null)).ok === false);
+
+  var faux = new File([new Uint8Array([1, 2, 3, 4])], 'x.png', { type: 'image/png' });
+  t('fichier annoncé png mais illisible : refus propre', (await P.normalizeImage(faux)).ok === false);
+
+  // --- image : le vrai passage par canvas
+  var grande = document.createElement('canvas');
+  grande.width = 1400; grande.height = 900;
+  var g = grande.getContext('2d');
+  for (var i = 0; i < 400; i++) {
+    g.fillStyle = 'hsl(' + (i * 7 % 360) + ' 80% 50%)';
+    g.fillRect((i * 37) % 1400, (i * 53) % 900, 60, 60);
+  }
+  var blob = await new Promise(function (res) { grande.toBlob(res, 'image/png'); });
+  t('image source fabriquée (' + Math.round(blob.size / 1024) + ' Ko)', blob.size > 20000);
+
+  var r2 = await P.setImage(new File([blob], 'photo.png', { type: 'image/png' }));
+  t('image acceptée et normalisée', r2.ok === true, r2.error || '');
+  if (r2.ok) {
+    var pi = P.load();
+    t('image : stockée en data-URL webp ou png',
+      /^data:image\/(webp|png);base64,/.test(pi.avatar.src), pi.avatar.src.slice(0, 24));
+    t('image : sous la limite de 12 Ko (' + Math.round(pi.avatar.src.length / 1024) + ' Ko de data-URL)',
+      pi.avatar.src.length <= P.MAX_IMAGE * 2);
+    t('image : l\'avatar passe en kind=image', pi.avatar.kind === 'image');
+    t('image : l\'emoji reste présent comme repli',
+      typeof pi.avatar.emoji === 'string' && pi.avatar.emoji.length > 0, pi.avatar.emoji);
+    t('image : le profil entier reste léger (' + Math.round(brut().length / 1024) + ' Ko)',
+      brut().length < 20 * 1024);
+  }
+
+  // --- image trop grosse dans un profil déjà stocké : rejetée à la relecture
+  var trop = 'data:image/webp;base64,' + new Array(P.MAX_IMAGE * 2 + 50).join('A');
+  localStorage.setItem(K, JSON.stringify({ v: 1, id: 'p_abc', name: 'Zoé',
+    avatar: { kind: 'image', emoji: '🦊', src: trop } }));
+  var gros = P.load();
+  t('image trop grosse : ignorée, repli sur l\'emoji',
+    gros.avatar.kind === 'emoji' && !gros.avatar.src);
+  t('image trop grosse : le reste du profil survit', gros.name === 'Zoé');
+
+  localStorage.setItem(K, JSON.stringify({ v: 1, id: 'p_abc', name: 'Zoé',
+    avatar: { kind: 'image', emoji: '🦊', src: 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=' } }));
+  t('src SVG déjà en stockage : ignorée aussi',
+    P.load().avatar.kind === 'emoji');
+
+  // --- retirer l'image
+  await P.setImage(new File([blob], 'photo.png', { type: 'image/png' }));
+  P.clearImage();
+  var apres = P.load();
+  t('retirer la photo : retour à l\'emoji', apres.avatar.kind === 'emoji' && !apres.avatar.src);
+  t('retirer la photo : le nom est conservé', apres.name === 'Zoé');
+
+  // --- startEmoji
+  var LISTE = ['😎', '🤖', '👻', '🐸', '🦊', '🐼'];
+  P.setEmoji('🦊');
+  t('startEmoji : garde l\'emoji du profil s\'il est proposé', P.startEmoji(LISTE) === '🦊');
+  P.setEmoji('🎬');
+  var s1 = P.startEmoji(LISTE), s2 = P.startEmoji(LISTE);
+  t('startEmoji : repli pris dans la liste du jeu', LISTE.indexOf(s1) >= 0, s1);
+  t('startEmoji : repli STABLE d\'un appel à l\'autre', s1 === s2);
+  t('startEmoji : ne réécrit jamais le choix du joueur', P.load().avatar.emoji === '🎬');
+
+  // --- reset
+  P.reset();
+  t('reset : la clé est effacée', brut() === null);
+  t('reset : on retrouve un profil neuf', P.load().name === '');
+
+  fini();
+})().catch(function (e) {
+  t('EXCEPTION pendant les tests', false, e && e.message);
+  fini();
+});
+</script>
+</body>
+</html>

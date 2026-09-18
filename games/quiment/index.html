@@ -22,7 +22,7 @@
      (palette, polices, primitives) + socle commun des pages de jeux (focus
      clavier, mouvement réduit, cibles tactiles, messages d'état). -->
 <link rel="stylesheet" href="../../css/tf2.css?v=9">
-<link rel="stylesheet" href="../shared/game-ui.css?v=1">
+<link rel="stylesheet" href="../shared/game-ui.css?v=3">
 <style>
   /* Seulement ce qui est propre à Qui Ment ?. Tout le reste vient de tf2.css. */
   body { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem 1rem; }
@@ -237,6 +237,9 @@
     <p class="center"><a class="back" href="../../">← retour au portfolio</a></p>
   </main>
 
+  <!-- Profil local (pseudo + avatar) : chargé AVANT app.js, qui lui demande
+       l'emoji de départ. Aucun réseau, aucune règle de jeu. -->
+  <script src="../shared/game-profile.js"></script>
   <script src="net.js?v=1"></script>
   <script src="app.js?v=1"></script>
 </body>

@@ -1,0 +1,207 @@
+{
+  "version": 1,
+  "note": "Généré par tools/build.mjs depuis data/games.js — ne pas éditer à la main.",
+  "minutesBasis": "reglage par defaut du MJ ; le filtre de duree compare max",
+  "games": [
+    {
+      "id": "morpion",
+      "title": "Morpion",
+      "emoji": "⭕",
+      "url": "games/morpion/",
+      "mode": "online",
+      "players": {
+        "min": 2,
+        "max": 2
+      },
+      "minutes": {
+        "min": 1,
+        "max": 5
+      },
+      "needs": [],
+      "categories": [
+        "classique"
+      ],
+      "server": "wss://morpion-server-eygy.onrender.com",
+      "health": "https://morpion-server-eygy.onrender.com/",
+      "join": "anon",
+      "content": false,
+      "replay": false
+    },
+    {
+      "id": "imitation",
+      "title": "Imitation",
+      "emoji": "🎤",
+      "url": "games/imitation/",
+      "mode": "online",
+      "players": {
+        "min": 2,
+        "max": 8
+      },
+      "minutes": {
+        "min": 6,
+        "max": 15
+      },
+      "needs": [
+        "mic"
+      ],
+      "categories": [
+        "creatif",
+        "ambiance"
+      ],
+      "server": "wss://imitation-server.onrender.com",
+      "health": "https://imitation-server.onrender.com/",
+      "join": "v1",
+      "content": false,
+      "replay": false
+    },
+    {
+      "id": "demicercle",
+      "title": "Demi-Cercle",
+      "emoji": "🎯",
+      "url": "games/demicercle/",
+      "mode": "online",
+      "players": {
+        "min": 2,
+        "max": 10
+      },
+      "minutes": {
+        "min": 2,
+        "max": 15
+      },
+      "needs": [],
+      "categories": [
+        "discussion",
+        "deduction"
+      ],
+      "server": "wss://demicercle-server.onrender.com",
+      "health": "https://demicercle-server.onrender.com/",
+      "join": "v1",
+      "content": false,
+      "replay": false
+    },
+    {
+      "id": "puissance4",
+      "title": "Puissance 4",
+      "emoji": "🔴",
+      "action": "connect4",
+      "mode": "local",
+      "players": {
+        "min": 1,
+        "max": 1
+      },
+      "minutes": {
+        "min": 2,
+        "max": 6
+      },
+      "needs": [],
+      "categories": [
+        "classique",
+        "solo"
+      ],
+      "content": false,
+      "replay": false
+    },
+    {
+      "id": "ban",
+      "title": "Le Jeu du Ban",
+      "emoji": "🚫",
+      "url": "games/ban/",
+      "mode": "online",
+      "players": {
+        "min": 2,
+        "max": 10
+      },
+      "minutes": {
+        "min": 5,
+        "max": 12
+      },
+      "needs": [
+        "consent"
+      ],
+      "categories": [
+        "sang-froid",
+        "ambiance"
+      ],
+      "server": "wss://ban-server-68h9.onrender.com",
+      "health": "https://ban-server-68h9.onrender.com/",
+      "join": "v1",
+      "content": false,
+      "replay": false
+    },
+    {
+      "id": "precision",
+      "title": "Précision",
+      "emoji": "🎯",
+      "url": "games/precision/",
+      "mode": "online",
+      "players": {
+        "min": 1,
+        "max": 12
+      },
+      "minutes": {
+        "min": 3,
+        "max": 10
+      },
+      "needs": [],
+      "categories": [
+        "reflexe",
+        "observation"
+      ],
+      "server": "wss://precision-server.onrender.com",
+      "health": "https://precision-server.onrender.com/",
+      "join": "v1",
+      "content": false,
+      "replay": false
+    },
+    {
+      "id": "passeur",
+      "title": "Le Passeur",
+      "emoji": "🏐",
+      "url": "games/passeur/",
+      "mode": "online",
+      "players": {
+        "min": 1,
+        "max": 8
+      },
+      "minutes": {
+        "min": 3,
+        "max": 8
+      },
+      "needs": [],
+      "categories": [
+        "reflexe",
+        "sport"
+      ],
+      "server": "wss://passeur-server.onrender.com",
+      "health": "https://passeur-server.onrender.com/",
+      "join": "v1",
+      "content": false,
+      "replay": true
+    },
+    {
+      "id": "quiment",
+      "title": "Qui Ment ?",
+      "emoji": "🕵️",
+      "url": "games/quiment/",
+      "mode": "online",
+      "players": {
+        "min": 3,
+        "max": 8
+      },
+      "minutes": {
+        "min": 8,
+        "max": 15
+      },
+      "needs": [],
+      "categories": [
+        "bluff",
+        "discussion"
+      ],
+      "server": "wss://qui-ment-server.onrender.com",
+      "health": "https://qui-ment-server.onrender.com/",
+      "join": "v1",
+      "content": false,
+      "replay": true
+    }
+  ]
+}

@@ -158,3 +158,245 @@
   font-size: .75rem;
   text-decoration: none;
 }
+
+/* ============================================================================
+   LE CHROME COMMUN
+   ----------------------------------------------------------------------------
+   Tout ce qui précède est du COMPORTEMENT (focus, tactile, mouvement réduit).
+   Ce qui suit est l'HABILLAGE commun des pages de jeux : fond, titres,
+   panneaux, boutons, champs, salon, code de salle, messages.
+
+   Pourquoi ici et pas un nouveau fichier : les sept pages partagent déjà le
+   même balisage — mêmes identifiants (#name-input, #code-input, #host, #join,
+   #start, #room-code, #code-hint, #error, #players, #avatar-row) et mêmes
+   classes (.join-row, .or, .sub, .avatar-pick, .back). Il n'y a donc rien à
+   inventer : il suffit d'habiller ces sélecteurs une fois.
+
+   Et on n'invente pas non plus de palette : le vocabulaire vient de
+   css/tf2.css, que chaque page de jeu charge désormais. Pas de second système
+   de design, pas de framework, pas une ligne de CSS téléchargée.
+
+   ⚠️ LA RÈGLE QUI REND TOUT ÇA SÛR : ce fichier est chargé AVANT le <style>
+   de chaque jeu, et il ne cible que des sélecteurs d'ÉLÉMENT (0,0,1) ou de
+   CLASSE (0,1,0). Tout ce qu'un jeu déclare ensuite gagne. C'est ce qui
+   permet aux boutons de GAMEPLAY — .cell du morpion, .avatar-pick, .rate de
+   l'imitation, .fab de precision, #stop-btn du ban — de garder leur
+   apparence sans qu'on touche à leur balisage.
+
+   Ce qui reste propre à chaque jeu : son accent (--g-accent) et tout son
+   gameplay. Le Mann Co. est le langage de l'INTERFACE, pas du terrain.
+   ========================================================================= */
+
+:root {
+  /* Le seul jeton qu'un jeu a besoin de choisir. Par défaut l'orange Mann Co. */
+  --g-accent: var(--orange, #cf7336);
+  --g-accent-ink: var(--on-orange, #2a1b10);
+  --g-cut: 7px;                /* le coin coupé, comme les panneaux du site */
+}
+
+/* ------------------------------------------------------------------ En-tête
+   Même rythme partout : titre, sous-titre, puis le jeu. Compact — sur
+   téléphone le gameplay passe avant l'en-tête. */
+:where(h1) {
+  font-size: clamp(1.45rem, 5.5vw, 1.9rem);
+  line-height: 1.1;
+  margin: 0 0 .2rem;
+  text-align: center;
+}
+:where(h1) .a, :where(h1) .x, :where(h1) .o { color: var(--g-accent); }
+:where(.sub) {
+  color: var(--ink-3);
+  font-size: .8rem;
+  text-align: center;
+  margin: 0 0 1.4rem;
+}
+
+/* ------------------------------------------------------------------ Écran
+   À poser avec `.panel` de tf2.css : `class="panel g-screen"`. Le panneau
+   fournit l'aplat, le biseau et les coins coupés ; on n'ajoute que le
+   rembourrage, pour que le gameplay reste libre à l'intérieur. */
+:where(.g-screen) { padding: 1.4rem 1.2rem; }
+
+/* ------------------------------------------------------------------ Boutons
+   Les cinq anciennes pages déclaraient toutes `button { … }` de la même façon
+   (fond plein, radius 10, bas de casse). On le fait ici une fois. */
+button {
+  /* Le gabarit est celui de `.tf-btn` du portfolio : 40 px de haut, la même
+     hauteur que les champs. C'est ce qui fait que les sept jeux ont des
+     boutons de la même taille — vérifié par tests/games.html. */
+  font-family: 'TF2 Build', 'Arial Narrow', sans-serif;
+  font-size: 1.05rem;
+  line-height: normal;
+  text-transform: uppercase;
+  letter-spacing: .02em;
+  padding: .7rem 1.4rem;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  color: var(--g-accent-ink);
+  background: var(--g-accent);
+  clip-path: polygon(
+    var(--g-cut) 0%, 100% 0%,
+    100% calc(100% - var(--g-cut)), calc(100% - var(--g-cut)) 100%,
+    0% 100%, 0% var(--g-cut));
+  /* Le biseau est en ombre INTERNE : `clip-path` rogne les ombres portées.
+     Même piège que dans css/tf2.css, documenté là-bas. */
+  box-shadow:
+    inset 2px 2px 0 0 var(--bevel-hi, rgba(255, 255, 255, .18)),
+    inset -2px -2px 0 0 var(--bevel-lo, rgba(0, 0, 0, .35));
+  transition: background .18s ease, transform .18s ease;
+}
+button:hover { filter: brightness(1.12); }
+button:active { transform: translateY(2px); }
+/* Désactivé : la convention du haut de ce fichier s'applique déjà (opacité +
+   curseur normal) ; on coupe juste le survol, qui mentirait. */
+button:disabled:hover { filter: none; transform: none; }
+
+/* Le secondaire. Il s'appelle déjà `.ghost` dans trois des cinq anciens jeux,
+   et le bouton « Rejoindre » de `.join-row` en est un dans les cinq : un choix
+   de second plan à côté de « Créer une partie ». Les deux sélecteurs sont donc
+   communs, et c'est bien une seule intention. */
+.ghost,
+.join-row button {
+  background: transparent;
+  color: var(--ink-2);
+  box-shadow: inset 0 0 0 2px var(--panel-edge);
+}
+.ghost:hover,
+.join-row button:hover {
+  background: rgba(255, 255, 255, .06);
+  color: var(--ink);
+  filter: none;
+}
+
+/* ------------------------------------------------------------------ Champs
+   Le gabarit validé sur Le Passeur et Qui Ment ? : 40 px de haut, la hauteur
+   d'un bouton. `box-sizing` est explicite — les pages de jeux ne chargent PAS
+   le reset de Tailwind, et sans lui `width: 100%` + padding déborde. */
+input, select, textarea {
+  font: inherit;
+  line-height: 1.25;
+  box-sizing: border-box;
+  padding: .5rem .8rem;
+  background: var(--bg-deep);
+  color: var(--ink);
+  border: 2px solid var(--panel-edge);
+  border-radius: 0;
+}
+input::placeholder, textarea::placeholder { color: var(--ink-3); }
+:where(.join-row) { display: flex; gap: .5rem; }
+:where(.join-row) input { width: 8rem; text-align: center; text-transform: uppercase; letter-spacing: .3em; }
+:where(.or) {
+  color: var(--ink-3); font-size: .74rem; letter-spacing: .1em;
+  text-align: center; margin: 1rem 0;
+}
+
+/* --------------------------------------------------------- Choix d'avatar
+   ⚠️ PAS de `:where()` ici. `:where()` a une spécificité NULLE : le
+   `button { … }` ci-dessus (0,0,1) l'aurait emporté, et les avatars se
+   retrouvaient avec le fond plein et les coins coupés d'un bouton d'action.
+   Une classe nue (0,1,0) gagne, comme il faut. Même raison pour `.ghost`. */
+.avatar-pick {
+  font-family: inherit;
+  font-size: 1.15rem;
+  letter-spacing: 0;
+  text-transform: none;
+  padding: .4rem .55rem;
+  background: var(--bg-deep);
+  border: 2px solid var(--panel-edge);
+  box-shadow: none;
+  clip-path: none;
+  color: inherit;
+}
+.avatar-pick:hover { filter: none; background: var(--bg-deep); border-color: var(--g-accent); }
+.avatar-pick:active { transform: none; }
+.avatar-pick.picked { border-color: var(--g-accent); }
+:where(#avatar-row) {
+  display: flex; flex-wrap: wrap; gap: .4rem;
+  justify-content: center;
+}
+/* ⚠️ L'ESPACE SOUS LES AVATARS S'ÉCRIT SANS `:where()`, ET C'EST DÉLIBÉRÉ.
+   `:where()` a une spécificité NULLE — exactement celle du `* { margin: 0 }`
+   que cinq des sept pages déclarent en tête de leur <style>. Comme leur feuille
+   est chargée APRÈS celle-ci, c'est l'étoile qui gagnait, et la marge tombait à
+   zéro : « Créer une partie » se retrouvait collé à la dernière rangée
+   d'avatars, comme s'il en faisait partie. Mesuré : 0 px d'écart sur ban,
+   demicercle, imitation et precision — 21 px sur passeur et quiment, les deux
+   seuls à déclarer leur propre `#avatar-row`.
+   Un sélecteur d'ID (1,0,0) passe devant l'étoile, tout en laissant le dernier
+   mot à un jeu qui déclare son `#avatar-row` plus loin dans la cascade.
+   Ne pas rapatrier cette ligne dans le `:where()` ci-dessus.
+   Le bloc « choix d'avatar » est une unité : il doit se lire séparément du
+   bouton qui le suit, y compris quand les avatars passent sur trois lignes. */
+#avatar-row { margin-bottom: 1.25rem; }
+
+/* ------------------------------------------------------------ Code de salle
+   Les métriques sont désormais COMMUNES (elles étaient recopiées dans les
+   sept pages, à des tailles différentes). Un jeu garde le dernier mot avec son
+   `#room-code { … }` (1,0,0) s'il a une bonne raison — le morpion l'utilise,
+   son code vit dans une rangée de méta et doit rester en ligne. */
+:where(.g-copy) {
+  font-family: 'TF2 Build', 'Arial Narrow', sans-serif;
+  font-size: 2.4rem;
+  letter-spacing: .4em;
+  text-indent: .4em;
+  color: var(--g-accent);
+}
+:where(#code-hint) { color: var(--ink-3); font-size: .72rem; margin: .2rem 0 1rem; }
+
+/* ------------------------------------------------------------------ Salon
+   On doit reconnaître d'un coup d'œil : qui est là, qui mène, qui est prêt. */
+:where(.players) { list-style: none; padding: 0; margin: 0; text-align: left; }
+:where(.players) li {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .45rem .2rem; border-bottom: 1px solid var(--line);
+  font-size: .88rem;
+}
+:where(.players) .tag { color: var(--g-accent); font-size: .7rem; }
+:where(.wait) { color: var(--ink-3); font-size: .8rem; }
+:where(.actions) {
+  display: flex; flex-wrap: wrap; gap: .5rem;
+  justify-content: center; margin-top: 1.3rem;
+}
+
+/* ------------------------------------------------- Retour au portfolio
+   Le lien existait déjà partout ; on ne fixait que sa taille. La couleur est
+   maintenant commune elle aussi. */
+:where(.back) { color: var(--ink-3); }
+:where(.back):hover { color: var(--ink); }
+
+/* ------------------------------------------------------------------ Profil
+   Le seul morceau d'interface ajouté par games/shared/game-profile.js : le
+   choix d'une photo, sous la grille d'icônes. La LOGIQUE reste dans le module,
+   ici il n'y a que l'habillage — même règle que pour le reste du chrome.
+   Le module crée ces éléments lui-même : aucune des sept pages n'a de balisage
+   à ajouter. */
+.gp-photo {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+  gap: .5rem; margin: -.5rem 0 1.1rem;
+}
+.gp-preview {
+  width: 40px; height: 40px; object-fit: cover;
+  border: 2px solid var(--panel-edge); background: var(--bg-deep);
+}
+.gp-btn { font-size: .78rem; padding: .35rem .7rem; }
+.gp-msg {
+  flex-basis: 100%; margin: 0; font-size: .7rem; line-height: 1.4;
+  color: var(--ink-3); text-align: center;
+}
+.gp-msg.gp-err { color: var(--red-ink); }
+/* Le champ fichier natif est illisible et intraduisible : on le masque, et
+   c'est le bouton qui le déclenche. Il garde un vrai <label> pour avoir un nom
+   accessible, et le module le sort de l'ordre de tabulation (tabIndex = -1)
+   pour qu'on ne tombe pas sur un contrôle invisible en tabulant. */
+/* ⚠️ padding, border et min-height DOIVENT être remis à zéro. Le "input {}"
+   générique du socle pose 8px/12.8px de rembourrage, et en box-sizing:
+   border-box une largeur de 1px ne peut pas descendre sous rembourrage +
+   bordure : le champ occupait encore 30×20 px — invisible, mais bien présent
+   dans la mise en page. C'est tests/games.html qui l'a vu, en comparant les
+   boîtes deux à deux. */
+.gp-file, .gp-sr {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; border: 0; min-height: 0;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
