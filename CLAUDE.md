@@ -36,8 +36,8 @@ contexte**. Si tu débarques : lis-le en entier avant de toucher quoi que ce soi
 | **Précision** | `games/precision/` | `precision-server` (Render) | Party game inspiré de dialed.gg : 4 épreuves (shape/color/sound/time). TOUT LE MONDE joue en même temps. Le serveur génère la cible, tient les timers de phase (`memorize`→`play`, durées selon la difficulté Facile→Impossible) et calcule la précision 0–100 %. Moteur pur `engine-precision.js` (barèmes + scoring : teinte circulaire, symétrie du triangle, cents pour le son). Cible envoyée en `memorize` seulement ; `time` recoupé à l'horloge serveur. |
 | **Puissance 4** | `js/connect4.js` (`launchConnect4`) | aucun (100 % navigateur) | Canvas, bot heuristique gagner > bloquer > centre. Lancé par le carousel, INSERT COIN, Ctrl+K, Konami. |
 | **Morpion** | `games/morpion/` | `morpion-server` (Render) | URL du serveur fixée dans `net.js` (pas de `?server=`, contrairement aux autres). |
-| **Le Passeur** | `games/passeur/` | `passeur-server` (Render, PAS ENCORE DÉPLOYÉ) | Une situation de volley, cinq passes, cinq secondes. Points = pertinence × vitesse. Barèmes et `why` envoyés seulement au `results` ; temps recoupé à l'horloge serveur. Catalogue = `situations.js` côté serveur. |
-| **Qui Ment ?** | `games/quiment/` | `qui-ment-server` (Render, PAS ENCORE DÉPLOYÉ) | Jeu de bluff. Tout le monde a le même mot sauf l'intrus, qui n'a que la catégorie. 2 tours d'indices en aveugle, vote, révélation, dernière chance. Le mot ne part JAMAIS en diffusion. Catalogue = `mots.js` côté serveur. |
+| **Le Passeur** | `games/passeur/` | `passeur-server` (Render) | Une situation de volley, cinq passes, cinq secondes. Points = pertinence × vitesse. Barèmes et `why` envoyés seulement au `results` ; temps recoupé à l'horloge serveur. Catalogue = `situations.js` côté serveur. |
+| **Qui Ment ?** | `games/quiment/` | `qui-ment-server` (Render) | Jeu de bluff. Tout le monde a le même mot sauf l'intrus, qui n'a que la catégorie. 2 tours d'indices en aveugle, vote, révélation, dernière chance. Le mot ne part JAMAIS en diffusion. Catalogue = `mots.js` côté serveur. |
 
 Le **carousel des jeux** (`js/carousel.js`) est un coverflow 3D ; le drag ne
 démarre qu'après un seuil de 6 px pour que le lien « Jouer » reste cliquable.
@@ -330,9 +330,9 @@ Rien de l'identité n'a bougé. Ce qui est arrivé :
 - **Le Passeur** (`games/passeur/`) et **Qui Ment ?** (`games/quiment/`), deux
   vrais jeux multijoueurs, chacun avec **son dépôt serveur à part** :
   `C:\perso\passeur-server` et `C:\perso\qui-ment-server` sur le poste de
-  Mathys. Les deux sont **commités en local mais PAS encore poussés sur
-  GitHub ni déployés sur Render** (pas de `gh` sur la machine, le dépôt distant
-  reste à créer à la main). Voir « Ce qu'il reste à faire » plus bas.
+  Mathys. Les deux sont déployés sur Render depuis le 2026-09-18 (voir « Mise
+  en ligne » plus bas). ⚠️ Pas de `gh` sur la machine : toute opération GitHub
+  sur ces deux dépôts (créer, pousser) est faite à la main par Mathys.
 - Contrairement aux cinq premiers jeux, ces deux-là **portent la DA du
   portfolio** : `css/tf2.css` + `games/shared/game-ui.css`, panneaux Mann Co.,
   polices TF2. Leur `<style>` de page ne contient que ce qui leur est propre.
@@ -369,20 +369,24 @@ Rien de l'identité n'a bougé. Ce qui est arrivé :
 - Backstage : le poste de volley passe de **central à passeur** (FR + EN), pour
   coller au jeu.
 
-### Ce qu'il reste à faire (dans l'ordre)
+### Mise en ligne (faite le 2026-09-18)
 
-1. Créer les dépôts GitHub `passeur-server` et `qui-ment-server`, y pousser les
-   commits locaux.
-2. Déployer les deux sur Render (`render.yaml` est déjà là ; plan gratuit, donc
-   ~30 s de réveil au premier joueur — le client le dit dans son erreur).
-3. Vérifier que les URL de production répondent :
-   `wss://passeur-server.onrender.com`, `wss://qui-ment-server.onrender.com`.
-4. Alors seulement, **pour chaque jeu** : ajouter `href` dans `data/games.js`,
-   passer `status` à `'live'`, retirer le `<meta name="robots" content="noindex">`
-   de sa page, puis `node tools/build.mjs`. C'est ce qui les fait apparaître
-   dans le carousel avec un bouton « Jouer », dans le tirage de la caisse et
-   dans le sitemap.
+Mathys a déployé les deux serveurs sur Render, puis les deux jeux sont passés
+en ligne : `href` + `status: 'live'` dans `data/games.js`, `noindex` retiré des
+deux pages, rebuild. Ils apparaissent donc dans le carousel avec un bouton
+« Jouer », dans le tirage de la caisse Mann Co. et dans le sitemap (8 `<loc>`).
 
-Dernier passage vert : front 195/194, jeux 146/146 (deux modes),
-`passeur-server` 28 + 24, `qui-ment-server` 52 + 57, et une partie complète de
-Qui Ment ? jouée par trois clients dans un navigateur, 42/42.
+Vérifié **contre la production**, pas seulement en local : un fumigène qui joue
+vraiment une manche sur chaque serveur Render (le health check HTTP ne prouve
+que le process, pas le WebSocket). Il confirme aussi les deux règles qui
+comptent — la manche du Passeur ne contient pas le barème, et le mot de Qui
+Ment ? n'apparaît nulle part chez l'intrus.
+
+⚠️ Reste la contrainte du plan gratuit Render : l'instance s'endort, donc le
+premier joueur attend ~30 s le temps du réveil. Les deux clients le disent dans
+leur message d'erreur (« réveil Render ~30 s ? réessaie ») — ne pas prendre ce
+premier échec pour une panne.
+
+Dernier passage vert : front 195/194, jeux 146/146 (deux modes), clavier 8/8,
+`passeur-server` 28 + 24, `qui-ment-server` 52 + 57, une partie complète de Qui
+Ment ? jouée par trois clients dans un navigateur 42/42, et 10/10 en production.

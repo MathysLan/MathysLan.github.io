@@ -1177,10 +1177,10 @@
           <div class="flex flex-wrap gap-2 mt-4"><span class="tf-tag font-mono">en ligne</span><span class="tf-tag font-mono">multi</span><span class="tf-tag font-mono">réflexe</span></div>
           <ul class="attr-list mt-3"><li>WebSocket</li><li>Node.js</li><li>Moteur pur</li></ul>
           <ul class="attr-list game-arch-list nojs-only"><li>Serveur Node.js (ws) seul arbitre : le client n'envoie que la passe choisie</li><li>Les barèmes et les explications vivent dans le serveur — le client ne les reçoit qu'APRÈS avoir répondu</li><li>Temps de décision recoupé à l'horloge serveur : le chrono affiché n'est qu'un repère visuel</li><li>Ajouter une situation = ajouter un objet dans situations.js, côté serveur</li></ul>
-          <div class="mt-6 game-actions"><span class="tf-btn tf-btn-ghost tf-btn-sm game-cta-soon font-mono">
-               <span class="live-dot inline-block w-2 h-2 dot-live"></span>
-               bientôt
-             </span><a href="https://github.com/MathysLan/passeur-server" class="tf-btn tf-btn-sm game-code" target="_blank" rel="noopener noreferrer"
+          <div class="mt-6 game-actions"><a href="games/passeur/" class="tf-btn tf-btn-buy game-cta">
+               Jouer
+               <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+             </a><a href="https://github.com/MathysLan/passeur-server" class="tf-btn tf-btn-sm game-code" target="_blank" rel="noopener noreferrer"
                aria-label="Code — Le Passeur">Code</a><button type="button" class="tf-btn tf-btn-sm game-arch js-only" data-arch="6" aria-haspopup="dialog"
                aria-label="Architecture — Le Passeur">Architecture</button></div>
         </div>
@@ -1201,10 +1201,10 @@
           <div class="flex flex-wrap gap-2 mt-4"><span class="tf-tag font-mono">en ligne</span><span class="tf-tag font-mono">multi</span><span class="tf-tag font-mono">bluff</span></div>
           <ul class="attr-list mt-3"><li>WebSocket</li><li>Node.js</li><li>Moteur pur</li></ul>
           <ul class="attr-list game-arch-list nojs-only"><li>Serveur Node.js (ws) seul arbitre : le client n'envoie qu'un indice, un vote, une tentative</li><li>Le mot ne part jamais en diffusion — joueur par joueur, et `word: null` pour l'intrus</li><li>Les indices sont ramassés en silence puis révélés d'un bloc : sinon le dernier à écrire lirait les autres</li><li>La liste des mots de la catégorie n'est envoyée qu'à l'intrus, et seulement s'il est démasqué</li><li>Ajouter une catégorie = ajouter un objet dans mots.js, côté serveur</li></ul>
-          <div class="mt-6 game-actions"><span class="tf-btn tf-btn-ghost tf-btn-sm game-cta-soon font-mono">
-               <span class="live-dot inline-block w-2 h-2 dot-live"></span>
-               bientôt
-             </span><a href="https://github.com/MathysLan/qui-ment-server" class="tf-btn tf-btn-sm game-code" target="_blank" rel="noopener noreferrer"
+          <div class="mt-6 game-actions"><a href="games/quiment/" class="tf-btn tf-btn-buy game-cta">
+               Jouer
+               <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+             </a><a href="https://github.com/MathysLan/qui-ment-server" class="tf-btn tf-btn-sm game-code" target="_blank" rel="noopener noreferrer"
                aria-label="Code — Qui Ment ?">Code</a><button type="button" class="tf-btn tf-btn-sm game-arch js-only" data-arch="7" aria-haspopup="dialog"
                aria-label="Architecture — Qui Ment ?">Architecture</button></div>
         </div>

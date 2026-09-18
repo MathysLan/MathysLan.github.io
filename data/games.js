@@ -203,12 +203,8 @@ const GAMES = [
       "Decision time is re-measured against the server clock: the on-screen timer is just a visual cue",
       "Adding a situation means adding one object to situations.js, on the server side",
     ],
-    // Pas encore de `href` : le client est prêt dans games/passeur/, mais tant
-    // que passeur-server n'est pas déployé sur Render, proposer « Jouer »
-    // enverrait les visiteurs sur une page qui ne peut pas se connecter.
-    // Pour l'activer : ajouter `href: 'games/passeur/'`, passer `status` à
-    // 'live', retirer le noindex de games/passeur/index.html, puis rebuild.
-    status: 'soon',
+    href: 'games/passeur/',
+    status: 'live',
   },
   {
     id: 'quiment',
@@ -238,11 +234,8 @@ const GAMES = [
       "The category's word list is sent to the impostor only, and only once they have been unmasked",
       "Adding a category means adding one object to mots.js, on the server side",
     ],
-    // Même chose que Le Passeur : pas de `href` tant que qui-ment-server n'est
-    // pas déployé sur Render. Pour l'activer : ajouter `href: 'games/quiment/'`,
-    // passer `status` à 'live', retirer le noindex de games/quiment/index.html,
-    // puis rebuild.
-    status: 'soon',
+    href: 'games/quiment/',
+    status: 'live',
   },
   {
     id: 'soon',
