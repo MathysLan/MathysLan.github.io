@@ -1186,12 +1186,36 @@
         </div>
       </div>
     </div>
+    <div class="game-slide" role="group" aria-roledescription="diapositive" aria-label="Qui Ment ?">
+      <div class="item game-card" data-q="unusual">
+        <div class="game-card-body">
+          <div class="flex items-start justify-between gap-4 mb-4">
+            <div class="flex items-center gap-3">
+              <span class="slot-num" aria-hidden="true">8</span>
+              <div class="game-emoji">🕵️</div>
+            </div>
+            <span class="font-mono text-xs game-tagline">Tout le monde a le même mot — sauf un</span>
+          </div>
+          <h3 class="game-title">Qui Ment ?</h3>
+          <p class="muted text-sm leading-relaxed game-desc">Jeu de bluff. Tout le monde reçoit le même mot, sauf l'intrus, qui ne connaît que la catégorie. Deux tours d'indices en aveugle, un vote, et la révélation. Trop précis, l'intrus devine ; trop vague, on vous prend pour lui.</p>
+          <div class="flex flex-wrap gap-2 mt-4"><span class="tf-tag font-mono">en ligne</span><span class="tf-tag font-mono">multi</span><span class="tf-tag font-mono">bluff</span></div>
+          <ul class="attr-list mt-3"><li>WebSocket</li><li>Node.js</li><li>Moteur pur</li></ul>
+          <ul class="attr-list game-arch-list nojs-only"><li>Serveur Node.js (ws) seul arbitre : le client n'envoie qu'un indice, un vote, une tentative</li><li>Le mot ne part jamais en diffusion — joueur par joueur, et `word: null` pour l'intrus</li><li>Les indices sont ramassés en silence puis révélés d'un bloc : sinon le dernier à écrire lirait les autres</li><li>La liste des mots de la catégorie n'est envoyée qu'à l'intrus, et seulement s'il est démasqué</li><li>Ajouter une catégorie = ajouter un objet dans mots.js, côté serveur</li></ul>
+          <div class="mt-6 game-actions"><span class="tf-btn tf-btn-ghost tf-btn-sm game-cta-soon font-mono">
+               <span class="live-dot inline-block w-2 h-2 dot-live"></span>
+               bientôt
+             </span><a href="https://github.com/MathysLan/qui-ment-server" class="tf-btn tf-btn-sm game-code" target="_blank" rel="noopener noreferrer"
+               aria-label="Code — Qui Ment ?">Code</a><button type="button" class="tf-btn tf-btn-sm game-arch js-only" data-arch="7" aria-haspopup="dialog"
+               aria-label="Architecture — Qui Ment ?">Architecture</button></div>
+        </div>
+      </div>
+    </div>
     <div class="game-slide" role="group" aria-roledescription="diapositive" aria-label="La suite">
       <div class="item game-card" data-q="haunted">
         <div class="game-card-body">
           <div class="flex items-start justify-between gap-4 mb-4">
             <div class="flex items-center gap-3">
-              <span class="slot-num" aria-hidden="true">8</span>
+              <span class="slot-num" aria-hidden="true">9</span>
               <div class="game-emoji">🎮</div>
             </div>
             <span class="font-mono text-xs game-tagline">En cours de dev</span>

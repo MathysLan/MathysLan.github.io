@@ -36,6 +36,8 @@ contexte**. Si tu débarques : lis-le en entier avant de toucher quoi que ce soi
 | **Précision** | `games/precision/` | `precision-server` (Render) | Party game inspiré de dialed.gg : 4 épreuves (shape/color/sound/time). TOUT LE MONDE joue en même temps. Le serveur génère la cible, tient les timers de phase (`memorize`→`play`, durées selon la difficulté Facile→Impossible) et calcule la précision 0–100 %. Moteur pur `engine-precision.js` (barèmes + scoring : teinte circulaire, symétrie du triangle, cents pour le son). Cible envoyée en `memorize` seulement ; `time` recoupé à l'horloge serveur. |
 | **Puissance 4** | `js/connect4.js` (`launchConnect4`) | aucun (100 % navigateur) | Canvas, bot heuristique gagner > bloquer > centre. Lancé par le carousel, INSERT COIN, Ctrl+K, Konami. |
 | **Morpion** | `games/morpion/` | `morpion-server` (Render) | URL du serveur fixée dans `net.js` (pas de `?server=`, contrairement aux autres). |
+| **Le Passeur** | `games/passeur/` | `passeur-server` (Render, PAS ENCORE DÉPLOYÉ) | Une situation de volley, cinq passes, cinq secondes. Points = pertinence × vitesse. Barèmes et `why` envoyés seulement au `results` ; temps recoupé à l'horloge serveur. Catalogue = `situations.js` côté serveur. |
+| **Qui Ment ?** | `games/quiment/` | `qui-ment-server` (Render, PAS ENCORE DÉPLOYÉ) | Jeu de bluff. Tout le monde a le même mot sauf l'intrus, qui n'a que la catégorie. 2 tours d'indices en aveugle, vote, révélation, dernière chance. Le mot ne part JAMAIS en diffusion. Catalogue = `mots.js` côté serveur. |
 
 Le **carousel des jeux** (`js/carousel.js`) est un coverflow 3D ; le drag ne
 démarre qu'après un seuil de 6 px pour que le lien « Jouer » reste cliquable.
@@ -320,3 +322,67 @@ réticule, easter eggs, carousel, FR/EN et les deux thèmes sont intacts.
   pilote Edge par le protocole DevTools pour envoyer de **vraies frappes Tab**
   — le seul moyen de prouver qu'un anneau de focus apparaît, `:focus-visible`
   ne s'allumant pas sur un `el.focus()` programmé.
+
+## Deux nouveaux jeux + hub (2026-09-18)
+
+Rien de l'identité n'a bougé. Ce qui est arrivé :
+
+- **Le Passeur** (`games/passeur/`) et **Qui Ment ?** (`games/quiment/`), deux
+  vrais jeux multijoueurs, chacun avec **son dépôt serveur à part** :
+  `C:\perso\passeur-server` et `C:\perso\qui-ment-server` sur le poste de
+  Mathys. Les deux sont **commités en local mais PAS encore poussés sur
+  GitHub ni déployés sur Render** (pas de `gh` sur la machine, le dépôt distant
+  reste à créer à la main). Voir « Ce qu'il reste à faire » plus bas.
+- Contrairement aux cinq premiers jeux, ces deux-là **portent la DA du
+  portfolio** : `css/tf2.css` + `games/shared/game-ui.css`, panneaux Mann Co.,
+  polices TF2. Leur `<style>` de page ne contient que ce qui leur est propre.
+  ⚠️ Les deux redéfinissent `.tf-btn:disabled` en `opacity: .45; cursor:
+  default`. C'est **volontaire** : le `cursor: progress` de tf2.css veut dire
+  « envoi en cours » (c'est le guichet), alors que sur une page de jeu
+  désactivé veut dire « pas encore possible ». Même spécificité, l'ordre des
+  feuilles suffit — ne pas « corriger » en touchant tf2.css.
+- **Le secret, côté serveur, dans les deux cas.** Le Passeur : `scores` et
+  `why` n'arrivent qu'au message `results`. Qui Ment ? : le mot ne part jamais
+  en diffusion (joueur par joueur, `word: null` pour l'intrus), les indices
+  sont ramassés en silence puis révélés d'un bloc, et la liste des mots de la
+  catégorie ne part qu'à l'intrus démasqué. Le test WebSocket de
+  `qui-ment-server` relit **tout ce qui est passé sur le fil** et cherche le
+  mot dans l'historique de l'intrus : c'est le seul niveau qui attrape une
+  fuite par un message de progression.
+- **Hub de jeux** (`js/gamehub.js`), posé SUR l'existant sans le modifier :
+  « Je joue à quoi ? » (caisse Mann Co. qui tire un jeu au sort) et « Trouver
+  une partie » (**faux** matchmaking, annoncé en toutes lettres dans l'écran).
+  Les deux passent par `playable()` — `status === 'live'` ET (`href` ou
+  `action`) — donc ni l'un ni l'autre ne peut proposer un jeu non lançable.
+  Pour brancher un vrai matchmaking un jour : **`buildMatch()` est le seul
+  point à remplacer**, l'interface ne bouge pas.
+- **`tests/front.html` ne compte plus les jeux en dur.** Les nombres viennent
+  de `data/games.js`, lu par `w.eval('GAMES')`. ⚠️ `w.GAMES` vaut toujours
+  `undefined` : `GAMES` est un `const` au premier niveau d'un script classique,
+  donc global mais pas une propriété de `window` (même piège que dans
+  `gamehub.js`).
+- ⚠️ **Tester un jeu en réseau : PAS de `--virtual-time-budget`.** Il avance
+  les minuteries *et* `Date.now()` instantanément, donc toute attente expire
+  avant qu'un WebSocket ait eu le temps de répondre — les tests échouent par
+  intermittence pour une raison qui n'a rien à voir. Il faut piloter Edge par
+  le protocole DevTools, en temps réel, comme `tests/keyboard.mjs`.
+- Backstage : le poste de volley passe de **central à passeur** (FR + EN), pour
+  coller au jeu.
+
+### Ce qu'il reste à faire (dans l'ordre)
+
+1. Créer les dépôts GitHub `passeur-server` et `qui-ment-server`, y pousser les
+   commits locaux.
+2. Déployer les deux sur Render (`render.yaml` est déjà là ; plan gratuit, donc
+   ~30 s de réveil au premier joueur — le client le dit dans son erreur).
+3. Vérifier que les URL de production répondent :
+   `wss://passeur-server.onrender.com`, `wss://qui-ment-server.onrender.com`.
+4. Alors seulement, **pour chaque jeu** : ajouter `href` dans `data/games.js`,
+   passer `status` à `'live'`, retirer le `<meta name="robots" content="noindex">`
+   de sa page, puis `node tools/build.mjs`. C'est ce qui les fait apparaître
+   dans le carousel avec un bouton « Jouer », dans le tirage de la caisse et
+   dans le sitemap.
+
+Dernier passage vert : front 195/194, jeux 146/146 (deux modes),
+`passeur-server` 28 + 24, `qui-ment-server` 52 + 57, et une partie complète de
+Qui Ment ? jouée par trois clients dans un navigateur, 42/42.

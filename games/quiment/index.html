@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Qui Ment ? — multijoueur · Mathys Langiny</title>
+<meta name="description" content="Qui Ment ? : tout le monde reçoit le même mot, sauf un. Deux tours d'indices, un vote, et la révélation. Jeu de bluff multijoueur dans le navigateur.">
+<!-- noindex tant que qui-ment-server n'est pas déployé sur Render : inutile de
+     faire indexer une page qui ne peut pas encore trouver son serveur. À
+     retirer en même temps qu'on passe le jeu en `live` dans data/games.js. -->
+<meta name="robots" content="noindex">
+<link rel="canonical" href="https://mathyslan.github.io/games/quiment/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Mathys Langiny">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Qui Ment ? — multijoueur">
+<meta property="og:description" content="Tout le monde reçoit le même mot, sauf un. Deux tours d'indices, un vote, et la révélation.">
+<meta property="og:url" content="https://mathyslan.github.io/games/quiment/">
+<meta property="og:image" content="https://mathyslan.github.io/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#241c14">
+<!-- Comme Le Passeur, ce jeu porte la DA du portfolio : socle TF2 complet
+     (palette, polices, primitives) + socle commun des pages de jeux (focus
+     clavier, mouvement réduit, cibles tactiles, messages d'état). -->
+<link rel="stylesheet" href="../../css/tf2.css?v=9">
+<link rel="stylesheet" href="../shared/game-ui.css?v=1">
+<style>
+  /* Seulement ce qui est propre à Qui Ment ?. Tout le reste vient de tf2.css. */
+  body { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem 1rem; }
+  main { width: min(700px, 100%); }
+  h1 { font-size: 1.9rem; margin: 0 0 .2rem; text-align: center; }
+  h1 .a { color: var(--orange-ink); }
+  .sub { color: var(--ink-3); font-size: .8rem; text-align: center; margin: 0 0 1.6rem; }
+  .screen { padding: 1.5rem 1.3rem; }
+  .center { text-align: center; }
+  [hidden] { display: none !important; }
+
+  /* --- accueil / salon --- */
+  .rules { text-align: left; margin: 0 0 1.4rem; }
+  .rules li { margin: .35rem 0; color: var(--ink-2); font-size: .92rem; }
+  input, select {
+    font: inherit; width: 100%; padding: .7rem .9rem;
+    background: var(--bg-deep); color: var(--ink);
+    border: 2px solid var(--panel-edge);
+  }
+  .field { margin-bottom: .9rem; }
+  .or { color: var(--ink-3); font-size: .74rem; margin: 1rem 0; text-align: center; letter-spacing: .1em; }
+  .join-row { display: flex; gap: .5rem; }
+  .join-row input { width: 8rem; text-align: center; text-transform: uppercase; letter-spacing: .3em; }
+  #avatar-row { display: flex; flex-wrap: wrap; gap: .4rem; justify-content: center; margin-bottom: 1rem; }
+  .avatar-pick { font-size: 1.15rem; background: var(--bg-deep); border: 2px solid var(--panel-edge); padding: .4rem .55rem; cursor: pointer; }
+  .avatar-pick.picked { border-color: var(--q-unique); }
+  #room-code { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 2.4rem; letter-spacing: .4em; text-indent: .4em; color: var(--q-unique); }
+  #code-hint { color: var(--ink-3); font-size: .72rem; margin: .2rem 0 1rem; }
+  .players { list-style: none; padding: 0; margin: 0; text-align: left; }
+  .players li { display: flex; align-items: center; gap: .5rem; padding: .45rem .2rem; border-bottom: 1px solid var(--line); font-size: .88rem; }
+  .players .tag { color: var(--q-unique); font-size: .7rem; }
+  .players .done { margin-left: auto; color: var(--q-unique); font-size: .72rem; }
+
+  .round-meta { display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+    font-family: 'TF2 Build', 'Arial Narrow', sans-serif; letter-spacing: .06em;
+    color: var(--ink-3); font-size: .8rem; margin: 0 0 1rem; }
+
+  /* --- la carte de rôle : c'est le cœur du jeu, donc elle occupe l'écran ---
+     Deux états, et un seul coup d'œil doit suffire à savoir lequel : le mot en
+     grand pour les informés, la mention d'intrus en orange Mann Co. pour
+     l'autre. */
+  .role { text-align: center; padding: 1.2rem 1rem; margin-bottom: 1.2rem; }
+  .role-cat { font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 .5rem; }
+  .role-word { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 2.1rem; line-height: 1.1; margin: 0; color: var(--ink); }
+  .role-word.imp { color: var(--orange-ink); }
+  .role-note { font-size: .8rem; color: var(--ink-2); margin: .6rem 0 0; }
+
+  /* --- les indices --- */
+  .turn-head { font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); margin: 1rem 0 .4rem; }
+  .clue-row { display: flex; align-items: baseline; gap: .6rem; padding: .35rem .2rem; border-bottom: 1px solid var(--line); font-size: .9rem; }
+  .clue-row .who { color: var(--ink-3); font-size: .8rem; min-width: 8.5rem; }
+  .clue-row .what { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; letter-spacing: .04em; color: var(--ink); }
+  .clue-form { display: flex; gap: .5rem; margin-top: 1.1rem; }
+  .clue-form input { flex: 1; }
+
+  /* --- le vote --- */
+  .vote-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .5rem; margin-top: 1rem; }
+  .vote-grid .tf-btn { width: 100%; }
+  .word-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: .45rem; margin-top: 1rem; }
+
+  /* --- résultats --- */
+  .verdict { text-align: center; padding: 1.1rem 1rem; margin-bottom: 1rem; }
+  .verdict-word { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 1.8rem; margin: .3rem 0 0; color: var(--q-unique); }
+  .verdict-line { font-size: .88rem; color: var(--ink-2); margin: .5rem 0 0; }
+  .res-row { display: flex; justify-content: space-between; gap: 1rem; padding: .45rem .2rem; border-bottom: 1px solid var(--line); font-size: .9rem; }
+  .res-row .pts { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; color: var(--q-unique); }
+  .res-row .votes { color: var(--ink-3); font-size: .78rem; }
+
+  /* --- fin --- */
+  .final-title { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 1.5rem; color: var(--orange-ink); margin: .2rem 0 1rem; }
+  .rank-row { display: flex; justify-content: space-between; gap: 1rem; padding: .45rem .2rem; border-bottom: 1px solid var(--line); font-size: .9rem; text-align: left; }
+  .rank-row .avg { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; color: var(--q-unique); }
+
+  .actions { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; margin-top: 1.3rem; }
+  .back { color: var(--ink-3); }
+  .back:hover { color: var(--ink); }
+  .wait { color: var(--ink-3); font-size: .8rem; }
+
+  /* Désactivé : on suit la convention du socle des jeux, pas celle du
+     portfolio. `.tf-btn:disabled` de tf2.css dit `cursor: progress` — juste
+     pour le guichet, où "désactivé" veut dire "envoi en cours". Ici il veut
+     dire "pas encore possible" : un curseur d'attente mentirait. Même
+     spécificité (0,2,0) que tf2.css, mais cette feuille est la dernière
+     chargée — l'ordre suffit, pas besoin d'!important. */
+  .tf-btn:disabled,
+  .tf-btn:disabled:hover { opacity: .45; cursor: default; }
+
+  @media (max-width: 560px) { h1 { font-size: 1.5rem; } .role-word { font-size: 1.6rem; } .clue-row .who { min-width: 6rem; } }
+</style>
+</head>
+<body>
+  <main>
+    <h1>Qui Ment<span class="a"> ?</span></h1>
+    <p class="sub">tout le monde a le même mot — sauf un</p>
+
+    <!-- ACCUEIL -->
+    <section id="home" class="panel screen">
+      <ul class="rules attr-list">
+        <li>Une catégorie s'affiche pour tout le monde, et un mot pour tout le monde sauf un : l'intrus.</li>
+        <li>Deux tours d'indices : un seul mot chacun, écrit en aveugle, révélé quand tout le monde a répondu.</li>
+        <li>Puis on vote. Trop précis et l'intrus devine le mot ; trop vague et on vous prend pour lui.</li>
+        <li>Démasqué, l'intrus garde une dernière chance : retrouver le mot.</li>
+        <li>3 joueurs minimum — en dessous, le vote n'a aucun sens.</li>
+      </ul>
+      <div class="field"><input id="name-input" maxlength="16" placeholder="ton pseudo" autocomplete="off"></div>
+      <p class="center" style="color:var(--ink-3);font-size:.74rem;margin:0 0 .5rem">choisis ton icône :</p>
+      <div id="avatar-row"></div>
+      <div class="actions"><button id="host" type="button" class="tf-btn tf-btn-buy">Créer une partie</button></div>
+      <p class="or">— ou —</p>
+      <div class="join-row">
+        <input id="code-input" maxlength="4" placeholder="CODE" autocomplete="off" spellcheck="false">
+        <button id="join" type="button" class="tf-btn tf-btn-sm" style="flex:1">Rejoindre</button>
+      </div>
+    </section>
+
+    <!-- SALON -->
+    <section id="lobby" class="panel screen center" hidden>
+      <p class="round-meta" style="justify-content:center">Salon</p>
+      <button type="button" id="room-code" class="g-copy" title="clique pour copier">····</button>
+      <p id="code-hint" role="status">clique sur le code pour le copier</p>
+      <ul id="players" class="players"></ul>
+      <div id="host-config" class="actions">
+        <label for="rounds-select" class="wait">Manches</label>
+        <select id="rounds-select" style="width:auto"><option>3</option><option selected>5</option><option>8</option></select>
+        <button id="start" type="button" class="tf-btn tf-btn-buy">Lancer la partie</button>
+      </div>
+      <p id="need-players" class="wait">En attente du MJ…</p>
+    </section>
+
+    <!-- MANCHE : rôle + indices -->
+    <section id="play" class="panel screen" hidden>
+      <div class="round-meta">
+        <span>Manche <b id="round-num">1</b>/<span id="round-of">5</span></span>
+        <span>Score <b id="score">0</b></span>
+      </div>
+
+      <div id="role" class="item role">
+        <p class="role-cat" id="role-cat"></p>
+        <p class="role-word" id="role-word"></p>
+        <p class="role-note" id="role-note"></p>
+      </div>
+
+      <div id="clue-history"></div>
+
+      <p class="turn-head" id="turn-head">Tour 1 sur 2 — ton indice</p>
+      <div class="clue-form">
+        <input id="clue-input" maxlength="24" placeholder="un seul mot" autocomplete="off">
+        <button id="clue-send" type="button" class="tf-btn tf-btn-buy">Envoyer</button>
+      </div>
+      <p id="clue-wait" class="wait" role="status" hidden>Indice envoyé — on attend les autres…</p>
+      <ul id="play-players" class="players" style="margin-top:1rem"></ul>
+      <div class="actions"><button id="skip-clue" type="button" class="tf-btn tf-btn-sm" hidden>Passer sans attendre</button></div>
+    </section>
+
+    <!-- VOTE -->
+    <section id="vote" class="panel screen" hidden>
+      <p class="round-meta"><span>Le vote</span><span>Qui ment ?</span></p>
+      <div id="vote-history"></div>
+      <div id="vote-grid" class="vote-grid"></div>
+      <p id="vote-wait" class="wait" role="status" hidden>Vote enregistré — on attend les autres…</p>
+      <div class="actions"><button id="skip-vote" type="button" class="tf-btn tf-btn-sm" hidden>Dépouiller maintenant</button></div>
+    </section>
+
+    <!-- DERNIÈRE CHANCE DE L'INTRUS -->
+    <section id="guess" class="panel screen center" hidden>
+      <p class="round-meta" style="justify-content:center">Démasqué</p>
+      <p id="guess-intro" class="role-note"></p>
+      <div id="word-grid" class="word-grid"></div>
+      <div class="actions"><button id="skip-guess" type="button" class="tf-btn tf-btn-sm" hidden>Ne pas attendre</button></div>
+    </section>
+
+    <!-- RÉSULTATS DE MANCHE -->
+    <section id="results" class="panel screen" hidden>
+      <p class="round-meta"><span>Résultats</span><span id="res-round"></span></p>
+      <div class="item verdict">
+        <p class="role-cat" id="res-cat"></p>
+        <p class="verdict-word" id="res-word"></p>
+        <p class="verdict-line" id="res-verdict"></p>
+        <p class="verdict-line" id="res-guess"></p>
+      </div>
+      <div id="res-rows"></div>
+      <div class="actions">
+        <button id="next" type="button" class="tf-btn tf-btn-buy">Manche suivante</button>
+        <p id="wait-host" class="wait" hidden>En attente du MJ…</p>
+      </div>
+    </section>
+
+    <!-- FIN -->
+    <section id="end" class="panel screen center" hidden>
+      <p class="round-meta" style="justify-content:center">Fin de partie</p>
+      <p id="final-title" class="final-title"></p>
+      <div id="ranking"></div>
+      <div class="actions">
+        <button id="again" type="button" class="tf-btn tf-btn-buy">Rejouer</button>
+        <a class="tf-btn tf-btn-sm" href="../../#games">Les autres jeux</a>
+      </div>
+    </section>
+
+    <p id="error" class="g-error" role="alert"></p>
+    <p class="center"><a class="back" href="../../">← retour au portfolio</a></p>
+  </main>
+
+  <script src="net.js?v=1"></script>
+  <script src="app.js?v=1"></script>
+</body>
+</html>

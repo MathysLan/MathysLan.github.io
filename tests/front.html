@@ -83,15 +83,27 @@ document.getElementById('f').addEventListener('load', function () {
       im.querySelector('.im-close').click();
       t('la croix de la fiche fonctionne au clavier', im.hidden);
 
+      // Les comptes viennent de data/games.js, pas d'un nombre ecrit ici :
+      // ajouter un jeu ne doit pas faire echouer la suite pour une mauvaise
+      // raison. Ce qui est verifie reste le vrai sujet — CHAQUE jeu a sa carte,
+      // et chaque jeu qui declare un `code` / un `arch` a son bouton.
+      // GAMES est un `const` au premier niveau d'un script classique : il est
+      // global mais PAS une propriete de window, donc `w.GAMES` vaut toujours
+      // undefined. On passe par l'eval de l'iframe, qui voit sa portee lexicale.
+      var GAMES = w.eval('GAMES');
+      var nGames = GAMES.length;
+      var nCode = GAMES.filter(function (g) { return !!g.code; }).length;
+      var nArch = GAMES.filter(function (g) { return !!g.arch; }).length;
+
       var slides = d.querySelectorAll('.game-slide');
-      t('cartes jeux rendues (' + slides.length + ')', slides.length === 8);
+      t('cartes jeux rendues (' + slides.length + '/' + nGames + ')', slides.length === nGames);
       t('carte de jeu = objet', d.querySelector('.game-slide .item.game-card') !== null);
       // Jeux : Code et Architecture a cote de Jouer.
       var codes = d.querySelectorAll('.game-slide .game-code');
-      t('jeux : 7 liens Code vers GitHub',
-        codes.length === 7 && [].every.call(codes, function (a) { return a.href.indexOf('https://github.com/MathysLan/') === 0 && a.target === '_blank'; }));
+      t('jeux : ' + nCode + ' liens Code vers GitHub',
+        codes.length === nCode && [].every.call(codes, function (a) { return a.href.indexOf('https://github.com/MathysLan/') === 0 && a.target === '_blank'; }));
       var archBtns = d.querySelectorAll('.game-slide .game-arch');
-      t('jeux : 7 boutons Architecture', archBtns.length === 7);
+      t('jeux : ' + nArch + ' boutons Architecture', archBtns.length === nArch);
       archBtns[0].focus();
       archBtns[0].click();
       t('Architecture ouvre la fiche technique du jeu',
@@ -462,12 +474,12 @@ document.getElementById('f').addEventListener('load', function () {
         t('sans JS : fiches de projet visibles avec descriptif',
           sheets.length === 8 && nw.getComputedStyle(nd.getElementById('projects-sheets')).display !== 'none'
           && sheets[1].textContent.length > 200);
-        t('sans JS : 8 cartes de jeu, en grille lisible',
-          nd.querySelectorAll('#games-track .game-slide').length === 8
+        t('sans JS : ' + nGames + ' cartes de jeu, en grille lisible',
+          nd.querySelectorAll('#games-track .game-slide').length === nGames
           && nw.getComputedStyle(nd.querySelector('.game-slide')).position === 'static');
         t('sans JS : jeux preferes presents', nd.querySelectorAll('#fav-games .fav-game').length > 0);
         t('sans JS : architecture des jeux lisible dans les cartes',
-          nd.querySelectorAll('.game-arch-list').length === 7
+          nd.querySelectorAll('.game-arch-list').length === nArch
           && nw.getComputedStyle(nd.querySelector('.game-arch-list')).display !== 'none');
         t('sans JS : fiches de projet structurees', nd.querySelectorAll('#projects-sheets .facts').length === 8);
         t('sans JS : boutons qui dependent du JS masques',

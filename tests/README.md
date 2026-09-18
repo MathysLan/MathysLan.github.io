@@ -5,7 +5,7 @@ Trois suites, qui ne se recouvrent pas :
 | Fichier | Ce qu'il couvre |
 |---|---|
 | `front.html` | le portfolio : rendu des cartes, lightbox, palette Ctrl+K, FR/EN, thèmes, guichet, presse-papiers, menu mobile, sans JS |
-| `games.html` | le **socle commun** des cinq pages de jeux : polices locales, favicon, retour au portfolio, messages d'état, avatars, `?server=`, mouvement réduit, téléphone |
+| `games.html` | le **socle commun** des pages de jeux : polices locales, favicon, retour au portfolio, messages d'état, avatars, `?server=`, mouvement réduit, téléphone |
 | `keyboard.mjs` | le focus clavier, avec de **vraies frappes Tab** (voir plus bas) |
 
 Rien à installer pour les deux pages HTML. Les ouvrir dans un navigateur suffit
@@ -62,8 +62,8 @@ passés en production :
 - **L'apparence du code de room.** C'est un `<button>` (pour le clavier), donc
   le `button { background: …; padding: …; border-radius: … }` générique de
   chaque jeu lui remettrait l'allure d'un bouton d'action si le socle ne le
-  déshabillait pas. Le test le compare au bouton d'action principal des cinq
-  jeux, et vérifie aussi que ce dernier est bien resté plein — sinon le test
+  déshabillait pas. Le test le compare au bouton d'action principal de chaque
+  jeu, et vérifie aussi que ce dernier est bien resté plein — sinon le test
   passerait pour de mauvaises raisons.
 - **L'état désactivé.** Deux pièges de mesure y sont désamorcés : Précision
   déclare `transition: opacity .12s`, donc lire le style juste après avoir posé

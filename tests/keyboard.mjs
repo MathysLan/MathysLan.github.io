@@ -33,6 +33,8 @@ const PAGES = [
   ['imitation', `file://${ROOT}/games/imitation/index.html`],
   ['ban', `file://${ROOT}/games/ban/index.html`],
   ['precision', `file://${ROOT}/games/precision/index.html`],
+  ['passeur', `file://${ROOT}/games/passeur/index.html`],
+  ['quiment', `file://${ROOT}/games/quiment/index.html`],
 ];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
