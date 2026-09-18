@@ -76,7 +76,7 @@
 <link rel="preload" href="assets/fonts/tf2build.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/TF2secondary.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="css/tf2.css?v=9">
-<link rel="stylesheet" href="css/style.css?v=24">
+<link rel="stylesheet" href="css/style.css?v=25">
 <!-- Tailwind COMPILÉ (tools/build.mjs), à la place du script
      cdn.tailwindcss.com qui générait ces styles dans le navigateur à chaque
      visite, et n'appliquait donc aucune mise en page sans JavaScript. Placé
@@ -192,7 +192,7 @@
 
         <p class="mt-8 max-w-xl text-lg md:text-xl muted leading-relaxed reveal reveal-delay-2" data-i18n="hero.tagline">
           Data &amp; admin BDD chez AgiLab. Mon job : protéger la donnée, automatiser ce qui doit l'être,
-          et dire non aux usines à gaz. Le soir : central au volley, régie de stream maison, fosse en concert de rap.
+          et dire non aux usines à gaz. Le soir : passeur au volley, régie de stream maison, fosse en concert de rap.
         </p>
 
         <div class="mt-6 panel  px-5 py-3.5 max-w-xl font-mono text-sm ink-2 reveal reveal-delay-2">
@@ -700,17 +700,17 @@
         <div class="reveal panel net-pattern  p-7 relative overflow-hidden">
           <div class="absolute top-4 right-6 jersey-number font-display font-bold select-none" aria-hidden="true">24</div>
           <p class="font-mono text-xs ac-gold mb-2" data-i18n="passions.volley.kicker">volley-ball</p>
-          <h3 class="font-display text-2xl font-bold heading mb-1" data-i18n="passions.volley.title">Central</h3>
-          <p class="font-mono text-xs ink-3 mb-4" data-i18n="passions.volley.sub">SUAPS de Reims → club à la rentrée</p>
+          <h3 class="font-display text-2xl font-bold heading mb-1" data-i18n="passions.volley.title">Passeur</h3>
+          <p class="font-mono text-xs ink-3 mb-4" data-i18n="passions.volley.sub">SUAPS de Reims → orientation passeur</p>
           <p class="muted text-sm leading-relaxed max-w-sm" data-i18n="passions.volley.desc">
-            6 h par semaine sur le terrain. Le poste de central, c'est de la lecture de jeu,
-            du timing au contre et beaucoup de communication - exactement ce que je ramène
-            dans le travail d'équipe au quotidien.
+            6 h par semaine sur le terrain. Je m'oriente de plus en plus vers le poste de
+            passeur : lecture du jeu, choix de distribution, communication et rythme de
+            l'équipe.
           </p>
           <div class="flex gap-2 mt-5">
-            <span class="font-mono text-[11px] px-2.5 py-1  chip" data-i18n="passions.volley.t1">contre</span>
-            <span class="font-mono text-[11px] px-2.5 py-1  chip" data-i18n="passions.volley.t2">attaque rapide</span>
-            <span class="font-mono text-[11px] px-2.5 py-1  chip" data-i18n="passions.volley.t3">beach</span>
+            <span class="font-mono text-[11px] px-2.5 py-1  chip" data-i18n="passions.volley.t1">lecture de jeu</span>
+            <span class="font-mono text-[11px] px-2.5 py-1  chip" data-i18n="passions.volley.t2">distribution</span>
+            <span class="font-mono text-[11px] px-2.5 py-1  chip" data-i18n="passions.volley.t3">communication</span>
           </div>
         </div>
 
@@ -997,7 +997,21 @@
           <h2 class="font-tf text-4xl md:text-6xl heading" data-i18n="games.title">Jeux web<span class="ac">.</span></h2>
           <p class="muted mt-4 max-w-lg" data-i18n="games.sub">Jouables direct dans le navigateur, sans install ni compte. Chaque jeu en ligne a son serveur Node.js qui arbitre tout : le navigateur n'envoie que des intentions. Le code et l'architecture de chacun sont sur sa carte.</p>
         </div>
-        <button id="insert-coin" type="button" class="js-only font-mono text-xs tracking-[0.3em] ac insert-coin shrink-0" title="Une pièce = une partie">▸ INSERT COIN ◂</button>
+        <!-- Hub de jeux (js/gamehub.js) : deux entrées vers les jeux DÉJÀ là.
+             .js-only, parce que sans JavaScript elles n'auraient rien à ouvrir —
+             le carousel, lui, reste lisible en grille. Les libellés passent par
+             data-i18n comme le reste de la page. -->
+        <div class="shrink-0 flex flex-col items-start md:items-end gap-3">
+          <button id="insert-coin" type="button" class="js-only font-mono text-xs tracking-[0.3em] ac insert-coin" title="Une pièce = une partie">▸ INSERT COIN ◂</button>
+          <div class="hub-entries js-only">
+            <button id="crate-btn" type="button" class="tf-btn tf-btn-buy tf-btn-sm"
+                    data-i18n="games.crate" data-i18n-aria="a11y.crate"
+                    aria-label="Tirer un jeu au sort dans une caisse Mann Co.">Je joue à quoi ?</button>
+            <button id="mm-btn" type="button" class="tf-btn tf-btn-sm"
+                    data-i18n="games.mm" data-i18n-aria="a11y.mm"
+                    aria-label="Lancer une recherche de partie">Trouver une partie</button>
+          </div>
+        </div>
       </div>
 
       <!-- Carousel des jeux (rendu par js/carousel.js depuis data/games.js) -->
@@ -1148,12 +1162,36 @@
         </div>
       </div>
     </div>
+    <div class="game-slide" role="group" aria-roledescription="diapositive" aria-label="Le Passeur">
+      <div class="item game-card" data-q="unique">
+        <div class="game-card-body">
+          <div class="flex items-start justify-between gap-4 mb-4">
+            <div class="flex items-center gap-3">
+              <span class="slot-num" aria-hidden="true">7</span>
+              <div class="game-emoji">🏐</div>
+            </div>
+            <span class="font-mono text-xs game-tagline">Décider en cinq secondes</span>
+          </div>
+          <h3 class="game-title">Le Passeur</h3>
+          <p class="muted text-sm leading-relaxed game-desc">Une situation de volley, cinq passes possibles, cinq secondes. Les points dépendent de la pertinence de la décision ET de la vitesse. Inspiré du poste de passeur - lecture du jeu, pas simulation.</p>
+          <div class="flex flex-wrap gap-2 mt-4"><span class="tf-tag font-mono">en ligne</span><span class="tf-tag font-mono">multi</span><span class="tf-tag font-mono">réflexe</span></div>
+          <ul class="attr-list mt-3"><li>WebSocket</li><li>Node.js</li><li>Moteur pur</li></ul>
+          <ul class="attr-list game-arch-list nojs-only"><li>Serveur Node.js (ws) seul arbitre : le client n'envoie que la passe choisie</li><li>Les barèmes et les explications vivent dans le serveur — le client ne les reçoit qu'APRÈS avoir répondu</li><li>Temps de décision recoupé à l'horloge serveur : le chrono affiché n'est qu'un repère visuel</li><li>Ajouter une situation = ajouter un objet dans situations.js, côté serveur</li></ul>
+          <div class="mt-6 game-actions"><span class="tf-btn tf-btn-ghost tf-btn-sm game-cta-soon font-mono">
+               <span class="live-dot inline-block w-2 h-2 dot-live"></span>
+               bientôt
+             </span><a href="https://github.com/MathysLan/passeur-server" class="tf-btn tf-btn-sm game-code" target="_blank" rel="noopener noreferrer"
+               aria-label="Code — Le Passeur">Code</a><button type="button" class="tf-btn tf-btn-sm game-arch js-only" data-arch="6" aria-haspopup="dialog"
+               aria-label="Architecture — Le Passeur">Architecture</button></div>
+        </div>
+      </div>
+    </div>
     <div class="game-slide" role="group" aria-roledescription="diapositive" aria-label="La suite">
       <div class="item game-card" data-q="haunted">
         <div class="game-card-body">
           <div class="flex items-start justify-between gap-4 mb-4">
             <div class="flex items-center gap-3">
-              <span class="slot-num" aria-hidden="true">7</span>
+              <span class="slot-num" aria-hidden="true">8</span>
               <div class="game-emoji">🎮</div>
             </div>
             <span class="font-mono text-xs game-tagline">En cours de dev</span>
@@ -1418,9 +1456,9 @@
   </div>
 
   <script src="data/projects.js?v=9"></script>
-  <script src="data/games.js?v=2"></script>
+  <script src="data/games.js?v=4"></script>
   <script src="data/favgames.js?v=3"></script>
-  <script src="js/i18n.js?v=12"></script>
+  <script src="js/i18n.js?v=13"></script>
   <script src="js/templates.js?v=3"></script>
   <script src="js/lightbox.js?v=3"></script>
   <script src="js/itemmodal.js?v=4"></script>
@@ -1428,6 +1466,7 @@
   <script src="js/carousel.js?v=7"></script>
   <script src="js/palette.js?v=3"></script>
   <script src="js/connect4.js?v=2"></script>
+  <script src="js/gamehub.js?v=1"></script>
   <script src="js/easter.js?v=2"></script>
 </body>
 </html>

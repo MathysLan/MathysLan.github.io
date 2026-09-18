@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Le Passeur — multijoueur · Mathys Langiny</title>
+<meta name="description" content="Le Passeur : une situation de volley, cinq passes possibles, cinq secondes pour décider. Jeu de lecture rapide multijoueur.">
+<!-- noindex tant que passeur-server n'est pas déployé sur Render : inutile de
+     faire indexer une page qui ne peut pas encore trouver son serveur. À
+     retirer en même temps qu'on passe le jeu en `live` dans data/games.js. -->
+<meta name="robots" content="noindex">
+<link rel="canonical" href="https://mathyslan.github.io/games/passeur/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Mathys Langiny">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Le Passeur — multijoueur">
+<meta property="og:description" content="Une situation de volley, cinq passes possibles, cinq secondes pour décider.">
+<meta property="og:url" content="https://mathyslan.github.io/games/passeur/">
+<meta property="og:image" content="https://mathyslan.github.io/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#241c14">
+<!-- Ce jeu-ci porte la DA du portfolio, contrairement aux cinq autres : socle
+     TF2 complet (palette, polices, primitives) + socle commun des pages de
+     jeux (focus clavier, mouvement réduit, cibles tactiles, messages d'état). -->
+<link rel="stylesheet" href="../../css/tf2.css?v=9">
+<link rel="stylesheet" href="../shared/game-ui.css?v=1">
+<style>
+  /* Seulement ce qui est propre au Passeur. Tout le reste vient de tf2.css. */
+  body { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem 1rem; }
+  main { width: min(700px, 100%); }
+  h1 { font-size: 1.9rem; margin: 0 0 .2rem; text-align: center; }
+  h1 .a { color: var(--orange-ink); }
+  .sub { color: var(--ink-3); font-size: .8rem; text-align: center; margin: 0 0 1.6rem; }
+  .screen { padding: 1.5rem 1.3rem; }
+  .center { text-align: center; }
+  [hidden] { display: none !important; }
+
+  /* --- accueil / salon --- */
+  .rules { text-align: left; margin: 0 0 1.4rem; }
+  .rules li { margin: .35rem 0; color: var(--ink-2); font-size: .92rem; }
+  input, select {
+    font: inherit; width: 100%; padding: .7rem .9rem;
+    background: var(--bg-deep); color: var(--ink);
+    border: 2px solid var(--panel-edge);
+  }
+  .field { margin-bottom: .9rem; }
+  .or { color: var(--ink-3); font-size: .74rem; margin: 1rem 0; text-align: center; letter-spacing: .1em; }
+  .join-row { display: flex; gap: .5rem; }
+  .join-row input { width: 8rem; text-align: center; text-transform: uppercase; letter-spacing: .3em; }
+  #avatar-row { display: flex; flex-wrap: wrap; gap: .4rem; justify-content: center; margin-bottom: 1rem; }
+  .avatar-pick { font-size: 1.15rem; background: var(--bg-deep); border: 2px solid var(--panel-edge); padding: .4rem .55rem; cursor: pointer; }
+  .avatar-pick.picked { border-color: var(--q-unique); }
+  #room-code { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 2.4rem; letter-spacing: .4em; text-indent: .4em; color: var(--q-unique); }
+  #code-hint { color: var(--ink-3); font-size: .72rem; margin: .2rem 0 1rem; }
+  .players { list-style: none; padding: 0; margin: 0; text-align: left; }
+  .players li { display: flex; align-items: center; gap: .5rem; padding: .45rem .2rem; border-bottom: 1px solid var(--line); font-size: .88rem; }
+  .players .tag { color: var(--q-unique); font-size: .7rem; }
+  .players .pts { margin-left: auto; color: var(--ink-3); }
+  .players .ok { color: var(--q-genuine); }
+  #need-players { color: var(--ink-3); font-size: .76rem; margin-top: .9rem; }
+
+  /* --- barre de temps : c'est du gameplay. Pilotée en JS (pas une transition
+         CSS) pour s'arrêter pile ; en mouvement réduit elle avance par paliers
+         et le compte à rebours reste lisible en toutes lettres. --- */
+  .timer-wrap { display: flex; align-items: center; gap: .8rem; margin-bottom: 1rem; }
+  .timer-bar { flex: 1; height: 10px; background: var(--bg-deep); box-shadow: inset 0 0 0 2px var(--panel-edge); overflow: hidden; }
+  .timer-fill { height: 100%; width: 100%; background: var(--q-genuine); }
+  .timer-fill.warn { background: var(--q-unique); }
+  .timer-fill.hot { background: var(--red); }
+  .timer-num { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 1.2rem; min-width: 2.8rem; text-align: right; color: var(--ink); }
+  .round-meta { display: flex; justify-content: space-between; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); margin-bottom: .6rem; }
+  .round-meta b { color: var(--q-unique); }
+
+  /* --- la situation --- */
+  .ctx { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 1.3rem; line-height: 1.25; margin: 0 0 .4rem; color: var(--ink); }
+  .detail { color: var(--ink-2); font-size: .9rem; margin: 0 0 1.2rem; }
+
+  /* --- les cinq passes --- */
+  .passes { display: grid; grid-template-columns: repeat(auto-fit, minmax(195px, 1fr)); gap: .6rem; }
+  .pass { text-align: left; display: flex; align-items: baseline; gap: .55rem; }
+  .pass .num { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; color: var(--q-unique); font-size: .9rem; }
+  .pass .hint { display: block; font-size: .7rem; color: var(--ink-3); text-transform: none; letter-spacing: 0; }
+  #waiting { color: var(--ink-3); font-size: .85rem; margin-top: 1rem; }
+
+  /* --- résultats de manche --- */
+  .best { margin: 0 0 1rem; }
+  .best-head { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 1.3rem; color: var(--q-genuine); margin: 0 0 .2rem; }
+  .best-why { color: var(--ink-2); font-size: .9rem; margin: 0; }
+  .res-row { display: grid; grid-template-columns: 1fr auto auto; gap: .8rem; align-items: center; padding: .5rem .2rem; border-bottom: 1px solid var(--line); font-size: .86rem; }
+  .res-row .why { grid-column: 1 / -1; color: var(--ink-3); font-size: .78rem; margin: .15rem 0 0; }
+  .res-row .pts { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; color: var(--q-unique); }
+  .res-row.best-row .pts { color: var(--q-genuine); }
+  .res-row.miss .pts { color: var(--red-ink); }
+
+  /* --- fin --- */
+  .final-title { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 1.5rem; margin: 0 0 1rem; color: var(--ink); }
+  .rank-row { display: flex; justify-content: space-between; gap: 1rem; padding: .45rem .2rem; border-bottom: 1px solid var(--line); font-size: .9rem; text-align: left; }
+  .rank-row .avg { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; color: var(--q-unique); }
+
+  .actions { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; margin-top: 1.3rem; }
+  .back { color: var(--ink-3); }
+  .back:hover { color: var(--ink); }
+  .wait { color: var(--ink-3); font-size: .8rem; }
+
+  /* Désactivé : on suit la convention du socle des jeux, pas celle du portfolio.
+     `.tf-btn:disabled` de tf2.css dit `cursor: progress` — juste pour le guichet,
+     où "désactivé" veut dire "envoi en cours". Ici il veut dire "pas encore
+     possible" (pas assez de joueurs, manche déjà jouée) : un curseur d'attente
+     mentirait. Même spécificité (0,2,0) que tf2.css, mais cette feuille est la
+     dernière chargée — l'ordre suffit, pas besoin d'!important. */
+  .tf-btn:disabled,
+  .tf-btn:disabled:hover { opacity: .45; cursor: default; }
+  @media (max-width: 560px) { h1 { font-size: 1.5rem; } .ctx { font-size: 1.1rem; } }
+</style>
+</head>
+<body>
+  <main>
+    <h1>Le Passeur<span class="a">.</span></h1>
+    <p class="sub">cinq passes, cinq secondes — c'est toi qui distribues</p>
+
+    <!-- ACCUEIL -->
+    <section id="home" class="panel screen">
+      <ul class="rules attr-list">
+        <li>Une situation de jeu s'affiche : réception, bloc adverse, état de tes attaquants.</li>
+        <li>5 secondes pour choisir l'une des cinq passes (clavier : 1 à 5).</li>
+        <li>Les points dépendent de la pertinence de la décision ET de ta vitesse.</li>
+        <li>Tout le monde répond à la même situation, puis on compare.</li>
+      </ul>
+      <div class="field"><input id="name-input" maxlength="16" placeholder="ton pseudo" autocomplete="off"></div>
+      <p class="center" style="color:var(--ink-3);font-size:.74rem;margin:0 0 .5rem">choisis ton icône :</p>
+      <div id="avatar-row"></div>
+      <div class="actions"><button id="host" type="button" class="tf-btn tf-btn-buy">Créer une partie</button></div>
+      <p class="or">— ou —</p>
+      <div class="join-row">
+        <input id="code-input" maxlength="4" placeholder="CODE" autocomplete="off" spellcheck="false">
+        <button id="join" type="button" class="tf-btn tf-btn-sm" style="flex:1">Rejoindre</button>
+      </div>
+    </section>
+
+    <!-- SALON -->
+    <section id="lobby" class="panel screen center" hidden>
+      <p class="round-meta" style="justify-content:center">Salon</p>
+      <button type="button" id="room-code" class="g-copy" title="clique pour copier">····</button>
+      <p id="code-hint" role="status">clique sur le code pour le copier</p>
+      <ul id="players" class="players"></ul>
+      <div id="host-config" class="actions">
+        <label for="rounds-select" class="wait">Manches</label>
+        <select id="rounds-select" style="width:auto"><option>3</option><option selected>6</option><option>9</option></select>
+        <button id="start" type="button" class="tf-btn tf-btn-buy">Lancer la partie</button>
+      </div>
+      <p id="need-players" class="wait">En attente du MJ…</p>
+    </section>
+
+    <!-- PARTIE -->
+    <section id="game" class="panel screen" hidden>
+      <div class="round-meta">
+        <span>Manche <b id="round-num">1</b>/<span id="round-of">6</span></span>
+        <span>Score <b id="score">0</b></span>
+      </div>
+      <div class="timer-wrap">
+        <div class="timer-bar" role="presentation"><div id="timer-fill" class="timer-fill"></div></div>
+        <span id="timer-num" class="timer-num">5,0</span>
+      </div>
+      <p id="ctx" class="ctx"></p>
+      <p id="detail" class="detail"></p>
+      <div id="passes" class="passes"></div>
+      <p id="waiting" hidden>Décision envoyée — on attend les autres…</p>
+    </section>
+
+    <!-- RÉSULTATS DE MANCHE -->
+    <section id="results" class="panel screen" hidden>
+      <p class="round-meta"><span>Résultats</span><span id="res-round"></span></p>
+      <div class="best">
+        <p class="best-head" id="best-head"></p>
+        <p class="best-why" id="best-why"></p>
+      </div>
+      <div id="res-rows"></div>
+      <div class="actions">
+        <button id="next" type="button" class="tf-btn tf-btn-buy">Manche suivante</button>
+        <p id="wait-host" class="wait" hidden>En attente du MJ…</p>
+      </div>
+    </section>
+
+    <!-- FIN -->
+    <section id="end" class="panel screen center" hidden>
+      <p class="round-meta" style="justify-content:center">Fin de partie</p>
+      <p id="final-title" class="final-title"></p>
+      <div id="ranking"></div>
+      <div class="actions">
+        <button id="again" type="button" class="tf-btn tf-btn-buy">Rejouer</button>
+        <a class="tf-btn tf-btn-sm" href="../../#games">Les autres jeux</a>
+      </div>
+    </section>
+
+    <p id="error" class="g-error" role="alert"></p>
+    <p class="center"><a class="back" href="../../">← retour au portfolio</a></p>
+  </main>
+
+  <script src="net.js?v=1"></script>
+  <script src="app.js?v=1"></script>
+</body>
+</html>

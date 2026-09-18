@@ -1298,9 +1298,141 @@ html:not(.js) .game-desc { flex: none; display: block; overflow: visible; -webki
 .nojs-sheet .attr-list { margin-top: .7rem; }
 
 /* ============================================================================
+   Hub de jeux (js/gamehub.js) : caisse Mann Co. + faux matchmaking
+   ----------------------------------------------------------------------------
+   Aucune nouvelle direction artistique : la fenêtre est un .panel, la carte du
+   jeu tiré est un .item (donc sa bordure porte la qualité, comme dans le sac à
+   dos), les boutons sont des .tf-btn. Rien ici n'invente de couleur : tout sort
+   des jetons de tf2.css, donc les deux thèmes suivent tout seuls.
+   ========================================================================= */
+.hub-overlay {
+  position: fixed; inset: 0; z-index: 90;
+  display: flex; align-items: center; justify-content: center;
+  padding: 1.25rem;
+}
+.hub-backdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, .72); }
+.hub-panel {
+  position: relative;
+  width: min(420px, 100%);
+  max-height: calc(100vh - 2.5rem);
+  overflow-y: auto;
+  padding: 1.5rem 1.4rem 1.3rem;
+  text-align: center;
+}
+.hub-kicker {
+  font-size: .68rem; letter-spacing: .22em; text-transform: uppercase;
+  color: var(--ink-3); margin: 0 0 1rem;
+}
+.hub-hint { font-size: .72rem; margin: .8rem 0 0; }
+.hub-empty { margin: 0 0 1.2rem; }
+.hub-actions {
+  display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center;
+  margin-top: 1.2rem;
+}
+
+/* ---------------------------------------------------------- la caisse
+   Une caisse = deux aplats biseautés + un couvercle qui bascule. Le biseau est
+   en box-shadow inset, comme partout : les coins sont coupés au clip-path, qui
+   rognerait une ombre portée (voir l'avertissement en tête de tf2.css). */
+.hub-crate { position: relative; width: 150px; height: 118px; margin: .4rem auto 0; }
+.crate-body, .crate-lid {
+  position: absolute; left: 0; right: 0;
+  background: linear-gradient(180deg, #7a5a34, #4b3721);
+  box-shadow: inset 2px 2px 0 0 var(--bevel-hi), inset -2px -2px 0 0 var(--bevel-lo);
+  clip-path: polygon(8px 0%, 100% 0%, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0% 100%, 0% 8px);
+}
+.crate-body { top: 26px; bottom: 0; display: grid; place-items: center; }
+.crate-lid {
+  top: 0; height: 30px;
+  transform-origin: 50% 100%;
+  transition: transform .5s cubic-bezier(.2, .9, .2, 1);
+  z-index: 2;
+}
+.hub-crate.is-open .crate-lid { transform: translateY(-16px) rotate(-8deg); }
+.crate-mark {
+  font-family: 'TF2 Build', 'Arial Narrow', sans-serif;
+  font-size: .78rem; letter-spacing: .12em; color: var(--orange-ink);
+}
+.crate-glow {
+  position: absolute; left: 50%; top: 22px; width: 130px; height: 90px;
+  transform: translateX(-50%) scaleY(.3); opacity: 0;
+  background: radial-gradient(ellipse at center, var(--q-unique), transparent 70%);
+  transition: opacity .4s ease, transform .4s ease;
+  pointer-events: none;
+}
+.hub-crate.is-open .crate-glow { opacity: .55; transform: translateX(-50%) scaleY(1); }
+.hub-crate.is-done .crate-glow { opacity: .85; }
+
+/* La roulette : une bande qui défile derrière une fenêtre d'une seule cellule. */
+.crate-reel {
+  position: absolute; left: 50%; top: 44px; transform: translateX(-50%);
+  width: 132px; height: 64px; overflow: hidden; z-index: 3;
+  background: var(--bg-deep);
+  box-shadow: inset 0 0 0 2px var(--panel-edge);
+  opacity: 0; transition: opacity .2s ease;
+}
+.hub-crate.is-open .crate-reel { opacity: 1; }
+.hub-crate.is-done .crate-reel { opacity: 0; }
+.crate-cell {
+  display: flex; align-items: center; justify-content: center; gap: .3rem;
+  height: 64px; padding: 0 .4rem;
+  font-family: 'TF2 Build', 'Arial Narrow', sans-serif;
+  font-size: .82rem; line-height: 1.1; text-align: center;
+  color: var(--q-ink, var(--ink));
+  border-bottom: 1px solid var(--line);
+}
+
+/* ------------------------------------------------- l'objet tiré au sort */
+.hub-item { margin-top: 1.1rem; padding: 1rem .9rem; }
+.hub-item-emoji { font-size: 2rem; line-height: 1; }
+.hub-item-got { font-size: .68rem; letter-spacing: .14em; text-transform: uppercase; margin: .5rem 0 .1rem; }
+.hub-item-name {
+  font-family: 'TF2 Build', 'Arial Narrow', sans-serif;
+  font-size: 1.35rem; text-transform: uppercase; margin: 0;
+  color: var(--q-ink, var(--ink));
+}
+.hub-item-tag { font-size: .72rem; color: var(--ink-3); margin: .3rem 0 0; }
+
+/* ------------------------------------------------------ le matchmaking */
+.hub-log { list-style: none; margin: 0; padding: 0; min-height: 6.4rem; text-align: left; }
+.hub-log-line {
+  font-size: .76rem; color: var(--ink-2); padding: .18rem 0;
+  animation: hub-line .25s ease both;
+}
+.hub-log-line::before { content: '> '; color: var(--orange-ink); }
+@keyframes hub-line { from { opacity: 0; transform: translateX(-4px); } }
+.hub-found {
+  font-size: 1.5rem; color: var(--q-unique); margin: .2rem 0 .8rem;
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.hub-facts { margin: 0; text-align: left; }
+.hub-row {
+  display: flex; justify-content: space-between; gap: 1rem;
+  padding: .32rem 0; border-bottom: 1px solid var(--line);
+  font-family: 'TF2 Secondary', system-ui, sans-serif; font-size: .8rem;
+}
+.hub-row dt { color: var(--ink-3); text-transform: uppercase; letter-spacing: .1em; font-size: .68rem; }
+.hub-row dd { margin: 0; color: var(--ink); }
+.hub-fake { font-size: .66rem; line-height: 1.5; margin: .9rem 0 0; }
+
+/* Les deux boutons d'entrée, dans l'en-tête de la section Jeux. */
+.hub-entries { display: flex; flex-wrap: wrap; gap: .5rem; }
+
+@media (max-width: 420px) {
+  /* Téléphone : la caisse prend trop de place à côté du reste, on la réduit. */
+  .hub-crate { transform: scale(.86); margin-top: 0; }
+}
+
+/* ============================================================================
    Mouvement réduit
    ========================================================================= */
 @media (prefers-reduced-motion: reduce) {
+  /* Le hub : plus de couvercle qui bascule, plus de lignes qui glissent, et
+     gamehub.js saute la roulette et les paliers du matchmaking. La caisse
+     s'ouvre et le résultat s'affiche — l'information ne dépend jamais de
+     l'animation. */
+  .crate-lid, .crate-glow, .crate-reel { transition: none; }
+  .hub-log-line { animation: none; }
   /* Le Spy apparaît directement à sa place, sans marcher (easter.js saute
      aussi les étapes d'entrée et de sortie). */
   .spycrab *, .spycrab.is-walking .crab-svg, .secret-note { animation: none !important; }

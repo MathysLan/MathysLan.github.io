@@ -21,7 +21,7 @@
 // Ce que ce fichier ne peut PAS prouver : qu'un anneau de focus apparaît à la
 // tabulation. `:focus-visible` exige un vrai clavier, qu'une iframe ne simule
 // pas. C'est tests/keyboard.mjs qui s'en charge, avec de vraies frappes Tab.
-var GAMES = ['morpion', 'demicercle', 'imitation', 'ban', 'precision'];
+var GAMES = ['morpion', 'demicercle', 'imitation', 'ban', 'precision', 'passeur'];
 var out = [], errs = [];
 function t(name, ok) { out.push((ok ? 'OK   ' : 'KO   ') + name); if (!ok) out.ko = true; }
 

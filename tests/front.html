@@ -84,14 +84,14 @@ document.getElementById('f').addEventListener('load', function () {
       t('la croix de la fiche fonctionne au clavier', im.hidden);
 
       var slides = d.querySelectorAll('.game-slide');
-      t('cartes jeux rendues (' + slides.length + ')', slides.length === 7);
+      t('cartes jeux rendues (' + slides.length + ')', slides.length === 8);
       t('carte de jeu = objet', d.querySelector('.game-slide .item.game-card') !== null);
       // Jeux : Code et Architecture a cote de Jouer.
       var codes = d.querySelectorAll('.game-slide .game-code');
-      t('jeux : 6 liens Code vers GitHub',
-        codes.length === 6 && [].every.call(codes, function (a) { return a.href.indexOf('https://github.com/MathysLan/') === 0 && a.target === '_blank'; }));
+      t('jeux : 7 liens Code vers GitHub',
+        codes.length === 7 && [].every.call(codes, function (a) { return a.href.indexOf('https://github.com/MathysLan/') === 0 && a.target === '_blank'; }));
       var archBtns = d.querySelectorAll('.game-slide .game-arch');
-      t('jeux : 6 boutons Architecture', archBtns.length === 6);
+      t('jeux : 7 boutons Architecture', archBtns.length === 7);
       archBtns[0].focus();
       archBtns[0].click();
       t('Architecture ouvre la fiche technique du jeu',
@@ -193,8 +193,19 @@ document.getElementById('f').addEventListener('load', function () {
         d.getElementById('lightbox-close').getAttribute('aria-label') === 'Close'
         && d.getElementById('games-next').getAttribute('aria-label') === 'Next game');
       t('pictogrammes de nav conserves (' + d.querySelectorAll('.nav-link svg').length + '/6)', d.querySelectorAll('.nav-link svg').length === 6);
+      // Volley : Mathys s'oriente vers PASSEUR. Le texte ne doit jamais laisser
+      // croire qu'il est deja affecte a ce poste dans un club.
+      t('EN : volley = setter, pas middle blocker',
+        d.querySelector('[data-i18n="passions.volley.title"]').textContent === 'Setter'
+        && /moving toward setter/.test(d.querySelector('[data-i18n="passions.volley.sub"]').textContent)
+        && !/middle/i.test(d.querySelector('[data-i18n="hero.tagline"]').textContent));
       d.getElementById('lang-toggle').click();
       t('retour FR', /Projets/.test(d.querySelector('#projects h2').textContent));
+      t('FR : volley = passeur, en cours d orientation',
+        d.querySelector('[data-i18n="passions.volley.title"]').textContent === 'Passeur'
+        && /orientation passeur/.test(d.querySelector('[data-i18n="passions.volley.sub"]').textContent)
+        && /passeur au volley/.test(d.querySelector('[data-i18n="hero.tagline"]').textContent)
+        && !/central/i.test(d.querySelector('[data-i18n="passions.volley.desc"]').textContent));
 
       // Theme
       var crossDark = w.getComputedStyle(d.getElementById('theme-toggle')).cursor;
@@ -451,12 +462,12 @@ document.getElementById('f').addEventListener('load', function () {
         t('sans JS : fiches de projet visibles avec descriptif',
           sheets.length === 8 && nw.getComputedStyle(nd.getElementById('projects-sheets')).display !== 'none'
           && sheets[1].textContent.length > 200);
-        t('sans JS : 7 cartes de jeu, en grille lisible',
-          nd.querySelectorAll('#games-track .game-slide').length === 7
+        t('sans JS : 8 cartes de jeu, en grille lisible',
+          nd.querySelectorAll('#games-track .game-slide').length === 8
           && nw.getComputedStyle(nd.querySelector('.game-slide')).position === 'static');
         t('sans JS : jeux preferes presents', nd.querySelectorAll('#fav-games .fav-game').length > 0);
         t('sans JS : architecture des jeux lisible dans les cartes',
-          nd.querySelectorAll('.game-arch-list').length === 6
+          nd.querySelectorAll('.game-arch-list').length === 7
           && nw.getComputedStyle(nd.querySelector('.game-arch-list')).display !== 'none');
         t('sans JS : fiches de projet structurees', nd.querySelectorAll('#projects-sheets .facts').length === 8);
         t('sans JS : boutons qui dependent du JS masques',
@@ -555,11 +566,133 @@ document.getElementById('f').addEventListener('load', function () {
             setTimeout(function () {
               t('reponse tardive du presse-papiers : pas de seconde annonce', c3.length === 1);
               restoreClipboard();
-              finish();
+              hubTests(finish);
             }, 150);
           }, 1300);
         }, 80);
       }, 80);
+
+      // --- Hub de jeux : caisse Mann Co. et faux matchmaking (js/gamehub.js).
+      // Les deux ouvrent un dialogue construit à la volée : on vérifie ce qui
+      // casse en silence — la sélection des jeux, le clavier, l'annonce du
+      // résultat, et le retour à un état stable.
+      function hubTests(done) {
+        var reducedMotion = w.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        var hub = w.gameHub;
+        t('hub : module charge', !!hub && typeof hub.playable === 'function');
+        if (!hub) { done(); return; }
+
+        var jouables = hub.playable();
+        t('hub : ne propose que des jeux lancables (' + jouables.length + ')',
+          jouables.length > 0 && jouables.every(function (g) {
+            return g.status === 'live' && (g.href || g.action);
+          }));
+        t('hub : « La suite » (soon) est exclue',
+          !jouables.some(function (g) { return g.id === 'soon'; }));
+        var noms = jouables.map(function (g) { return [g.title, g.title_en]; });
+        var estJouable = function (nom) {
+          return noms.some(function (n) { return n[0] === nom || n[1] === nom; });
+        };
+
+        // --- la caisse
+        var crateBtn = d.getElementById('crate-btn');
+        t('caisse : bouton present, nomme, et masque sans JS',
+          !!crateBtn && (crateBtn.getAttribute('aria-label') || '').length > 5
+          && crateBtn.closest('.js-only') !== null);
+        crateBtn.click();
+        var ov = d.querySelector('.hub-overlay');
+        t('caisse : dialogue modal ouvert',
+          !!ov && ov.getAttribute('role') === 'dialog' && ov.getAttribute('aria-modal') === 'true');
+        t('caisse : focus place dans le dialogue', ov.contains(d.activeElement));
+        t('caisse : defilement de la page bloque', d.body.style.overflow === 'hidden');
+        t('caisse : la caisse est un decor, pas du contenu',
+          d.querySelector('.hub-crate').getAttribute('aria-hidden') === 'true');
+        // Tab tourne dans le dialogue
+        var foc = [].slice.call(ov.querySelectorAll('button'));
+        foc[foc.length - 1].focus();
+        d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
+        t('caisse : Tab reste dans le dialogue', ov.contains(d.activeElement));
+
+        // On garde la reference AVANT le clic : en mouvement reduit la
+        // revelation est immediate et remplace les boutons, donc
+        // querySelector('.tf-btn-buy') renverrait alors « Jouer ».
+        var openBtn = ov.querySelector('.tf-btn-buy');
+        openBtn.click();
+        t('caisse : pas de double tirage possible',
+          openBtn.disabled === true || !!d.querySelector('.hub-result .hub-item'));
+
+        setTimeout(function () {
+          var item = d.querySelector('.hub-result .hub-item');
+          t('caisse : un jeu est revele', !!item);
+          if (item) {
+            var nom = item.querySelector('.hub-item-name').textContent.trim();
+            t('caisse : le jeu tire est jouable [' + nom + ']', estJouable(nom));
+            t('caisse : bordure de qualite posee, comme une case du sac a dos',
+              item.hasAttribute('data-q'));
+            var live = d.querySelector('.hub-live');
+            t('caisse : resultat annonce aux lecteurs d ecran',
+              live.getAttribute('role') === 'status' && live.textContent.indexOf(nom) !== -1);
+            t('caisse : le resultat ne depend pas de la couleur seule',
+              item.querySelector('.hub-item-name').textContent.length > 0);
+          }
+          if (reducedMotion) t('mouvement reduit : pas de roulette, revelation directe', !!item);
+          else t('mouvement normal : la roulette a defile',
+            (d.querySelector('.crate-strip') || {}).childElementCount > 0);
+
+          d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+          t('caisse : Echap ferme, defilement rendu, focus rendu au bouton',
+            !d.querySelector('.hub-overlay') && d.body.style.overflow === '' && d.activeElement === crateBtn);
+
+          // --- garde-fou : plus aucun jeu dans les donnees
+          // GAMES vit dans l iframe : on passe par w.eval pour obtenir la
+          // VRAIE reference du tableau, qu on vide puis qu on remplit a nouveau.
+          var jeuxReels = w.eval('GAMES');
+          var sauvegarde = jeuxReels.slice();
+          jeuxReels.length = 0;
+          var boom = false;
+          try { crateBtn.click(); } catch (e) { boom = true; }
+          t('caisse : sans donnees, un message au lieu d une erreur',
+            !boom && !!d.querySelector('.hub-empty'));
+          d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+          [].push.apply(jeuxReels, sauvegarde);
+
+          // --- le matchmaking
+          var mmBtn = d.getElementById('mm-btn');
+          t('matchmaking : bouton present et nomme',
+            !!mmBtn && (mmBtn.getAttribute('aria-label') || '').length > 5);
+          mmBtn.click();
+          t('matchmaking : dialogue ouvert et premiere etape annoncee',
+            !!d.querySelector('.hub-overlay')
+            && d.querySelector('.hub-live').textContent.length > 0);
+
+          setTimeout(function () {
+            var trouve = d.querySelector('.hub-match .hub-found');
+            t('matchmaking : un match est trouve', !!trouve);
+            var lignes = d.querySelectorAll('.hub-match .hub-row');
+            t('matchmaking : jeu, map, joueurs, ping, serveur, duree (' + lignes.length + '/6)',
+              lignes.length === 6);
+            if (lignes.length) {
+              var jeu = lignes[0].querySelector('dd').textContent.trim();
+              t('matchmaking : le jeu propose est jouable [' + jeu + ']', estJouable(jeu));
+            }
+            t('matchmaking : annonce honnetement qu il est pour de faux',
+              /faux|Fake/.test((d.querySelector('.hub-fake') || {}).textContent || ''));
+            var ban = [].slice.call(d.querySelectorAll('.hub-actions .tf-btn'))
+              .filter(function (b) { return /Bannir|Ban this/.test(b.textContent); })[0];
+            t('matchmaking : le bouton « bannir » existe (c est la blague)', !!ban);
+            if (ban) {
+              ban.click();
+              t('matchmaking : bannir relance une recherche, etat stable',
+                !d.querySelector('.hub-match .hub-found') && !!d.querySelector('.hub-overlay'));
+            }
+            d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+            t('matchmaking : Echap ferme et rend le focus',
+              !d.querySelector('.hub-overlay') && d.activeElement === mmBtn);
+            t('hub : aucune minuterie ne survit a la fermeture', !hub.isOpen());
+            done();
+          }, reducedMotion ? 300 : 3200);
+        }, reducedMotion ? 300 : 3400);
+      }
 
       function finish() {
         t('aucune erreur JS', errs.length === 0);

@@ -178,6 +178,39 @@ const GAMES = [
     status: 'live',
   },
   {
+    id: 'passeur',
+    emoji: '🏐',
+    accent: 'amber',
+    title: 'Le Passeur',
+    title_en: 'The Setter',
+    tagline: 'Décider en cinq secondes',
+    tagline_en: 'Five seconds to decide',
+    desc: "Une situation de volley, cinq passes possibles, cinq secondes. Les points dépendent de la pertinence de la décision ET de la vitesse. Inspiré du poste de passeur - lecture du jeu, pas simulation.",
+    desc_en: "A volleyball situation, five possible sets, five seconds. Points depend on how sound the decision is AND how fast you make it. Inspired by the setter position - reading the game, not simulating it.",
+    tags: ['en ligne', 'multi', 'réflexe'],
+    tags_en: ['online', 'multi', 'reflex'],
+    stack: ['WebSocket', 'Node.js', 'Moteur pur'],
+    code: 'https://github.com/MathysLan/passeur-server',
+    arch: [
+      "Serveur Node.js (ws) seul arbitre : le client n'envoie que la passe choisie",
+      "Les barèmes et les explications vivent dans le serveur — le client ne les reçoit qu'APRÈS avoir répondu",
+      "Temps de décision recoupé à l'horloge serveur : le chrono affiché n'est qu'un repère visuel",
+      "Ajouter une situation = ajouter un objet dans situations.js, côté serveur",
+    ],
+    arch_en: [
+      "A Node.js (ws) server is the only referee: the client only sends the chosen set",
+      "Scoring tables and explanations live on the server — the client gets them only AFTER answering",
+      "Decision time is re-measured against the server clock: the on-screen timer is just a visual cue",
+      "Adding a situation means adding one object to situations.js, on the server side",
+    ],
+    // Pas encore de `href` : le client est prêt dans games/passeur/, mais tant
+    // que passeur-server n'est pas déployé sur Render, proposer « Jouer »
+    // enverrait les visiteurs sur une page qui ne peut pas se connecter.
+    // Pour l'activer : ajouter `href: 'games/passeur/'`, passer `status` à
+    // 'live', retirer le noindex de games/passeur/index.html, puis rebuild.
+    status: 'soon',
+  },
+  {
     id: 'soon',
     emoji: '🎮',
     accent: 'mint',
