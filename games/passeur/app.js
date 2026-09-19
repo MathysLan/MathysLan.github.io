@@ -55,8 +55,44 @@
       await NET.connect();
       // L'avatar complet : la photo du profil s'il y en a une, l'emoji toujours.
       NET.send({ action: 'join', name: $('name-input').value, avatar: GameProfile.joinAvatar(myAvatar), code: code || undefined });
-    } catch (err) { showError(err.message); }
+    } catch (err) {
+      showError(err.message);
+      if (lien && viaHub && !myId) lien.failed('UNREACHABLE', err.message);
+    }
   }
+
+  // ------------------------------------------------------- lancé par le Hub
+  // Si la page a été ouverte par le Game Hub, un billet dit si l'on CRÉE la
+  // partie (l'hôte du lancement) ou si l'on REJOINT le code du groupe. Dans les
+  // deux cas on passe par `enter()`, le chemin normal de cette page : aucun
+  // second système de création ou de join. Sans billet, `lien` vaut null et la
+  // page marche exactement comme avant.
+  let viaHub = false;          // le join en cours vient du Hub
+  let partirSansAttendre = false;
+  const lien = window.HubHandoff ? HubHandoff.start({
+    gameId: 'passeur',
+    join: (code) => {
+      viaHub = true;
+      if (!$('name-input').value.trim()) $('name-input').value = GameProfile.load().name || '';
+      enter(code || undefined);
+    },
+    onUpdate: attente,
+  }) : null;
+
+  // L'hôte ne lance pas la partie tant que le groupe n'est pas dans la room :
+  // un invité qui arriverait après le « start » serait refusé par le serveur
+  // (« partie déjà commencée »). Il peut partir sans eux — explicitement.
+  function attente(i) {
+    const n = i && i.launch.stage === 'join' ? i.waitingIds.length : 0;
+    const bloque = isHost && n > 0 && !partirSansAttendre;
+    $('start').disabled = bloque;
+    $('start').textContent = bloque ? `En attente de ${i.waiting}…` : 'Lancer la partie';
+    $('start-anyway').hidden = !bloque;
+  }
+  $('start-anyway').addEventListener('click', () => {
+    partirSansAttendre = true;
+    NET.send({ action: 'start', rounds: +$('rounds-select').value });
+  });
   $('host').addEventListener('click', () => enter());
   $('join').addEventListener('click', () => enter($('code-input').value));
   $('code-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') enter($('code-input').value); });
@@ -151,6 +187,9 @@
     myId = msg.id; isHost = msg.host;
     $('room-code').textContent = msg.code;
     show('lobby');
+    // Lancé par le Hub : on lui dit dans quelle room on est. L'hôte y déclare
+    // le code (le seul qu'il croira) ; les invités confirment y être entrés.
+    if (lien) { viaHub = false; lien.roomReady(msg.code); attente(lien.info()); }
   });
 
   NET.on('lobby', (msg) => {
@@ -161,12 +200,14 @@
     $('host-config').hidden = !isHost;
     $('need-players').hidden = isHost;
     if (msg.rounds) $('rounds-select').value = String(msg.rounds);
+    if (lien) attente(lien.info());
   });
 
   // PHASE 1 — la mise en situation. On regarde, on comprend. Aucun chrono ne
   // tourne, les zones ne se jouent pas encore : c'est le serveur qui ouvrira la
   // fenêtre de décision, avec le message `go`.
   NET.on('round', (msg) => {
+    if (lien && isHost) lien.started();
     answered = false;
     msLimit = msg.msLimit || 5000;
     $('round-num').textContent = msg.index + 1;
@@ -279,6 +320,7 @@
   NET.on('end', (msg) => {
     stopTimer();
     show('end');
+    if (lien) { lien.ended(); $('to-hub').hidden = false; }
     const me = msg.ranking.find((r) => r.id === myId);
     $('final-title').textContent = me ? `${me.avg} / 100 — ${me.title}` : 'Fin de partie';
     $('ranking').innerHTML = msg.ranking.map((r, i) =>
@@ -287,7 +329,12 @@
     $('again').hidden = !isHost;
   });
 
-  NET.on('error', (msg) => showError(msg.message));
+  NET.on('error', (msg) => {
+    showError(msg.message);
+    // Le serveur du jeu refuse d'entrer (code inconnu, partie pleine ou déjà
+    // commencée) : le Hub est prévenu, pour que le groupe le sache.
+    if (lien && viaHub && !myId) { viaHub = false; lien.failed('JOIN', msg.message); }
+  });
   NET.on('closed', () => { stopTimer(); showError('connexion au serveur perdue'); });
 
   // D'où viennent mes points. Les trois chiffres sont ceux du serveur : la

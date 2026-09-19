@@ -12,9 +12,22 @@
 //   client → { action: 'create', player }            player = { id, name, avatar }
 //   client → { action: 'join', code, player }        même id = reprise de SA place
 //   client → { action: 'leave' }
+//   client → { action: 'prefs', love: [ids], veto: [ids] }     pour SOI
+//   client → { action: 'caps', caps: { mic: true } }           déclaratif, pour soi
+//   client → { action: 'constraints', maxMinutes }             hôte
+//   client → { action: 'draw' }                                hôte — rien d'autre
+//   client → { action: 'continue' }                            hôte
+//   Lancement (envoyés par la PAGE DU JEU, games/shared/hub-handoff.js) :
+//   client → { action: 'launched', drawId, roomCode }         hôte du lancement
+//   client → { action: 'entered', drawId, roomCode }          chacun, une fois dans la room
+//   client → { action: 'started' | 'ended', drawId }          hôte du lancement
+//   client → { action: 'abort', drawId, reason, detail }      création / entrée impossible
 //   serveur → { type: 'created' | 'joined', you, session }
 //   serveur → { type: 'session', session }           à chaque changement, à tous
-//   serveur → { type: 'error', code, message }
+//   serveur → { type: 'error', code, message, why? }
+//
+// ⚠️ LE CLIENT NE TIRE JAMAIS. `draw` ne porte aucun champ : le serveur filtre,
+// pondère et tire ; la page ne fait que mettre en scène `session.draw.gameId`.
 //
 // Chargé tel quel par le navigateur (window.GameHub) ET par Node (require), pour
 // que les tests unitaires jouent contre le vrai serveur plutôt qu'un mock.
@@ -69,6 +82,16 @@
   var createMsg = function (player) { return { action: 'create', player: player }; };
   var joinMsg = function (code, player) { return { action: 'join', code: code, player: player }; };
   var leaveMsg = function () { return { action: 'leave' }; };
+  var prefsMsg = function (love, veto) { return { action: 'prefs', love: love || [], veto: veto || [] }; };
+  var capsMsg = function (caps) { return { action: 'caps', caps: caps }; };
+  var constraintsMsg = function (maxMinutes) { return { action: 'constraints', maxMinutes: maxMinutes == null ? null : maxMinutes }; };
+  var drawMsg = function () { return { action: 'draw' }; };
+  var continueMsg = function () { return { action: 'continue' }; };
+  var launchedMsg = function (drawId, roomCode) { return { action: 'launched', drawId: drawId, roomCode: roomCode }; };
+  var enteredMsg = function (drawId, roomCode) { return { action: 'entered', drawId: drawId, roomCode: roomCode }; };
+  var startedMsg = function (drawId) { return { action: 'started', drawId: drawId }; };
+  var endedMsg = function (drawId) { return { action: 'ended', drawId: drawId }; };
+  var abortMsg = function (drawId, reason, detail) { return { action: 'abort', drawId: drawId, reason: reason, detail: detail }; };
 
   // Ce qui arrive du réseau n'est jamais pris tel quel.
   function parseMessage(raw) {
@@ -79,11 +102,85 @@
   }
 
   // L'état public d'une session, relu en LISTE BLANCHE : la page ne manipule
-  // que ces champs-là. `caps` / `veto` / `love` / `draw` / `history` existent
-  // sur le fil mais ne servent pas encore — on ne les recopie pas.
+  // que ces champs-là.
+  var ids = function (v) { return Array.isArray(v) ? v.filter(function (x) { return typeof x === 'string'; }) : []; };
+  var num = function (v) { return typeof v === 'number' && isFinite(v) ? v : null; };
+
+  function readWeights(w) {
+    var out = {};
+    if (w && typeof w === 'object') Object.keys(w).forEach(function (k) { if (num(w[k]) !== null) out[k] = w[k]; });
+    return out;
+  }
+
+  // Le tirage : `gameId` n'existe qu'une fois le serveur décidé. `eligible` et
+  // `weights` sont ceux DU MOMENT du tirage (la caisse n'affiche qu'eux).
+  function readDraw(d) {
+    if (!d || typeof d !== 'object' || typeof d.id !== 'string') return null;
+    var status = ['pending', 'drawn', 'confirmed'].indexOf(d.status) >= 0 ? d.status : 'pending';
+    return {
+      id: d.id,
+      n: num(d.n) || 0,
+      status: status,
+      by: typeof d.by === 'string' ? d.by : null,
+      gameId: status !== 'pending' && typeof d.gameId === 'string' ? d.gameId : null,
+      eligible: ids(d.eligible),
+      weights: readWeights(d.weights),
+      drawnAt: num(d.drawnAt),
+    };
+  }
+
+  // Ce que le serveur dit du catalogue pour ce groupe. `null` = serveur qui
+  // ne connaît pas encore le tirage (version d'avant) : la page le dit.
+  function readPool(p) {
+    if (!p || typeof p !== 'object') return null;
+    var why = {};
+    if (p.why && typeof p.why === 'object') {
+      Object.keys(p.why).forEach(function (k) {
+        why[k] = (Array.isArray(p.why[k]) ? p.why[k] : []).filter(function (r) { return r && typeof r.code === 'string'; });
+      });
+    }
+    var health = {};
+    if (p.health && typeof p.health === 'object') Object.keys(p.health).forEach(function (k) { if (typeof p.health[k] === 'string') health[k] = p.health[k]; });
+    return {
+      catalog: ['ready', 'loading', 'error'].indexOf(p.catalog) >= 0 ? p.catalog : 'loading',
+      games: ids(p.games),
+      eligible: ids(p.eligible),
+      why: why,
+      weights: readWeights(p.weights),
+      health: health,
+    };
+  }
+
+  // Le lancement du jeu tiré. Le rôle de chacun s'en déduit : `hostId` est
+  // l'hôte DU LANCEMENT (celui qui crée la room), tous les autres sont invités.
+  var STAGES = ['create', 'join', 'playing', 'ended', 'failed'];
+  function readLaunch(l) {
+    if (!l || typeof l !== 'object' || typeof l.drawId !== 'string' || STAGES.indexOf(l.stage) < 0) return null;
+    var failed = {};
+    if (l.failed && typeof l.failed === 'object') Object.keys(l.failed).forEach(function (k) { if (typeof l.failed[k] === 'string') failed[k] = l.failed[k]; });
+    return {
+      drawId: l.drawId,
+      gameId: typeof l.gameId === 'string' ? l.gameId : null,
+      url: typeof l.url === 'string' && /^games\/[a-z0-9-]+\/$/.test(l.url) ? l.url : null,
+      stage: l.stage,
+      hostId: typeof l.hostId === 'string' ? l.hostId : null,
+      roomCode: typeof l.roomCode === 'string' && /^[A-Z0-9]{4,8}$/.test(l.roomCode) ? l.roomCode : null,
+      expected: ids(l.expected), entered: ids(l.entered), waiting: ids(l.waiting), missed: ids(l.missed),
+      failed: failed,
+      reason: typeof l.reason === 'string' ? l.reason : null,
+      expiresInMs: num(l.expiresInMs),
+    };
+  }
+
   function readSession(s) {
     if (!s || typeof s !== 'object' || typeof s.code !== 'string') return null;
     var players = Array.isArray(s.players) ? s.players : [];
+    var caps = function (c) {
+      var out = {};
+      if (c && typeof c === 'object') Object.keys(c).forEach(function (k) { if (c[k] === true) out[k] = true; });
+      return out;
+    };
+    var history = s.history && typeof s.history === 'object' ? s.history : {};
     return {
       code: s.code,
       state: typeof s.state === 'string' ? s.state : 'lobby',
@@ -98,9 +195,41 @@
             avatar: p.avatar,              // interprété par GameAvatar, jamais ici
             connected: p.connected !== false,
             host: p.id === s.hostId,
+            caps: caps(p.caps),
+            love: ids(p.love),
+            veto: ids(p.veto),
           };
         }),
+      constraints: { maxMinutes: s.constraints ? num(s.constraints.maxMinutes) : null },
+      draw: readDraw(s.draw),
+      history: { played: ids(history.played) },
+      launch: readLaunch(s.launch),
+      pool: readPool(s.pool),
     };
+  }
+
+  // Pourquoi un jeu est exclu, en français. `nameOf(id)` rend le pseudo d'un
+  // joueur (la page le connaît, pas ce module).
+  function reasonText(r, nameOf) {
+    var noms = function (list) {
+      var n = (list || []).map(function (id) { return nameOf ? nameOf(id) : id; });
+      return n.length <= 2 ? n.join(' et ') : n.slice(0, 2).join(', ') + ' et ' + (n.length - 2) + ' autre' + (n.length > 3 ? 's' : '');
+    };
+    var pl = function (n, mot) { return n + ' ' + mot + (n > 1 ? 's' : ''); };
+    switch (r && r.code) {
+      case 'TOO_FEW': return 'il faut ' + pl(r.min, 'joueur') + ', vous êtes ' + r.count;
+      case 'TOO_MANY': return pl(r.max, 'joueur') + ' maximum, vous êtes ' + r.count;
+      case 'LOCAL_ONLY': return 'se joue seul, sur un seul écran';
+      case 'NEEDS':
+        if (r.need === 'mic') return 'micro non déclaré : ' + noms(r.players);
+        if (r.need === 'consent') return 'avertissement non accepté : ' + noms(r.players);
+        if (r.need === 'cam') return 'caméra non déclarée : ' + noms(r.players);
+        return 'capacité manquante (' + r.need + ') : ' + noms(r.players);
+      case 'VETO': return 'veto de ' + noms(r.players);
+      case 'TOO_LONG': return 'peut durer ' + r.max + ' min (limite : ' + r.limit + ' min)';
+      case 'SERVER_DOWN': return 'serveur du jeu indisponible pour l\'instant';
+      default: return 'indisponible';
+    }
   }
 
   // Codes du serveur → phrases lisibles. Jamais d'erreur brute à l'écran.
@@ -117,7 +246,35 @@
     BAD_JSON: 'Le Hub n\'a pas compris la demande. Recharge la page.',
     UNKNOWN_ACTION: 'Le Hub n\'a pas compris la demande. Recharge la page.',
     NETWORK: 'Impossible de joindre le Hub. S\'il dormait, il met ~30 s à se réveiller : réessaie.',
+    // Randomizer.
+    NOT_HOST: 'Seul l\'hôte peut faire ça.',
+    DRAW_IN_PROGRESS: 'Un tirage est déjà en cours.',
+    NOT_DRAWN: 'Il n\'y a pas de tirage à confirmer.',
+    NO_ELIGIBLE_GAME: 'Aucun jeu n\'est possible pour ce groupe : chaque jeu dit pourquoi dans la liste.',
+    MANIFEST_UNAVAILABLE: 'Le Hub n\'arrive pas à lire le catalogue des jeux. Réessaie dans un instant.',
+    DRAW_FAILED: 'Le tirage a échoué. Réessaie.',
+    BAD_PREFS: 'Préférences refusées par le Hub.',
+    BAD_CAPS: 'Réglage refusé par le Hub.',
+    BAD_CONSTRAINTS: 'Durée refusée par le Hub.',
+    // Lancement.
+    NOT_LAUNCHING: 'Aucun lancement n\'est en cours.',
+    LAUNCH_MISMATCH: 'Ce lancement ne correspond plus au tirage en cours.',
+    LAUNCH_CONSUMED: 'Le code de la partie a déjà été transmis.',
+    LAUNCH_EXPIRED: 'Le lancement a expiré.',
+    BAD_ROOM_CODE: 'Le code de la partie est mal formé.',
+    WRONG_ROOM: 'Ce n\'est pas la partie du groupe.',
   };
+
+  // Pourquoi un lancement a échoué (launch.reason), dit au groupe entier.
+  var ECHECS = {
+    LAUNCH_TIMEOUT: 'l\'hôte n\'a pas créé la partie à temps',
+    HOST_LEFT: 'l\'hôte a quitté la session avant de créer la partie',
+    UNREACHABLE: 'le serveur du jeu est injoignable (il dort peut-être : réessaie dans un instant)',
+    SERVER_DOWN: 'le serveur du jeu est indisponible pour l\'instant',
+    CREATE_FAILED: 'la partie n\'a pas pu être créée',
+    CANCELLED: 'l\'hôte a annulé le lancement',
+  };
+  function launchFailureText(reason) { return ECHECS[reason] || 'le lancement a échoué'; }
 
   function errorText(code, message) {
     if (TEXTES[code]) {
@@ -191,7 +348,7 @@
         return;
       }
       if (m.type === 'error') {
-        var err = { code: m.code, text: errorText(m.code, m.message) };
+        var err = { code: m.code, text: errorText(m.code, m.message), why: m.why && typeof m.why === 'object' ? m.why : null };
         // Remplacé ailleurs : on NE revient PAS tout seul, sinon deux onglets du
         // même profil s'éjecteraient l'un l'autre en boucle.
         if (m.code === 'REPLACED') { closedByUs = true; setStatus('ended'); emit('ended', err); return; }
@@ -280,6 +437,18 @@
         session = null; code = null;
         setStatus('idle');
       },
+      // Réglages et tirage : on envoie une INTENTION ; la réponse est l'état
+      // de session diffusé par le serveur (ou une erreur, événement `error`).
+      setPrefs: function (love, veto) { send(prefsMsg(love, veto)); },
+      setCaps: function (caps) { send(capsMsg(caps)); },
+      setConstraints: function (maxMinutes) { send(constraintsMsg(maxMinutes)); },
+      draw: function () { send(drawMsg()); },
+      confirm: function () { send(continueMsg()); },
+      launched: function (drawId, roomCode) { send(launchedMsg(drawId, roomCode)); },
+      entered: function (drawId, roomCode) { send(enteredMsg(drawId, roomCode)); },
+      started: function (drawId) { send(startedMsg(drawId)); },
+      ended: function (drawId) { send(endedMsg(drawId)); },
+      abort: function (drawId, reason, detail) { send(abortMsg(drawId, reason, detail)); },
       get status() { return status; },
       get session() { return session; },
       get you() { return you; },
@@ -293,7 +462,10 @@
     PROD: PROD, ALPHABET: ALPHABET, CODE_LENGTH: CODE_LENGTH,
     hubUrl: hubUrl, healthUrl: healthUrl, normalizeCode: normalizeCode,
     playerFrom: playerFrom, createMsg: createMsg, joinMsg: joinMsg, leaveMsg: leaveMsg,
-    parseMessage: parseMessage, readSession: readSession, errorText: errorText,
+    prefsMsg: prefsMsg, capsMsg: capsMsg, constraintsMsg: constraintsMsg, drawMsg: drawMsg, continueMsg: continueMsg,
+    launchedMsg: launchedMsg, enteredMsg: enteredMsg, startedMsg: startedMsg, endedMsg: endedMsg, abortMsg: abortMsg,
+    readLaunch: readLaunch, launchFailureText: launchFailureText,
+    parseMessage: parseMessage, readSession: readSession, errorText: errorText, reasonText: reasonText,
     createClient: createClient,
   };
 });

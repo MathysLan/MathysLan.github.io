@@ -1,6 +1,6 @@
 # Tests du front
 
-Quatre suites, qui ne se recouvrent pas :
+Des suites qui ne se recouvrent pas :
 
 | Fichier | Ce qu'il couvre |
 |---|---|
@@ -13,6 +13,10 @@ Quatre suites, qui ne se recouvrent pas :
 | `avatar-play.mjs` | **la photo de profil en vraie partie**, dans les six jeux qui reçoivent une identité, à trois joueurs (voir plus bas) |
 | `hub.mjs` | le **client du Game Hub** (`games/shared/game-hub.js`) : unitaires, puis protocole contre le vrai `game-hub-server` (local, ou `--hub wss://…`) |
 | `hub-play.mjs` | **le salon du Hub dans deux navigateurs** : créer, rejoindre, avatars, hôte, reprise ; **coupure de socket** (absent, grâce conservée, retour avec le même id) puis **« Quitter »** (A disparaît tout de suite chez B ; le dernier qui part ferme la session sur-le-champ) ; 12 joueurs (`--hub wss://…` pour la production) |
+| `handoff.mjs` | **le handoff, protocole réel** : le vrai `game-hub-server` ET le vrai `passeur-server` lancés en local, trois joueurs en Node — room créée par l'hôte, code relayé, invités entrés, une manche jouée et notée |
+| `handoff-play.mjs` | **le handoff dans trois navigateurs**, jusqu'au bout : portfolio → Hub → tirage → « Ouvrir Le Passeur » → room réelle → rechargement d'un invité → « Rejoindre » → une seule room → 3 manches au clavier → classement → retour au Hub ; plus le cas « serveur du jeu injoignable ». `--reduced`, `--shots` |
+| `hub-draw.mjs` | **le randomizer à trois joueurs** : clic réel de la home vers `/games/`, préférences et micro visibles chez tous, tirage, caisse, révélation, CONTINUER, 2e tirage (récence), rechargement pendant la révélation, aucun jeu possible, 390/768/1920 px, anneau de focus à la vraie touche Tab, et le même front devant le Hub **d'avant** le randomizer (extrait de git). `--reduced` pour le mouvement réduit |
+| `hub-fixture.mjs` | (module, pas une suite) le montage local des trois tests du Hub : le vrai `data/games.manifest.json`, avec les URL `health` redirigées vers un faux serveur local — aucun serveur Render n'est réveillé |
 
 Rien à installer pour les deux pages HTML. Les ouvrir dans un navigateur suffit
 **si** l'accès local aux fichiers est autorisé (une iframe `file://` est bloquée
@@ -243,3 +247,24 @@ chaque serveur **d'avant `avatar.js`** (le parent du commit qui l'ajoute) et y
 rejoue le salon : l'ancien serveur doit renvoyer « [obj », et l'écran doit
 montrer un emoji. Chaque écran vérifié scanne aussi `document.body.innerText`
 à la recherche de « [obj » / « [object ».
+
+## hub-draw.mjs — le randomizer, et où lire la vérité
+
+Le jeu tiré est lu dans les **trames WebSocket** que reçoit chaque page
+(`Network.webSocketFrameReceived`), puis comparé au DOM. C'est ce qui prouve
+que la page montre le jeu choisi **par le serveur**, que la bande de la caisse
+ne contient **que** des jeux de sa liste éligible, et qu'elle s'arrête sur le
+bon (on lit la vignette sous le repère, par `getBoundingClientRect`).
+
+Trois pièges déjà rencontrés :
+
+- **Le lien de la home vise `games/` sans `?hub=`** : il irait donc au Hub de
+  production. Le petit serveur HTTP du test redirige `/games/` (et lui seul)
+  vers `/games/?hub=<Hub local>`. Le clic reste un vrai clic, et le test vérifie
+  que le lien, lui, vaut bien `games/`.
+- **Le `tar` de Windows lit `C:\…` comme un hôte distant.** L'extraction de
+  l'ancien Hub (`git archive`) se fait donc avec un chemin relatif.
+- ⚠️ **`keyboard.mjs` compte une `box-shadow` comme un anneau.** Or tous les
+  boutons ont une box-shadow (le biseau) : sur un bouton découpé au
+  `clip-path`, un outline rogné passe donc pour un anneau visible. `hub-draw`
+  vérifie la COULEUR de l'anneau (le jaune `rgb(255, 215, 0)`) à la place.

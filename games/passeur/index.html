@@ -22,7 +22,7 @@
      TF2 complet (palette, polices, primitives) + socle commun des pages de
      jeux (focus clavier, mouvement réduit, cibles tactiles, messages d'état). -->
 <link rel="stylesheet" href="../../css/tf2.css?v=9">
-<link rel="stylesheet" href="../shared/game-ui.css?v=4">
+<link rel="stylesheet" href="../shared/game-ui.css?v=5">
 <style>
   /* Seulement ce qui est propre au Passeur. Tout le reste vient de tf2.css. */
   body { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem 1rem; }
@@ -370,6 +370,9 @@
         <label for="rounds-select" class="wait">Manches</label>
         <select id="rounds-select" style="width:auto"><option>3</option><option selected>6</option><option>9</option></select>
         <button id="start" type="button" class="tf-btn tf-btn-buy">Lancer la partie</button>
+        <!-- Lancé depuis le Game Hub : « Lancer » attend le groupe ; celui-ci
+             permet de partir sans les retardataires (ils sont prévenus). -->
+        <button id="start-anyway" type="button" class="tf-btn tf-btn-sm" hidden>Lancer sans attendre</button>
       </div>
       <p id="need-players" class="wait">En attente du MJ…</p>
     </section>
@@ -440,6 +443,7 @@
       <div class="actions">
         <button id="again" type="button" class="tf-btn tf-btn-buy">Rejouer</button>
         <a class="tf-btn tf-btn-sm" href="../../#games">Les autres jeux</a>
+        <a id="to-hub" class="tf-btn tf-btn-sm" href="../" hidden>↩ Retour au Game Hub</a>
       </div>
     </section>
 
@@ -452,8 +456,12 @@
   <script src="../shared/game-profile.js"></script>
   <!-- Avatar des joueurs (emoji ou photo) à l'affichage, sans innerHTML. -->
   <script src="../shared/game-avatar.js"></script>
+  <!-- Game Hub : le client du Hub et le handoff. Sans billet de lancement (la
+       page ouverte directement), ils ne font rien. -->
+  <script src="../shared/game-hub.js"></script>
+  <script src="../shared/hub-handoff.js"></script>
   <script src="net.js?v=1"></script>
   <script src="court.js?v=5"></script>
-  <script src="app.js?v=5"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>

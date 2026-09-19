@@ -4,8 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Game Hub — sessions entre amis · Mathys Langiny</title>
-<meta name="description" content="Le Game Hub : crée une session, fais entrer tes amis avec un code, et retrouvez-vous dans le même salon avant de jouer.">
-<!-- Phase « lobby » du Hub : la page n'est pas encore annoncée aux moteurs. -->
+<meta name="description" content="Le Game Hub : crée une session, fais entrer tes amis avec un code, et la caisse Mann Co. tire un jeu adapté à tout le groupe.">
+<!-- Le Hub n'est pas encore annoncé aux moteurs (le lancement des jeux arrive
+     avec la phase handoff). Le lien depuis le portfolio suffit à y venir. -->
 <meta name="robots" content="noindex">
 <link rel="canonical" href="https://mathyslan.github.io/games/">
 <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
@@ -97,6 +98,143 @@
   .hub-wait { font-size: .82rem; color: var(--ink-3); margin: 0; }
 
   .hub-back { display: block; text-align: center; margin-top: 1.6rem; }
+  .hub-tag.cap { color: #8cbb96; }
+
+  /* --- blocs du salon (réglages, jeux) ---------------------------------- */
+  .hub-block { margin-top: 1.4rem; padding-top: 1.1rem; border-top: 1px solid var(--panel-edge); }
+  .hub-block-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .4rem 1rem; margin-bottom: .7rem; }
+  .hub-block-head .hub-label { margin: 0; }
+  .hub-note { font-size: .78rem; color: var(--ink-3); margin: 0; }
+  #hub-lobby-msg { margin: .8rem 0 0; }
+  #hub-lobby-msg:empty { margin: 0; }
+
+  /* Ce que TU apportes : des interrupteurs, un par besoin du catalogue. */
+  #hub-caps-list { display: flex; flex-wrap: wrap; gap: .6rem; }
+  .hub-cap.ghost { display: flex; flex-direction: column; align-items: flex-start; gap: .15rem; text-align: left;
+    text-transform: none; font-family: 'TF2 Secondary', system-ui, sans-serif; font-size: .95rem; padding: .6rem .9rem; min-height: 44px; }
+  .hub-cap small { font-size: .72rem; color: var(--ink-3); }
+  .hub-cap[aria-pressed="true"] { box-shadow: inset 0 0 0 2px #8cbb96; color: var(--ink); background: rgba(140, 187, 150, .1); }
+  .hub-cap .hub-cap-state { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+  .hub-cap[aria-pressed="true"] .hub-cap-state { color: #8cbb96; }
+
+  /* Les jeux : une fiche par jeu du manifest, possible ou non — et pourquoi. */
+  .hub-dur { display: flex; align-items: center; gap: .5rem; font-size: .8rem; color: var(--ink-3); }
+  .hub-dur select { padding: .35rem .6rem; font-size: .85rem; }
+  /* Deux colonnes au plus : à trois, les noms de jeux se coupaient (« DEMI- /
+     CERCLE ») et les raisons s'empilaient sur cinq lignes. */
+  #hub-games { list-style: none; padding: 0; margin: 0; display: grid; gap: .55rem;
+    grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }
+  .hub-game { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .3rem .7rem;
+    padding: .7rem .75rem; background: rgba(0,0,0,.2); border: 1px solid var(--panel-edge); border-left: 4px solid #6fbf73; min-width: 0; }
+  .hub-game.is-out { border-left-color: #8a6a50; background: rgba(0,0,0,.28); }
+  .hub-game.is-out .hub-game-emoji, .hub-game.is-out .hub-game-title { opacity: .6; }
+  .hub-game-emoji { font-size: 1.7rem; line-height: 1; }
+  .hub-game-main { min-width: 0; }
+  .hub-game-title { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 1rem; letter-spacing: .03em; color: var(--ink); margin: 0; }
+  .hub-game-meta { font-size: .72rem; color: var(--ink-3); margin: .1rem 0 0; }
+  .hub-game-state { font-size: .78rem; margin: .25rem 0 0; color: #8cbb96; overflow-wrap: anywhere; }
+  .hub-game.is-out .hub-game-state { color: #e0a070; }
+  .hub-game-loves { font-size: .72rem; color: var(--ink-3); margin: .15rem 0 0; overflow-wrap: anywhere; }
+  .hub-game-prefs { display: flex; gap: .3rem; }
+  /* Petits boutons carrés : 44 px au doigt (règle du socle en pointer: coarse). */
+  .hub-pref.ghost { width: 40px; height: 40px; padding: 0; font-size: 1.05rem; font-family: inherit; text-transform: none; display: grid; place-items: center; }
+  /* Non pressé = grisé. Mais PAS au focus clavier : le filtre grisait aussi l'anneau jaune. */
+  .hub-pref.ghost[aria-pressed="false"]:not(:focus-visible) { filter: grayscale(1); opacity: .55; }
+  .hub-pref.ghost[aria-pressed="true"] { opacity: 1; filter: none; background: rgba(255,255,255,.08); }
+  .hub-pref.love[aria-pressed="true"] { box-shadow: inset 0 0 0 2px #e06d8a; }
+  .hub-pref.veto[aria-pressed="true"] { box-shadow: inset 0 0 0 2px #d8584a; }
+  #hub-none { margin: .8rem 0 0; padding: .7rem .9rem; border: 1px dashed #d8584a; color: var(--ink-2); font-size: .85rem; }
+
+  /* --- la caisse Mann Co. ------------------------------------------------ */
+  #hub-draw { margin-top: 1.4rem; padding: 1.1rem 1rem 1.2rem; text-align: center;
+    background: radial-gradient(ellipse at 50% 30%, rgba(207, 106, 50, .18), transparent 70%), rgba(0,0,0,.25);
+    border: 1px solid var(--panel-edge); }
+  .crate-plate { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; letter-spacing: .32em; text-transform: uppercase;
+    font-size: .8rem; color: #f2a15f; margin: 0 0 1.6rem; }   /* place pour le couvercle qui se soulève */
+  .crate { position: relative; width: 148px; height: 112px; margin: 0 auto; }
+  .crate-box, .crate-lid { position: absolute; left: 0; right: 0;
+    background: repeating-linear-gradient(90deg, #7a4f2c 0 22px, #6b4426 22px 24px), #7a4f2c;
+    box-shadow: inset 0 0 0 3px #4a2e18, inset 0 0 0 5px #9a6a3c; }
+  .crate-box { top: 24px; bottom: 0; display: grid; place-items: center; }
+  .crate-lid { top: 0; height: 26px; transform-origin: 12% 100%; transition: transform .45s cubic-bezier(.2,.8,.2,1); }
+  .crate-stencil { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 1.05rem; letter-spacing: .08em;
+    color: #1f130a; background: rgba(242, 161, 95, .75); padding: .1rem .45rem; transform: rotate(-4deg); }
+  .crate-glow { position: absolute; left: 50%; top: 18px; width: 70%; height: 60px; transform: translateX(-50%) scaleY(.2);
+    background: radial-gradient(ellipse at 50% 100%, rgba(255, 200, 120, .8), transparent 70%); opacity: 0; transition: opacity .4s, transform .4s; }
+  #hub-draw.is-pending .crate { animation: crate-shake .5s ease-in-out infinite; }
+  #hub-draw.is-open .crate-lid { transform: translateY(-14px) rotate(-10deg); }
+  #hub-draw.is-open .crate-glow { opacity: 1; transform: translateX(-50%) scaleY(1); }
+  @keyframes crate-shake { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-2.5deg); } 75% { transform: rotate(2.5deg); } }
+
+  /* La bande : une fenêtre, un repère au centre, des vignettes qui défilent. */
+  .reel { position: relative; margin: 1rem auto 0; max-width: 560px; height: 92px; overflow: hidden;
+    background: #120c08; box-shadow: inset 0 0 0 2px var(--panel-edge), inset 0 8px 18px rgba(0,0,0,.6); }
+  .reel-strip { list-style: none; margin: 0; padding: 8px 0; display: flex; gap: 8px; height: 100%; box-sizing: border-box; will-change: transform; }
+  .reel-cell { flex: 0 0 104px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .2rem;
+    background: linear-gradient(180deg, #2d231a, #1c150f); border-bottom: 3px solid #6fbf73; }
+  .reel-cell[data-accent="violet"] { border-bottom-color: #8650ac; }
+  .reel-cell[data-accent="amber"] { border-bottom-color: #e7b53b; }
+  .reel-cell[data-accent="mint"] { border-bottom-color: #38f3ab; }
+  .reel-emoji { font-size: 1.6rem; line-height: 1; }
+  .reel-name { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: .72rem; color: var(--ink-2); padding: 0 .3rem;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .reel::before, .reel::after { content: ''; position: absolute; left: 50%; width: 0; height: 0; transform: translateX(-50%); z-index: 2;
+    border-left: 8px solid transparent; border-right: 8px solid transparent; }
+  .reel::before { top: 0; border-top: 10px solid #f2a15f; }
+  .reel::after { bottom: 0; border-bottom: 10px solid #f2a15f; }
+  .reel-line { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; transform: translateX(-50%); background: #f2a15f; z-index: 2; opacity: .8; }
+  .reel.is-done .reel-line { opacity: 0; }
+  #hub-draw-status { margin: .8rem 0 0; font-size: .85rem; color: var(--ink-2); }
+
+  /* Le résultat. */
+  #hub-result { margin-top: 1rem; }
+  .result-kicker { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; letter-spacing: .25em; text-transform: uppercase;
+    font-size: .9rem; color: #f2a15f; margin: 0; }
+  .result-emoji { font-size: 4.2rem; line-height: 1.1; margin: .4rem 0 0; }
+  .result-title { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: clamp(1.8rem, 7vw, 2.6rem); line-height: 1.05;
+    margin: .2rem 0 0; color: var(--ink); letter-spacing: .03em; }
+  .result-tag { margin: .35rem 0 0; color: var(--ink-2); font-size: .95rem; }
+  .result-facts { display: flex; justify-content: center; gap: 1.6rem; margin: .9rem 0 0; padding: 0; }
+  .result-facts div { text-align: center; }
+  .result-facts dt { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
+  .result-facts dd { margin: .1rem 0 0; font-size: 1.05rem; color: var(--ink); }
+  .result-actions { margin-top: 1rem; display: flex; flex-direction: column; align-items: center; gap: .5rem; }
+  #hub-continue { min-width: 12rem; }
+  #hub-ready { margin: .6rem 0 0; font-size: .85rem; color: #8cbb96; }
+  #hub-history { margin: .7rem 0 0; font-size: .78rem; color: var(--ink-3); }
+  #hub-history:empty { display: none; }
+  #hub-draw-btn { font-size: 1.1rem; }
+
+  /* Le lancement. */
+  #hub-launch { margin-top: 1.1rem; padding-top: 1rem; border-top: 1px dashed var(--panel-edge); }
+  .launch-title { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 1.15rem; letter-spacing: .04em; color: var(--ink); margin: 0; }
+  #launch-text { margin: .35rem 0 0; }
+  .launch-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .6rem; margin-top: .9rem; }
+  #launch-go { min-width: 14rem; font-size: 1.1rem; }
+  #launch-list { list-style: none; padding: 0; margin: 1rem 0 0; display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem .9rem; }
+  #launch-list li { display: flex; align-items: center; gap: .45rem; font-size: .85rem; color: var(--ink-2); }
+  .launch-tag { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: .64rem; letter-spacing: .08em; text-transform: uppercase;
+    padding: .05rem .35rem; border: 1px solid currentColor; }
+  .launch-tag.in { color: #8cbb96; }
+  .launch-tag.wait { color: #e0a040; }
+  .launch-tag.out { color: #e07a6a; }
+  #hub-failed { margin: 1rem 0 0; padding: .7rem .9rem; border: 1px solid #d8584a; background: rgba(216, 88, 74, .08); color: var(--ink); font-size: .9rem; }
+  @media (max-width: 560px) { #launch-go { width: 100%; min-width: 0; } .launch-actions button { width: 100%; } }
+
+  /* ⚠️ ANNEAU DE FOCUS. Le socle (game-ui.css) le dessine en `outline`, mais
+     chaque bouton est découpé au clip-path — qui ROGNE l'outline (le piège
+     documenté en tête de css/tf2.css). Mesuré à la vraie touche Tab : aucun
+     anneau visible sur les boutons du Hub. On le redessine donc À L'INTÉRIEUR,
+     en box-shadow inset, la seule forme que clip-path laisse passer. Les ID
+     (1,1,1) passent devant les états pressés (❤️ / 🚫, capacités). */
+  #entry button:focus-visible, #lobby button:focus-visible {
+    box-shadow: inset 0 0 0 2px #ffd700, inset 0 0 0 4px rgba(0, 0, 0, .6);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #hub-draw.is-pending .crate { animation: none; }
+    .crate-lid, .crate-glow { transition: none; }
+  }
 
   @media (max-width: 560px) {
     .hub-panel { padding: 1.2rem 1rem; }
@@ -105,6 +243,11 @@
     #hub-code { text-align: center; width: 100%; text-indent: .3em; }
     #hub-players { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     #hub-count { font-size: .9rem; }
+    #hub-games { grid-template-columns: minmax(0, 1fr); }
+    .hub-foot { flex-direction: column; align-items: stretch; }
+    .hub-foot button { width: 100%; }
+    .reel { height: 84px; }
+    .reel-cell { flex-basis: 92px; }
   }
 </style>
 </head>
@@ -113,7 +256,7 @@
     <header class="hub-top">
       <p class="hub-kicker">Mathys Langiny · jeux entre amis</p>
       <h1>Game Hub<span class="a">.</span></h1>
-      <p class="sub">une session, tes amis, et bientôt les jeux</p>
+      <p class="sub">une session, tes amis, et la caisse Mann Co. tire le jeu</p>
     </header>
 
     <!-- ENTRÉE : ton profil, puis créer ou rejoindre -->
@@ -160,8 +303,84 @@
         </div>
       </div>
       <ul id="hub-players" aria-label="joueurs de la session"></ul>
+      <!-- Un lancement raté ramène au salon : on dit pourquoi, à tout le monde. -->
+      <p id="hub-failed" role="alert" hidden></p>
+
+      <!-- LA CAISSE : visible pendant et après un tirage. Elle ne met en scène
+           que le résultat envoyé par le serveur (hub-crate.js). -->
+      <section id="hub-draw" aria-labelledby="hub-draw-title" hidden>
+        <p class="crate-plate" id="hub-draw-title">Mann Co. · caisse de la soirée</p>
+        <div class="crate" aria-hidden="true">
+          <div class="crate-glow"></div>
+          <div class="crate-lid"></div>
+          <div class="crate-box"><span class="crate-stencil">MANN CO.</span></div>
+        </div>
+        <div class="reel" id="hub-reel" aria-hidden="true"><ul class="reel-strip"></ul><span class="reel-line"></span></div>
+        <p id="hub-draw-status" role="status"></p>
+        <div id="hub-result" hidden>
+          <p class="result-kicker">🎉 Jeu choisi</p>
+          <p class="result-emoji" id="result-emoji"></p>
+          <h2 class="result-title" id="result-title"></h2>
+          <p class="result-tag" id="result-tag"></p>
+          <dl class="result-facts">
+            <div><dt>Joueurs</dt><dd id="result-players"></dd></div>
+            <div><dt>Durée</dt><dd id="result-minutes"></dd></div>
+          </dl>
+          <div class="result-actions">
+            <button type="button" id="hub-continue">Continuer</button>
+            <p class="hub-note" id="hub-continue-wait"></p>
+            <p id="hub-ready" hidden></p>
+          </div>
+        </div>
+        <!-- LE LANCEMENT (handoff) : créer la partie, la rejoindre, qui est là.
+             Chaque joueur clique lui-même — aucune navigation sans geste. -->
+        <div id="hub-launch" hidden>
+          <p class="launch-title" id="launch-title"></p>
+          <p class="hub-note" id="launch-text"></p>
+          <div class="launch-actions">
+            <button type="button" id="launch-go"></button>
+            <button type="button" class="ghost" id="launch-end" hidden>Partie terminée — retour au salon</button>
+            <button type="button" class="ghost" id="launch-cancel" hidden>Annuler le lancement</button>
+          </div>
+          <ul id="launch-list" aria-label="qui est dans la partie"></ul>
+        </div>
+        <p id="hub-history"></p>
+      </section>
+
+      <!-- CE QUE TU APPORTES : déclaratif. Le Hub ne teste rien ; le jeu
+           demandera lui-même l'autorisation au lancement. -->
+      <div class="hub-block" id="hub-caps" hidden>
+        <div class="hub-block-head">
+          <p class="hub-label">Ce que tu apportes</p>
+          <p class="hub-note">déclaratif : le jeu demandera l'autorisation lui-même</p>
+        </div>
+        <div id="hub-caps-list"></div>
+      </div>
+
+      <!-- LES JEUX : tout le catalogue, possible ou non, et pourquoi. -->
+      <div class="hub-block" id="hub-pool" hidden>
+        <div class="hub-block-head">
+          <p class="hub-label">Les jeux de la soirée <span id="hub-elig-count"></span></p>
+          <label class="hub-dur" id="hub-dur-host">durée max
+            <select id="hub-max-min" aria-label="durée maximale d'un jeu">
+              <option value="">sans limite</option>
+              <option value="5">5 min</option>
+              <option value="8">8 min</option>
+              <option value="10">10 min</option>
+              <option value="15">15 min</option>
+            </select>
+          </label>
+          <p class="hub-note" id="hub-dur-guest"></p>
+        </div>
+        <p class="hub-note" id="hub-pool-note">❤️ = j'aime (plus de chances) · 🚫 = veto (jamais tiré, et seul toi peux le lever)</p>
+        <ul id="hub-games" aria-label="jeux du catalogue"></ul>
+        <p id="hub-none" role="status" hidden></p>
+      </div>
+
+      <p id="hub-lobby-msg" class="g-error" role="alert"></p>
       <div class="hub-foot">
-        <p class="hub-wait" id="hub-wait">Le salon est prêt. La sélection des jeux arrive à la prochaine étape.</p>
+        <p class="hub-wait" id="hub-wait">Le salon est prêt.</p>
+        <button type="button" id="hub-draw-btn" hidden>🎲 Tirer un jeu</button>
         <button type="button" class="ghost" id="hub-leave">Quitter la session</button>
       </div>
     </section>
@@ -169,11 +388,15 @@
     <a class="back hub-back" href="../">← retour au portfolio</a>
   </main>
 
-  <!-- Profil local, affichage des avatars, puis le client du Hub — dans cet
-       ordre : la page s'appuie sur les trois. -->
+  <!-- Le catalogue pour l'AFFICHAGE (titres, emojis, fourchettes) : la même
+       source que le manifest que lit le Hub. Puis profil local, avatars, client
+       du Hub, caisse — la page s'appuie sur tous. -->
+  <script src="../data/games.js"></script>
   <script src="shared/game-profile.js"></script>
   <script src="shared/game-avatar.js"></script>
   <script src="shared/game-hub.js"></script>
+  <script src="shared/hub-handoff.js"></script>
+  <script src="hub-crate.js"></script>
   <script src="hub-page.js"></script>
 </body>
 </html>

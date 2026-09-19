@@ -20,6 +20,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { fakeHealth, localManifest } from './hub-fixture.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const H = createRequire(import.meta.url)(path.join(ROOT, 'games/shared/game-hub.js'));
@@ -40,12 +41,16 @@ const t = (nom, ok, detail = '') => {
 };
 
 // --- serveurs -------------------------------------------------------------
-let hubProc = null, HUB = PROD;
+let hubProc = null, HUB = PROD, sante = null, MANIFEST = null;
 async function lanceHub() {
   if (PROD) return;
   const cwd = path.join(ROOT, '..', 'game-hub-server');
   const port = 8100 + R();
-  hubProc = spawn(process.execPath, ['src/server.js'], { cwd, env: { ...process.env, PORT: String(port), HUB_QUIET: '1' }, stdio: 'ignore' });
+  // Le vrai catalogue, mais les /health des jeux simulés : un test local ne
+  // réveille pas les serveurs Render (tests/hub-fixture.mjs).
+  sante = await fakeHealth(6100 + R());
+  MANIFEST = localManifest(ROOT, sante.srv.address().port);
+  hubProc = spawn(process.execPath, ['src/server.js'], { cwd, env: { ...process.env, PORT: String(port), HUB_QUIET: '1', MANIFEST_FILE: MANIFEST }, stdio: 'ignore' });
   HUB = `ws://127.0.0.1:${port}`;
 }
 const health = async () => (await (await fetch(H.healthUrl(HUB))).json());
@@ -180,6 +185,8 @@ const stop = () => {
   try { execFileSync('taskkill', ['/PID', String(edge.pid), '/T', '/F'], { stdio: 'ignore' }); } catch (_) { try { edge.kill(); } catch (__) {} }
   extras.forEach((x) => { try { x.leave(); } catch (_) {} });
   if (hubProc) hubProc.kill();
+  if (sante) sante.close();
+  if (MANIFEST) { try { fs.unlinkSync(MANIFEST); } catch (_) {} }
   try { cdp && cdp.close(); } catch (_) {}
   try { srv.close(); } catch (_) {}
   try { fs.rmSync(dir, { recursive: true, force: true }); } catch (_) {}

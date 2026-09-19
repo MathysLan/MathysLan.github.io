@@ -13,6 +13,7 @@ import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { fakeHealth, localManifest } from './hub-fixture.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(import.meta.url);
@@ -57,32 +58,83 @@ t('parse : JSON illisible → null', H.parseMessage('{pas du json') === null);
 t('parse : sans type → null', H.parseMessage('{"session":{}}') === null);
 t('parse : message valable', H.parseMessage('{"type":"session","session":{}}').type === 'session');
 
-const brute = { code: 'AB2DE', state: 'lobby', hostId: 'p_b', maxPlayers: 12, draw: null, history: { played: [] },
-  players: [{ id: 'p_a', name: 'A', avatar: { kind: 'emoji', emoji: '🦊' }, caps: { mic: false }, veto: [], love: [], connected: false, host: true },
+const brute = { code: 'AB2DE', state: 'lobby', hostId: 'p_b', maxPlayers: 12, draw: null, history: { played: [] }, secret: 'x',
+  players: [{ id: 'p_a', name: 'A', avatar: { kind: 'emoji', emoji: '🦊' }, caps: { mic: false, consent: 'oui' }, veto: ['ban', 3], love: [], connected: false, host: true, since: 1, sockets: {} },
             { id: 'p_b', name: 'B', avatar: { kind: 'emoji', emoji: '🐼' }, connected: true, host: false }, null, { name: 'sans id' }] };
 const lue = H.readSession(brute);
 t('session : l\'hôte vient de hostId (pas du drapeau reçu)', lue.players.find((p) => p.id === 'p_b').host === true && lue.players.find((p) => p.id === 'p_a').host === false);
 t('session : absent conservé', lue.players.find((p) => p.id === 'p_a').connected === false);
-t('session : liste blanche (ni caps, ni veto, ni love, ni draw, ni history)',
-  !('draw' in lue) && !('history' in lue) && lue.players.every((p) => !('caps' in p) && !('veto' in p) && !('love' in p)));
+t('session : liste blanche (rien d\'inconnu ne passe : ni secret, ni since, ni sockets)',
+  !('secret' in lue) && lue.players.every((p) => !('since' in p) && !('sockets' in p)));
+t('session : caps relues en booléens stricts (« oui » n\'est pas true)', same(lue.players.find((p) => p.id === 'p_a').caps, {}));
+t('session : veto/love = des chaînes seulement', same(lue.players.find((p) => p.id === 'p_a').veto, ['ban']) && same(lue.players.find((p) => p.id === 'p_b').love, []));
+t('session : serveur d\'avant le randomizer → pool null, draw null (la page le dit)', lue.pool === null && lue.draw === null && same(lue.history.played, []));
+
+// Le randomizer, côté client : il n'envoie que des INTENTIONS.
+t('sérialisation draw : AUCUN champ (le client ne choisit rien)', same(H.drawMsg(), { action: 'draw' }));
+t('sérialisation continue / prefs / caps / constraints',
+  same(H.continueMsg(), { action: 'continue' }) && same(H.prefsMsg(['passeur'], ['ban']), { action: 'prefs', love: ['passeur'], veto: ['ban'] })
+  && same(H.capsMsg({ mic: true }), { action: 'caps', caps: { mic: true } }) && same(H.constraintsMsg(10), { action: 'constraints', maxMinutes: 10 })
+  && same(H.constraintsMsg(null), { action: 'constraints', maxMinutes: null }));
+const s2 = H.readSession({ code: 'AB2DE', players: [], history: { played: ['passeur', 7] },
+  draw: { id: 'd_1', n: 1, status: 'pending', gameId: 'passeur', eligible: ['passeur', 1], weights: { passeur: 1, x: 'y' } },
+  pool: { catalog: 'ready', games: ['passeur', 'ban'], eligible: ['passeur'], why: { ban: [{ code: 'VETO', players: ['p_a'] }, 'bruit'] }, weights: { passeur: 1.5 }, health: { passeur: 'up' } } });
+t('draw : pas de gameId tant que le tirage est « pending » (même si le fil en porte un)', s2.draw.gameId === null && s2.draw.status === 'pending');
+t('draw : listes et poids nettoyés', same(s2.draw.eligible, ['passeur']) && same(s2.draw.weights, { passeur: 1 }));
+t('pool : relu en liste blanche', s2.pool.catalog === 'ready' && same(s2.pool.eligible, ['passeur']) && s2.pool.why.ban.length === 1 && s2.pool.weights.passeur === 1.5);
+t('history.played : chaînes seulement', same(s2.history.played, ['passeur']));
+const noms = { p_a: 'Alice', p_b: 'Bruno', p_c: 'Chloé', p_d: 'Dan' };
+const R = (r) => H.reasonText(r, (id) => noms[id]);
+t('raison : trop peu de joueurs', R({ code: 'TOO_FEW', min: 3, count: 2 }) === 'il faut 3 joueurs, vous êtes 2');
+t('raison : trop de joueurs', R({ code: 'TOO_MANY', max: 2, count: 3 }) === '2 joueurs maximum, vous êtes 3');
+t('raison : micro, nominatif', R({ code: 'NEEDS', need: 'mic', players: ['p_b'] }) === 'micro non déclaré : Bruno');
+t('raison : veto, nominatif (et plusieurs)', R({ code: 'VETO', players: ['p_a', 'p_b'] }) === 'veto de Alice et Bruno'
+  && R({ code: 'VETO', players: ['p_a', 'p_b', 'p_c', 'p_d'] }) === 'veto de Alice, Bruno et 2 autres');
+t('raison : durée, serveur, local, consentement', /15 min.*10 min/.test(R({ code: 'TOO_LONG', max: 15, limit: 10 }))
+  && /indisponible/.test(R({ code: 'SERVER_DOWN' })) && /seul/.test(R({ code: 'LOCAL_ONLY', count: 2 }))
+  && /avertissement/.test(R({ code: 'NEEDS', need: 'consent', players: ['p_c'] })));
 t('session : joueurs sans id écartés', lue.players.length === 2);
 t('session : forme invalide → null', H.readSession(null) === null && H.readSession({ players: [] }) === null);
 
 const CODES = ['BAD_JSON', 'TOO_BIG', 'UNKNOWN_ACTION', 'BAD_PLAYER', 'BAD_CODE', 'SESSION_NOT_FOUND', 'SESSION_FULL',
-  'SESSION_CLOSED', 'ALREADY_IN_SESSION', 'NOT_IN_SESSION', 'REPLACED'];
-t('erreurs : les 11 codes RÉELS du Hub ont une phrase lisible',
+  'SESSION_CLOSED', 'ALREADY_IN_SESSION', 'NOT_IN_SESSION', 'REPLACED',
+  'NOT_HOST', 'DRAW_IN_PROGRESS', 'NOT_DRAWN', 'NO_ELIGIBLE_GAME', 'MANIFEST_UNAVAILABLE', 'DRAW_FAILED', 'BAD_PREFS', 'BAD_CAPS', 'BAD_CONSTRAINTS',
+  'NOT_LAUNCHING', 'LAUNCH_MISMATCH', 'LAUNCH_CONSUMED', 'LAUNCH_EXPIRED', 'BAD_ROOM_CODE', 'WRONG_ROOM'];
+// La liste est relue dans protocol.js du serveur : un code ajouté là-bas sans
+// phrase ici ferait échouer ce test.
+const cote = fs.readFileSync(path.join(ROOT, '..', 'game-hub-server', 'src', 'protocol.js'), 'utf8');
+// Deux blocs dans protocol.js : les erreurs de MESSAGE (ERRORS) et les raisons
+// d'échec d'un LANCEMENT (LAUNCH_FAILURES). Chacun doit avoir ses phrases.
+const bloc = (nom) => { const i = cote.indexOf('const ' + nom + ' = {'); return cote.slice(i, cote.indexOf('};', i)); };
+const codesDe = (txt) => [...txt.matchAll(/^\s{2}([A-Z_]+):/gm)].map((m) => m[1]);
+const serveur = codesDe(bloc('ERRORS'));
+t('erreurs : chaque code de protocol.js a sa phrase côté client (' + serveur.length + ')', serveur.length >= 25 && serveur.every((c) => CODES.includes(c)), serveur.filter((c) => !CODES.includes(c)).join(','));
+const echecs = codesDe(bloc('LAUNCH_FAILURES'));
+t('lancement : chaque raison d\'échec du serveur a sa phrase (' + echecs.length + ')', echecs.length >= 6 && echecs.every((c) => H.launchFailureText(c) !== 'le lancement a échoué'), echecs.join(','));
+t('lancement : billet et lancement relus en liste blanche', (() => {
+  const l = H.readLaunch({ drawId: 'd_1', stage: 'join', hostId: 'p_a', roomCode: 'KQMP', url: 'games/passeur/', expected: ['p_a', 3], entered: ['p_a'], waiting: [], missed: [], failed: { p_b: 'x', p_c: 4 }, secret: 1 });
+  return l.roomCode === 'KQMP' && same(l.expected, ['p_a']) && same(l.failed, { p_b: 'x' }) && !('secret' in l)
+    && H.readLaunch({ drawId: 'd_1', stage: 'inconnu' }) === null && H.readLaunch({ drawId: 'd_1', stage: 'join', roomCode: 'kq mp', url: 'https://ailleurs/' }).roomCode === null
+    && H.readLaunch({ drawId: 'd_1', stage: 'join', url: 'https://ailleurs/' }).url === null;
+})());
+t('erreurs : les ' + CODES.length + ' codes RÉELS du Hub ont une phrase lisible',
   CODES.every((c) => { const x = H.errorText(c); return typeof x === 'string' && x.length > 10 && !/[{}]/.test(x) && !x.includes(c); }));
 t('erreurs : BAD_PLAYER reprend la raison du serveur', H.errorText('BAD_PLAYER', 'il faut un pseudo') === 'Profil refusé : il faut un pseudo.');
 t('erreurs : code inconnu → phrase générique, jamais le code brut', H.errorText('ROOM_NOT_FOUND') === 'Le Hub a refusé la demande.');
 
 // ═══════════════════════════════════════════ 2. contre le vrai serveur du Hub
 const PROD = arg('--hub');
-let srv = null, URL = PROD;
+let srv = null, URL = PROD, sante = null, MANIFEST = null;
 if (!PROD) {
   const cwd = path.join(ROOT, '..', 'game-hub-server');
   if (!fs.existsSync(path.join(cwd, 'node_modules', 'ws'))) { t('game-hub-server : npm ci fait', false, cwd); process.exit(1); }
   const port = 8400 + Math.floor(Math.random() * 300);
-  srv = spawn(process.execPath, ['src/server.js'], { cwd, env: { ...process.env, PORT: String(port), HUB_QUIET: '1' }, stdio: 'ignore' });
+  // Le vrai catalogue, les serveurs de jeu simulés (leur /health seulement).
+  sante = await fakeHealth(port + 400);
+  // Aucun jeu lançable : cette suite teste le client et le TIRAGE (« continuer »
+  // revient au Hub). Le lancement est testé par tests/handoff.mjs.
+  MANIFEST = localManifest(ROOT, port + 400, {}, { sansHandoff: true });
+  srv = spawn(process.execPath, ['src/server.js'], { cwd, env: { ...process.env, PORT: String(port), HUB_QUIET: '1', MANIFEST_FILE: MANIFEST }, stdio: 'ignore' });
   URL = `ws://127.0.0.1:${port}`;
 }
 const health = async () => (await (await fetch(H.healthUrl(URL))).json());
@@ -177,6 +229,56 @@ try {
   t('SESSION_FULL : le 13e est refusé, en phrase', e4 && e4.code === 'SESSION_FULL' && /complète/.test(e4.message), e4 && e4.message);
   D.leave(); extras.forEach((x) => x.leave());
 
+  // ── Le tirage, par les méthodes du client (une session à part : E hôte, F).
+  {
+    const E = client(), F = client();
+    const sE = suivi(E), sF = suivi(F);
+    const pE = { id: 'p_emmatst', name: 'Emma', avatar: { kind: 'emoji', emoji: '🎯' } };
+    const pF = { id: 'p_fredtst', name: 'Fred', avatar: { kind: 'emoji', emoji: '🔥' } };
+    const rE = await E.create(pE);
+    await F.join(rE.session.code, pF);
+    const pret = await sF.until((s) => s.last && s.last.session.pool && s.last.session.pool.catalog === 'ready', PROD ? 30000 : 8000);
+    if (!pret && PROD) {
+      t('tirage (prod) : le serveur en ligne ne connaît pas encore le tirage — pool absent, client inchangé', !sF.last.session.pool);
+    } else {
+      t('tirage : le catalogue arrive dans l\'état de session', pret, JSON.stringify(sF.last && sF.last.session.pool));
+      const games = sF.last.session.pool.games;
+      t('tirage : le catalogue est celui du manifest réel (' + games.length + ' jeux)', same(games, JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'games.manifest.json'), 'utf8')).games.map((g) => g.id)));
+      F.setPrefs([], ['morpion']);
+      E.setPrefs(['passeur'], []);
+      t('prefs : B met un veto, A un cœur — synchronisés chez les deux', await sE.until((s) => {
+        const ps = s.last.session.players; const f = ps.find((p) => p.id === pF.id), e = ps.find((p) => p.id === pE.id); return !!f && !!e && f.veto.includes('morpion') && e.love.includes('passeur');
+      }) && await sF.until((s) => !!s.last.session.players.find((p) => p.id === pE.id && p.love.includes('passeur'))));
+      t('prefs : le veto exclut Morpion, avec le nom du joueur', !sE.last.session.pool.eligible.includes('morpion')
+        && H.reasonText(sE.last.session.pool.why.morpion[0], () => 'Fred') === 'veto de Fred');
+      const errs0 = sF.errors.length;
+      F.draw();
+      t('tirage : un non-hôte est refusé (NOT_HOST, en phrase)', await sF.until((s) => s.errors.length > errs0 && s.errors[s.errors.length - 1].code === 'NOT_HOST'));
+      E.draw();
+      // En production, le tirage attend le /health des jeux sur Render : jusqu'à
+      // 40 s si l'un d'eux dort (c'est voulu, voir game-hub-server/src/health.js).
+      const DELAI = PROD ? 60000 : 8000;
+      t('tirage : les deux voient le jeu tiré par le SERVEUR',
+        await sE.until((s) => s.last.session.draw && s.last.session.draw.status === 'drawn', DELAI) && await sF.until((s) => s.last.session.draw && s.last.session.draw.status === 'drawn', DELAI));
+      const d1 = sF.last.session.draw;
+      t('tirage : même tirage chez A et B, dans la liste éligible', d1.id === sE.last.session.draw.id && d1.gameId === sE.last.session.draw.gameId && d1.eligible.includes(d1.gameId), d1.gameId);
+      t('tirage : history.played = [jeu]', same(sF.last.session.history.played, [d1.gameId]));
+      E.confirm();
+      t('continuer : debrief, rien d\'effacé', await sF.until((s) => s.last.session.state === 'debrief' && s.last.session.draw.status === 'confirmed'));
+      E.draw();
+      t('2e tirage : l\'historique garde le premier', await sF.until((s) => s.last.session.draw && s.last.session.draw.n === 2 && s.last.session.draw.status === 'drawn')
+        && sF.last.session.history.played[0] === d1.gameId && sF.last.session.history.played.length === 2, JSON.stringify(sF.last.session.history));
+      t('2e tirage : récence — le premier jeu pèse 0,15 × son poids', (() => {
+        const w = sF.last.session.draw.weights[d1.gameId]; const base = d1.gameId === 'passeur' ? 1.5 : 1;
+        return w === Math.round(base * 0.15 * 10000) / 10000;
+      })(), JSON.stringify(sF.last.session.draw.weights));
+      if (!PROD && sante) {
+        t('santé : le Hub n\'a fait que des GET HTTP vers les jeux, jamais un WebSocket', sante.appels.length > 0 && sante.appels.every((a) => a.method === 'GET' && !a.upgrade));
+      }
+    }
+    E.leave(); F.leave();
+  }
+
   // Fin : B2 quitte, et A n'est qu'ABSENT (socket coupé, en délai de grâce).
   // Un `leave` volontaire du dernier joueur CONNECTÉ ferme la session tout de
   // suite : plus personne n'y est volontairement présent. (La grâce d'une coupure
@@ -192,6 +294,8 @@ try {
   t('EXCEPTION', false, e && (e.stack || e.message));
 } finally {
   if (srv) srv.kill();
+  if (sante) sante.close();
+  if (MANIFEST) { try { fs.unlinkSync(MANIFEST); } catch (_) {} }
 }
 
 console.log(`\n${ko ? 'DES TESTS ÉCHOUENT' : 'TOUT PASSE'} — ${out.length} vérifications, ${ko} échec(s)`);

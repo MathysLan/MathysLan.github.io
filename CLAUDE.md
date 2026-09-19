@@ -1360,3 +1360,149 @@ jeu touché. **Pas encore déployé** : Mathys s'en charge sur Render.
 - ⚠️ Tant que le serveur n'est pas redéployé, la production garde l'ancien
   comportement (pas de heartbeat, session gardée 60 s après le dernier leave).
   Le client n'en dépend pas : aucun changement côté front n'est nécessaire.
+
+## Game Hub : le randomizer (2026-09-19)
+
+Le Hub tire maintenant le jeu de la soirée. **Le serveur décide, la page met en
+scène.** Aucun serveur de jeu touché, aucun lancement de jeu (handoff), aucun
+score de soirée, aucune base.
+
+    LOBBY → 🎲 (hôte) → le Hub filtre, pondère, tire → caisse → révélation
+          → CONTINUER (debrief) → 🎲 tirage suivant → …   (même session, history.played grandit)
+
+### Côté serveur (game-hub-server)
+
+- **`src/engine.js`, module pur** : FILTRER (nombre de joueurs, mode local,
+  capacités de TOUS, veto d'UN seul, durée max vs `minutes.max`, serveur mort)
+  → PONDÉRER (`(1 + 0,5 × ❤️) × récence`, récence 0,15 / 0,4 / 0,7 selon
+  l'ancienneté) → TIRER (hasard crypto). Toutes les raisons d'exclusion sont
+  rendues, nominatives, dans `session.pool.why`.
+- **Le catalogue n'est pas recopié** : `src/catalog.js` relit
+  `data/games.manifest.json` sur GitHub Pages (cache 5 min), comme ban-server
+  relit `videos.json`. Ajouter un jeu au portfolio l'ajoute au tirage sans
+  redéployer le Hub.
+- **Santé** : un GET sur l'URL `health` du manifest (`src/health.js`),
+  **jamais** de WebSocket vers un jeu. Pré-réveil à la création de session ;
+  revérification avant chaque tirage (40 s max, le temps d'un réveil Render).
+- **Concurrence** : l'état passe à `drawing` AVANT le moindre `await` → un
+  second `draw` reçoit `DRAW_IN_PROGRESS`. Seul l'hôte tire (`hostId` relu
+  côté serveur). `draw` ne porte AUCUN champ.
+- Aucun jeu possible : `NO_ELIGIBLE_GAME` + `why`, **pas de repli**.
+
+### Côté portfolio
+
+- **Entrée visible** : une carte « Game Hub · Joue avec tes amis » dans
+  l'en-tête de la section Jeux (`#hub-link`, lien `games/`, marche sans JS),
+  plus une commande dans la palette Ctrl+K. Les liens directs vers les 7 jeux
+  restent.
+- **Le faux matchmaking (« Trouver une partie ») est retiré** : il affichait un
+  « match trouvé » sans aucun serveur, donc prétendait trouver un groupe. La
+  caisse **solo** « Je joue à quoi ? » reste (tirage sur la page, sans session),
+  marquée « tirage solo, sans session », et renvoie au Game Hub.
+- `/games/` : ❤️ / 🚫 par jeu, « ce que tu apportes » (micro, avertissement —
+  dérivés des `needs` du catalogue), durée max (hôte), la raison de chaque
+  exclusion, les chances, la caisse (`games/hub-crate.js`), le résultat, et
+  l'historique de la soirée. `noindex` conservé.
+  ⚠️ La caisse ne choisit rien : sa bande est tirée dans `draw.eligible` et
+  s'arrête sur `draw.gameId`, tous deux venus du serveur.
+  ⚠️ Au début d'un tirage, la page amène la caisse à l'écran (chez tous) : au
+  téléphone, l'hôte cliquait « Tirer » en bas de la liste et la bande tournait
+  900 px plus haut. Le test `390 px : la bande est à l'écran` échoue sans ça.
+- ⚠️ **Anneau de focus rogné** : le socle le dessine en `outline`, mais les
+  boutons des pages de jeux sont découpés au `clip-path`, qui rogne l'outline.
+  Mesuré à la vraie touche Tab : invisible. Corrigé **sur la page du Hub
+  seulement** (box-shadow inset). ⚠️ **Le même défaut existe dans les jeux qui
+  utilisent le `button` générique** (vu sur Imitation ; Le Passeur, en
+  `.tf-btn`, est bon) — non corrigé, hors périmètre, et `keyboard.mjs` ne le
+  voit pas (il compte le biseau comme un anneau).
+
+### Tests
+
+Serveur : `test-engine.js` 65, `test-draw.js` 57, `test-e2e.js` 26 (+ session
+41, protocole 37, présence 23). Portfolio : `tests/hub.mjs` 77,
+`tests/hub-draw.mjs` 66 (64 en mouvement réduit), `tests/hub-play.mjs` 45.
+Les tests locaux du Hub utilisent `tests/hub-fixture.mjs` : le vrai manifest,
+les `/health` simulés — aucun serveur Render réveillé.
+
+## Handoff : le Hub lance vraiment Le Passeur (2026-09-19)
+
+`/games/` → tirage → **vraie room du Passeur, tout le monde dedans, partie
+jouée**. Un seul jeu branché (Le Passeur) ; `passeur-server` n'a **pas** été
+modifié, ni aucun autre serveur de jeu.
+
+    lobby → drawing → [continuer] → launching (create → join) → inGame → debrief
+
+### Le principe : le Hub ne parle jamais au serveur du jeu
+
+Ce sont les NAVIGATEURS qui parlent au jeu ; le Hub relaie et arbitre.
+
+1. l'hôte confirme le tirage → `launching`, stage `create` ;
+2. il clique « Ouvrir Le Passeur » → même onglet → la page du jeu **crée la
+   room par son chemin normal** (`enter()` sans code) et déclare le code au
+   Hub (`launched`) → stage `join` ;
+3. chaque invité voit « Rejoindre », clique, entre par le chemin normal
+   (`enter(code)`) et le déclare (`entered`) ;
+4. tout le monde est entré → `inGame` ; la partie se joue ; `ended` → `debrief`.
+
+⚠️ **Aucun jeton secret, et c'est un choix.** L'autorité vient du SOCKET (seul
+l'hôte DU LANCEMENT peut déclarer un code), le lancement est lié au tirage
+(`drawId`), borné (90 s / 120 s) et à usage unique. Un jeton n'ajouterait rien.
+
+### Ce qui a été ajouté, et où
+
+- **`games/shared/hub-handoff.js`** (nouveau, partagé) : lit le BILLET écrit par
+  `/games/` (sessionStorage : hub, session, playerId, drawId, gameId, rôle),
+  rouvre le Hub avec le **même player.id**, appelle le `join()` que la page du
+  jeu lui donne, déclare la room, affiche un bandeau (qui est là, qui est
+  attendu, retour au Hub). **Sans billet, il ne fait rien** : Le Passeur ouvert
+  directement marche comme avant.
+- **`games/passeur/app.js`** : ~50 lignes. Aucun second système de création :
+  le handoff appelle `enter()`. Nouveauté visible : « Lancer la partie » est
+  bloqué tant que le groupe n'est pas dans la room (sinon un invité en retard
+  se fait refuser par `passeur-server` : « partie déjà commencée »), avec
+  « Lancer sans attendre » pour l'hôte.
+- **`data/games.js` + `tools/build.mjs`** : clé `handoff` (schéma fermé, testée).
+  Seul `passeur` est à `true`. Un jeu qui ne l'a pas : `continuer` revient au
+  Hub comme avant. ⚠️ `tests/manifest.mjs` vérifie que `handoff: true`
+  correspond à une page qui charge vraiment `hub-handoff.js`.
+- **Hub** : `src/launch.js` (module pur) + handlers `launched` / `entered` /
+  `started` / `ended` / `abort` dans `hub.js`.
+
+### Trois pièges rencontrés, tous les trois trouvés par un test
+
+1. ⚠️ **L'hôte qui navigue perd l'hôte.** Aller au jeu ferme son socket du Hub →
+   `electHost` donnait la main à un invité, et l'hôte revenait sans pouvoir
+   lancer. Règle ajoutée : pendant `launching`/`inGame` — **et au retour**
+   (`debrief` d'un lancement fini) — l'hôte du lancement garde la main tant
+   qu'il est dans la session (absent compris). Il ne la perd qu'en partant.
+2. ⚠️ **Une session sans personne de connecté ne doit pas se fermer** pendant un
+   lancement : tout le groupe navigue en même temps (et en solo, l'hôte est
+   seul). Les grâces individuelles suffisent.
+3. ⚠️ **`inGame` ne veut pas dire « la manche a commencé »** : c'est « tout le
+   groupe est dans la room ». Le bandeau disait « partie en cours » au salon du
+   jeu ; il dit maintenant qui est dans la partie.
+
+### ⚠️⚠️ DÉFAUT DE PRODUCTION TROUVÉ (et corrigé) : le réveil ≠ la panne
+
+Mesuré contre la production pendant cette phase : le Hub déployé voyait les
+**sept** serveurs de jeu « down » en moins d'une seconde, donc le tirage ne
+trouvait **aucun jeu** (`NO_ELIGIBLE_GAME`), alors que les mêmes URL de santé
+répondaient 200 en 12 à 22 s depuis un poste (le réveil Render). Corrigé dans
+`src/health.js` : dans la fenêtre de 40 s, un non-2xx ou une erreur réseau
+n'est plus un verdict — on réessaie toutes les 2,5 s ; seules une connexion
+refusée et un nom inconnu tranchent tout de suite, et la raison du dernier
+échec part dans les journaux Render (`[santé] passeur injoignable après 40 s : …`).
+Une fois les serveurs réveillés à la main, la production tirait en 0,7 s.
+
+### Tests
+
+Serveur : `test-launch.js` 43 (pur), `test-handoff.js` 42 (vraies connexions :
+rôles, codes, concurrence, délais, échecs, annulation, changement d'hôte),
+`test-draw.js` 57 (dont le réveil d'un serveur). Portfolio :
+`tests/handoff.mjs` 22 — **le vrai Hub + le vrai `passeur-server`**, room
+réelle, trois joueurs dedans, une manche notée ; `tests/handoff-play.mjs` 42 —
+**trois navigateurs**, du portfolio jusqu'au classement final et au retour au
+Hub, plus le cas « serveur du jeu injoignable ».
+⚠️ `tests/passeur-play.mjs` (Le Passeur hors Hub) reste **instable au premier
+clic sur ce poste** : mesuré 4 échecs sur 4 avec les fichiers de HEAD contre 1
+sur 4 avec ceux-ci — c'est le harnais, pas le jeu.

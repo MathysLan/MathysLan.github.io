@@ -30,8 +30,8 @@ const I18N = {
     'a11y.play': 'Reprendre la rotation',
     'a11y.c4': 'Grille de Puissance 4',
     'a11y.palette': 'Palette de commandes',
-    'a11y.crate': 'Tirer un jeu au sort dans une caisse Mann Co.',
-    'a11y.mm': 'Lancer une recherche de partie',
+    'a11y.crate': 'Tirer un jeu au sort pour toi seul, dans une caisse Mann Co.',
+    'a11y.hubLink': 'Ouvrir le Game Hub : jouer entre amis',
 
     'hero.status': 'CDI @ AgiLab',
     'hero.location': 'Reims, France',
@@ -163,7 +163,11 @@ const I18N = {
 
     'games.kicker': '05 - Jeux',
     'games.crate': 'Je joue à quoi ?',
-    'games.mm': 'Trouver une partie',
+    'games.crateNote': 'tirage solo, sans session',
+    'games.hubKicker': 'Game Hub · multijoueur',
+    'games.hubTitle': 'Joue avec tes amis',
+    'games.hubSub': 'Une session, un code, et la caisse Mann Co. tire un jeu qui convient à tout le groupe.',
+    'games.hubOpen': 'Ouvrir le Game Hub →',
     'games.title': 'Jeux web<span class="ac">.</span>',
     'games.sub': "Jouables direct dans le navigateur, sans install ni compte. Chaque jeu en ligne a son serveur Node.js qui arbitre tout : le navigateur n'envoie que des intentions. Le code et l'architecture de chacun sont sur sa carte.",
 
@@ -231,8 +235,8 @@ const I18N = {
     'a11y.play': 'Resume rotation',
     'a11y.c4': 'Connect 4 board',
     'a11y.palette': 'Command palette',
-    'a11y.crate': 'Draw a random game from a Mann Co. crate',
-    'a11y.mm': 'Start searching for a match',
+    'a11y.crate': 'Draw a random game just for you, from a Mann Co. crate',
+    'a11y.hubLink': 'Open the Game Hub: play with friends',
 
     'hero.status': 'Full-time @ AgiLab',
     'hero.location': 'Reims, France',
@@ -359,7 +363,11 @@ const I18N = {
 
     'games.kicker': '05 - Games',
     'games.crate': 'What do I play?',
-    'games.mm': 'Find a match',
+    'games.crateNote': 'solo draw, no session',
+    'games.hubKicker': 'Game Hub · multiplayer',
+    'games.hubTitle': 'Play with your friends',
+    'games.hubSub': 'One session, one code, and the Mann Co. crate draws a game that suits the whole group.',
+    'games.hubOpen': 'Open the Game Hub →',
     'games.title': 'Web games<span class="ac">.</span>',
     'games.sub': "Playable straight in your browser, no install, no account. Every online game has its own Node.js server refereeing everything: the browser only sends intents. Each card links to the game's code and architecture.",
 
@@ -438,9 +446,10 @@ const TERM_LINES = {
   ],
 };
 
-// Hub de jeux (js/gamehub.js) : la caisse Mann Co. et le faux matchmaking.
-// Regroupé ici comme KILLFEED et TERM_LINES — la copie du site vit dans ce
-// fichier, la mécanique dans le module. Les écrans sont construits à
+// Tirage SOLO de la home (js/gamehub.js) : la caisse Mann Co., sans session.
+// Le mode groupe, lui, vit dans /games/ (le Game Hub) : c'est le serveur qui y
+// tire. Regroupé ici comme KILLFEED et TERM_LINES — la copie du site vit dans
+// ce fichier, la mécanique dans le module. Les écrans sont construits à
 // l'ouverture : passer en anglais puis rouvrir suffit, rien à ré-étiqueter.
 const HUB = {
   fr: {
@@ -453,33 +462,7 @@ const HUB = {
     play: 'Jouer',
     close: 'Fermer',
     empty: 'Aucun jeu jouable pour le moment.',
-    mmTitle: 'Recherche de partie',
-    mmSteps: [
-      "Recherche d'une partie…",
-      'Analyse du serveur…',
-      'Recherche de joueurs…',
-      'Estimation du ping…',
-      'Calcul du match…',
-    ],
-    mmFound: 'Match trouvé',
-    mmGame: 'Jeu',
-    mmMap: 'Map',
-    mmPlayers: 'Joueurs',
-    mmPing: 'Ping',
-    mmServer: 'Serveur',
-    mmElapsed: 'Recherche',
-    mmJoin: 'Rejoindre',
-    mmBan: 'Bannir cette partie',
-    mmBanned: 'Partie bannie. On en cherche une autre…',
-    mmFake: 'Matchmaking pour de faux : la partie est tirée sur cette page, aucun serveur n\'est interrogé.',
-    maps: [
-      "Salle d'entraînement #04",
-      'Gymnase municipal (parquet glissant)',
-      'Cave de Mathys, 2 h du matin',
-      'Serveur Render qui se réveille',
-      'IUT de Reims, salle B12',
-      'Terrain extérieur, vent de face',
-    ],
+    crateGroup: 'À plusieurs ? Le Game Hub tire un jeu adapté à tout le groupe →',
   },
   en: {
     crateTitle: 'Mann Co. crate',
@@ -491,33 +474,7 @@ const HUB = {
     play: 'Play',
     close: 'Close',
     empty: 'No playable game right now.',
-    mmTitle: 'Matchmaking',
-    mmSteps: [
-      'Searching for a match…',
-      'Analysing the server…',
-      'Looking for players…',
-      'Estimating ping…',
-      'Computing the match…',
-    ],
-    mmFound: 'Match found',
-    mmGame: 'Game',
-    mmMap: 'Map',
-    mmPlayers: 'Players',
-    mmPing: 'Ping',
-    mmServer: 'Server',
-    mmElapsed: 'Search',
-    mmJoin: 'Join',
-    mmBan: 'Ban this match',
-    mmBanned: 'Match banned. Looking for another one…',
-    mmFake: 'Fake matchmaking: the match is drawn on this page, no server is contacted.',
-    maps: [
-      'Training room #04',
-      'Municipal gym (slippery floor)',
-      "Mathys' basement, 2 AM",
-      'A Render server waking up',
-      'IUT de Reims, room B12',
-      'Outdoor court, headwind',
-    ],
+    crateGroup: 'Playing together? The Game Hub draws a game that suits the whole group →',
   },
 };
 

@@ -584,10 +584,10 @@ document.getElementById('f').addEventListener('load', function () {
         }, 80);
       }, 80);
 
-      // --- Hub de jeux : caisse Mann Co. et faux matchmaking (js/gamehub.js).
-      // Les deux ouvrent un dialogue construit à la volée : on vérifie ce qui
-      // casse en silence — la sélection des jeux, le clavier, l'annonce du
-      // résultat, et le retour à un état stable.
+      // --- Section Jeux : l'entrée du Game Hub (mode groupe, games/) et la
+      // caisse SOLO (js/gamehub.js). La caisse ouvre un dialogue construit à la
+      // volée : on vérifie ce qui casse en silence — la sélection des jeux, le
+      // clavier, l'annonce du résultat, et le retour à un état stable.
       function hubTests(done) {
         var reducedMotion = w.matchMedia('(prefers-reduced-motion: reduce)').matches;
         var hub = w.gameHub;
@@ -668,41 +668,32 @@ document.getElementById('f').addEventListener('load', function () {
           d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
           [].push.apply(jeuxReels, sauvegarde);
 
-          // --- le matchmaking
-          var mmBtn = d.getElementById('mm-btn');
-          t('matchmaking : bouton present et nomme',
-            !!mmBtn && (mmBtn.getAttribute('aria-label') || '').length > 5);
-          mmBtn.click();
-          t('matchmaking : dialogue ouvert et premiere etape annoncee',
-            !!d.querySelector('.hub-overlay')
-            && d.querySelector('.hub-live').textContent.length > 0);
-
-          setTimeout(function () {
-            var trouve = d.querySelector('.hub-match .hub-found');
-            t('matchmaking : un match est trouve', !!trouve);
-            var lignes = d.querySelectorAll('.hub-match .hub-row');
-            t('matchmaking : jeu, map, joueurs, ping, serveur, duree (' + lignes.length + '/6)',
-              lignes.length === 6);
-            if (lignes.length) {
-              var jeu = lignes[0].querySelector('dd').textContent.trim();
-              t('matchmaking : le jeu propose est jouable [' + jeu + ']', estJouable(jeu));
-            }
-            t('matchmaking : annonce honnetement qu il est pour de faux',
-              /faux|Fake/.test((d.querySelector('.hub-fake') || {}).textContent || ''));
-            var ban = [].slice.call(d.querySelectorAll('.hub-actions .tf-btn'))
-              .filter(function (b) { return /Bannir|Ban this/.test(b.textContent); })[0];
-            t('matchmaking : le bouton « bannir » existe (c est la blague)', !!ban);
-            if (ban) {
-              ban.click();
-              t('matchmaking : bannir relance une recherche, etat stable',
-                !d.querySelector('.hub-match .hub-found') && !!d.querySelector('.hub-overlay'));
-            }
-            d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
-            t('matchmaking : Echap ferme et rend le focus',
-              !d.querySelector('.hub-overlay') && d.activeElement === mmBtn);
-            t('hub : aucune minuterie ne survit a la fermeture', !hub.isOpen());
-            done();
-          }, reducedMotion ? 300 : 3200);
+          // --- l'entrée du Game Hub : le mode groupe
+          var lien = d.getElementById('hub-link');
+          t('game hub : une entrée visible dans la section Jeux',
+            !!lien && !!lien.closest('#games') && lien.getBoundingClientRect().height > 40);
+          t('game hub : un vrai lien vers games/ (chemin relatif, compatible GitHub Pages)',
+            !!lien && lien.getAttribute('href') === 'games/' && lien.tagName === 'A');
+          t('game hub : pas en .js-only — il marche sans JavaScript', !!lien && !lien.closest('.js-only'));
+          t('game hub : nom accessible et description',
+            !!lien && (lien.getAttribute('aria-label') || '').length > 10 && !!d.getElementById(lien.getAttribute('aria-describedby')));
+          t('game hub : présenté comme le mode entre amis',
+            !!lien && /amis|friends/i.test(lien.textContent) && /Game Hub/.test(lien.textContent));
+          var directs = [].slice.call(d.querySelectorAll('#games-track .game-cta[href^="games/"]'))
+            .map(function (a) { return a.getAttribute('href'); });
+          var attendus = w.eval('GAMES').filter(function (g) { return g.status === 'live' && g.href; });
+          t('jeux : les liens directs vers chaque jeu restent (' + directs.length + '/' + attendus.length + ')',
+            attendus.every(function (g) { return directs.indexOf(g.href) !== -1; }) && directs.indexOf('games/') === -1);
+          t('faux matchmaking retiré : plus de bouton qui prétend trouver un groupe',
+            !d.getElementById('mm-btn') && !/Trouver une partie|Find a match/.test(d.getElementById('games').textContent)
+            && typeof hub.openMatchmaking === 'undefined');
+          t('caisse solo : annoncée comme solo', /solo/i.test((d.querySelector('.hub-solo') || {}).textContent || ''));
+          crateBtn.click();
+          var grp = d.querySelector('.hub-overlay .hub-group-link');
+          t('caisse solo : renvoie au Game Hub pour jouer à plusieurs', !!grp && grp.getAttribute('href') === 'games/');
+          d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+          t('hub : aucune fenêtre ne reste ouverte', !hub.isOpen());
+          done();
         }, reducedMotion ? 300 : 3400);
       }
 

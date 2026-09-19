@@ -119,10 +119,21 @@ t('et garde ceux qui tiennent vraiment',
 // Le Hub transporte l'historique de contenu sans jamais l'interpréter : aucun
 // identifiant de situation, de vidéo ou de thème n'a le droit d'être ici.
 const CLES_OK = ['id', 'title', 'emoji', 'url', 'action', 'mode', 'players',
-  'minutes', 'needs', 'categories', 'server', 'health', 'join', 'content', 'replay'];
+  'minutes', 'needs', 'categories', 'server', 'health', 'join', 'content', 'replay', 'handoff'];
 for (const g of M.games) {
   const inconnues = Object.keys(g).filter((k) => !CLES_OK.includes(k));
   t(`${g.id} : aucune clé hors schéma`, inconnues.length === 0, inconnues.join(', '));
+}
+
+// ------------------------------------------------------- handoff déclaré = réel
+// `handoff: true` promet au Hub que la page du jeu sait être lancée par lui
+// (billet, room déclarée). Une promesse sans le code ferait attendre le groupe
+// jusqu'à l'échéance du lancement ; le code sans la promesse ne servirait
+// jamais. On relit donc la page de chaque jeu.
+for (const g of M.games.filter((x) => x.url)) {
+  const page = path.join(ROOT, g.url, 'index.html');
+  const charge = fs.existsSync(page) && /hub-handoff\.js/.test(fs.readFileSync(page, 'utf8'));
+  t(`${g.id} : handoff ${g.handoff ? 'déclaré' : 'non déclaré'} = page ${charge ? 'branchée' : 'non branchée'}`, !!g.handoff === charge);
 }
 
 // --------------------------------------------------- les garde-fous mordent

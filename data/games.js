@@ -21,8 +21,10 @@
 //      comparer ce que les joueurs ont déclaré. Il ne demandera JAMAIS la
 //      permission micro — c'est le jeu, et lui seul, qui demande et vérifie.
 //
-//   content / replay valent false tant que ce n'est pas VÉRIFIÉ dans le
-//   serveur concerné. false veut donc dire « non supporté ou pas encore
+//   content / replay / handoff valent false tant que ce n'est pas VÉRIFIÉ.
+//   handoff : la page du jeu sait être lancée par le Game Hub (billet de
+//   lancement, games/shared/hub-handoff.js). Sans lui, le Hub tire le jeu mais
+//   ne le lance pas. false veut donc dire « non supporté ou pas encore
 //   vérifié » : dans les deux cas le Hub s'en passe.
 // arch : points d'architecture affichés dans la fiche « Architecture ». Des
 //        faits vérifiables sur le code, pas du discours.
@@ -66,6 +68,7 @@ const GAMES = [
       join: 'anon',                       // le seul sans pseudo ni avatar
       content: false,
       replay: false,
+      handoff: false,
     },
   },
   {
@@ -107,6 +110,7 @@ const GAMES = [
       join: 'v1',
       content: false,
       replay: false,
+      handoff: false,
     },
   },
   {
@@ -148,6 +152,7 @@ const GAMES = [
       join: 'v1',
       content: false,
       replay: false,
+      handoff: false,
     },
   },
   {
@@ -184,6 +189,7 @@ const GAMES = [
       categories: ['classique', 'solo'],
       content: false,
       replay: false,
+      handoff: false,
     },
   },
   {
@@ -225,6 +231,7 @@ const GAMES = [
       join: 'v1',
       content: false,
       replay: false,
+      handoff: false,
     },
   },
   {
@@ -266,6 +273,7 @@ const GAMES = [
       join: 'v1',
       content: false,
       replay: false,
+      handoff: false,
     },
   },
   {
@@ -313,6 +321,7 @@ const GAMES = [
       join: 'v1',
       content: false,
       replay: true,                       // action: 'lobby' vérifiée dans server.js
+      handoff: true,                      // branché au Game Hub (games/shared/hub-handoff.js)
     },
   },
   {
@@ -356,6 +365,7 @@ const GAMES = [
       join: 'v1',
       content: false,
       replay: true,                       // action: 'lobby' vérifiée dans server.js
+      handoff: false,
     },
   },
   {

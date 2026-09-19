@@ -145,7 +145,7 @@ function checkPagesPaths() {
 //      (« micro » au lieu de « mic ») créerait un filtre que rien ne satisfait,
 //      en silence. C'est le genre de panne qu'on ne découvre qu'en soirée.
 const CLES = {
-  commun: ['mode', 'players', 'minutes', 'needs', 'categories', 'content', 'replay'],
+  commun: ['mode', 'players', 'minutes', 'needs', 'categories', 'content', 'replay', 'handoff'],
   online: ['server', 'health', 'join'],
 };
 // `needs` est DÉCLARATIF : le Hub compare ce que les joueurs annoncent, il ne
@@ -187,7 +187,7 @@ function checkHub(g) {
   if (!Array.isArray(h.categories) || !h.categories.length) err('categories : tableau non vide attendu');
   for (const c of h.categories) if (!CATEGORIES.includes(c)) err(`catégorie inconnue : ${c}`);
 
-  if (typeof h.content !== 'boolean' || typeof h.replay !== 'boolean') err('content et replay : booléens attendus');
+  if (typeof h.content !== 'boolean' || typeof h.replay !== 'boolean' || typeof h.handoff !== 'boolean') err('content, replay et handoff : booléens attendus');
 
   if (h.mode === 'online') {
     if (!/^wss:\/\//.test(h.server)) err('server : wss:// attendu');
@@ -217,6 +217,7 @@ function buildManifest() {
       : {}),
     content: g.hub.content,
     replay: g.hub.replay,
+    handoff: g.hub.handoff,
   }));
   emit('data/games.manifest.json', JSON.stringify({
     // `version` est celle du SCHÉMA, pas du catalogue : le Hub refusera un

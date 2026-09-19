@@ -478,3 +478,16 @@ input::placeholder, textarea::placeholder { color: var(--ink-3); }
   .g-av--lg { --g-av-size: 60px; }
   .g-player { gap: .6rem; }
 }
+
+/* --------------------------------------------------- Bandeau « Game Hub »
+   Posé par games/shared/hub-handoff.js en haut d'une page de jeu LANCÉE par le
+   Hub : d'où l'on vient, qui est dans la partie, qui est attendu, et le chemin
+   du retour. Hors Hub, il n'existe pas. */
+.g-hub-banner {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .3rem .8rem;
+  box-sizing: border-box; max-width: 100%; margin: 0 0 1rem; padding: .55rem .8rem;
+  font-size: .8rem; line-height: 1.4; color: var(--ink-2);
+  background: rgba(0, 0, 0, .28); border-left: 3px solid var(--g-accent, #cf7336);
+}
+.g-hub-banner-text { min-width: 0; flex: 1 1 14rem; overflow-wrap: anywhere; }
+.g-hub-banner-back { flex: none; color: var(--orange-ink, #e8913f); white-space: nowrap; }

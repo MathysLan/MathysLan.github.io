@@ -21,6 +21,7 @@
       { icon: '@', label: t('Copier mon email', 'Copy my email'), run: copyMail },
       { icon: '↗', label: 'GitHub', run: () => window.open('https://github.com/MathysLan', '_blank', 'noopener') },
       { icon: '↗', label: 'Twitch', run: () => window.open('https://www.twitch.tv/nimu_08', '_blank', 'noopener') },
+      { icon: '▶', label: t('Ouvrir le Game Hub (jouer entre amis)', 'Open the Game Hub (play with friends)'), hint: 'hub', run: () => { window.location.href = 'games/'; } },
       { icon: '●', label: t('Lancer le Puissance 4', 'Launch Connect 4'), hint: 'jeu', run: () => window.launchConnect4 && window.launchConnect4() },
     ];
   }

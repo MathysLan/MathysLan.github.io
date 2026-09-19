@@ -997,19 +997,28 @@
           <h2 class="font-tf text-4xl md:text-6xl heading" data-i18n="games.title">Jeux web<span class="ac">.</span></h2>
           <p class="muted mt-4 max-w-lg" data-i18n="games.sub">Jouables direct dans le navigateur, sans install ni compte. Chaque jeu en ligne a son serveur Node.js qui arbitre tout : le navigateur n'envoie que des intentions. Le code et l'architecture de chacun sont sur sa carte.</p>
         </div>
-        <!-- Hub de jeux (js/gamehub.js) : deux entrées vers les jeux DÉJÀ là.
-             .js-only, parce que sans JavaScript elles n'auraient rien à ouvrir —
-             le carousel, lui, reste lisible en grille. Les libellés passent par
-             data-i18n comme le reste de la page. -->
+        <!-- Deux entrées, deux usages, et on ne les confond pas :
+             - le GAME HUB (games/) : l'entrée du mode GROUPE. Une vraie session,
+               un code, un tirage fait par le serveur pour tout le groupe. C'est
+               un simple lien : il marche aussi sans JavaScript.
+             - « Je joue à quoi ? » (js/gamehub.js) : un tirage SOLO, sur cette
+               page, sans session. .js-only : sans JS il n'aurait rien à ouvrir.
+             Les libellés passent par data-i18n comme le reste de la page. -->
         <div class="shrink-0 flex flex-col items-start md:items-end gap-3">
           <button id="insert-coin" type="button" class="js-only font-mono text-xs tracking-[0.3em] ac insert-coin" title="Une pièce = une partie">▸ INSERT COIN ◂</button>
+          <a href="games/" id="hub-link" class="hub-cta panel"
+             data-i18n-aria="a11y.hubLink" aria-label="Ouvrir le Game Hub : jouer entre amis"
+             aria-describedby="hub-link-sub">
+            <span class="hub-cta-kicker font-mono" data-i18n="games.hubKicker">Game Hub · multijoueur</span>
+            <span class="hub-cta-title font-tf" data-i18n="games.hubTitle">Joue avec tes amis</span>
+            <span class="hub-cta-sub" id="hub-link-sub" data-i18n="games.hubSub">Une session, un code, et la caisse Mann Co. tire un jeu qui convient à tout le groupe.</span>
+            <span class="tf-btn tf-btn-buy tf-btn-sm hub-cta-btn" aria-hidden="true" data-i18n="games.hubOpen">Ouvrir le Game Hub →</span>
+          </a>
           <div class="hub-entries js-only">
-            <button id="crate-btn" type="button" class="tf-btn tf-btn-buy tf-btn-sm"
+            <button id="crate-btn" type="button" class="tf-btn tf-btn-sm"
                     data-i18n="games.crate" data-i18n-aria="a11y.crate"
-                    aria-label="Tirer un jeu au sort dans une caisse Mann Co.">Je joue à quoi ?</button>
-            <button id="mm-btn" type="button" class="tf-btn tf-btn-sm"
-                    data-i18n="games.mm" data-i18n-aria="a11y.mm"
-                    aria-label="Lancer une recherche de partie">Trouver une partie</button>
+                    aria-label="Tirer un jeu au sort pour toi seul, dans une caisse Mann Co.">Je joue à quoi ?</button>
+            <span class="hub-solo font-mono" data-i18n="games.crateNote">tirage solo, sans session</span>
           </div>
         </div>
       </div>

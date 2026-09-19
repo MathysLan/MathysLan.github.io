@@ -1,15 +1,23 @@
-// Hub de jeux : deux entrées amusantes vers les jeux déjà présents.
-//   1. « Je joue à quoi ? » — une caisse Mann Co. qui tire un jeu au sort ;
-//   2. « Trouver une partie » — un faux matchmaking, pour le plaisir du HUD.
+// « Je joue à quoi ? » : un tirage SOLO, sur cette page, sans session.
+//
+// ⚠️ DEUX TIRAGES, DEUX USAGES — ils ne se contredisent pas :
+//   - ici, une caisse Mann Co. tire un jeu pour TOI, tout de suite, dans le
+//     navigateur. Aucun groupe, aucun serveur : c'est une idée de jeu ;
+//   - le mode GROUPE est le Game Hub (games/) : une vraie session, et c'est le
+//     serveur du Hub qui tire, selon les joueurs présents, leurs vetos, leurs
+//     micros et la santé des serveurs. La caisse d'ici y renvoie par un lien.
+// (L'ancien « Trouver une partie » — un faux matchmaking qui affichait un
+// « match trouvé » sans aucun serveur — a été retiré : il prétendait trouver
+// un groupe, ce qu'il ne faisait pas. Le vrai mode groupe existe maintenant.)
 //
 // Ce module est POSÉ SUR l'existant, il ne le modifie pas : il lit data/games.js
 // et n'utilise que des primitives déjà là (.panel, .item, .tf-btn, --q-*). Si ce
 // fichier n'est pas chargé, la section Jeux fonctionne exactement comme avant —
-// les deux boutons sont en .js-only, donc invisibles sans JavaScript.
+// le bouton est en .js-only, donc invisible sans JavaScript.
 //
-// Une seule source de vérité pour « à quoi peut-on jouer » : playable(). Le
-// randomizer ET le matchmaking passent par elle, donc aucun des deux ne peut
-// proposer « La suite » (status: 'soon') ou un jeu sans moyen de le lancer.
+// Une seule source de vérité pour « à quoi peut-on jouer » ici : playable().
+// Elle ne peut pas proposer « La suite » (status: 'soon') ni un jeu sans moyen
+// de le lancer.
 (function () {
   // HUB vient de js/i18n.js. Déclaré en `const` au premier niveau d'un script
   // classique, il est global mais PAS une propriété de window : on le teste
@@ -163,6 +171,13 @@
     hint.textContent = D.crateHint;
     panel.appendChild(hint);
 
+    // Le mode groupe n'est pas ici : on y renvoie, franchement.
+    const group = document.createElement('a');
+    group.className = 'hub-group-link';
+    group.href = 'games/';
+    group.textContent = D.crateGroup;
+    panel.appendChild(group);
+
     const result = document.createElement('div');
     result.className = 'hub-result';
     panel.appendChild(result);
@@ -229,135 +244,21 @@
     }
   }
 
-  // =================================================== 2. Trouver une partie
-  // Faux matchmaking, et c'est annoncé en toutes lettres dans l'écran : aucun
-  // serveur n'est interrogé. L'architecture laisse la porte ouverte — remplacer
-  // buildMatch() par un vrai appel réseau suffirait, le reste ne bouge pas.
-  function buildMatch(D, games) {
-    const g = pick(games);
-    const max = /4/.test(String(g.tags)) ? 4 : 6;
-    return {
-      game: g,
-      map: pick(D.maps),
-      players: `${2 + rand(Math.max(1, max - 2))}/${max}`,
-      ping: `${18 + rand(40)} ms`,
-      server: pick(['eu-west-3', 'fra1-mannco', 'reims-lan', 'render-free-tier']),
-    };
-  }
-
-  function openMatchmaking(trigger) {
-    const D = dict();
-    const games = playable();
-    const panel = open({ label: D.mmTitle, trigger });
-
-    const head = document.createElement('div');
-    head.className = 'hub-head';
-    head.innerHTML = `<p class="hub-kicker font-mono">${D.mmTitle}</p>`;
-    panel.appendChild(head);
-
-    const log = document.createElement('ul');
-    log.className = 'hub-log font-mono';
-    panel.appendChild(log);
-
-    const card = document.createElement('div');
-    card.className = 'hub-match';
-    panel.appendChild(card);
-
-    const actions = document.createElement('div');
-    actions.className = 'hub-actions';
-    panel.appendChild(actions);
-
-    const live = liveRegion(panel);
-
-    if (!games.length) {                       // ceinture : aucune donnée
-      const li = document.createElement('li');
-      li.textContent = D.empty;
-      log.appendChild(li);
-      live.textContent = D.empty;
-      const b = btn(D.close, 'tf-btn-sm', close);
-      actions.appendChild(b);
-      b.focus();
-      return;
-    }
-
-    const cancel = btn(D.close, 'tf-btn-sm', close);
-    actions.appendChild(cancel);
-    cancel.focus();
-
-    const t0 = Date.now();
-    const timers = [];
-    search();
-
-    function search() {
-      log.textContent = '';
-      card.textContent = '';
-      live.textContent = D.mmSteps[0];
-      // En mouvement réduit on ne fait pas mijoter : les étapes s'affichent
-      // d'un coup et le match tombe tout de suite.
-      const step = reduced() ? 0 : 420;
-      D.mmSteps.forEach((s, i) => {
-        timers.push(setTimeout(() => {
-          const li = document.createElement('li');
-          li.className = 'hub-log-line';
-          li.textContent = s;
-          log.appendChild(li);
-        }, step * i));
-      });
-      timers.push(setTimeout(found, step * (D.mmSteps.length + 0.6)));
-    }
-
-    function found() {
-      const m = buildMatch(D, games);
-      const secs = ((Date.now() - t0) / 1000).toFixed(1).replace('.', ',');
-      const row = (k, v) => `<div class="hub-row"><dt>${escapeHTML(k)}</dt><dd>${escapeHTML(v)}</dd></div>`;
-      card.innerHTML = `
-        <p class="hub-found font-tf">${escapeHTML(D.mmFound)}</p>
-        <dl class="hub-facts">
-          ${row(D.mmGame, titleOf(m.game))}
-          ${row(D.mmMap, m.map)}
-          ${row(D.mmPlayers, m.players)}
-          ${row(D.mmPing, m.ping)}
-          ${row(D.mmServer, m.server)}
-          ${row(D.mmElapsed, secs + ' s')}
-        </dl>
-        <p class="hub-fake muted font-mono">${escapeHTML(D.mmFake)}</p>`;
-      live.textContent = `${D.mmFound} — ${titleOf(m.game)}, ${m.map}`;
-      actions.textContent = '';
-      const join = btn(D.mmJoin, 'tf-btn-buy', () => launch(m.game));
-      actions.appendChild(join);
-      // La blague : « bannir » relance simplement une recherche.
-      actions.appendChild(btn(D.mmBan, 'tf-btn-sm', () => {
-        live.textContent = D.mmBanned;
-        actions.textContent = '';
-        actions.appendChild(cancel);
-        cancel.focus();
-        search();
-      }));
-      actions.appendChild(btn(D.close, 'tf-btn-sm', close));
-      join.focus();
-    }
-
-    // Les minuteries ne doivent pas survivre à la fermeture.
-    onClose = () => timers.forEach(clearTimeout);
-  }
-
   function escapeHTML(s) {
     return String(s).replace(/[&<>"']/g, (c) =>
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
   // ------------------------------------------------------------- branchement
-  // Les libellés des deux boutons sont posés par data-i18n / data-i18n-aria,
-  // comme le reste de la page : rien à ré-étiqueter au changement de langue.
-  // Seuls les textes DES ÉCRANS vivent dans HUB, parce qu'ils sont construits
-  // à l'ouverture — rouvrir après un passage en anglais suffit.
+  // Le libellé du bouton est posé par data-i18n / data-i18n-aria, comme le
+  // reste de la page : rien à ré-étiqueter au changement de langue. Seuls les
+  // textes DE L'ÉCRAN vivent dans HUB, parce qu'il est construit à l'ouverture
+  // — rouvrir après un passage en anglais suffit.
   document.addEventListener('DOMContentLoaded', () => {
     const crateBtn = document.getElementById('crate-btn');
-    const mmBtn = document.getElementById('mm-btn');
     if (crateBtn) crateBtn.addEventListener('click', () => openCrate(crateBtn));
-    if (mmBtn) mmBtn.addEventListener('click', () => openMatchmaking(mmBtn));
   });
 
   // Exposé pour les tests et la palette Ctrl+K.
-  window.gameHub = { openCrate, openMatchmaking, playable, close, isOpen };
+  window.gameHub = { openCrate, playable, close, isOpen };
 })();
