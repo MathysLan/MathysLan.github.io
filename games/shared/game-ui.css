@@ -400,3 +400,81 @@ input::placeholder, textarea::placeholder { color: var(--ink-3); }
   padding: 0; border: 0; min-height: 0;
   overflow: hidden; clip-path: inset(50%); white-space: nowrap;
 }
+
+/* ------------------------------------------------------ Avatar d'un joueur
+   Posé par games/shared/game-avatar.js partout où un jeu affiche l'avatar des
+   joueurs (salon, scores, résultats, podium…). Un emoji reste du texte : rien
+   à habiller. Une PHOTO prend la place d'un glyphe, donc elle se cale sur la
+   taille du texte autour (em) et non sur une taille fixe — elle suit la `.pp`
+   de chaque jeu, qui garde la main sur sa marge et sa couleur.
+   Elle est toujours affichée plus petite que sa source (96 px) : jamais
+   agrandie, jamais floue. */
+/* Sans taille : rendu EN LIGNE, calé sur le texte (phrases, légendes). */
+.g-av:not([class*="g-av--"]) .g-av-img {
+  display: inline-block; width: 1.5em; height: 1.5em; max-width: none;
+  object-fit: cover; vertical-align: middle;
+  border: 1px solid var(--panel-edge); background: var(--bg-deep);
+}
+
+/* Avec une taille : un vrai bloc d'identité. Même boîte pour la photo et pour
+   l'emoji (qui n'est qu'un repli), donc aucun décalage de mise en page quand
+   on passe de l'un à l'autre.
+   Forme : le carré à coins coupés du reste de l'interface (tf2.css), pas un
+   cercle — c'est la silhouette de TOUT ce qui est « objet » dans ces pages.
+   Le liseré prend l'accent du jeu (--g-accent) : violet en Imitation, rouge au
+   Ban, orange Mann Co. au Passeur… Un jeu peut le changer par joueur avec
+   --g-av-ring (le Demi-Cercle y met la couleur de l'aiguille).
+   ⚠️ clip-path rogne les bordures et les ombres : le liseré est donc le FOND
+   du bloc extérieur, vu à travers 2 px de rembourrage, et l'intérieur (photo ou
+   emoji) est découpé à son tour. Ne pas « simplifier » en `border`. */
+.g-av--sm { --g-av-size: 32px; }
+.g-av--md { --g-av-size: 48px; }
+.g-av--lg { --g-av-size: 68px; }
+.g-av[class*="g-av--"] {
+  --g-av-cut: calc(var(--g-av-size) * .2);
+  display: inline-flex; flex: none; box-sizing: border-box;
+  width: var(--g-av-size); height: var(--g-av-size);
+  padding: 2px; vertical-align: middle;
+  background: var(--g-av-ring, color-mix(in srgb, var(--g-accent, #cf6a32) 65%, var(--panel-edge, #5a4a3a)));
+  clip-path: polygon(var(--g-av-cut) 0, 100% 0, 100% calc(100% - var(--g-av-cut)),
+    calc(100% - var(--g-av-cut)) 100%, 0 100%, 0 var(--g-av-cut));
+}
+.g-av[class*="g-av--"] > .g-av-img,
+.g-av[class*="g-av--"] > .g-av-e {
+  --c: calc(var(--g-av-cut) - 1.2px);
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%; max-width: none; margin: 0;
+  object-fit: cover; object-position: center;
+  background: var(--bg-deep, #1a1511);
+  clip-path: polygon(var(--c) 0, 100% 0, 100% calc(100% - var(--c)),
+    calc(100% - var(--c)) 100%, 0 100%, 0 var(--c));
+  font-size: calc(var(--g-av-size) * .56); line-height: 1;
+}
+
+/* Rangée joueur : [ avatar ] pseudo ........ score. Un habillage, pas un
+   composant : chaque jeu garde sa liste, ses couleurs et ses marques (MJ,
+   prêt, points), il n'ajoute que ces trois classes. */
+.g-player { display: flex; align-items: center; gap: .75rem; min-width: 0; }
+/* Une liste de joueurs n'a pas de retrait : les 40 px de `padding-left` que le
+   navigateur donne à tout <ul> décalaient toutes les rangées (invisible tant
+   que l'avatar n'était qu'un glyphe de 20 px). */
+:where(ul, ol):has(> .g-player) { padding-inline-start: 0; }
+.g-player-name {
+  flex: 1 1 auto; min-width: 0; text-align: left;
+  /* PAS de couleur ici : chaque jeu garde la sienne (couleur du joueur au Ban
+     et au Demi-Cercle, violet d'Imitation…). */
+  font-size: 1rem; line-height: 1.2;
+  overflow-wrap: anywhere;
+  /* 16 caractères au plus (la borne des serveurs) : deux lignes suffisent
+     toujours, et on coupe proprement au-delà plutôt que de pousser le score. */
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+.g-player-score {
+  flex: none; margin-left: auto; min-width: 2ch; text-align: right;
+  font-variant-numeric: tabular-nums; font-size: 1.1rem;
+}
+@media (max-width: 480px) {
+  .g-av--md { --g-av-size: 44px; }
+  .g-av--lg { --g-av-size: 60px; }
+  .g-player { gap: .6rem; }
+}

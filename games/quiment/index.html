@@ -22,7 +22,7 @@
      (palette, polices, primitives) + socle commun des pages de jeux (focus
      clavier, mouvement réduit, cibles tactiles, messages d'état). -->
 <link rel="stylesheet" href="../../css/tf2.css?v=9">
-<link rel="stylesheet" href="../shared/game-ui.css?v=3">
+<link rel="stylesheet" href="../shared/game-ui.css?v=4">
 <style>
   /* Seulement ce qui est propre à Qui Ment ?. Tout le reste vient de tf2.css. */
   body { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem 1rem; }
@@ -84,8 +84,8 @@
 
   /* --- les indices --- */
   .turn-head { font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); margin: 1rem 0 .4rem; }
-  .clue-row { display: flex; align-items: baseline; gap: .6rem; padding: .35rem .2rem; border-bottom: 1px solid var(--line); font-size: .9rem; }
-  .clue-row .who { color: var(--ink-3); font-size: .8rem; min-width: 8.5rem; }
+  .clue-row { display: flex; align-items: center; gap: .6rem; padding: .35rem .2rem; border-bottom: 1px solid var(--line); font-size: .9rem; }
+  .clue-row .who { color: var(--ink-3); font-size: .8rem; min-width: 9.5rem; display: inline-flex; align-items: center; gap: .45rem; }
   .clue-row .what { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; letter-spacing: .04em; color: var(--ink); }
   .clue-form { display: flex; gap: .5rem; margin-top: 1.1rem; }
   .clue-form input { flex: 1; }
@@ -107,6 +107,15 @@
   .final-title { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 1.5rem; color: var(--orange-ink); margin: .2rem 0 1rem; }
   .rank-row { display: flex; justify-content: space-between; gap: 1rem; padding: .45rem .2rem; border-bottom: 1px solid var(--line); font-size: .9rem; text-align: left; }
   .rank-row .avg { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; color: var(--q-unique); }
+  /* Joueurs : avatar en vrai bloc d'identité (game-avatar.js / game-ui.css). */
+  .medal { flex: none; min-width: 1.6em; text-align: center; font-family: 'TF2 Build', 'Arial Narrow', sans-serif; color: var(--ink-3); }
+  .rank-row { align-items: center; }
+  .res-row .g-player-name, .rank-row .g-player-name { font-size: .95rem; }
+  .res-row { align-items: center; }
+  /* Le verdict : « c'était lui » — le visage en grand, au centre. */
+  #res-verdict { display: flex; align-items: center; justify-content: center; gap: .7rem; flex-wrap: wrap; }
+  /* Voter, c'est désigner quelqu'un : le bouton devient une carte joueur. */
+  .vote-grid .vote-who { justify-content: flex-start; gap: .7rem; text-align: left; }
 
   .actions { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; margin-top: 1.3rem; }
   .back { color: var(--ink-3); }
@@ -240,6 +249,8 @@
   <!-- Profil local (pseudo + avatar) : chargé AVANT app.js, qui lui demande
        l'emoji de départ. Aucun réseau, aucune règle de jeu. -->
   <script src="../shared/game-profile.js"></script>
+  <!-- Avatar des joueurs (emoji ou photo) à l'affichage, sans innerHTML. -->
+  <script src="../shared/game-avatar.js"></script>
   <script src="net.js?v=1"></script>
   <script src="app.js?v=1"></script>
 </body>

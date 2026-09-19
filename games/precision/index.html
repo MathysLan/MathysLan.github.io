@@ -22,7 +22,7 @@
      tactiles, messages d'état, et les deux polices auto-hébergées (plus aucun
      appel à Google Fonts). La DA du jeu reste dans le <style> ci-dessous. -->
 <link rel="stylesheet" href="../../css/tf2.css?v=9">
-<link rel="stylesheet" href="../shared/game-ui.css?v=3">
+<link rel="stylesheet" href="../shared/game-ui.css?v=4">
 <style>
 
   /* L'accent de Precision : celui qu'elle définit déjà dans :root.
@@ -186,6 +186,18 @@
   /* ---------- accueil / lobby ---------- */
   .pad { padding: 1.8rem; }
   #name-input { margin-bottom: 1rem; }
+  /* Accueil : UNE colonne sur UN axe. Le pseudo, « Créer une partie » et la
+     rangée code + rejoindre prennent toute la largeur du panneau ; avant, les
+     trois étaient calés à gauche à leur largeur propre pendant que les icônes,
+     la photo et « — ou — » étaient centrés — deux axes, et du vide à droite. */
+  #home { text-align: center; }
+  #home .sub { margin-bottom: 1rem; }
+  #home #name-input { display: block; width: 100%; margin-bottom: .9rem; }
+  #home #host { display: block; width: 100%; }
+  #home .or { margin: .5rem 0; }
+  #home .join-row { display: flex; gap: .5rem; }
+  #home .join-row input { flex: 1 1 auto; width: auto; min-width: 0; }
+  #home .join-row button { flex: none; }
   .pick-hint { color: var(--dim); font-size: .7rem; margin-bottom: .5rem; text-align: center; }
   ul { list-style: none; font-size: .82rem; }
   #players li { padding: .55rem .2rem; border-bottom: 1px solid var(--p-line); display: flex; align-items: center; gap: .5rem; }
@@ -296,20 +308,80 @@
   .rv-lbl { font-size: .6rem; color: var(--dim); text-align: center; margin-top: .3rem; letter-spacing: .1em; }
   .rv-big { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 1.5rem; text-align: center; }
   #rv-list { display: grid; gap: .4rem; }
-  .rv-row { display: grid; grid-template-columns: 1.4rem 1fr auto; align-items: center; gap: .6rem;
+  /* Colonnes COMMUNES au classement de la manche (#rv-list) et aux scores
+     (#scores) : rang · avatar · pseudo · score. La colonne avatar a une largeur
+     FIXE et l'avatar y est centré : un 32 px, un 48 px, une photo ou un emoji,
+     les pseudos commencent tous au même endroit et rien ne se décale. */
+  #reveal-view { --rk-col: 1.6rem; --av-col: 48px; }
+  /* Le bouton rond (54 px, à 1,1 rem du bord) flotte au-dessus des listes, qui
+     l'atteignent dès qu'il y a deux sections : elles lui laissent sa gouttière,
+     à toutes les tailles — aucun score ne passe dessous. */
+  #rv-list, #scores, .rv-head, .rv-cap { margin-right: 3.6rem; }
+  #reveal-view:has(#scores .g-av--lg) { --av-col: 68px; }   /* podium */
+  /* rang · avatar · pseudo + écart · précision */
+  .rv-row { display: grid; grid-template-columns: var(--rk-col) var(--av-col) minmax(0, 1fr) auto; align-items: center; gap: .6rem;
     padding: .55rem .8rem; border: 1px solid var(--p-line); border-radius: 12px; background: #141416; font-size: .76rem; }
-  .rv-row .rk { color: #8a8a94; }
+  .rv-row .rk { color: #8a8a94; text-align: center; }
+  .rv-row > .g-av, #scores li > .g-av { justify-self: center; }
   .rv-row .rd { color: var(--dim); font-size: .66rem; font-variant-numeric: tabular-nums; }
+  .rv-row .rv-who { display: flex; flex-direction: column; gap: .15rem; min-width: 0; text-align: left; }
+  .rv-row .rv-name { font-size: .95rem; overflow-wrap: anywhere; line-height: 1.15; }
+  /* Le plateau a un ratio FIXE (5/6) : sur téléphone la place y est comptée,
+     la liste de révélation passe à 36 px pour garder 4 joueurs visibles. */
+  @media (max-width: 480px) {
+    .rv-row .g-av--md { --g-av-size: 36px; } .rv-row { padding-block: .35rem; }
+    #reveal-view { --av-col: 36px; }
+    #reveal-view:has(#scores .g-av--lg) { --av-col: 60px; }
+    /* La comparaison (LA CIBLE / TOI) passait SOUS le gros score en haut à
+       droite : on la descend sous lui. */
+    #reveal-view:not(.sheet):has(#rv-list .rv-row) { padding-top: 6.4rem; }   /* pas au podium : pas de gros score */
+    /* …et l'écart détaillé tient sur UNE ligne, pour ne pas grandir les rangées. */
+    .rv-row .rd { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  }
+  .medal { flex: none; min-width: 1.6em; text-align: center; font-size: 1.1rem; }
   .rv-row .ra { font-weight: 700; font-family: 'Space Grotesk', sans-serif; }
   .rv-row.me { border-color: var(--accent); }
   .a-hi { color: #86efac; } .a-mid { color: #fde047; } .a-lo { color: #fca5a5; }
   #rv-shape { width: 100%; aspect-ratio: 1/1; max-height: 200px; margin: 0 auto .8rem; display: block; }
 
   #scores { margin-top: 1rem; }
-  #scores li { padding: .5rem .2rem; border-bottom: 1px solid var(--p-line); display: flex; align-items: center; gap: .5rem; font-size: .8rem; }
-  #scores .pts { margin-left: auto; font-weight: 700; font-family: 'Space Grotesk', sans-serif; }
+  /* Même grille et même retrait que .rv-row (rembourrage .8rem + bordure 1px) :
+     les deux listes s'alignent colonne par colonne. */
+  #scores li { padding: .5rem calc(.8rem + 1px); border-bottom: 1px solid var(--p-line); font-size: .8rem;
+    display: grid; grid-template-columns: var(--rk-col) var(--av-col) minmax(0, 1fr) auto; align-items: center; gap: .6rem; }
+  #scores .medal { min-width: 0; }
+  #scores .pts { margin-left: 0; justify-self: end; font-weight: 700; font-family: 'Space Grotesk', sans-serif; }
+  #scores .pts small { font-size: .62rem; font-weight: 400; color: var(--dim); margin-left: .15rem; }
+  /* Les deux sections de la révélation : même grille, hiérarchie différente.
+     Manche = l'accent lavande, un filet fin, des cartes, des % en couleur.
+     Score global = le blanc, un filet épais, un fond de panneau, des « pts ». */
+  .rv-head { display: flex; align-items: center; gap: .6rem; margin: 1.1rem 3.6rem .15rem 0;
+    font-family: 'Space Grotesk', sans-serif; font-size: .7rem; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); }
+  .rv-head b { font-weight: 700; flex: none; }
+  .rv-head::before, .rv-head::after { content: ''; flex: 1; height: 1px; background: currentColor; opacity: .4; }
+  .rv-head--total { color: #f4f2ff; margin-top: 1.4rem; }   /* marge droite = la gouttière du bouton rond */
+  .rv-head--total::before, .rv-head--total::after { height: 2px; opacity: .55; }
+  /* Space Grotesk : TF2 Secondary n'a ni « % » ni « = ». */
+  .rv-cap { font-family: 'Space Grotesk', sans-serif; font-size: .66rem; color: var(--dim); text-align: center; margin: 0 3.6rem .55rem 0; }
+  #reveal-view #scores:not(:has(.g-av--lg)) { background: rgba(255,255,255,.035); border: 1px solid var(--p-line); border-radius: 12px; }
+  #reveal-view #scores:not(:has(.g-av--lg)) li:last-child { border-bottom: 0; }
+  /* la bordure du bloc remplace le 1px de rembourrage : colonnes identiques aux cartes */
+  #reveal-view #scores:not(:has(.g-av--lg)) li { padding-inline: .8rem; }
 
   [hidden] { display: none !important; }
+  /* Le code de salle : l'élément central du salon, même hiérarchie que le
+     Passeur (« Salon » · CODE · « clique pour copier »). Couleur : son lavande, en
+     teinte claire — l'accent pur (#8b5cf6 / #dc2626) ne tient pas 3:1 sur le
+     brun du panneau. #room-code (1,0,0) passe devant le `.g-copy` du socle,
+     qui remet police et couleur à « inherit ». */
+  .lobby-head { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: .72rem; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--ink-3); margin-bottom: .35rem; text-align: center; }
+  #room-code { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 2.4rem; line-height: 1.15;
+    letter-spacing: .4em; text-indent: .4em; color: #c4b5fd; }
+  #room-code:hover { color: #ddd6fe; }
+  /* Le salon de Précision est aligné à gauche (ses réglages sont en colonne) :
+     l'aide du code, elle, suit le code, au centre. */
+  #code-hint { text-align: center; }
 </style>
 </head>
 <body>
@@ -331,6 +403,7 @@
 
     <!-- lobby -->
     <section id="lobby" class="panel g-screen pad" hidden>
+      <p class="lobby-head">Salon</p>
       <button type="button" id="room-code" class="g-copy" title="clique pour copier">····</button>
       <p id="code-hint" role="status">clique sur le code pour le copier</p>
       <ul id="players"></ul>
@@ -443,7 +516,13 @@
             <path id="rv-tri-target" d="" fill="none" stroke="#ffffff77" stroke-width=".7" stroke-dasharray="2 1.6"/>
             <path id="rv-tri-mine" d="" fill="url(#triGrad)" opacity=".85"/>
           </svg>
+          <!-- Deux sections, deux sens : le % est la précision de CE tir, le
+               nombre entier est le score CUMULÉ de la partie. -->
+          <div class="rv-head" id="rv-head-round" hidden><b>Résultat de la manche</b></div>
+          <p class="rv-cap" id="rv-cap-round" hidden>% = précision de chacun sur ce tir</p>
           <div id="rv-list"></div>
+          <div class="rv-head rv-head--total" id="rv-head-total" hidden><b>Score global</b></div>
+          <p class="rv-cap" id="rv-cap-total" hidden>points cumulés depuis le début de la partie</p>
           <ul id="scores" hidden></ul>
         </div>
       </div>
@@ -473,6 +552,8 @@
   <!-- Profil local (pseudo + avatar) : chargé AVANT app.js, qui lui demande
        l'emoji de départ. Aucun réseau, aucune règle de jeu. -->
   <script src="../shared/game-profile.js"></script>
+  <!-- Avatar des joueurs (emoji ou photo) à l'affichage, sans innerHTML. -->
+  <script src="../shared/game-avatar.js"></script>
   <script src="net.js"></script>
   <script src="app.js"></script>
 </body>

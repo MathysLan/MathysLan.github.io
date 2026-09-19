@@ -78,8 +78,9 @@ function renderOrder(order) {
   $('order-chips').innerHTML = order.map((o) => {
     let cls = 'chip'; if (o.active) cls += ' active'; else if (o.skipped) cls += ' skip'; else if (o.overshoot) cls += ' over'; else if (o.done) cls += ' done';
     const tc = o.done ? (o.skipped ? 'passé' : (o.time == null ? '—' : fmtClock(o.time))) : '';
-    return `<span class="${cls}"><span class="num">${o.n}.</span> ${esc(o.name)}${tc ? ` <span class="tc">(${tc})</span>` : ''}</span>`;
+    return `<span class="${cls}"><span class="num">${o.n}.</span>${GameAvatar.slot(o.avatar, undefined, 'sm')} ${esc(o.name)}${tc ? ` <span class="tc">(${tc})</span>` : ''}</span>`;
   }).join('');
+  GameAvatar.fill($('order-chips'));
 }
 
 // --- résultats : timeline zoomée sur le mot + table ------------------------
@@ -117,9 +118,10 @@ function renderResults(msg) {
   const cls = (pts) => pts > 0 ? 'pos' : (pts < 0 ? 'neg' : 'zero');
   $('res-table').innerHTML = msg.ranking.map((r) => {
     const d = r.skipped ? 'passé' : (r.time == null ? '—' : fmtDelta(r.delta));
-    return `<div class="res-row"><span class="rn" style="color:${colorById[r.id] || '#fff'}">${esc(r.name)}</span>`
+    return `<div class="res-row" style="--g-av-ring:${colorById[r.id] || '#fff'}"><span class="rn g-player" style="color:${colorById[r.id] || '#fff'}">${GameAvatar.slot(r.avatar, undefined, 'md')}<span class="g-player-name">${esc(r.name)}</span></span>`
       + `<span class="rd">${d}</span><span class="rp ${cls(r.points)}">${r.points > 0 ? '+' : ''}${r.points}</span></div>`;
   }).join('');
+  GameAvatar.fill($('res-table'));
 }
 
 // --- accueil ---------------------------------------------------------------
@@ -154,7 +156,9 @@ async function enter(code) {
   if (!name) return showError('il te faut un pseudo');
   if (code !== undefined && !code.trim()) return showError('rentre un code de room');
   showError('');
-  try { await NET.connect(); NET.send(code === undefined ? { action: 'join', name, avatar: myAvatar } : { action: 'join', name, code, avatar: myAvatar }); }
+  // L'avatar complet : la photo du profil s'il y en a une, l'emoji toujours.
+  const avatar = GameProfile.joinAvatar(myAvatar);
+  try { await NET.connect(); NET.send(code === undefined ? { action: 'join', name, avatar } : { action: 'join', name, code, avatar }); }
   catch (err) { showError(err.message); }
 }
 $('start').addEventListener('click', () => NET.send({ action: 'start', videos: +$('videos-select').value }));
@@ -203,7 +207,8 @@ NET.on('room', (msg) => {
   const me = msg.players.find((p) => p.id === you);
   isHost = !!(me && me.host);
   $('players').innerHTML = msg.players.map((p) =>
-    `<li><span class="pp">${esc(p.avatar || '🙂')}</span>${esc(p.name)}${p.host ? ' <span class="tag">MJ</span>' : ''}</li>`).join('');
+    `<li class="g-player">${GameAvatar.slot(p.avatar, undefined, 'md')}<span class="g-player-name">${esc(p.name)}${p.host ? ' <span class="tag">MJ</span>' : ''}</span></li>`).join('');
+  GameAvatar.fill($('players'));
   $('host-config').hidden = !isHost;
   $('start').disabled = msg.players.length < 2;
   $('need-players').hidden = msg.players.length >= 2;
@@ -282,7 +287,11 @@ const PHASES = {
     show('game'); parts('turn'); stopRaf();
     curFrom = msg.from || 0; curActive = msg.active; youActive = !!msg.youActive; turnStopped = false; turnPlaying = false;
     loadVideo(msg.videoId); renderOrder(msg.order || []);
-    $('turn-title').innerHTML = `tour de <b>${esc(msg.activeName)}</b>`;
+    // « C'est à qui ? » : l'avatar du joueur actif, pris dans l'ordre de passage.
+    const actif = (msg.order || []).find((o) => o.active);
+    $('turn-title').innerHTML = `<span class="g-player turn-who">${actif ? GameAvatar.slot(actif.avatar, undefined, 'md') : ''}`
+      + `<span>tour de <b>${esc(msg.activeName)}</b></span></span>`;
+    GameAvatar.fill($('turn-title'));
     $('phase-badge').textContent = '⏸ prêt';
     $('video-box').classList.remove('live');
     $('stop-btn').hidden = true; $('wait-turn').hidden = true; $('to-lobby').hidden = true;
@@ -315,7 +324,8 @@ const PHASES = {
     hideHostBtns(); $('stop-btn').hidden = true;
     const medals = ['🥇', '🥈', '🥉'];
     $('scores').innerHTML = msg.podium.map((p, i) =>
-      `<li>${medals[i] || '·'} <span class="pp">${esc(p.avatar || '🙂')}</span>${esc(p.name)} <span class="pts">${p.score} pts</span></li>`).join('');
+      `<li class="g-player"><span class="medal">${medals[i] || '·'}</span>${GameAvatar.slot(p.avatar, undefined, i < 3 ? 'lg' : 'md')}<span class="g-player-name">${esc(p.name)}</span> <span class="pts g-player-score">${p.score} pts</span></li>`).join('');
+    GameAvatar.fill($('scores'));
     $('to-lobby').hidden = false;
     status('bien joué');
   },

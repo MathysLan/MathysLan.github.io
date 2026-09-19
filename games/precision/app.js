@@ -561,7 +561,9 @@ async function enter(code) {
   if (!name) { AUDIO.error(); return showError('il te faut un pseudo'); }
   if (code !== undefined && !code.trim()) { AUDIO.error(); return showError('rentre un code de room'); }
   showError(''); AUDIO.resume(); AUDIO.click();
-  try { await NET.connect(); NET.send(code === undefined ? { action: 'join', name, avatar: myAvatar } : { action: 'join', name, code, avatar: myAvatar }); }
+  // L'avatar complet : la photo du profil s'il y en a une, l'emoji toujours.
+  const avatar = GameProfile.joinAvatar(myAvatar);
+  try { await NET.connect(); NET.send(code === undefined ? { action: 'join', name, avatar } : { action: 'join', name, code, avatar }); }
   catch (err) { AUDIO.error(); showError(err.message); }
 }
 $('start').addEventListener('click', () => {
@@ -620,7 +622,8 @@ NET.on('room', (msg) => {
   const me = msg.players.find((p) => p.id === you);
   const wasHost = isHost; isHost = !!(me && me.host);
   $('players').innerHTML = msg.players.map((p) =>
-    `<li><span class="pp">${esc(p.avatar || '🙂')}</span>${esc(p.name)}${p.host ? ' <span class="tag">MJ</span>' : ''}</li>`).join('');
+    `<li class="g-player">${GameAvatar.slot(p.avatar, undefined, 'md')}<span class="g-player-name">${esc(p.name)}${p.host ? ' <span class="tag">MJ</span>' : ''}</span></li>`).join('');
+  GameAvatar.fill($('players'));
   $('host-config').hidden = !isHost;
   $('need-players').textContent = msg.players.length < 2 ? 'ça marche en solo, mais c\'est plus drôle à plusieurs' : '';
   if (msg.phase === 'lobby' && phase === 'lobby') { show('lobby'); if (!wasHost && !isHost) AUDIO.join(); }
@@ -683,11 +686,12 @@ const PHASES = {
     $('score-block').classList.remove('compact'); $('shape-board').classList.remove('fit');
     $('reveal-view').hidden = false;
     $('rv-compare').innerHTML = '<p class="rv-big">🏆 Podium</p>';
-    setHidden($('rv-shape'), true); $('rv-list').innerHTML = '';
+    setHidden($('rv-shape'), true); $('rv-list').innerHTML = ''; revealHeads(false);
     const medals = ['🥇', '🥈', '🥉'];
     $('scores').hidden = false;
     $('scores').innerHTML = msg.podium.map((p, i) =>
-      `<li>${medals[i] || '·'} <span class="pp">${esc(p.avatar || '🙂')}</span>${esc(p.name)}<span class="pts">${p.score}</span></li>`).join('');
+      `<li class="g-player"><span class="medal">${medals[i] || '·'}</span>${GameAvatar.slot(p.avatar, undefined, i < 3 ? 'lg' : 'md')}<span class="g-player-name">${esc(p.name)}</span><span class="pts g-player-score">${p.score}</span></li>`).join('');
+    GameAvatar.fill($('scores'));
     setFab('lobby'); AUDIO.end();
   },
 };
@@ -711,6 +715,12 @@ const QUIPS = [
   [50, 'Pas mal.'], [30, 'Approximatif.'], [0, 'Aïe.'],
 ];
 const quipFor = (a) => (QUIPS.find(([s]) => a >= s) || QUIPS[QUIPS.length - 1])[1];
+
+// Les intitulés « Résultat de la manche » / « Score global » : visibles à la
+// révélation, masqués au podium (qui a son propre titre).
+function revealHeads(on) {
+  ['rv-head-round', 'rv-cap-round', 'rv-head-total', 'rv-cap-total'].forEach((id) => { $(id).hidden = !on; });
+}
 
 function renderReveal(msg) {
   const g = msg.game, t = msg.target;
@@ -765,9 +775,13 @@ function renderReveal(msg) {
 
   $('rv-list').innerHTML = msg.results.map((r, i) =>
     `<div class="rv-row${r.id === you ? ' me' : ''}"><span class="rk">${i + 1}</span>`
-    + `<span>${esc(r.avatar || '🙂')} ${esc(r.name)}<br><span class="rd">${deltaText(g, r)}</span></span>`
+    + `${GameAvatar.slot(r.avatar, undefined, 'md')}<span class="rv-who"><span class="rv-name">${esc(r.name)}</span><span class="rd">${deltaText(g, r)}</span></span>`
     + `<span class="ra ${accClass(r.accuracy)}">${r.accuracy.toFixed(1)}%</span></div>`).join('');
+  GameAvatar.fill($('rv-list'));
 
+  // Deux sections, deux sens : % = précision de CE tir ; entier = score CUMULÉ.
+  revealHeads(true);
   $('scores').innerHTML = msg.scores.map((p, i) =>
-    `<li>${i + 1}. <span class="pp">${esc(p.avatar || '🙂')}</span>${esc(p.name)}<span class="pts">${p.score}</span></li>`).join('');
+    `<li class="g-player"><span class="medal">${i + 1}.</span>${GameAvatar.slot(p.avatar, undefined, 'sm')}<span class="g-player-name">${esc(p.name)}</span><span class="pts g-player-score">${p.score}<small>pts</small></span></li>`).join('');
+  GameAvatar.fill($('scores'));
 }

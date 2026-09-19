@@ -53,7 +53,8 @@
     showError('');
     try {
       await NET.connect();
-      NET.send({ action: 'join', name: $('name-input').value, avatar: myAvatar, code: code || undefined });
+      // L'avatar complet : la photo du profil s'il y en a une, l'emoji toujours.
+      NET.send({ action: 'join', name: $('name-input').value, avatar: GameProfile.joinAvatar(myAvatar), code: code || undefined });
     } catch (err) { showError(err.message); }
   }
   $('host').addEventListener('click', () => enter());
@@ -155,7 +156,8 @@
   NET.on('lobby', (msg) => {
     show('lobby');
     $('players').innerHTML = msg.players.map((p) =>
-      `<li><span>${p.avatar}</span><span>${esc(p.name)}</span>${p.host ? '<span class="tag">MJ</span>' : ''}</li>`).join('');
+      `<li class="g-player">${GameAvatar.slot(p.avatar, '🏐', 'md')}<span class="g-player-name">${esc(p.name)}</span>${p.host ? '<span class="tag">MJ</span>' : ''}</li>`).join('');
+    GameAvatar.fill($('players'));
     $('host-config').hidden = !isHost;
     $('need-players').hidden = isHost;
     if (msg.rounds) $('rounds-select').value = String(msg.rounds);
@@ -252,12 +254,13 @@
     $('res-rows').innerHTML = msg.results.map((r) => {
       const cls = r.wasBest ? 'best-row' : (r.timedOut || r.relevance < 55 ? 'miss' : '');
       return `<div class="res-row ${cls}">
-        <span>${r.avatar} ${esc(r.name)}</span>
+        <span class="g-player">${GameAvatar.slot(r.avatar, '🏐', 'md')}<span class="g-player-name">${esc(r.name)}</span></span>
         <span>${r.timedOut ? 'pas de passe' : esc(labelOf(r.passId))}</span>
         <span class="pts">+${r.points}</span>
         ${r.why ? `<p class="why">${esc(r.why)}</p>` : ''}
       </div>`;
     }).join('');
+    GameAvatar.fill($('res-rows'));
 
     const me = msg.results.find((r) => r.id === myId);
     if (me) $('score').textContent = me.score;
@@ -279,7 +282,8 @@
     const me = msg.ranking.find((r) => r.id === myId);
     $('final-title').textContent = me ? `${me.avg} / 100 — ${me.title}` : 'Fin de partie';
     $('ranking').innerHTML = msg.ranking.map((r, i) =>
-      `<div class="rank-row"><span>${i + 1}. ${r.avatar} ${esc(r.name)}</span><span class="avg">${r.avg}/100</span></div>`).join('');
+      `<div class="rank-row"><span class="g-player"><span class="medal">${i + 1}.</span>${GameAvatar.slot(r.avatar, '🏐', i < 3 ? 'lg' : 'md')}<span class="g-player-name">${esc(r.name)}</span></span><span class="avg">${r.avg}/100</span></div>`).join('');
+    GameAvatar.fill($('ranking'));
     $('again').hidden = !isHost;
   });
 

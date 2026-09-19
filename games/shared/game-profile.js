@@ -12,27 +12,28 @@
 // ni #avatar-row. Ce fichier n'y est donc pas chargé — on ne lui envoie pas une
 // identité qu'il ne sait pas recevoir. Vérifié dans morpion-server/src/server.js.
 //
-// ⚠️ L'IMAGE NE PART PAS EN JEU, en V1. Les six serveurs qui acceptent un
-// avatar font `String(avatar || '🙂').slice(0, 4)` : quatre caractères, une
-// URL n'y tient pas. La photo reste donc locale (et servira au futur Hub) ;
-// c'est l'emoji qui voyage. Ce n'est pas une limite oubliée, c'est le choix
-// de la V1, et l'interface le dit au joueur.
+// La photo PART EN JEU (depuis le 2026-09-19). `joinAvatar()` donne l'avatar
+// complet à mettre dans le `join` — `{ kind: 'image', emoji, src }` ou
+// `{ kind: 'emoji', emoji }` — et chacun des six serveurs le revalide avec son
+// `avatar.js` (webp/png, 12 Ko décodés, signature du fichier) avant de le
+// retransmettre. L'emoji voyage TOUJOURS avec : c'est le repli d'affichage.
+// Ce fichier n'affiche pas l'avatar des autres : c'est game-avatar.js.
 (function () {
   'use strict';
 
   var KEY = 'mathys_game_profile';
   var V = 1;
   var MAX_NAME = 16;        // `slice(0, 16)` dans les six serveurs
-  var MAX_EMOJI = 4;        // `slice(0, 4)` — en unités UTF-16, voir plus bas
-  var MAX_IMAGE = 12 * 1024;
+  var MAX_EMOJI = 4;        // en unités UTF-16, voir plus bas
+  var MAX_IMAGE = 12 * 1024; // octets DÉCODÉS, comme `avatar.js` des serveurs
   var TYPES = ['image/webp', 'image/png', 'image/jpeg'];
 
   // --------------------------------------------------------------- validation
-  // ⚠️ `slice(0, 4)` côté serveur compte des unités UTF-16, pas des emojis. Les
+  // ⚠️ La borne des serveurs (4) compte des unités UTF-16, pas des emojis. Les
   // douze icônes proposées aujourd'hui en font 2 ou 3, donc tout passe — mais un
-  // emoji à ZWJ (👨‍👩‍👧 = 8 unités) serait coupé en plein milieu et arriverait
-  // cassé chez les autres joueurs. On refuse ici plutôt que de laisser le
-  // serveur trancher.
+  // emoji à ZWJ (👨‍👩‍👧 = 8 unités) serait refusé par `avatar.js` (autrefois
+  // coupé en plein milieu par un `slice(0, 4)`). On refuse ici plutôt que de
+  // laisser le serveur trancher.
   function okEmoji(e) {
     return typeof e === 'string' && e.length > 0 && e.length <= MAX_EMOJI && e.trim() === e;
   }
@@ -41,10 +42,23 @@
   // data-URL webp ou png sortie d'un canvas. SVG exclu par construction — il
   // peut porter du script, et aucune image légitime n'arrive ici sous ce
   // format puisque le canvas ne sait pas en écrire.
+  //
+  // ⚠️ Les 12 Ko sont des octets DÉCODÉS, comme dans `avatar.js` des serveurs.
+  // Avant, on bornait la longueur de la data-URL à 24 Ko de texte, soit ~18 Ko
+  // d'image : une photo entre 12 et 18 Ko aurait été acceptée ici puis refusée
+  // par le serveur, et le joueur serait parti en jeu avec son emoji sans
+  // comprendre pourquoi. Un 96×96 fait ~2 à 5 Ko : personne n'est concerné.
+  // Taille décodée d'un base64 bien formé ; -1 s'il ne l'est pas.
+  function imageBytes(src) {
+    var b = src.slice(src.indexOf(',') + 1);
+    if (b.length % 4 !== 0) return -1;
+    var pad = b.slice(-2) === '==' ? 2 : b.slice(-1) === '=' ? 1 : 0;
+    return b.length / 4 * 3 - pad;
+  }
   function okImage(src) {
-    return typeof src === 'string'
-      && /^data:image\/(webp|png);base64,[A-Za-z0-9+/=]+$/.test(src)
-      && src.length <= MAX_IMAGE * 2;
+    if (typeof src !== 'string' || !/^data:image\/(webp|png);base64,[A-Za-z0-9+/]+={0,2}$/.test(src)) return false;
+    var n = imageBytes(src);
+    return n > 0 && n <= MAX_IMAGE;
   }
 
   function defaults() {
@@ -87,7 +101,20 @@
   function load() {
     var raw = null;
     try { raw = JSON.parse(localStorage.getItem(KEY)); } catch (_) { /* illisible : on repart à neuf */ }
-    return sanitize(raw);
+    var p = sanitize(raw);
+    // ⚠️ PROFIL NEUF → son id est écrit TOUT DE SUITE, une seule fois. Sinon
+    // chaque lecture tirait un nouvel id (`defaults()`), et le Hub ne pouvait
+    // pas reconnaître un joueur qui se reconnecte : pour lui, c'était un autre.
+    // « Neuf » = rien de stocké, du texte illisible, ou un profil v1 sans id
+    // valable. Une AUTRE version (`v` numérique ≠ V) n'est pas écrasée : elle
+    // vient peut-être d'une page plus récente, et on ne détruit pas ses données.
+    // Aucune écriture sinon : les lectures suivantes retrouvent ce qui est là.
+    var autreVersion = raw && typeof raw === 'object' && typeof raw.v === 'number' && raw.v !== V;
+    var neuf = !autreVersion && (!raw || typeof raw !== 'object' || raw.id !== p.id);
+    if (neuf) {
+      try { localStorage.setItem(KEY, JSON.stringify(p)); } catch (_) { /* stockage indisponible : id de la page seulement */ }
+    }
+    return p;
   }
 
   function save(p) {
@@ -159,11 +186,11 @@
             // Un navigateur sans encodeur WebP renvoie silencieusement du PNG :
             // on l'accepte s'il tient, il sort du même canvas et reste inerte.
             if (!/^data:image\/(webp|png);base64,/.test(d)) continue;
-            if (d.length <= MAX_IMAGE * 2) { out = d; break; }
             out = d;
+            if (okImage(d)) break;
           }
           if (!out) return resolve({ ok: false, error: 'image non convertible' });
-          if (out.length > MAX_IMAGE * 2) {
+          if (!okImage(out)) {
             return resolve({ ok: false, error: 'image trop lourde même après compression' });
           }
           resolve({ ok: true, src: out });
@@ -198,6 +225,18 @@
     var h = 0;
     for (var i = 0; i < p.id.length; i++) h = (h * 31 + p.id.charCodeAt(i)) % 100000;
     return list[h % list.length];
+  }
+
+  // --------------------------------------------------------- avatar du join
+  // Ce qui part au serveur dans `{ action: 'join', …, avatar }`. `emoji` est
+  // l'icône que CE jeu a sélectionnée (voir startEmoji) ; si le profil a une
+  // photo, elle part avec, telle quelle — déjà 96×96, déjà sous 12 Ko, pas de
+  // réencodage. Lu au moment du join : une photo choisie juste avant compte.
+  function joinAvatar(emoji) {
+    var p = load();
+    var e = okEmoji(emoji) ? emoji : p.avatar.emoji;
+    if (p.avatar.kind === 'image' && p.avatar.src) return { kind: 'image', emoji: e, src: p.avatar.src };
+    return { kind: 'emoji', emoji: e };
   }
 
   // ------------------------------------------------------------- branchement
@@ -294,9 +333,9 @@
       img.hidden = !has;
       del.hidden = !has;
       add.textContent = has ? 'changer' : 'ajouter une photo';
-      // On le dit franchement : en V1 la photo ne part pas dans la partie.
+      // La photo part en jeu ; l'icône choisie au-dessus reste le repli.
       msg.textContent = note !== undefined ? note
-        : (has ? 'gardée pour toi — en jeu, c’est ton icône qui s’affiche' : '');
+        : (has ? 'visible en jeu — ton icône sert de repli' : '');
       msg.classList.toggle('gp-err', note !== undefined && note !== '');
     }
 
@@ -328,7 +367,7 @@
     load: load, save: save, reset: reset,
     setName: setName, setEmoji: setEmoji,
     setImage: setImage, clearImage: clearImage, normalizeImage: normalizeImage,
-    startEmoji: startEmoji,
+    startEmoji: startEmoji, joinAvatar: joinAvatar,
     _sanitize: sanitize, _okEmoji: okEmoji, _okImage: okImage, _defaults: defaults,
   };
 })();

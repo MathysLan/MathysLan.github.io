@@ -10,6 +10,9 @@ Quatre suites, qui ne se recouvrent pas :
 | `manifest.mjs` | le **manifest des jeux** (`data/games.manifest.json`) : cohérence avec `data/games.js` et avec les clients, et les garde-fous du build |
 | `profile.mjs` | le **profil local** (pseudo + avatar) : tests unitaires du module, puis intégration sur les vraies pages de jeux |
 | `passeur-play.mjs` | **une partie réelle du Passeur**, avec de vrais clics, un vrai tactile et de vraies touches (voir plus bas) |
+| `avatar-play.mjs` | **la photo de profil en vraie partie**, dans les six jeux qui reçoivent une identité, à trois joueurs (voir plus bas) |
+| `hub.mjs` | le **client du Game Hub** (`games/shared/game-hub.js`) : unitaires, puis protocole contre le vrai `game-hub-server` (local, ou `--hub wss://…`) |
+| `hub-play.mjs` | **le salon du Hub dans deux navigateurs** : créer, rejoindre, avatars, hôte, reprise ; **coupure de socket** (absent, grâce conservée, retour avec le même id) puis **« Quitter »** (A disparaît tout de suite chez B ; le dernier qui part ferme la session sur-le-champ) ; 12 joueurs (`--hub wss://…` pour la production) |
 
 Rien à installer pour les deux pages HTML. Les ouvrir dans un navigateur suffit
 **si** l'accès local aux fichiers est autorisé (une iframe `file://` est bloquée
@@ -196,3 +199,47 @@ la retire. Il vérifie aussi deux choses qui n'ont rien d'évident :
   du texte qui n'est pas du JSON, puis chaque page est ouverte ;
 - **Morpion ne charge pas le module du tout**, parce que son serveur ne sait
   recevoir ni pseudo ni avatar.
+
+## avatar-play.mjs
+
+    node tests/avatar-play.mjs
+    node tests/avatar-play.mjs --only quiment
+    node tests/avatar-play.mjs --shots C:\temp\pp    # une capture par écran vérifié
+
+Lance lui-même les **six serveurs** depuis les dépôts voisins
+(`../imitation-server`, `../qui-ment-server`…, `npm install` fait), un
+serveur statique pour le portfolio, et un Edge piloté par le protocole
+DevTools. Trois joueurs, chacun dans **son propre contexte de navigation**
+(`Target.createBrowserContext`) — donc son propre localStorage, comme trois
+personnes sur trois machines :
+
+- **A** pose une vraie photo par le **vrai champ fichier** du profil
+  (`DOM.setFileInputFiles` avec `assets/og-image.png`) ;
+- **B** garde un emoji ;
+- **C** a une photo à l'en-tête valide (le serveur l'accepte) mais au contenu
+  illisible : tout le monde doit retomber sur son emoji, sans que son profil
+  change.
+
+On lit **les trames WebSocket réellement reçues**
+(`Network.webSocketFrameReceived`) ET le DOM, image par image avec
+`naturalWidth > 0` : une `<img>` présente mais non décodée ne compte pas.
+Chaque jeu est joué jusqu'au bout avec de vrais clics (salon, jeu en cours,
+résultats, podium).
+
+Trois pièges déjà rencontrés :
+
+- ⚠️ **`--disable-features=BackForwardCache`** : sans ça, quitter une page de
+  jeu la met en cache avec son WebSocket ouvert ; le serveur ne voit jamais
+  partir le joueur et le salon attend un fantôme.
+- ⚠️ `NET` est un `const` global : `window.NET` vaut `undefined` (même piège
+  que `GAMES`). Tester `typeof NET`.
+- Le Ban demande un **consentement** (`#tw-check`) avant de créer ou rejoindre.
+
+⚠️ **Le scénario « serveur non redéployé » est celui qui compte le plus.**
+Le « [obj » a été vu à la main avec le front neuf contre la production pas
+encore mise à jour, et aucun test ne le voyait puisque tous tournaient contre
+les serveurs locaux déjà modifiés. Le script extrait donc de git la version de
+chaque serveur **d'avant `avatar.js`** (le parent du commit qui l'ajoute) et y
+rejoue le salon : l'ancien serveur doit renvoyer « [obj », et l'écran doit
+montrer un emoji. Chaque écran vérifié scanne aussi `document.body.innerText`
+à la recherche de « [obj » / « [object ».

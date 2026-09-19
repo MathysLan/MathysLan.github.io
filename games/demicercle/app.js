@@ -58,12 +58,31 @@ function drawNeedles(entries) {
     const [x, y] = polar(e.value, R - 24);
     g.appendChild(mk('line', { x1: CX, y1: CY, x2: x.toFixed(1), y2: y.toFixed(1), stroke: col, 'stroke-width': 3.5, 'stroke-linecap': 'round', opacity: .9 }));
     const [lx, ly] = polar(e.value, R - 6);
-    const t = mk('text', { x: lx.toFixed(1), y: ly.toFixed(1), fill: '#e7e5f4', 'font-size': 13, 'text-anchor': 'middle' });
-    t.textContent = e.avatar || '•';
-    g.appendChild(t);
+    g.appendChild(needleTip(e.avatar, lx, ly, col));
   }
 }
 const clearNeedles = () => { $('dial-needles').innerHTML = ''; };
+
+// Bout d'aiguille : l'emoji du joueur, ou sa photo (un <image> SVG, pas du
+// HTML), cerclée de sa couleur. Une photo qui ne se charge pas redevient
+// l'emoji, sur place.
+function needleTip(avatar, x, y, col) {
+  const a = GameAvatar.normalize(avatar, '•');
+  const emoji = () => {
+    const t = mk('text', { x: x.toFixed(1), y: (y + 2).toFixed(1), fill: '#e7e5f4', 'font-size': 18, 'text-anchor': 'middle' });
+    t.textContent = a.emoji;
+    return t;
+  };
+  if (a.kind !== 'image') return emoji();
+  const S = 26;   // unités du cadran (400 de large) : ~30 px à l'écran
+  const tip = mk('g', { class: 'needle-img' });
+  const img = mk('image', { x: (x - S / 2).toFixed(1), y: (y - S / 2 - 6).toFixed(1), width: S, height: S, preserveAspectRatio: 'xMidYMid slice' });
+  img.setAttribute('href', a.src);
+  img.addEventListener('error', () => tip.replaceWith(emoji()), { once: true });
+  tip.appendChild(img);
+  tip.appendChild(mk('rect', { x: (x - S / 2).toFixed(1), y: (y - S / 2 - 6).toFixed(1), width: S, height: S, fill: 'none', stroke: col, 'stroke-width': 2.5 }));
+  return tip;
+}
 
 // curseur du joueur (aiguille)
 function setPointer(v) {
@@ -119,7 +138,9 @@ async function enter(code) {
   if (!name) return showError('il te faut un pseudo');
   if (code !== undefined && !code.trim()) return showError('rentre un code de room');
   showError('');
-  try { await NET.connect(); NET.send(code === undefined ? { action: 'join', name, avatar: myAvatar } : { action: 'join', name, code, avatar: myAvatar }); }
+  // L'avatar complet : la photo du profil s'il y en a une, l'emoji toujours.
+  const avatar = GameProfile.joinAvatar(myAvatar);
+  try { await NET.connect(); NET.send(code === undefined ? { action: 'join', name, avatar } : { action: 'join', name, code, avatar }); }
   catch (err) { showError(err.message); }
 }
 $('start').addEventListener('click', () => NET.send({ action: 'start', rounds: +$('rounds-select').value, mode: $('mode-select').value }));
@@ -169,7 +190,8 @@ NET.on('room', (msg) => {
   const me = msg.players.find((p) => p.id === you);
   isHost = !!(me && me.host);
   $('players').innerHTML = msg.players.map((p) =>
-    `<li><span class="pp">${esc(p.avatar || '🙂')}</span>${esc(p.name)}${p.host ? ' <span class="tag">MJ</span>' : ''}</li>`).join('');
+    `<li class="g-player">${GameAvatar.slot(p.avatar, undefined, 'md')}<span class="g-player-name">${esc(p.name)}${p.host ? ' <span class="tag">MJ</span>' : ''}</span></li>`).join('');
+  GameAvatar.fill($('players'));
   $('host-config').hidden = !isHost;
   $('start').disabled = msg.players.length < 2;
   $('need-players').hidden = msg.players.length >= 2;
@@ -184,7 +206,7 @@ NET.on('closed', () => { if (you) showError('connexion au serveur perdue'); });
 NET.on('move', (msg) => {
   if (!iAmGuide || phase !== 'guessing') return;
   liveGuesses[msg.id] = msg.value;
-  drawNeedles(Object.entries(liveGuesses).map(([id, value]) => ({ id, value, avatar: avatarById[id] || '•' })));
+  drawNeedles(Object.entries(liveGuesses).map(([id, value]) => ({ id, value, avatar: avatarById[id] })));
 });
 
 // progression des « prêts »
@@ -257,7 +279,8 @@ const PHASES = {
     renderScores(msg.scores);
     $('scores').hidden = false;
     $('scores').innerHTML = [...msg.guesses].sort((a, b) => b.points - a.points)
-      .map((g) => `<li><span class="pp" style="color:${colorById[g.id] || '#fff'}">${esc(g.avatar || '🙂')}</span>${esc(g.name)} <span class="pts">${g.value} → +${g.points}</span></li>`).join('');
+      .map((g) => `<li class="g-player" style="--g-av-ring:${colorById[g.id] || '#fff'}">${GameAvatar.slot(g.avatar, undefined, 'md')}<span class="g-player-name">${esc(g.name)}</span> <span class="pts g-player-score">${g.value} → +${g.points}</span></li>`).join('');
+    GameAvatar.fill($('scores'));
     hostControls(msg, '⏭ Manche suivante');
   },
 
@@ -267,7 +290,8 @@ const PHASES = {
     setStage('🏆 Fin de partie', 'le podium');
     renderScores(msg.podium);
     $('scores').hidden = false;
-    $('scores').innerHTML = msg.podium.map((p, i) => `<li>${medals[i] || '·'} <span class="pp">${esc(p.avatar || '🙂')}</span>${esc(p.name)} <span class="pts">${p.score} pts</span></li>`).join('');
+    $('scores').innerHTML = msg.podium.map((p, i) => `<li class="g-player" style="--g-av-ring:${colorById[p.id] || '#fff'}"><span class="medal">${medals[i] || '·'}</span>${GameAvatar.slot(p.avatar, undefined, i < 3 ? 'lg' : 'md')}<span class="g-player-name">${esc(p.name)}</span> <span class="pts g-player-score">${p.score} pts</span></li>`).join('');
+    GameAvatar.fill($('scores'));
     $('wait-host').hidden = true; $('next-btn').hidden = true;
   },
 };
@@ -287,7 +311,8 @@ function setPoles(theme) { if (theme) { $('pole-low').innerHTML = '◀ <b>' + es
 function showLegend(guideId) {
   const others = lastScores.filter((p) => p.id !== guideId);
   $('dial-legend').innerHTML = others.map((p) =>
-    `<span class="lg"><span class="dot" style="background:${colorById[p.id] || '#fff'}"></span>${esc(p.avatar || '🙂')} ${esc(p.name)}</span>`).join('');
+    `<span class="lg" style="--g-av-ring:${colorById[p.id] || '#fff'}"><span class="dot" style="background:${colorById[p.id] || '#fff'}"></span>${GameAvatar.slot(p.avatar, undefined, 'sm')} ${esc(p.name)}</span>`).join('');
+  GameAvatar.fill($('dial-legend'));
   $('dial-legend').hidden = others.length === 0;
 }
 
@@ -302,5 +327,6 @@ function resetStage() {
 function renderScores(list) { lastScores = [...list]; renderScoresLive(); }
 function renderScoresLive() {
   $('scores-live').innerHTML = [...lastScores].sort((a, b) => b.score - a.score).map((p) =>
-    `<li><span class="pp" style="color:${colorById[p.id] || '#fff'}">${esc(p.avatar || '🙂')}</span>${esc(p.name)}${readyIds.has(p.id) ? '<span class="rd">✔</span>' : ''}<span class="pts">${p.score}</span></li>`).join('');
+    `<li class="g-player" style="--g-av-ring:${colorById[p.id] || '#fff'}">${GameAvatar.slot(p.avatar, undefined, 'md')}<span class="g-player-name">${esc(p.name)}${readyIds.has(p.id) ? '<span class="rd">✔</span>' : ''}</span><span class="pts g-player-score">${p.score}</span></li>`).join('');
+  GameAvatar.fill($('scores-live'));
 }

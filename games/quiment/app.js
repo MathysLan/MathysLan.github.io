@@ -22,10 +22,18 @@
   const show = (id) => SCREENS.forEach((s) => { $(s).hidden = s !== id; });
   const showError = (m) => { $('error').textContent = m ? '> ' + m : ''; };
   const nameOf = (id) => (players.find((p) => p.id === id) || {}).name || 'quelqu un';
-  const who = (id) => {
+  // Avatar (emoji ou photo) + pseudo d'un joueur, en nœuds DOM : la photo
+  // n'est jamais une chaîne HTML. `who()` sert aux phrases et aux gabarits.
+  const DEFAUT = '🕵️';
+  const who = (id, size) => {
     const p = players.find((x) => x.id === id);
-    return p ? `${p.avatar} ${p.name}` : '—';
+    const frag = document.createDocumentFragment();
+    if (!p) { frag.append('—'); return frag; }
+    frag.append(GameAvatar.node(p.avatar, DEFAUT, size), ' ' + p.name);
+    return frag;
   };
+  // Taille par défaut : « md » (48 px), celle des listes de joueurs.
+  const av = (a, size = 'md') => GameAvatar.slot(a, DEFAUT, size);
 
   // ------------------------------------------------------------- accueil
   let myAvatar = GameProfile.startEmoji(AVATARS); // profil local, sinon un repli stable
@@ -49,7 +57,8 @@
     showError('');
     try {
       await NET.connect();
-      NET.send({ action: 'join', name: $('name-input').value, avatar: myAvatar, code: code || undefined });
+      // L'avatar complet : la photo du profil s'il y en a une, l'emoji toujours.
+      NET.send({ action: 'join', name: $('name-input').value, avatar: GameProfile.joinAvatar(myAvatar), code: code || undefined });
     } catch (err) { showError(err.message); }
   }
   $('host').addEventListener('click', () => enter());
@@ -99,18 +108,20 @@
     target.innerHTML = (rounds || []).map((r) => `
       <p class="turn-head">Tour ${r.turn} — les indices</p>
       ${r.clues.map((c) => `<div class="clue-row">
-        <span class="who">${esc(who(c.id))}</span>
+        <span class="who" data-who="${esc(c.id)}"></span>
         <span class="what">${esc(c.clue)}</span>
       </div>`).join('')}`).join('');
+    target.querySelectorAll('[data-who]').forEach((el) => el.appendChild(who(el.dataset.who, 'sm')));
   }
 
   // Qui a déjà fait sa part. On n'affiche JAMAIS quoi — le serveur ne l'envoie
   // pas non plus, c'est toute la différence.
   function renderProgress(list) {
     $('play-players').innerHTML = players.map((p) => `
-      <li><span>${p.avatar}</span><span>${esc(p.name)}</span>
+      <li class="g-player">${av(p.avatar)}<span class="g-player-name">${esc(p.name)}</span>
         ${p.host ? '<span class="tag">MJ</span>' : ''}
         <span class="done">${p.ready ? '✔ prêt' : '…'}</span></li>`).join('');
+    GameAvatar.fill($('play-players'));
   }
 
   // ----------------------------------------------------------------- vote
@@ -121,7 +132,9 @@
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'tf-btn tf-btn-sm';
-      b.textContent = `${p.avatar} ${p.name}`;
+      // Voter contre quelqu'un, c'est le désigner : son visage sur le bouton.
+      b.classList.add('g-player', 'vote-who');
+      b.append(GameAvatar.node(p.avatar, DEFAUT, 'md'), ' ' + p.name);
       b.setAttribute('aria-label', `Voter contre ${p.name}`);
       b.addEventListener('click', () => {
         NET.send({ action: 'vote', target: p.id });
@@ -145,7 +158,8 @@
     players = msg.players;
     isHost = (players.find((p) => p.id === myId) || {}).host === true;
     $('players').innerHTML = players.map((p) =>
-      `<li><span>${p.avatar}</span><span>${esc(p.name)}</span>${p.host ? '<span class="tag">MJ</span>' : ''}</li>`).join('');
+      `<li class="g-player">${av(p.avatar)}<span class="g-player-name">${esc(p.name)}</span>${p.host ? '<span class="tag">MJ</span>' : ''}</li>`).join('');
+    GameAvatar.fill($('players'));
     $('host-config').hidden = !isHost;
     $('need-players').hidden = isHost;
     if (isHost) {
@@ -240,9 +254,9 @@
     $('res-round').textContent = `Manche ${msg.round}/${msg.of}`;
     $('res-cat').textContent = msg.cat;
     $('res-word').textContent = msg.word;
-    $('res-verdict').textContent = msg.caught
-      ? `${who(msg.impostorId)} était l'intrus — et vous l'avez eu.`
-      : `${who(msg.impostorId)} était l'intrus — et il est passé au travers.`;
+    $('res-verdict').replaceChildren(who(msg.impostorId, 'lg'), msg.caught
+      ? " était l'intrus — et vous l'avez eu."
+      : " était l'intrus — et il est passé au travers.");
     $('res-guess').textContent = !msg.caught ? ''
       : msg.guess == null ? "Il n'a pas tenté de retrouver le mot."
         : msg.guessed ? `Mais il a retrouvé le mot : « ${msg.guess} ». Bien joué.`
@@ -252,10 +266,11 @@
       const pts = msg.points[p.id] || 0;
       const v = msg.counts[p.id] || 0;
       return `<div class="res-row">
-        <span>${p.avatar} ${esc(p.name)}${p.id === msg.impostorId ? ' — l\'intrus' : ''}</span>
+        <span class="g-player">${av(p.avatar)}<span class="g-player-name">${esc(p.name)}${p.id === msg.impostorId ? ' — l\'intrus' : ''}</span></span>
         <span><span class="votes">${v} voix</span> &nbsp; <span class="pts">+${pts}</span></span>
       </div>`;
     }).join('');
+    GameAvatar.fill($('res-rows'));
 
     $('next').hidden = !isHost;
     $('next').textContent = msg.last ? 'Voir le classement' : 'Manche suivante';
@@ -267,7 +282,8 @@
     const me = msg.ranking.find((r) => r.id === myId);
     $('final-title').textContent = me ? me.title : '';
     $('ranking').innerHTML = msg.ranking.map((r, i) =>
-      `<div class="rank-row"><span>${i + 1}. ${r.avatar} ${esc(r.name)}</span><span class="avg">${r.score} pts</span></div>`).join('');
+      `<div class="rank-row"><span class="g-player"><span class="medal">${i + 1}.</span>${av(r.avatar, i < 3 ? 'lg' : 'md')}<span class="g-player-name">${esc(r.name)}</span></span><span class="avg">${r.score} pts</span></div>`).join('');
+    GameAvatar.fill($('ranking'));
     $('again').hidden = !isHost;
     show('end');
   });

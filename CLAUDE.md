@@ -1153,3 +1153,210 @@ sur un vrai serveur HTTP local (voir tests/README.md pour le pourquoi).
 **Dernier passage** : profil 41 + 31, jeux 308/303, front 195/194, clavier 8/8
 (18 tabulations), manifest 71, partie réelle du Passeur 49/49 contre un serveur
 local, fichiers générés OK.
+
+## La photo de profil voyage en jeu (2026-09-19)
+
+La PP choisie dans le profil local s'affiche maintenant **chez les autres
+joueurs**, dans les six jeux qui reçoivent une identité. Morpion reste hors du
+coup (son serveur ne reçoit pas d'identité) ; game-hub-server n'a pas bougé.
+⚠️ Ça **remplace** la décision n°3 du design review du Hub (« image au Hub
+seulement ») : c'est Mathys qui l'a demandé, la data-URL dans le `join` plutôt
+qu'une `avatarUrl` servie par le Hub.
+
+    GameProfile.joinAvatar(emoji) → join → avatar.js (serveur) → état joueur
+    → toutes les listes de joueurs → GameAvatar (client) → <img> ou emoji
+
+### Le contrat, le même dans les deux sens
+
+```js
+{ kind: 'emoji', emoji: '🦊' }
+{ kind: 'image', emoji: '🦊', src: 'data:image/webp;base64,…' }
+```
+
+L'emoji voyage **toujours** : c'est le repli. Un ancien client qui envoie une
+chaîne reste accepté (`{ kind: 'emoji' }`), un ancien serveur qui renvoie une
+chaîne reste affiché.
+
+### Serveurs : `avatar.js`, le même fichier dans les six dépôts
+
+Le `String(avatar).slice(0, 4)` a disparu. `cleanAvatar()` n'accepte qu'une
+data-URL **webp ou png**, **≤ 12 Ko décodés**, base64 canonique, signature du
+fichier vérifiée ; tout le reste (SVG, gif/jpeg, trop lourd, `kind` inconnu,
+structure) écarte l'image et garde l'emoji — le joueur n'est jamais bloqué.
+Seuls `kind`/`emoji`/`src` sont recopiés ; l'image n'est ni décodée ni
+réencodée. Aucun changement de protocole ailleurs : `avatar` passe juste
+de chaîne à objet, là où il passait déjà.
+
+### Client : `games/shared/game-avatar.js`
+
+⚠️ **La donnée du réseau ne passe jamais par innerHTML.** Les jeux assemblent
+leurs listes en gabarits ; `GameAvatar.slot(avatar)` y pose un emplacement VIDE
+et `GameAvatar.fill(conteneur)`, juste après l'innerHTML, le remplace par un
+nœud créé à la main (`<img>` ou texte). **Tout `slot()` doit être suivi d'un
+`fill()`** sur le même conteneur, sinon la case reste vide. Une image qui ne se
+décode pas redevient l'emoji sur place (`error`), sans toucher au profil.
+Le Demi-Cercle pose la photo au bout de l'aiguille en `<image>` SVG.
+Style : `.g-av-img` dans game-ui.css (1,5em, jamais plus que les 96 px de la
+source) — d'où `game-ui.css?v=4` sur les six pages (Morpion reste en v=3).
+
+⚠️ **Borne alignée** : le profil bornait la data-URL à 24 Ko de TEXTE (~18 Ko
+d'image) alors que la limite annoncée était 12 Ko. Une photo entre 12 et 18 Ko
+serait passée côté client puis refusée par le serveur. `okImage()` compte
+maintenant les octets décodés, comme le serveur.
+
+### Tests
+
+- chaque serveur : `test-avatar.js` (42, sur de vraies images dans
+  `test-fixtures/`) et `test-avatar-ws.js` (25 à 30, sur le fil). Vérifié : ils
+  échouent en masse contre les serveurs d'avant (22 à 26 KO chacun) ;
+- `tests/avatar-play.mjs` : les six jeux joués pour de vrai à trois joueurs
+  dans trois contextes isolés, PP posée par le vrai champ fichier, trames
+  WebSocket ET DOM lus (153 vérifications). Voir tests/README.md.
+
+⚠️ Défauts **préexistants** vus en passant, non corrigés (hors tâche) :
+- Demi-Cercle : après `end`, le `room` qui suit fait `show('lobby')` sans garde
+  → le podium est rendu puis aussitôt masqué (les autres jeux ont une garde) ;
+- `tests/manifest.mjs` : la mutation « jeu live sans bloc hub » est une regex
+  en `
+` — sur un poste en `core.autocrlf=true` (CRLF) elle ne s'applique pas
+  et le test échoue (déjà le cas sur HEAD) ;
+- `tests/passeur-play.mjs --reduced` échoue au premier clic sur ce poste, déjà
+  avec le front ET le serveur de HEAD ; le mode normal passe (49/49).
+- les harnais WebSocket de 4 serveurs avaient une course dans `open()`
+  (abonnement à `open` après coup) : corrigée, une ligne par fichier.
+
+### ⚠️ Le « [obj » vu à la main — et pourquoi les tests ne l'avaient pas vu
+
+Mathys a testé le front neuf contre la **production** (la page de jeu vise
+Render quand il n'y a pas de `?server=`), alors que les serveurs n'étaient pas
+encore poussés. L'ancien serveur a fait `String(avatar).slice(0, 4)` sur
+l'objet → **« [obj »**, diffusé à tout le monde (même l'emoji de B, qui voyage
+aussi en objet). Le client a pris cette chaîne pour « l'emoji d'un ancien
+serveur » et l'a affichée dans `span.g-av`. Tous les tests tournaient contre
+les serveurs LOCAUX déjà modifiés : la combinaison front neuf + serveur
+d'avant n'était jamais jouée.
+
+Correctif, côté client seulement (contrat et serveurs inchangés) :
+`game-avatar.js` n'accepte plus comme emoji venu du réseau qu'une chaîne qui
+en a l'air (un pictogramme, aucun ASCII imprimable) ; sinon, l'emoji par
+défaut du jeu. Et `tests/avatar-play.mjs` rejoue désormais les six salons
+contre la version du serveur **d'avant avatar.js**, extraite de git — vérifié :
+ce test échoue sur `"[obj"` avec l'ancien rendu. Chaque écran vérifié scanne
+aussi le texte visible à la recherche de « [obj ».
+
+Les six serveurs ont été poussés sur `main` le 2026-09-19 (à la demande de
+Mathys) et Render les a redéployés : une sonde WebSocket sur chacun renvoie
+la PP à l'identique. Pour la suite : **serveurs d'abord, front ensuite** — un
+front neuf devant un serveur en retard affiche maintenant l'emoji par défaut,
+plus jamais « [obj », mais la photo n'apparaît qu'une fois le serveur à jour.
+
+## Des PP qui se voient (2026-09-19, finition)
+
+Les vraies PP passaient mais faisaient ~20×15 px : un glyphe. Elles sont
+devenues un bloc d'identité, dans les six jeux, sans nouveau protocole.
+
+- **Une hiérarchie, pas des pixels semés** : `GameAvatar.slot(av, repli, taille)`
+  / `node(…, taille)` avec `sm` 32 px (compact : légendes, pastilles, indices),
+  `md` 48 px (salons, scores, résultats, votes), `lg` 68 px (podium,
+  « c'est à qui ? »). Sous 480 px : 44 / 60. Sans taille, l'ancien rendu en
+  ligne reste disponible pour les phrases.
+- **Même boîte pour la photo et l'emoji** : l'emoji est posé dans `.g-av-e`,
+  même géométrie que l'`<img>` → aucun décalage de mise en page entre les deux.
+- **Forme** : carré à coins coupés (la silhouette de tout « objet » Mann Co.),
+  pas un cercle. Liseré = accent du jeu, ou couleur du joueur via
+  `--g-av-ring` (Demi-Cercle et Ban : la couleur de l'aiguille / du trait).
+  ⚠️ `clip-path` rogne bordures et ombres : le liseré est le FOND du bloc vu à
+  travers 2 px de rembourrage. Ne pas « simplifier » en `border`.
+- **`.g-player` / `.g-player-name` / `.g-player-score`** (game-ui.css) : la
+  rangée avatar · pseudo (2 lignes max) · score. Pas de couleur imposée — chaque
+  jeu garde la sienne. `:where(ul):has(> .g-player)` retire le retrait de 40 px
+  des `<ul>`, qui décalait déjà toutes les listes sans qu'on le voie.
+- Adaptations propres à un jeu : scoreboard d'Imitation et du Demi-Cercle
+  élargi (170 → 240 px) ; photo au bout de l'aiguille du cadran 18 → 26 unités ;
+  Ban : avatar dans le titre « tour de … », les pastilles d'ordre de passage et
+  le classement du round (le serveur les envoyait déjà) ; Précision : liste de
+  révélation à 36 px sous 480 px (plateau à ratio fixe) ; Qui Ment ? : boutons
+  de vote en cartes joueur, verdict de l'intrus en grand.
+- Tests : `tests/avatar-play.mjs` vérifie maintenant aussi la géométrie
+  (carré, taille de la hiérarchie, même boîte photo/emoji) et l'absence de
+  débordement à chaque écran ; `--shots <dossier>` capture chaque écran vérifié.
+  Le bouton « Créer » de Qui Ment ? à 390×780 : inchangé (bas à 727 px, comme HEAD).
+
+## Game Hub, phase 3 : /games/ connecté au Hub, le vrai salon (2026-09-19)
+
+`/games/` n'existait pas (404). C'est maintenant l'entrée du Game Hub :
+profil → **Créer une session** ou **CODE + Rejoindre** → **salon** (code,
+joueurs, hôte). Rien de plus : aucun jeu lancé, pas de caisse, pas de
+randomizer, pas de handoff. game-hub-server et les 7 serveurs n'ont pas bougé.
+
+| Fichier | Rôle |
+|---|---|
+| `games/index.html` | la page (Mann Co., mise en page propre au Hub), `noindex` pour l'instant |
+| `games/hub-page.js` | la colle profil ↔ client ↔ affichage ; aucun WebSocket ici |
+| `games/shared/game-hub.js` | LE client du Hub : connexion, create/join/leave, reprise, erreurs. Navigateur ET Node |
+
+**Configuration** : une seule constante, `PROD` dans game-hub.js
+(`wss://game-hub-server-qqdk.onrender.com`). `?hub=ws://localhost:8100` dans
+l'URL de la page la remplace (tests, dev). Rien d'autre à régler.
+
+**Le protocole a été relu dans `game-hub-server/src`, pas deviné** : `create`
+/ `join` / `leave` → `created` / `joined` / `session` / `error{code,message}`.
+Les codes d'erreur sont CEUX du serveur (`SESSION_NOT_FOUND`, `SESSION_FULL`,
+`BAD_CODE`, `BAD_PLAYER`, `REPLACED`…), traduits en phrases par
+`errorText()` ; aucune erreur brute n'atteint l'écran.
+
+⚠️ **Trois règles du client, toutes testées** :
+- **Reprise = rejouer `join` avec le MÊME player.id.** Le serveur rend sa place
+  au joueur (pas de doublon). Un rechargement de page la reprend aussi (code
+  de session en `sessionStorage`, par onglet).
+- **`REPLACED` → jamais de reconnexion automatique.** Deux onglets du même
+  profil s'éjecteraient sinon en boucle. L'onglet remplacé revient à l'entrée.
+- **Profil neuf → id écrit dès la première lecture** (`GameProfile.load()`).
+  Avant, chaque lecture d'un profil jamais enregistré tirait un nouvel id :
+  la reconnexion était impossible. Un profil d'une AUTRE version n'est pas
+  écrasé. C'est le seul changement de game-profile.js, et
+  `tests/profile.html` l'a noté : l'ancienne assertion « rien n'est écrit tant
+  qu'on ne sauvegarde pas » décrivait précisément ce défaut.
+
+Comportements RÉELS du serveur à connaître (non modifiés) :
+- un `leave` ne ferme la session que si elle est vide ; un joueur **absent**
+  la garde vivante jusqu'au bout de sa grâce de **60 s** ;
+- **en production**, une fermeture initiée par le client n'est vue qu'au bout
+  de **~10 s** (proxy Render, mesuré) ; un onglet fermé est vu tout de suite.
+  Pas de ping côté serveur : une vraie coupure réseau (sans trame de
+  fermeture) peut être vue encore plus tard — à traiter avec le handoff.
+
+Tests : `node tests/hub.mjs` (unitaires + protocole contre le vrai serveur,
+50 local / 49 production) et `node tests/hub-play.mjs` (deux navigateurs isolés :
+A crée → B rejoint → avatars et hôte → B recharge et reprend sa place → A
+ferme → l'hôte passe à B → 12 joueurs aux 3 tailles → B quitte → la session
+disparaît du serveur ; 40/40 en local ET contre la production).
+
+
+## Game Hub : stabilisation (2026-09-19)
+
+Serveur `game-hub-server` seulement (+ ses tests et ceux du portfolio). Aucun
+changement de protocole, aucun changement du front `/games/`, aucun serveur de
+jeu touché. **Pas encore déployé** : Mathys s'en charge sur Render.
+
+- **Heartbeat** : ping/pong NATIF de WebSocket, un ping toutes les **20 s**
+  (`HEARTBEAT_MS` dans `src/hub.js`). Une connexion qui n'a pas répondu au tour
+  précédent est `terminate()`e au suivant → détection en 20 à 40 s. Le
+  navigateur répond lui-même (aucun code côté page), et la coupure passe par le
+  MÊME `onClose` qu'une fermeture ordinaire : absent, grâce, reprise possible.
+- **Trois sorties, trois comportements** :
+  | Événement | Effet |
+  |---|---|
+  | coupure réseau / socket fermé | joueur **absent**, gardé 60 s, peut revenir avec le même id |
+  | `leave` volontaire | joueur **retiré tout de suite**, hôte réélu, diffusion |
+  | plus aucun joueur **connecté** (leave ou coupure) | session supprimée **immédiatement**, absents compris |
+  Avant : un `leave` laissait vivre la session 60 s tant qu'un absent y restait.
+- Tests : `game-hub-server/test-presence.js` (23, vraies connexions, client
+  `autoPong: false` pour simuler un téléphone en mode avion) ; `tests/hub.mjs`
+  attend maintenant la suppression immédiate au dernier `leave` ;
+  `tests/hub-play.mjs` joue séparément la coupure de socket (A ferme sa page →
+  absent → revient pendant la grâce, même id) et le départ volontaire (A clique
+  « Quitter » → disparaît chez B en ~100 ms → B clique → `/health` à 0 session).
+- ⚠️ Tant que le serveur n'est pas redéployé, la production garde l'ancien
+  comportement (pas de heartbeat, session gardée 60 s après le dernier leave).
+  Le client n'en dépend pas : aucun changement côté front n'est nécessaire.

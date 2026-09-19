@@ -124,6 +124,16 @@ function auditGame(g, w, d, mw, md, next) {
   // Ce que le jeu décide, lui, doit survivre au déshabillage.
   t(P + 'le code de room garde la typo et la couleur du jeu',
     parseFloat(rcs.fontSize) > 0 && rcs.color !== ms.color);
+  // Le code est l'élément CENTRAL du salon (sauf au Morpion, où il vit en ligne
+  // dans une rangée de méta, par construction). Régression vue le 2026-09-19 :
+  // dans quatre jeux, le `.g-copy { font: inherit; color: inherit }` du socle
+  // le ramenait à ~14 px de texte gris, et aucun test ne le voyait.
+  if (g !== 'morpion') {
+    var enAvant = parseFloat(rcs.fontSize) >= 32 && /TF2 Build/.test(rcs.fontFamily)
+      && rcs.color !== w.getComputedStyle(d.body).color;
+    t(P + 'le code de room est mis en avant (≥ 32 px, TF2 Build, couleur propre)'
+      + (enAvant ? '' : ' — ' + rcs.fontSize + ' ' + rcs.fontFamily.split(',')[0] + ' ' + rcs.color), enAvant);
+  }
   wasHidden.forEach(function (e) { e.hidden = true; });
 
   // --- les champs de saisie gardent la taille d'un champ

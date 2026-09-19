@@ -50,7 +50,17 @@ function fini() {
   t('profil vide : un id local est tiré', /^p_[a-z0-9]{1,16}$/.test(p.id), p.id);
   t('profil vide : nom vide', p.name === '');
   t('profil vide : un emoji de repli existe', typeof p.avatar.emoji === 'string' && p.avatar.emoji.length > 0);
-  t('profil vide : rien n\'est écrit tant qu\'on ne sauvegarde pas', brut() === null);
+  // ⚠️ CHANGEMENT DE CONTRAT (2026-09-19, demandé par Mathys) : avant, un profil
+  // neuf n'était écrit qu'à la première modification — et chaque load() tirait
+  // alors un NOUVEL id, ce qui rendait la reconnexion au Hub impossible. L'id
+  // d'un profil neuf est maintenant écrit dès la première lecture.
+  var ecrit = JSON.parse(brut() || 'null');
+  t('profil neuf : son id est écrit dès la première lecture', !!ecrit && ecrit.id === p.id, brut());
+  var idA = P.load().id, idB = P.load().id;
+  t('load() puis load() : le MÊME id (pas un nouveau à chaque lecture)', idA === p.id && idB === p.id, p.id + ' / ' + idA + ' / ' + idB);
+  var avantLecture = brut();
+  P.load();
+  t('une lecture ordinaire n\'écrit rien (le stockage est inchangé)', brut() === avantLecture);
 
   // --- sauvegarde puis relecture
   P.setName('Mathys');
@@ -90,6 +100,8 @@ function fini() {
 
   localStorage.setItem(K, JSON.stringify({ v: 99, name: 'Zoé', avatar: { kind: 'emoji', emoji: '🦊' } }));
   t('version inconnue : profil neuf, rien n\'est deviné', P.load().name === '');
+  t('version inconnue : le profil stocké n\'est PAS écrasé (il vient peut-être d\'une page plus récente)',
+    JSON.parse(brut()).v === 99 && JSON.parse(brut()).name === 'Zoé');
 
   localStorage.setItem(K, JSON.stringify({ v: 1, name: 42, avatar: 'pas un objet' }));
   var n = P.load();
@@ -128,7 +140,18 @@ function fini() {
       /^data:image\/(webp|png);base64,/.test(pi.avatar.src), pi.avatar.src.slice(0, 24));
     t('image : sous la limite de 12 Ko (' + Math.round(pi.avatar.src.length / 1024) + ' Ko de data-URL)',
       pi.avatar.src.length <= P.MAX_IMAGE * 2);
+    var b64 = pi.avatar.src.split(',')[1];
+    var octets = b64.length / 4 * 3 - (b64.slice(-2) === '==' ? 2 : b64.slice(-1) === '=' ? 1 : 0);
+    t('image : sous 12 Ko DÉCODÉS, la borne des serveurs (' + octets + ' octets)', octets <= P.MAX_IMAGE);
     t('image : l\'avatar passe en kind=image', pi.avatar.kind === 'image');
+    // joinAvatar : ce qui part au serveur dans le `join`.
+    var ja = P.joinAvatar('🐼');
+    t('joinAvatar : la photo part avec le join (kind image, src identique)',
+      ja.kind === 'image' && ja.src === pi.avatar.src);
+    t('joinAvatar : l\'emoji de CE jeu voyage avec, comme repli', ja.emoji === '🐼');
+    t('joinAvatar : rien d\'autre que kind / emoji / src',
+      Object.keys(ja).sort().join() === 'emoji,kind,src');
+    t('joinAvatar : un emoji invalide retombe sur celui du profil', P.joinAvatar('👨‍👩‍👧').emoji === pi.avatar.emoji);
     t('image : l\'emoji reste présent comme repli',
       typeof pi.avatar.emoji === 'string' && pi.avatar.emoji.length > 0, pi.avatar.emoji);
     t('image : le profil entier reste léger (' + Math.round(brut().length / 1024) + ' Ko)',
@@ -148,6 +171,16 @@ function fini() {
     avatar: { kind: 'image', emoji: '🦊', src: 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=' } }));
   t('src SVG déjà en stockage : ignorée aussi',
     P.load().avatar.kind === 'emoji');
+
+  // Entre 12 et 18 Ko décodés : l'ancienne borne (24 Ko de TEXTE) l'aurait
+  // gardée, et le serveur l'aurait refusée. Le profil la refuse maintenant.
+  var entre = 'data:image/webp;base64,' + new Array(Math.ceil(13000 / 3) * 4 + 1).join('A');
+  localStorage.setItem(K, JSON.stringify({ v: 1, id: 'p_abc', name: 'Zoé',
+    avatar: { kind: 'image', emoji: '🦊', src: entre } }));
+  t('image de 13 Ko décodés (' + entre.length + ' car.) : refusée, comme par le serveur',
+    entre.length <= P.MAX_IMAGE * 2 && P.load().avatar.kind === 'emoji');
+  t('profil sans photo : joinAvatar ne transporte que l\'emoji',
+    JSON.stringify(P.joinAvatar('🦊')) === JSON.stringify({ kind: 'emoji', emoji: '🦊' }));
 
   // --- retirer l'image
   await P.setImage(new File([blob], 'photo.png', { type: 'image/png' }));

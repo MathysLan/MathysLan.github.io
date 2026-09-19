@@ -22,7 +22,7 @@
      tactiles, messages d'état, et les deux polices auto-hébergées (plus aucun
      appel à Google Fonts). La DA du jeu reste dans le <style> ci-dessous. -->
 <link rel="stylesheet" href="../../css/tf2.css?v=9">
-<link rel="stylesheet" href="../shared/game-ui.css?v=3">
+<link rel="stylesheet" href="../shared/game-ui.css?v=4">
 <style>
 
   /* L'accent du Demi-Cercle : le violet de son curseur.
@@ -48,6 +48,9 @@
   li { padding: .5rem .2rem; border-bottom: 1px solid rgba(255,255,255,.06); display: flex; align-items: center; gap: .5rem; }
   .tag { color: #f59e0b; font-size: .7rem; }
   .pp { margin-right: .2rem; }
+  /* La couleur d'un joueur est celle de son aiguille : elle devient le liseré
+     de son avatar (--g-av-ring posé sur la rangée par app.js). */
+  .medal { flex: none; width: 1.6em; text-align: center; font-size: 1.2rem; }
   .pts { color: #9b98ad; margin-left: auto; }
   /* ⚠️ C'était un `flex-wrap` de cinq éléments indépendants, et rien n'y
      tenait un label avec sa liste : dès que la ligne était pleine,
@@ -76,9 +79,10 @@
 
   /* --- écran de jeu : scoreboard + scène --- */
   .game-wrap { display: flex; gap: 1.2rem; align-items: flex-start; text-align: left; }
-  #scorepanel { flex: 0 0 170px; background: #11111c; border: 1px solid rgba(255,255,255,.08); border-radius: 12px; padding: 1rem; }
+  #scorepanel { flex: 0 0 240px; background: #11111c; border: 1px solid rgba(255,255,255,.08); border-radius: 12px; padding: 1rem; }
   .sp-title { font-size: .75rem; color: #9b98ad; margin-bottom: .5rem; }
-  #scores-live li { border: none; padding: .35rem 0; font-size: .8rem; }
+  #scores-live li { border: none; padding: .4rem 0; font-size: .8rem; }
+  #scores-live .g-player-name { font-size: .95rem; }
   #scores-live .pts { color: #34d399; font-weight: 700; }
   #scores-live li.guide { color: #f59e0b; }
   .stage { flex: 1; min-width: 0; text-align: center; }
@@ -109,6 +113,16 @@
   #scores { margin-top: 1rem; }
   [hidden] { display: none !important; }
   @media (max-width: 640px) { .game-wrap { flex-direction: column; } #scorepanel { width: 100%; flex: none; } }
+  /* Le code de salle : l'élément central du salon, même hiérarchie que le
+     Passeur (« Salon » · CODE · « clique pour copier »). Couleur : le violet de son curseur, en
+     teinte claire — l'accent pur (#8b5cf6 / #dc2626) ne tient pas 3:1 sur le
+     brun du panneau. #room-code (1,0,0) passe devant le `.g-copy` du socle,
+     qui remet police et couleur à « inherit ». */
+  .lobby-head { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: .72rem; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--ink-3); margin-bottom: .35rem; text-align: center; }
+  #room-code { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 2.4rem; line-height: 1.15;
+    letter-spacing: .4em; text-indent: .4em; color: #c4b5fd; }
+  #room-code:hover { color: #ddd6fe; }
 </style>
 </head>
 <body>
@@ -131,6 +145,7 @@
 
     <!-- lobby -->
     <section id="lobby" class="panel g-screen" hidden>
+      <p class="lobby-head">Salon</p>
       <button type="button" id="room-code" class="g-copy" title="clique pour copier">····</button>
       <p id="code-hint" role="status">clique sur le code pour le copier</p>
       <ul id="players"></ul>
@@ -217,6 +232,8 @@
   <!-- Profil local (pseudo + avatar) : chargé AVANT app.js, qui lui demande
        l'emoji de départ. Aucun réseau, aucune règle de jeu. -->
   <script src="../shared/game-profile.js"></script>
+  <!-- Avatar des joueurs (emoji ou photo) à l'affichage, sans innerHTML. -->
+  <script src="../shared/game-avatar.js"></script>
   <script src="net.js"></script>
   <script src="app.js"></script>
 </body>

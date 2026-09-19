@@ -22,7 +22,7 @@
      TF2 complet (palette, polices, primitives) + socle commun des pages de
      jeux (focus clavier, mouvement réduit, cibles tactiles, messages d'état). -->
 <link rel="stylesheet" href="../../css/tf2.css?v=9">
-<link rel="stylesheet" href="../shared/game-ui.css?v=3">
+<link rel="stylesheet" href="../shared/game-ui.css?v=4">
 <style>
   /* Seulement ce qui est propre au Passeur. Tout le reste vient de tf2.css. */
   body { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1.5rem 1rem; }
@@ -315,6 +315,10 @@
   .final-title { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 1.5rem; margin: 0 0 1rem; color: var(--ink); }
   .rank-row { display: flex; justify-content: space-between; gap: 1rem; padding: .45rem .2rem; border-bottom: 1px solid var(--line); font-size: .9rem; text-align: left; }
   .rank-row .avg { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; color: var(--q-unique); }
+  /* Joueurs : avatar en vrai bloc d'identité (game-avatar.js / game-ui.css). */
+  .medal { flex: none; min-width: 1.6em; text-align: center; font-family: 'TF2 Build', 'Arial Narrow', sans-serif; color: var(--ink-3); }
+  .rank-row { align-items: center; }
+  .res-row .g-player-name, .rank-row .g-player-name { font-size: .95rem; }
 
   .actions { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; margin-top: 1.3rem; }
   .back { color: var(--ink-3); }
@@ -446,6 +450,8 @@
   <!-- Profil local (pseudo + avatar) : chargé AVANT app.js, qui lui demande
        l'emoji de départ. Aucun réseau, aucune règle de jeu. -->
   <script src="../shared/game-profile.js"></script>
+  <!-- Avatar des joueurs (emoji ou photo) à l'affichage, sans innerHTML. -->
+  <script src="../shared/game-avatar.js"></script>
   <script src="net.js?v=1"></script>
   <script src="court.js?v=5"></script>
   <script src="app.js?v=5"></script>

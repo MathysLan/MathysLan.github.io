@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Game Hub — sessions entre amis · Mathys Langiny</title>
+<meta name="description" content="Le Game Hub : crée une session, fais entrer tes amis avec un code, et retrouvez-vous dans le même salon avant de jouer.">
+<!-- Phase « lobby » du Hub : la page n'est pas encore annoncée aux moteurs. -->
+<meta name="robots" content="noindex">
+<link rel="canonical" href="https://mathyslan.github.io/games/">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0a0a12">
+<!-- Même chrome Mann Co. que les jeux (tf2.css + socle commun), mais une mise
+     en page à part : le Hub est un produit, pas un huitième jeu. -->
+<link rel="stylesheet" href="../css/tf2.css?v=9">
+<link rel="stylesheet" href="shared/game-ui.css?v=4">
+<style>
+  /* L'accent du Hub : l'orange Mann Co. du portfolio. */
+  :root { --g-accent: #cf6a32; --g-accent-ink: #1a1009; }
+  * { box-sizing: border-box; }
+  body { min-height: 100vh; margin: 0; padding: 2rem 1rem 3rem; }
+  main { width: min(880px, 100%); margin: 0 auto; }
+  [hidden] { display: none !important; }
+
+  /* --- en-tête : le nom du produit, en grand ------------------------------ */
+  .hub-top { text-align: center; margin-bottom: 1.4rem; }
+  .hub-kicker { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: .78rem; letter-spacing: .3em;
+    text-transform: uppercase; color: var(--ink-3); margin: 0 0 .35rem; }
+  .hub-top h1 { font-size: clamp(2.4rem, 9vw, 4rem); line-height: 1; margin: 0; letter-spacing: .04em; }
+  .hub-top .sub { margin: .55rem 0 0; }
+
+  .hub-panel { padding: 1.6rem 1.4rem; }
+  .hub-label { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: .72rem; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--ink-3); margin: 0 0 .6rem; }
+
+  /* --- écran d'entrée ----------------------------------------------------- */
+  #entry { max-width: 520px; margin: 0 auto; }
+  /* Qui tu es, AVANT d'agir : la même identité que dans les jeux. */
+  .hub-me { display: flex; align-items: center; gap: 1rem; padding: .9rem 1rem; margin-bottom: 1.3rem;
+    background: rgba(0,0,0,.18); border: 1px solid var(--panel-edge); }
+  .hub-me-name { flex: 1 1 auto; min-width: 0; font-size: 1.35rem; overflow-wrap: anywhere; text-align: left; }
+  .hub-me-name small { display: block; font-size: .72rem; color: var(--ink-3); margin-top: .15rem; }
+  .hub-me .ghost { flex: none; }
+  #identity { margin: -.4rem 0 1.3rem; padding: 1rem; border: 1px dashed var(--panel-edge); text-align: center; }
+  #identity #name-input { width: 100%; margin-bottom: .9rem; }
+  #identity .pick-hint { font-size: .72rem; color: var(--ink-3); margin: 0 0 .5rem; }
+  #identity-done { margin-top: .4rem; }
+
+  .hub-actions { display: grid; gap: .6rem; }
+  #hub-create { width: 100%; font-size: 1.15rem; padding-block: .85rem; }
+  .hub-or { text-align: center; color: var(--ink-3); font-size: .8rem; margin: .2rem 0; }
+  .hub-join { display: flex; gap: .5rem; }
+  #hub-code-input { flex: 1 1 auto; min-width: 0; text-align: center; text-transform: uppercase; letter-spacing: .4em; }
+  #hub-join { flex: none; }
+
+  .hub-state { text-align: center; font-size: .82rem; color: var(--ink-3); margin: .9rem 0 0; }
+  #hub-msg { text-align: center; margin: .6rem 0 0; }
+  /* Vides, les zones d'état ne réservent aucune place (elles restent dans le DOM
+     pour être annoncées dès qu'un texte y arrive). */
+  .hub-state:empty, #hub-msg:empty { margin: 0; min-height: 0; }
+
+  /* --- salon -------------------------------------------------------------- */
+  .hub-lobby-head { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 1rem;
+    padding-bottom: 1.1rem; margin-bottom: 1.2rem; border-bottom: 1px solid var(--panel-edge); }
+  .hub-session { text-align: left; }
+  /* Le code : l'élément central du salon — gros, à l'accent, copiable. */
+  #hub-code { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: clamp(2.6rem, 11vw, 3.6rem);
+    line-height: 1; letter-spacing: .3em; text-indent: 0; color: #f2a15f; text-align: left; width: auto; }
+  #hub-code:hover { color: #ffc28f; }
+  #hub-code-hint { font-size: .72rem; color: var(--ink-3); margin: .35rem 0 0; }
+  .hub-status { text-align: right; }
+  #hub-count { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 1.05rem; margin: 0; }
+  #hub-count-sub { font-size: .75rem; color: var(--ink-3); margin: .15rem 0 0; }
+  #hub-conn { display: inline-flex; align-items: center; gap: .4rem; font-size: .75rem; color: var(--ink-3); margin-top: .3rem; }
+  #hub-conn::before { content: ''; width: .55rem; height: .55rem; background: #6fbf73; }
+  #hub-conn.is-away::before { background: #e0a040; }
+  #hub-conn.is-off::before { background: #d8584a; }
+
+  /* 12 joueurs : une grille de cartes. Deux colonnes sur téléphone, trois à
+     quatre sur grand écran — la page ne s'allonge pas sans fin. */
+  #hub-players { list-style: none; padding: 0; margin: 0;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .7rem; }
+  .hub-card { display: flex; flex-direction: column; align-items: center; gap: .45rem; padding: .9rem .6rem .8rem;
+    background: rgba(0,0,0,.2); border: 1px solid var(--panel-edge); text-align: center; min-width: 0; }
+  .hub-card.is-me { border-color: #cf6a32; }
+  .hub-card.is-away { opacity: .55; }
+  .hub-card-name { font-size: 1rem; line-height: 1.2; overflow-wrap: anywhere; max-width: 100%; }
+  .hub-tags { display: flex; gap: .35rem; flex-wrap: wrap; justify-content: center; }
+  .hub-tag { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: .66rem; letter-spacing: .1em;
+    text-transform: uppercase; padding: .1rem .4rem; border: 1px solid currentColor; }
+  .hub-tag.host { color: #f2a15f; }
+  .hub-tag.me { color: var(--ink-3); }
+  .hub-tag.away { color: #e0a040; }
+
+  .hub-foot { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;
+    margin-top: 1.3rem; padding-top: 1rem; border-top: 1px solid var(--panel-edge); }
+  .hub-wait { font-size: .82rem; color: var(--ink-3); margin: 0; }
+
+  .hub-back { display: block; text-align: center; margin-top: 1.6rem; }
+
+  @media (max-width: 560px) {
+    .hub-panel { padding: 1.2rem 1rem; }
+    .hub-lobby-head { grid-template-columns: 1fr; }
+    .hub-session, .hub-status { text-align: center; }
+    #hub-code { text-align: center; width: 100%; text-indent: .3em; }
+    #hub-players { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #hub-count { font-size: .9rem; }
+  }
+</style>
+</head>
+<body>
+  <main>
+    <header class="hub-top">
+      <p class="hub-kicker">Mathys Langiny · jeux entre amis</p>
+      <h1>Game Hub<span class="a">.</span></h1>
+      <p class="sub">une session, tes amis, et bientôt les jeux</p>
+    </header>
+
+    <!-- ENTRÉE : ton profil, puis créer ou rejoindre -->
+    <section id="entry" class="panel g-screen hub-panel">
+      <p class="hub-label">Ton profil</p>
+      <div class="hub-me">
+        <span id="me-avatar"></span>
+        <p class="hub-me-name"><span id="me-name"></span><small id="me-note"></small></p>
+        <button type="button" class="ghost" id="identity-toggle" aria-expanded="false" aria-controls="identity">modifier</button>
+      </div>
+      <!-- Le même éditeur que dans les jeux : game-profile.js s'y branche tout
+           seul (#name-input, #avatar-row, choix de photo). -->
+      <div id="identity" hidden>
+        <input id="name-input" maxlength="16" placeholder="ton pseudo" autocomplete="off" spellcheck="false" aria-label="ton pseudo">
+        <p class="pick-hint">choisis ton icône :</p>
+        <div id="avatar-row"></div>
+        <button type="button" class="ghost" id="identity-done">c'est bon</button>
+      </div>
+
+      <div class="hub-actions">
+        <button type="button" id="hub-create">Créer une session</button>
+        <p class="hub-or">— ou —</p>
+        <div class="hub-join">
+          <input id="hub-code-input" maxlength="5" placeholder="CODE" autocomplete="off" spellcheck="false" aria-label="code de session (5 caractères)">
+          <button type="button" id="hub-join">Rejoindre</button>
+        </div>
+      </div>
+      <p class="hub-state" id="hub-state" role="status"></p>
+      <p id="hub-msg" class="g-error" role="alert"></p>
+    </section>
+
+    <!-- SALON : le code, les joueurs, l'hôte -->
+    <section id="lobby" class="panel g-screen hub-panel" hidden>
+      <div class="hub-lobby-head">
+        <div class="hub-session">
+          <p class="hub-label">Salon · code de session</p>
+          <button type="button" id="hub-code" class="g-copy" title="clique pour copier">·····</button>
+          <p id="hub-code-hint" role="status">clique sur le code pour le copier</p>
+        </div>
+        <div class="hub-status">
+          <p id="hub-count">— joueurs</p>
+          <p id="hub-count-sub"></p>
+          <span id="hub-conn" role="status">connecté</span>
+        </div>
+      </div>
+      <ul id="hub-players" aria-label="joueurs de la session"></ul>
+      <div class="hub-foot">
+        <p class="hub-wait" id="hub-wait">Le salon est prêt. La sélection des jeux arrive à la prochaine étape.</p>
+        <button type="button" class="ghost" id="hub-leave">Quitter la session</button>
+      </div>
+    </section>
+
+    <a class="back hub-back" href="../">← retour au portfolio</a>
+  </main>
+
+  <!-- Profil local, affichage des avatars, puis le client du Hub — dans cet
+       ordre : la page s'appuie sur les trois. -->
+  <script src="shared/game-profile.js"></script>
+  <script src="shared/game-avatar.js"></script>
+  <script src="shared/game-hub.js"></script>
+  <script src="hub-page.js"></script>
+</body>
+</html>

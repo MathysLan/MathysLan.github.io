@@ -22,7 +22,7 @@
      tactiles, messages d'état, et les deux polices auto-hébergées (plus aucun
      appel à Google Fonts). La DA du jeu reste dans le <style> ci-dessous. -->
 <link rel="stylesheet" href="../../css/tf2.css?v=9">
-<link rel="stylesheet" href="../shared/game-ui.css?v=3">
+<link rel="stylesheet" href="../shared/game-ui.css?v=4">
 <style>
 
   /* L'accent du Ban : son rouge. Le gros #stop-btn le garde aussi.
@@ -47,6 +47,11 @@
   #players li { padding: .5rem .2rem; border-bottom: 1px solid rgba(255,255,255,.06); display: flex; align-items: center; gap: .5rem; }
   .tag { color: #f59e0b; font-size: .7rem; }
   .pp { margin-right: .2rem; }
+  .medal { flex: none; width: 1.6em; text-align: center; font-size: 1.2rem; }
+  /* Pastilles de l'ordre de passage : l'avatar compact, collé au numéro. */
+  .chip .g-av { margin-left: .1rem; }
+  #turn-title .turn-who { display: inline-flex; justify-content: center; }
+  .res-row .rn.g-player { gap: .6rem; }
   #host-config { margin-top: 1.2rem; padding-top: 1.2rem; border-top: 1px solid rgba(255,255,255,.08); display: flex; align-items: center; justify-content: center; gap: .8rem; flex-wrap: wrap; }
   #host-config label { font-size: .75rem; color: #9b98ad; }
   #need-players { color: #8b87a0; font-size: .75rem; margin-top: 1rem; }
@@ -131,6 +136,16 @@
     color: #e7e5f4; cursor: pointer; font-size: .78rem; }
   .tw-ok input { width: auto; accent-color: #ef4444; }
   [hidden] { display: none !important; }
+  /* Le code de salle : l'élément central du salon, même hiérarchie que le
+     Passeur (« Salon » · CODE · « clique pour copier »). Couleur : le rouge du Ban, en
+     teinte claire — l'accent pur (#8b5cf6 / #dc2626) ne tient pas 3:1 sur le
+     brun du panneau. #room-code (1,0,0) passe devant le `.g-copy` du socle,
+     qui remet police et couleur à « inherit ». */
+  .lobby-head { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: .72rem; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--ink-3); margin-bottom: .35rem; text-align: center; }
+  #room-code { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 2.4rem; line-height: 1.15;
+    letter-spacing: .4em; text-indent: .4em; color: #f87171; }
+  #room-code:hover { color: #fca5a5; }
 </style>
 </head>
 <body>
@@ -163,6 +178,7 @@
 
     <!-- lobby -->
     <section id="lobby" class="panel g-screen" hidden>
+      <p class="lobby-head">Salon</p>
       <button type="button" id="room-code" class="g-copy" title="clique pour copier">····</button>
       <p id="code-hint" role="status">clique sur le code pour le copier</p>
       <ul id="players"></ul>
@@ -230,6 +246,8 @@
   <!-- Profil local (pseudo + avatar) : chargé AVANT app.js, qui lui demande
        l'emoji de départ. Aucun réseau, aucune règle de jeu. -->
   <script src="../shared/game-profile.js"></script>
+  <!-- Avatar des joueurs (emoji ou photo) à l'affichage, sans innerHTML. -->
+  <script src="../shared/game-avatar.js"></script>
   <script src="net.js"></script>
   <script src="app.js"></script>
 </body>

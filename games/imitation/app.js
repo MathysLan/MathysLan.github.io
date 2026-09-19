@@ -251,9 +251,11 @@ async function enter(code) {
     await initMic();
     ensureAudioGraph(); // créé sur le geste utilisateur, comme le micro
     await NET.connect();
+    // L'avatar complet : la photo du profil s'il y en a une, l'emoji toujours.
+    const avatar = GameProfile.joinAvatar(myAvatar);
     NET.send(code === undefined
-      ? { action: 'join', name, avatar: myAvatar }
-      : { action: 'join', name, code, avatar: myAvatar });
+      ? { action: 'join', name, avatar }
+      : { action: 'join', name, code, avatar });
   } catch (err) {
     showError(err.name === 'NotAllowedError' ? 'accès micro refusé - le jeu en a besoin' : err.message);
   }
@@ -406,10 +408,11 @@ NET.on('room', (msg) => {
   if (me) myReady = !!me.ready;
 
   $('players').innerHTML = msg.players
-    .map((p) => `<li><span class="pp">${esc(p.avatar || '🙂')}</span>${esc(p.name)}`
-      + `${p.host ? ' <span class="tag">host</span>' : ''}`
+    .map((p) => `<li class="g-player">${GameAvatar.slot(p.avatar, undefined, 'md')}`
+      + `<span class="g-player-name">${esc(p.name)}${p.host ? ' <span class="tag">host</span>' : ''}</span>`
       + `<span class="pts">${p.ready ? '<span class="ok">✔ prêt</span>' : '·'}</span></li>`)
     .join('');
+  GameAvatar.fill($('players'));
 
   const readyCount = msg.players.filter((p) => p.ready).length;
   $('ready-btn').textContent = myReady ? '✔ je suis prêt' : 'je suis prêt !';
@@ -452,7 +455,10 @@ NET.onBinary = (buf) => {
   $('listen-box').hidden = false;
   const mine = msg.player === you;
   setStage('🎧 écoute & note', mine ? 'ta prise passe - les autres notent' : 'note cette imitation avec les boutons dessous');
-  $('listen-name').innerHTML = `<span class="pp">${esc(msg.avatar || '🙂')}</span>${esc(msg.name)}${mine ? ' (toi)' : ''}`;
+  // « C'est à qui ? » : le moment où l'identité compte le plus → grand format.
+  $('listen-name').innerHTML = `<span class="g-player">${GameAvatar.slot(msg.avatar, undefined, 'lg')}`
+    + `<span class="g-player-name">${esc(msg.name)}${mine ? ' (toi)' : ''}</span></span>`;
+  GameAvatar.fill($('listen-name'));
   renderVoteWait([], msg.player);   // personne n'a encore voté sur cette prise
   for (const b of document.querySelectorAll('.rate')) b.disabled = mine;
 
@@ -549,8 +555,9 @@ const PHASES = {
     setStage('🏁 résultats', 'les points du round');
     renderScoreboard(msg.scores);
     $('scores').innerHTML = msg.scores
-      .map((p) => `<li><span class="pp">${esc(p.avatar || '🙂')}</span>${esc(p.name)} <span class="pts">${p.score} pt${p.score > 1 ? 's' : ''}</span></li>`)
+      .map((p) => `<li class="g-player">${GameAvatar.slot(p.avatar, undefined, 'md')}<span class="g-player-name">${esc(p.name)}</span> <span class="pts g-player-score">${p.score} pt${p.score > 1 ? 's' : ''}</span></li>`)
       .join('');
+    GameAvatar.fill($('scores'));
   },
 
   end(msg) {
@@ -563,8 +570,11 @@ const PHASES = {
     const medals = ['🥇', '🥈', '🥉'];
     setStage('🏆 fin de partie', 'le podium');
     $('scores').innerHTML = msg.podium
-      .map((p, i) => `<li>${medals[i] || '·'} <span class="pp">${esc(p.avatar || '🙂')}</span>${esc(p.name)} <span class="pts">${p.score} pt${p.score > 1 ? 's' : ''}</span></li>`)
+      // Podium : les trois premiers en grand, les suivants au format liste.
+      .map((p, i) => `<li class="g-player${i < 3 ? ' podium-top' : ''}"><span class="medal">${medals[i] || '·'}</span>${GameAvatar.slot(p.avatar, undefined, i < 3 ? 'lg' : 'md')}`
+        + `<span class="g-player-name">${esc(p.name)}</span> <span class="pts g-player-score">${p.score} pt${p.score > 1 ? 's' : ''}</span></li>`)
       .join('');
+    GameAvatar.fill($('scores'));
   },
 };
 
@@ -573,10 +583,11 @@ const PHASES = {
 function renderScoreboard(list) {
   const sorted = [...list].sort((a, b) => b.score - a.score);
   $('scores-live').innerHTML = sorted
-    .map((p) => `<li><span class="pp">${esc(p.avatar || '🙂')}</span>${esc(p.name)}`
-      + `${p.ready ? ' <span class="ok">✔</span>' : ''}`
-      + `<span class="pts">${p.score}</span></li>`)
+    .map((p) => `<li class="g-player">${GameAvatar.slot(p.avatar, undefined, 'md')}`
+      + `<span class="g-player-name">${esc(p.name)}${p.ready ? ' <span class="ok">✔</span>' : ''}</span>`
+      + `<span class="pts g-player-score">${p.score}</span></li>`)
     .join('');
+  GameAvatar.fill($('scores-live'));
 }
 
 function setStage(title, sub) {

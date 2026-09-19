@@ -192,14 +192,15 @@ async function run(cdp, errs) {
   t('l\'emoji reste le repli, à côté de la photo',
     p3.avatar.kind === 'image' && !!p3.avatar.emoji, p3.avatar.emoji);
 
-  // Et — c'est le point de la V1 — c'est bien l'EMOJI que le jeu utilise.
+  // La photo part en jeu (joinAvatar, vérifié en partie réelle par
+  // tests/avatar-play.mjs) ; l'icône du jeu reste sélectionnée : c'est le repli.
   await go(cdp, URLS('quiment'));
   const enJeu = await evaluate(cdp, `({
     apercu: !!document.querySelector('.gp-preview:not([hidden])'),
     picked: (document.querySelector('.avatar-pick.picked') || {}).textContent,
   })`);
   t('la photo est visible dans le choix d\'identité', enJeu.apercu === true);
-  t('mais le jeu sélectionne toujours une icône', !!enJeu.picked, enJeu.picked);
+  t('et le jeu sélectionne toujours une icône (le repli)', !!enJeu.picked, enJeu.picked);
 
   await click(cdp, '.gp-photo .gp-btn:nth-of-type(2)');   // « retirer »
   const p4 = await evaluate(cdp, PROFIL);
