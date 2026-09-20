@@ -359,6 +359,34 @@
     hub.setConstraints(v ? Number(v) : null);
   });
 
+  // ------------------------------------------------------- réveil d'un serveur
+  // Sur le plan gratuit de Render, le serveur du jeu tiré peut dormir : le Hub
+  // attend jusqu'à 40 s sa réponse, et recale le candidat s'il ne vient pas.
+  // Sans rien à l'écran, ce silence passe pour une panne. On affiche donc
+  // l'état et le temps déjà passé — et RIEN d'autre : le Hub n'envoie pas quel
+  // jeu il réveille, pour ne pas éventer la caisse.
+  // ⚠️ Le compteur est la seule chose qui bouge en mouvement réduit (le point
+  // ne clignote plus) : c'est lui qui dit que ça avance.
+  let wakeTimer = null, wakeStart = 0, wakeKey = null;
+
+  function stopWake() {
+    if (wakeTimer) { clearInterval(wakeTimer); wakeTimer = null; }
+    wakeKey = null;
+    $('hub-waking').hidden = true;
+  }
+
+  function showWake(d, txt) {
+    // Nouveau tirage, ou nouvelle tentative : l'attente repart de zéro.
+    const key = d.id + ':' + d.tried;
+    if (wakeKey !== key) { wakeKey = key; wakeStart = Date.now(); }
+    $('hub-waking-title').textContent = txt.titre;
+    $('hub-waking-sub').textContent = txt.detail;
+    $('hub-waking').hidden = false;
+    const tick = () => { $('hub-waking-sec').textContent = Math.round((Date.now() - wakeStart) / 1000) + ' s'; };
+    tick();
+    if (!wakeTimer) wakeTimer = setInterval(tick, 1000);
+  }
+
   // ----------------------------------------------------------------- caisse
   function renderDraw(session, you) {
     const d = session.draw;
@@ -367,7 +395,7 @@
     const hist = session.history.played;
     $('hub-history').textContent = hist.length ? 'Tirés ce soir : ' + hist.map((id, i) => `${i + 1}. ${info(id).title}`).join(' · ') : '';
     if (!actif) {
-      if (!animating) { stage.hidden = true; stage.classList.remove('is-pending', 'is-open'); }
+      if (!animating) { stage.hidden = true; stage.classList.remove('is-pending', 'is-open'); stopWake(); }
       return;
     }
     stage.hidden = false;
@@ -380,7 +408,9 @@
       $('hub-result').hidden = true;
       HubCrate.reset($('hub-reel'));
       reelFor = null;
-      $('hub-draw-status').textContent = 'La caisse est secouée… le Hub vérifie les serveurs de jeu (un serveur endormi met ~30 s à répondre).';
+      const txt = GameHub.wakingText(d);
+      if (txt.titre) showWake(d, txt); else stopWake();
+      $('hub-draw-status').textContent = txt.phrase;
       return;
     }
     if (d.gameId && seen.get() !== d.id) return animate(d);
@@ -392,6 +422,7 @@
     const stage = $('hub-draw');
     animating = d.id;
     amene(d);
+    stopWake();
     stage.classList.remove('is-pending');
     stage.classList.add('is-open');
     $('hub-result').hidden = true;
@@ -408,6 +439,7 @@
 
   function showResult(session, you, d) {
     const stage = $('hub-draw');
+    stopWake();
     stage.classList.remove('is-pending');
     stage.classList.add('is-open');
     // Rechargement : la bande n'a pas été déroulée ici, on la pose à l'arrivée.

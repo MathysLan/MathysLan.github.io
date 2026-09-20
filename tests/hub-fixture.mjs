@@ -13,14 +13,18 @@ import os from 'node:os';
 import path from 'node:path';
 
 // Le serveur de santé : GET /<gameId> → 200, sauf réglage contraire.
+// `set(id, { code, delay })` fige une réponse ; `set(id, { seq: [503, 503, 200] })`
+// en donne une par requête (la dernière reste) — c'est un serveur Render qui se
+// RÉVEILLE, pas un serveur mort, et c'est le seul moyen d'observer une attente.
 export function fakeHealth(port) {
-  const sante = {};             // gameId → { code, delay }
+  const sante = {};             // gameId → { code, delay } | { seq, delay }
   const appels = [];            // { id, method, upgrade }
   const srv = createServer((req, res) => {
     const id = req.url.replace(/^\//, '').split('?')[0];
     appels.push({ id, method: req.method, upgrade: !!req.headers.upgrade });
     const c = sante[id] || { code: 200, delay: 0 };
-    setTimeout(() => { res.writeHead(c.code); res.end(c.code === 200 ? 'ok' : 'ko'); }, c.delay);
+    if (Array.isArray(c.seq)) c.code = c.seq.length > 1 ? c.seq.shift() : c.seq[0];
+    setTimeout(() => { res.writeHead(c.code); res.end(c.code === 200 ? 'ok' : 'ko'); }, c.delay || 0);
   });
   return new Promise((r) => srv.listen(port, '127.0.0.1', () => r({
     srv, appels, set: (id, v) => { sante[id] = v; }, close: () => srv.close(),

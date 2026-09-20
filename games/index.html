@@ -186,6 +186,21 @@
   .reel.is-done .reel-line { opacity: 0; }
   #hub-draw-status { margin: .8rem 0 0; font-size: .85rem; color: var(--ink-2); }
 
+  /* Le réveil d'un serveur de jeu (plan gratuit Render : ~30 s au premier
+     joueur). Un tirage qui attend sans rien dire passe pour une panne.
+     ⚠️ On dit l'ÉTAT, jamais QUEL jeu : le Hub ne l'envoie pas tant que le
+     tirage n'est pas confirmé, et la caisse ne doit pas être éventée.
+     Décoratif (aria-hidden) : c'est #hub-draw-status, role="status", qui
+     annonce la même chose une seule fois. */
+  #hub-waking { display: flex; flex-direction: column; align-items: center; gap: .2rem; margin: .9rem 0 0; }
+  .waking-line { display: inline-flex; align-items: center; gap: .5rem;
+    font-family: 'TF2 Build', 'Arial Narrow', sans-serif; letter-spacing: .1em; text-transform: uppercase;
+    font-size: .95rem; color: #f2a15f; }
+  .waking-dot { width: .55rem; height: .55rem; background: #f2a15f; animation: waking-pulse 1.1s ease-in-out infinite; }
+  .waking-sec { font-variant-numeric: tabular-nums; color: var(--ink-2); letter-spacing: .04em; }
+  .waking-sub { font-size: .8rem; color: var(--ink-2); }
+  @keyframes waking-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .2; } }
+
   /* Le résultat. */
   #hub-result { margin-top: 1rem; }
   .result-kicker { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; letter-spacing: .25em; text-transform: uppercase;
@@ -234,6 +249,8 @@
   @media (prefers-reduced-motion: reduce) {
     #hub-draw.is-pending .crate { animation: none; }
     .crate-lid, .crate-glow { transition: none; }
+    /* Le point ne clignote plus : le compteur d'attente, lui, avance toujours. */
+    .waking-dot { animation: none; }
   }
 
   @media (max-width: 560px) {
@@ -316,6 +333,10 @@
           <div class="crate-box"><span class="crate-stencil">MANN CO.</span></div>
         </div>
         <div class="reel" id="hub-reel" aria-hidden="true"><ul class="reel-strip"></ul><span class="reel-line"></span></div>
+        <p id="hub-waking" hidden aria-hidden="true">
+          <span class="waking-line"><span class="waking-dot"></span><span id="hub-waking-title"></span><span class="waking-sec" id="hub-waking-sec"></span></span>
+          <span class="waking-sub" id="hub-waking-sub"></span>
+        </p>
         <p id="hub-draw-status" role="status"></p>
         <div id="hub-result" hidden>
           <p class="result-kicker">🎉 Jeu choisi</p>

@@ -38,6 +38,11 @@ const SHOTS = arg('--shots');
 if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
 const R = () => Math.floor(Math.random() * 300);
 const HTTP_PORT = 8700 + R(), CDP_PORT = 9700 + R(), HUB_PORT = 8100 + R(), OLD_PORT = 7400 + R(), HEALTH_PORT = 6400 + R();
+// ⚠️ Un SECOND Hub, rien que pour le réveil. Un état « up » vit 5 min dans le
+// Hub (UP_TTL_MS, pas réglable par l'environnement) : sur l'instance qui a déjà
+// tiré deux fois, le serveur du candidat serait déclaré frais et il n'y aurait
+// aucune attente à observer. Un processus neuf = un cache de santé vierge.
+const WAKE_PORT = 7800 + R();
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const MANIFEST_JSON = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'games.manifest.json'), 'utf8'));
 const TITRE = Object.fromEntries(MANIFEST_JSON.games.map((g) => [g.id, g.title]));
@@ -222,14 +227,18 @@ const DECALAGE = `(() => { const s = document.querySelector('#hub-reel .reel-str
 
 // --- orchestration ---------------------------------------------------------
 const sante = await fakeHealth(HEALTH_PORT);
+const santeWake = await fakeHealth(HEALTH_PORT + 1);
 // Aucun jeu lançable ici : ce test est celui du RANDOMIZER (« continuer » revient
 // au Hub). Le lancement a ses propres tests (handoff.mjs, handoff-play.mjs).
 const MANIFEST = localManifest(ROOT, HEALTH_PORT, {}, { sansHandoff: true });
 lance(HUBDIR, HUB_PORT, { MANIFEST_FILE: MANIFEST });
+const MANIFEST_WAKE = localManifest(ROOT, HEALTH_PORT + 1, {}, { sansHandoff: true });
+lance(HUBDIR, WAKE_PORT, { MANIFEST_FILE: MANIFEST_WAKE });
 let ancienDir = null;
 try { ancienDir = extraitAncien(); lance(ancienDir, OLD_PORT); } catch (e) { console.log('(ancien Hub non extrait : ' + e.message + ')'); }
 const srv = await serve();
 await attendsHttp(`http://127.0.0.1:${HUB_PORT}/health`);
+await attendsHttp(`http://127.0.0.1:${WAKE_PORT}/health`);
 if (ancienDir) await attendsHttp(`http://127.0.0.1:${OLD_PORT}/health`);
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hubdraw-'));
 const edge = spawn(EDGE, ['--headless=new', '--disable-gpu', `--remote-debugging-port=${CDP_PORT}`, `--user-data-dir=${dir}`, '--no-first-run',
@@ -241,6 +250,8 @@ const stop = () => {
   try { cdp && cdp.close(); } catch (_) {}
   try { srv.close(); } catch (_) {}
   sante.close();
+  santeWake.close();
+  try { fs.unlinkSync(MANIFEST_WAKE); } catch (_) {}
   for (const d of [dir, ancienDir]) if (d) { try { fs.rmSync(d, { recursive: true, force: true }); } catch (_) {} }
   try { fs.unlinkSync(MANIFEST); } catch (_) {}
 };
@@ -475,6 +486,80 @@ try {
     await D.shot('6-ancien-hub');
   } else {
     t('ancien Hub : extraction git impossible sur ce poste', false);
+  }
+
+  // ═══ 10. COLD START : le serveur du jeu tiré dort, et l'écran le dit
+  // Le montage est un vrai réveil Render, pas une panne : le /health répond 503
+  // deux fois (retry toutes les 2,5 s côté Hub) puis 200 — le tirage aboutit,
+  // mais après ~5 s d'attente. C'est cette attente-là qui doit se voir.
+  // ⚠️ Hub NEUF (WAKE_PORT) : sur l'autre, precision serait déjà « up » en cache.
+  {
+    santeWake.set('precision', { seq: [503, 503, 200], delay: 80 });
+    const E = await joueur(cdp, 'E');
+    await E.goto(`${BASE}/games/?hub=${encodeURIComponent(`ws://127.0.0.1:${WAKE_PORT}`)}`);
+    await E.type('#name-input', 'Eve');
+    await E.click('#identity-done');
+    await E.click('#hub-create');
+    await E.until(`!document.getElementById('lobby').hidden && document.querySelectorAll('#hub-games .hub-game').length === 8`, 20000, 'salon de E');
+    // Seule à bord : on ne laisse qu'UN jeu en ligne possible, pour que le
+    // candidat soit connu d'avance et que l'attente soit celle de son serveur.
+    for (const id of ['passeur', 'puissance4']) await E.click(`#hub-games [data-pref=veto][data-game=${id}]`);
+    await E.until(`(${VUE}).eligibles.length === 1 && (${VUE}).eligibles[0] === 'precision'`, 8000, 'precision seule éligible');
+
+    await E.click('#hub-draw-btn');
+    // On échantillonne pendant l'attente : le bloc, son titre, son compteur.
+    const vus = [];
+    for (let i = 0; i < 40; i++) {
+      vus.push(await E.eval(`(() => { const w = document.getElementById('hub-waking');
+        return { on: !!w && !w.hidden, titre: document.getElementById('hub-waking-title').textContent,
+          sec: document.getElementById('hub-waking-sec').textContent, sub: document.getElementById('hub-waking-sub').textContent,
+          statut: document.getElementById('hub-draw-status').textContent, aria: w.getAttribute('aria-hidden'),
+          resultat: !document.getElementById('hub-result').hidden }; })()`));
+      if (vus[vus.length - 1].resultat) break;
+      await sleep(250);
+    }
+    const pendant = vus.filter((v) => v.on);
+    t('cold start : le bloc de réveil apparaît pendant l\'attente', pendant.length > 0, `${pendant.length} relevé(s) sur ${vus.length}`);
+    t('cold start : il dit « Réveil du serveur… »', pendant.length > 0 && pendant.every((v) => /Réveil du serveur/.test(v.titre)), pendant[0] && pendant[0].titre);
+    t('cold start : et l\'ordre de grandeur de l\'attente', pendant.length > 0 && /30 s/.test(pendant[0].sub), pendant[0] && pendant[0].sub);
+    const secondes = [...new Set(pendant.map((v) => v.sec))];
+    t('cold start : le compteur d\'attente avance (il ne fige pas)', secondes.length >= 2, secondes.join(' → '));
+    t('cold start : le compteur est en secondes, à partir de 0', /^\d+ s$/.test(secondes[0] || '') && secondes[0] === '0 s', secondes[0]);
+    // ⚠️ Le Hub n'envoie pas le candidat tant qu'il n'est pas confirmé : rien à
+    // l'écran ne doit pouvoir le nommer, sinon la caisse est éventée.
+    t('cold start : l\'écran ne nomme AUCUN jeu pendant le réveil',
+      pendant.every((v) => !/Précision|Passeur|Demi-Cercle|Qui Ment|Morpion|Imitation|Puissance/i.test(v.titre + v.sub + v.statut)));
+    t('cold start : le bloc visible est décoratif ; c\'est role="status" qui annonce',
+      pendant.every((v) => v.aria === 'true' && /Réveil/.test(v.statut)), pendant[0] && pendant[0].statut);
+    await E.shot('7-cold-start');
+
+    // Les trames disent la même chose que l'écran.
+    const trames = E.trames.map((m) => m.session && m.session.draw).filter((d) => d && d.status === 'pending');
+    t('cold start : c\'est bien le SERVEUR qui a annoncé le réveil (waking dans les trames)',
+      trames.some((d) => d.waking === true) && trames.every((d) => d.gameId === null || d.gameId === undefined));
+
+    // ⚠️ On attend la révélation à la main, PAS avec `until` : la fenêtre de
+    // santé du Hub est de 40 s (TIMEOUT_MS), donc un réveil qui traîne peut
+    // légitimement dépasser une attente courte — et surtout, une attente qui
+    // expire sans rien dire ne permet pas de savoir POURQUOI. Ici, un échec
+    // rapporte ce que la page montrait vraiment (message d'erreur compris).
+    const ETAT = `(() => ({ vu: !document.getElementById('hub-result').hidden,
+      on: !document.getElementById('hub-waking').hidden,
+      jeu: document.getElementById('hub-result').dataset.game,
+      statut: document.getElementById('hub-draw-status').textContent,
+      msg: document.getElementById('hub-lobby-msg').textContent }))()`;
+    let apres = null, dernier = null;
+    for (let i = 0; i < 260 && !apres; i++) {
+      dernier = await E.eval(ETAT);
+      if (dernier.vu) apres = dernier; else await sleep(250);
+    }
+    t('cold start : le serveur s\'est réveillé → le jeu est révélé', !!apres && apres.jeu === 'precision',
+      apres ? apres.jeu : 'aucune révélation — ' + JSON.stringify(dernier));
+    t('cold start : le bloc de réveil disparaît à la révélation', !!apres && !apres.on && !/Réveil/.test(apres.statut),
+      apres ? apres.statut : '(pas de révélation)');
+    t('cold start : aucune erreur JS', E.erreurs.length === 0, E.erreurs.join(' | '));
+    t('cold start : le Hub a bien réessayé (3 requêtes de santé)',
+      santeWake.appels.filter((a) => a.id === 'precision').length === 3, String(santeWake.appels.filter((a) => a.id === 'precision').length));
   }
 
   const errs = [A, B, C].flatMap((J) => J.erreurs.map((e) => `[${J.nom}] ${e}`));

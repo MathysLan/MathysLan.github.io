@@ -58,6 +58,7 @@ t('parse : JSON illisible → null', H.parseMessage('{pas du json') === null);
 t('parse : sans type → null', H.parseMessage('{"session":{}}') === null);
 t('parse : message valable', H.parseMessage('{"type":"session","session":{}}').type === 'session');
 
+const MANIFEST_IDS = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'games.manifest.json'), 'utf8')).games.map((g) => g.id);
 const brute = { code: 'AB2DE', state: 'lobby', hostId: 'p_b', maxPlayers: 12, draw: null, history: { played: [] }, secret: 'x',
   players: [{ id: 'p_a', name: 'A', avatar: { kind: 'emoji', emoji: '🦊' }, caps: { mic: false, consent: 'oui' }, veto: ['ban', 3], love: [], connected: false, host: true, since: 1, sockets: {} },
             { id: 'p_b', name: 'B', avatar: { kind: 'emoji', emoji: '🐼' }, connected: true, host: false }, null, { name: 'sans id' }] };
@@ -80,6 +81,29 @@ const s2 = H.readSession({ code: 'AB2DE', players: [], history: { played: ['pass
   draw: { id: 'd_1', n: 1, status: 'pending', gameId: 'passeur', eligible: ['passeur', 1], weights: { passeur: 1, x: 'y' } },
   pool: { catalog: 'ready', games: ['passeur', 'ban'], eligible: ['passeur'], why: { ban: [{ code: 'VETO', players: ['p_a'] }, 'bruit'] }, weights: { passeur: 1.5 }, health: { passeur: 'up' } } });
 t('draw : pas de gameId tant que le tirage est « pending » (même si le fil en porte un)', s2.draw.gameId === null && s2.draw.status === 'pending');
+
+// Le réveil d'un serveur de jeu : l'état voyage, le jeu réveillé jamais.
+const wk = (d) => H.readSession({ code: 'AB2DE', players: [], draw: Object.assign({ id: 'd_w', n: 1, status: 'pending' }, d) }).draw;
+t('réveil : waking et tried relus du fil', wk({ waking: true, tried: 2 }).waking === true && wk({ waking: true, tried: 2 }).tried === 2);
+t('réveil : un serveur d\'AVANT cette version → false / 0 (la page se comporte comme avant)',
+  wk({}).waking === false && wk({}).tried === 0);
+t('réveil : formes tordues ignorées, jamais d\'exception',
+  wk({ waking: 'oui', tried: 'trois' }).waking === false && wk({ waking: true, tried: -4 }).tried === 0 && wk({ waking: true, tried: 2.7 }).tried === 2);
+t('réveil : un tirage révélé ne réveille plus rien',
+  H.readSession({ code: 'AB2DE', players: [], draw: { id: 'd_w', n: 1, status: 'drawn', gameId: 'passeur', waking: true } }).draw.waking === false);
+
+const W0 = H.wakingText(wk({}));
+const W1 = H.wakingText(wk({ waking: true, tried: 0 }));
+const W2 = H.wakingText(wk({ waking: true, tried: 1 }));
+const W4 = H.wakingText(wk({ waking: true, tried: 3 }));
+t('réveil : sans réveil, aucun bloc — juste la phrase d\'attente', W0.titre === null && /caisse/.test(W0.phrase));
+t('réveil : « Réveil du serveur… » et l\'ordre de grandeur de l\'attente', W1.titre === 'Réveil du serveur…' && /30 s/.test(W1.detail), W1.detail);
+t('réveil : un candidat recalé → la tentative est dite', /tentative 2/.test(W2.detail) && /1 serveur muet/.test(W2.detail), W2.detail);
+t('réveil : trois recalés → accord au pluriel', /tentative 4/.test(W4.detail) && /3 serveurs muets/.test(W4.detail), W4.detail);
+// ⚠️ Le Hub n'envoie PAS le candidat tant qu'il n'est pas confirmé : rien de ce
+// qu'on écrit ici ne doit pouvoir nommer un jeu, sinon la caisse est éventée.
+t('réveil : aucun texte ne nomme un jeu', [W1, W2, W4].every((w) => !MANIFEST_IDS.some((id) => (w.titre + w.detail + w.phrase).toLowerCase().includes(id))));
+t('réveil : la phrase annoncée reprend le titre ET le détail', /Réveil/.test(W1.phrase) && /30 s/.test(W1.phrase) && /tentative 2/.test(W2.phrase));
 t('draw : listes et poids nettoyés', same(s2.draw.eligible, ['passeur']) && same(s2.draw.weights, { passeur: 1 }));
 t('pool : relu en liste blanche', s2.pool.catalog === 'ready' && same(s2.pool.eligible, ['passeur']) && s2.pool.why.ban.length === 1 && s2.pool.weights.passeur === 1.5);
 t('history.played : chaînes seulement', same(s2.history.played, ['passeur']));
@@ -98,7 +122,7 @@ t('session : forme invalide → null', H.readSession(null) === null && H.readSes
 
 const CODES = ['BAD_JSON', 'TOO_BIG', 'UNKNOWN_ACTION', 'BAD_PLAYER', 'BAD_CODE', 'SESSION_NOT_FOUND', 'SESSION_FULL',
   'SESSION_CLOSED', 'ALREADY_IN_SESSION', 'NOT_IN_SESSION', 'REPLACED',
-  'NOT_HOST', 'DRAW_IN_PROGRESS', 'NOT_DRAWN', 'NO_ELIGIBLE_GAME', 'MANIFEST_UNAVAILABLE', 'DRAW_FAILED', 'BAD_PREFS', 'BAD_CAPS', 'BAD_CONSTRAINTS',
+  'NOT_HOST', 'DRAW_IN_PROGRESS', 'NOT_DRAWN', 'NO_ELIGIBLE_GAME', 'NO_SERVER_AVAILABLE', 'MANIFEST_UNAVAILABLE', 'DRAW_FAILED', 'BAD_PREFS', 'BAD_CAPS', 'BAD_CONSTRAINTS',
   'NOT_LAUNCHING', 'LAUNCH_MISMATCH', 'LAUNCH_CONSUMED', 'LAUNCH_EXPIRED', 'BAD_ROOM_CODE', 'WRONG_ROOM'];
 // La liste est relue dans protocol.js du serveur : un code ajouté là-bas sans
 // phrase ici ferait échouer ce test.
