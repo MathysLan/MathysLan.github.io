@@ -257,8 +257,44 @@ async function enter(code) {
       ? { action: 'join', name, avatar }
       : { action: 'join', name, code, avatar });
   } catch (err) {
-    showError(err.name === 'NotAllowedError' ? 'accès micro refusé - le jeu en a besoin' : err.message);
+    const micro = err.name === 'NotAllowedError';
+    showError(micro ? 'accès micro refusé - le jeu en a besoin' : err.message);
+    // Entrée lancée par le Hub et ratée : on le dit, sinon le groupe attend un
+    // joueur qui n'arrivera jamais. Le micro refusé est un échec d'ENTRÉE (le
+    // jeu en a besoin), pas un serveur injoignable.
+    if (lien && viaHub && !you) { viaHub = false; lien.failed(micro ? 'JOIN' : 'UNREACHABLE', micro ? 'micro refusé' : err.message); }
   }
+}
+
+// --- lancé par le Game Hub -------------------------------------------------
+// Si la page a été ouverte par le Hub, un billet dit si l'on CRÉE la partie
+// (l'hôte du lancement) ou si l'on REJOINT le code du groupe. Dans les deux cas
+// on passe par `enter()`, le chemin normal de cette page : aucun second système
+// de création ni de join, et le micro est demandé au même moment qu'à la main.
+// ⚠️ Sans billet, `lien` vaut null et la page marche exactement comme avant.
+let viaHub = false;            // le join en cours vient du Hub
+let partirSansAttendre = false;
+let codeDeclare = null;        // le code déjà annoncé au Hub (une seule fois)
+const lien = window.HubHandoff ? HubHandoff.start({
+  gameId: 'imitation',
+  join: (code) => {
+    viaHub = true;
+    if (!$('name-input').value.trim()) $('name-input').value = GameProfile.load().name || '';
+    enter(code || undefined);
+  },
+  onUpdate: attente,
+}) : null;
+
+// L'hôte ne lance pas tant que le groupe n'est pas dans la room : imitation-server
+// refuse un join quand la phase n'est plus `lobby` (« partie en cours »), donc un
+// invité en retard serait laissé dehors. Il peut partir sans eux — explicitement.
+// Hors Hub, seule la règle habituelle s'applique : au moins 2 joueurs.
+function attente(i) {
+  const n = i && i.launch.stage === 'join' ? i.waitingIds.length : 0;
+  const bloque = isHost && n > 0 && !partirSansAttendre;
+  $('start').disabled = bloque || lastPlayers.length < 2;
+  $('start').textContent = bloque ? `En attente de ${i.waiting}…` : 'Lancer la partie';
+  $('start-anyway').hidden = !bloque;
 }
 
 // --- lobby : prêt, config du host, code copiable ---------------------------
@@ -274,6 +310,10 @@ $('ready-btn').addEventListener('click', toggleReady);
 $('rec-ready-btn').addEventListener('click', toggleReady);
 
 $('start').addEventListener('click', () => {
+  NET.send({ action: 'start', rounds: +$('rounds-select').value });
+});
+$('start-anyway').addEventListener('click', () => {
+  partirSansAttendre = true;
   NET.send({ action: 'start', rounds: +$('rounds-select').value });
 });
 
@@ -402,6 +442,10 @@ function renderHostControls() {
 NET.on('room', (msg) => {
   you = msg.you;
   $('room-code').textContent = msg.code;
+  // Lancé par le Hub : on lui dit dans quelle room on est. L'hôte y déclare le
+  // code (le seul qu'il croira), les invités confirment y être entrés. ⚠️ `room`
+  // arrive à CHAQUE changement du salon : une seule annonce.
+  if (lien && !codeDeclare) { codeDeclare = msg.code; viaHub = false; lien.roomReady(msg.code); }
   lastPlayers = msg.players;
   const me = msg.players.find((p) => p.id === you);
   isHost = !!(me && me.host);
@@ -420,7 +464,7 @@ NET.on('room', (msg) => {
   $('rec-ready-btn').textContent = myReady ? '✔ j\'ai fini' : 'j\'ai fini !';
   $('rec-ready-btn').classList.toggle('is-ready', myReady);
   $('host-config').hidden = !isHost;
-  $('start').disabled = msg.players.length < 2;
+  attente(lien && lien.info());
   // On NOMME ceux qu'on attend : « 2/4 prêts » ne dit pas après qui on poireaute.
   const waiting = msg.players.filter((p) => !p.ready).map((p) => p.name);
   $('ready-count').innerHTML = waiting.length === 0
@@ -435,7 +479,12 @@ NET.on('room', (msg) => {
 });
 
 NET.on('scores', (msg) => renderScoreboard(msg.scores));
-NET.on('error', (msg) => showError(msg.message));
+NET.on('error', (msg) => {
+  showError(msg.message);
+  // Le serveur refuse d'entrer (code inconnu, room pleine, partie en cours) :
+  // le Hub est prévenu, pour que le groupe le sache au lieu d'attendre.
+  if (lien && viaHub && !you) { viaHub = false; lien.failed('JOIN', msg.message); }
+});
 NET.on('closed', () => { if (you) showError('connexion au serveur perdue'); });
 NET.on('hurry', () => stopTake()); // le host a clôturé : la prise en cours part telle quelle
 NET.on('listen', (msg) => { pendingListen = msg; });
@@ -520,7 +569,7 @@ const PHASES = {
     inEndScreen = false;
     show('game');
     hideStage();
-    if (msg.round === 1) jingle('start');
+    if (msg.round === 1) { jingle('start'); if (lien && isHost) lien.started(); }
     setStage(`round ${msg.round}/${msg.of} — 👀 regarde`, 'écoute bien : après, ce sera à toi de l\'imiter');
     const v = $('ref-video');
     v.hidden = false;
@@ -565,6 +614,7 @@ const PHASES = {
     hideStage();
     show('game');
     jingle('end');
+    if (lien) { lien.ended(); $('to-hub').hidden = false; }
     $('scores').hidden = false;
     $('back-lobby').hidden = false;
     const medals = ['🥇', '🥈', '🥉'];

@@ -54,7 +54,7 @@
       "join": "v1",
       "content": false,
       "replay": false,
-      "handoff": false
+      "handoff": true
     },
     {
       "id": "demicercle",

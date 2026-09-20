@@ -157,6 +157,10 @@
 
   #scores { margin-top: 1rem; }
   #back-lobby { margin-top: 1.2rem; }
+  /* Retour au Game Hub, visible seulement quand la partie vient de lui.
+     ⚠️ Surtout pas la classe `.back` : elle est réservée au retour vers le
+     portfolio, et tests/games.html lit le premier `a.back` de la page. */
+  #to-hub { display: block; margin-top: .8rem; color: var(--g-accent); }
 
   [hidden] { display: none !important; }
   @media (max-width: 640px) {
@@ -223,6 +227,9 @@
           <option value="10">10</option>
         </select>
         <button id="start">Lancer la partie</button>
+        <!-- Lancé par le Game Hub : l'hôte attend que le groupe soit entré
+             (imitation-server refuse un join hors lobby). Il peut passer outre. -->
+        <button id="start-anyway" type="button" hidden>Lancer sans attendre</button>
         <p id="ready-count"></p>
       </div>
     </section>
@@ -264,6 +271,7 @@
           <button id="next-btn" hidden></button>
           <p id="wait-host" hidden>en attente du host…</p>
           <button id="back-lobby" hidden>← retour au lobby</button>
+          <a id="to-hub" href="../" hidden>↩ Retour au Game Hub</a>
         </div>
       </div>
     </section>
@@ -277,6 +285,11 @@
   <!-- Avatar des joueurs (emoji ou photo) à l'affichage, sans innerHTML. -->
   <script src="../shared/game-avatar.js"></script>
   <script src="net.js"></script>
+  <!-- Le Game Hub : lu seulement si la page a été ouverte par lui (un billet en
+       sessionStorage). Sans billet, ces deux fichiers ne font rien du tout et
+       Imitation s'ouvre et se joue exactement comme avant. -->
+  <script src="../shared/game-hub.js"></script>
+  <script src="../shared/hub-handoff.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
