@@ -1048,7 +1048,8 @@ contente pas de relire le JSON :
 
 Pilote **Le Passeur** ; navigation **même onglet** (donc un `resumeToken` sera
 nécessaire dès le serveur de hub) ; photo de profil **au Hub seulement**, emoji
-conservé dans les jeux ; pré-réveil Render **au moment du tirage** ; public
+conservé dans les jeux ; ~~pré-réveil Render **au moment du tirage**~~
+(abandonné le 2026-09-20 : on ne réveille plus rien avant de tirer) ; public
 **entre amis** ; `/games/` **remplacera** le faux randomizer de `js/gamehub.js`.
 
 ⚠️ Deux limites de l'existant, mesurées, qui commanderont les phases tardives :
@@ -1373,6 +1374,10 @@ score de soirée, aucune base.
     LOBBY → 🎲 (hôte) → le Hub filtre, pondère, tire → caisse → révélation
           → CONTINUER (debrief) → 🎲 tirage suivant → …   (même session, history.played grandit)
 
+⚠️ Le schéma ci-dessus est à jour, mais les détails de SANTÉ écrits dans cette
+section ont été corrigés depuis : voir « Le tirage ne dépend plus du /health »
+en fin de fichier. En deux mots : rien n'est réveillé avant le tirage.
+
 ### Côté serveur (game-hub-server)
 
 - **`src/engine.js`, module pur** : FILTRER (nombre de joueurs, mode local,
@@ -1386,12 +1391,17 @@ score de soirée, aucune base.
   relit `videos.json`. Ajouter un jeu au portfolio l'ajoute au tirage sans
   redéployer le Hub.
 - **Santé** : un GET sur l'URL `health` du manifest (`src/health.js`),
-  **jamais** de WebSocket vers un jeu. Pré-réveil à la création de session ;
-  revérification avant chaque tirage (40 s max, le temps d'un réveil Render).
+  **jamais** de WebSocket vers un jeu.
+  ⚠️⚠️ **Plus aucun /health n'est consulté pendant un tirage**, et aucun
+  pré-réveil n'a lieu à la création de session (corrigé le 2026-09-20, voir la
+  section de fin de fichier). `pool.health` n'est plus qu'une **information**,
+  souvent `unknown`.
 - **Concurrence** : l'état passe à `drawing` AVANT le moindre `await` → un
   second `draw` reçoit `DRAW_IN_PROGRESS`. Seul l'hôte tire (`hostId` relu
   côté serveur). `draw` ne porte AUCUN champ.
 - Aucun jeu possible : `NO_ELIGIBLE_GAME` + `why`, **pas de repli**.
+  ⚠️ Ce code veut dire **une seule chose** : aucun jeu ne passe les RÈGLES
+  (joueurs, besoins, veto, durée). Jamais « un serveur ne répond pas ».
 
 ### Côté portfolio
 
@@ -1488,7 +1498,12 @@ l'hôte DU LANCEMENT peut déclarer un code), le lancement est lié au tirage
    groupe est dans la room ». Le bandeau disait « partie en cours » au salon du
    jeu ; il dit maintenant qui est dans la partie.
 
-### ⚠️⚠️ DÉFAUT DE PRODUCTION TROUVÉ (et corrigé) : le réveil ≠ la panne
+### ⚠️⚠️ DÉFAUT DE PRODUCTION TROUVÉ : le réveil ≠ la panne
+
+> **Dépassé le 2026-09-20.** Le correctif décrit ici (réessayer pendant 40 s au
+> lieu de trancher tout de suite) rendait le tirage plus tolérant, mais il le
+> laissait dépendre du /health — donc lent, et faillible. La santé a fini par
+> sortir complètement du tirage. Gardé pour le diagnostic qu'il contient.
 
 Mesuré contre la production pendant cette phase : le Hub déployé voyait les
 **sept** serveurs de jeu « down » en moins d'une seconde, donc le tirage ne
@@ -1557,3 +1572,80 @@ moteur 68 et `test-draw` 64 (trois fois, le tirage étant aléatoire) ;
 `tests/handoff-play.mjs` 42, `tests/handoff.mjs` 22, `tests/hub-play.mjs` 45,
 fichiers générés OK. Vérifié nommément : à 1 joueur, Imitation et le Ban sont
 bloqués par « il faut 2 joueurs » et par **rien d'autre**.
+
+## Le tirage ne dépend plus du /health (2026-09-20)
+
+Un serveur de jeu endormi ne doit pas coûter un tirage. Sur le plan gratuit de
+Render un serveur au repos met ~30 s à répondre : le Hub prenait ce silence pour
+une panne, écartait le jeu, et pouvait finir par ne **rien** trouver à proposer
+à un groupe dont tous les jeux étaient parfaitement jouables. Mesuré en
+production : les sept serveurs vus « down » en moins d'une seconde.
+
+### Le flux réel, aujourd'hui
+
+    catalogue (data/games.manifest.json, relu sur Pages, cache 5 min)
+      → FILTRER   nombre de joueurs, mode local, besoins, veto, durée max
+      → PONDÉRER  (1 + 0,5 × ❤️) × récence (0,15 / 0,4 / 0,7 selon l'ancienneté)
+      → TIRER     hasard crypto, tout de suite                    ◄── ~90 ms
+      → révélation (la caisse met en scène un résultat DÉJÀ décidé)
+      → CONTINUER → handoff → la page du jeu s'ouvre et se connecte à SON
+        serveur : c'est ce moment-là qui le réveille, et personne d'autre
+
+**Aucun `/health` n'est appelé dans ce chemin.** Ni au clic sur 🎲, ni à la
+création de la session (le pré-réveil des sept serveurs a disparu aussi). Le
+`onDraw` de `src/hub.js` ne contient plus un seul `await health…` — les deux
+occurrences de « health » qui y restent sont des commentaires.
+
+### Ce que la santé est encore
+
+- `pool.health` voyage dans l'état de session, pour **informer** : c'est le
+  dernier état connu d'un serveur, et il vaut le plus souvent `unknown`
+  puisqu'on n'interroge plus personne à l'avance. Il n'entre **ni dans le
+  filtre, ni dans les poids, ni dans le tirage**.
+- `src/health.js` reste appelable pour le diagnostic (`check`, `one`, `status`,
+  `snapshot`, `markDown`), et reste un simple GET — jamais un WebSocket vers un
+  jeu.
+- Une seule décision s'appuie encore dessus, et c'est au **LANCEMENT**, pas au
+  tirage : si un joueur vient de signaler le serveur injoignable (`abort` avec
+  `UNREACHABLE` → `markDown`), le lancement suivant échoue tout de suite en
+  `SERVER_DOWN` plutôt que d'envoyer le groupe dans le vide. C'est une
+  information fraîche, donnée par un humain, pas une sonde.
+
+### Les erreurs, et ce qu'elles veulent dire
+
+- **`NO_ELIGIBLE_GAME`** : aucun jeu ne passe les RÈGLES. C'est le seul refus
+  possible d'un tirage, et il ne parle jamais d'un serveur.
+- **`NO_SERVER_AVAILABLE` a été supprimé** du protocole : plus personne ne peut
+  l'émettre. Ne pas le réintroduire — ce serait remettre la santé dans le
+  tirage.
+- ⚠️ Côté client, un code d'erreur **inconnu** n'est plus noyé dans « Le Hub a
+  refusé la demande. » : le code est affiché, avec le message du serveur s'il y
+  en a un. Sans ça, un serveur plus récent que la page ressemblait à un refus
+  banal et n'était pas diagnosticable.
+
+### ⚠️ Ce qu'il ne faut pas « réparer »
+
+Le bloc **« Réveil du serveur… »** (`#hub-waking`, `wakingText`, `showWake`) a
+existé quelques heures entre les deux corrections, puis a été retiré : plus rien
+ne pose `waking`, et les champs `waking` / `tried` sont sortis de l'état public.
+Si l'on veut un jour montrer un réveil, sa place est **l'étape de lancement** —
+là où Render se réveille vraiment —, pas le tirage.
+
+### Les tests qui gardent la règle
+
+- `game-hub-server/test-candidat.js` remplace le vérificateur de santé par un
+  faux qui **compte les appels** : c'est le compteur qui prouve la règle, pas le
+  résultat. Trois serveurs morts → un jeu est tiré quand même, en moins de
+  500 ms, sans un seul appel. Si un `await health…` revient dans `onDraw`, c'est
+  ce fichier qui le dira.
+- `tests/hub.mjs` : un tirage complet contre le vrai Hub n'interroge aucun
+  serveur de jeu.
+- `tests/hub-draw.mjs`, section « 1 joueur » : le `/health` du Passeur est
+  bloqué sur 503 — un serveur aussi mort que possible, et c'est la tête qu'a un
+  serveur Render endormi. Mesuré en vrai navigateur : **Passeur seul éligible
+  est tiré en ~90 ms**, 0 appel `/health` avant la révélation, la caisse
+  l'ouvre, aucun message d'erreur.
+
+**Dernier passage** : `game-hub-server` `npm test` 378/378 ; `tests/hub.mjs` 82,
+`tests/hub-draw.mjs` 79 (77 en mouvement réduit), `tests/handoff-play.mjs` 42,
+`tests/handoff.mjs` 22, `tests/hub-play.mjs` 45, fichiers générés OK.
