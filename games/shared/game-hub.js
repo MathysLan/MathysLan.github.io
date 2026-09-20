@@ -258,8 +258,9 @@
     DRAW_IN_PROGRESS: 'Un tirage est déjà en cours.',
     NOT_DRAWN: 'Il n\'y a pas de tirage à confirmer.',
     NO_ELIGIBLE_GAME: 'Aucun jeu n\'est possible pour ce groupe : chaque jeu dit pourquoi dans la liste.',
-    // Les jeux étaient possibles, mais aucun de leurs serveurs n'a répondu :
-    // ce n'est pas le groupe qui est en cause, c'est Render.
+    // ⚠️ Plus émis depuis que le tirage ignore la santé des serveurs (un jeu
+    // n'est plus jamais écarté parce que son serveur dort). Gardé par sécurité,
+    // au cas où la page tourne devant un Hub plus ancien.
     NO_SERVER_AVAILABLE: 'Aucun serveur de jeu ne répond pour l\'instant. Ils dorment peut-être (~30 s de réveil) : réessaie.',
     MANIFEST_UNAVAILABLE: 'Le Hub n\'arrive pas à lire le catalogue des jeux. Réessaie dans un instant.',
     DRAW_FAILED: 'Le tirage a échoué. Réessaie.',
@@ -312,7 +313,14 @@
       if (code === 'BAD_PLAYER' && typeof message === 'string' && message) return 'Profil refusé : ' + message + '.';
       return TEXTES[code];
     }
-    return 'Le Hub a refusé la demande.';
+    // ⚠️ Un code qu'on ne connaît pas ne doit PAS se perdre derrière une phrase
+    // creuse : sans lui, un vrai problème (un serveur plus récent que la page,
+    // un cas jamais vu) ressemble à un refus banal et n'est pas diagnosticable.
+    // On le montre tel quel, avec le message du serveur s'il en donne un.
+    var brut = typeof message === 'string' && message ? ' : ' + message : '';
+    return typeof code === 'string' && code
+      ? 'Le Hub a refusé la demande (' + code + brut + ').'
+      : 'Le Hub a refusé la demande.';
   }
 
   // --------------------------------------------------------------- client

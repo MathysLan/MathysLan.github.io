@@ -144,7 +144,11 @@ t('lancement : billet et lancement relus en liste blanche', (() => {
 t('erreurs : les ' + CODES.length + ' codes RÉELS du Hub ont une phrase lisible',
   CODES.every((c) => { const x = H.errorText(c); return typeof x === 'string' && x.length > 10 && !/[{}]/.test(x) && !x.includes(c); }));
 t('erreurs : BAD_PLAYER reprend la raison du serveur', H.errorText('BAD_PLAYER', 'il faut un pseudo') === 'Profil refusé : il faut un pseudo.');
-t('erreurs : code inconnu → phrase générique, jamais le code brut', H.errorText('ROOM_NOT_FOUND') === 'Le Hub a refusé la demande.');
+t('erreurs : code inconnu → le code est MONTRÉ, pas noyé dans une phrase creuse',
+  H.errorText('ROOM_NOT_FOUND') === 'Le Hub a refusé la demande (ROOM_NOT_FOUND).');
+t('erreurs : code inconnu → le message du serveur est repris s\'il y en a un',
+  H.errorText('ROOM_NOT_FOUND', 'salle introuvable') === 'Le Hub a refusé la demande (ROOM_NOT_FOUND : salle introuvable).');
+t('erreurs : sans code du tout → la phrase générique reste', H.errorText(null) === 'Le Hub a refusé la demande.');
 
 // ═══════════════════════════════════════════ 2. contre le vrai serveur du Hub
 const PROD = arg('--hub');
@@ -297,7 +301,12 @@ try {
         return w === Math.round(base * 0.15 * 10000) / 10000;
       })(), JSON.stringify(sF.last.session.draw.weights));
       if (!PROD && sante) {
-        t('santé : le Hub n\'a fait que des GET HTTP vers les jeux, jamais un WebSocket', sante.appels.length > 0 && sante.appels.every((a) => a.method === 'GET' && !a.upgrade));
+        // ⚠️ LA RÈGLE DE FOND : un tirage ne consulte AUCUN /health. Un serveur
+        // de jeu endormi (Render : ~30 s) ne doit jamais coûter un tirage. Le
+        // serveur du jeu se réveille quand la page du jeu s'y connecte.
+        t('santé : un tirage complet n\'a interrogé aucun serveur de jeu', sante.appels.length === 0,
+          sante.appels.map((a) => a.id).join(',') || 'aucun appel');
+        t('santé : et jamais un WebSocket vers un jeu, quoi qu\'il arrive', sante.appels.every((a) => a.method === 'GET' && !a.upgrade));
       }
     }
     E.leave(); F.leave();
