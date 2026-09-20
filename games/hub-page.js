@@ -151,7 +151,6 @@
       if (p.host) tags.appendChild(tag('hôte', 'host'));
       if (p.id === you) tags.appendChild(tag('toi', 'me'));
       if (!p.connected) tags.appendChild(tag('absent', 'away'));
-      for (const n of NEEDS) if (p.caps && p.caps[n]) tags.appendChild(tag((CAP_TEXT[n] || { tag: n }).tag, 'cap'));
       li.append(GameAvatar.node(p.avatar, undefined, 'lg'), name);
       if (tags.childNodes.length) li.appendChild(tags);   // pas de ligne vide réservée
       return li;
@@ -174,15 +173,12 @@
   const au = (t) => (/^Le /.test(t) ? 'au ' + t.slice(3) : /^Les /.test(t) ? 'aux ' + t.slice(4) : 'à ' + t);
   const range = (r, unit) => (!r ? '—' : (r.min === r.max ? String(r.min) : `${r.min}–${r.max}`) + (unit ? ' ' + unit : ''));
 
-  // Les capacités à déclarer : celles que le catalogue demande vraiment.
-  const CAP_TEXT = {
-    mic: { label: '🎤 J\'ai un micro', tag: '🎤 micro' },
-    consent: { label: '⚠️ J\'accepte les jeux à avertissement', tag: '⚠️ ok' },
-    cam: { label: '📷 J\'ai une caméra', tag: '📷 caméra' },
-  };
-  const NEEDS = [];
-  Object.values(INFO).forEach((g) => (g.hub && g.hub.needs || []).forEach((n) => { if (!NEEDS.includes(n)) NEEDS.push(n); }));
-  const neededBy = (n) => Object.values(INFO).filter((g) => g.hub && g.hub.needs.includes(n)).map((g) => g.title);
+  // ⚠️ Plus d'écran « Ce que tu apportes » : micro et avertissement sont acquis
+  // d'office (game-hub-server, session.js). Le Hub n'a jamais testé ces
+  // capacités — c'est le jeu qui demande le micro à l'entrée, et l'avertissement
+  // est affiché sur sa page. La règle NEEDS existe toujours côté serveur, et son
+  // libellé aussi (game-hub.js, reasonText) : si un besoin redevient un jour un
+  // filtre, il s'affichera dans la raison du jeu, sans interface à refaire.
 
   const reduced = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { return false; } };
   const nameOf = (session, id) => (session.players.find((p) => p.id === id) || {}).name || '?';
@@ -214,41 +210,12 @@
     current = { session, you };
     renderLobby(session, you);
     const ok = !!session.pool;          // null = serveur d'avant le randomizer
-    $('hub-caps').hidden = !ok || !NEEDS.length;
     $('hub-pool').hidden = !ok;
-    if (ok) { renderCaps(session, you); renderPool(session, you); }
+    if (ok) renderPool(session, you);
     renderDraw(session, you);
     renderLaunch(session, you);
     renderFoot(session, you);
   }
-
-  // ---------------------------------------------------- ce que tu apportes
-  function renderCaps(session, you) {
-    const moi = mine(session, you);
-    $('hub-caps-list').replaceChildren(...NEEDS.map((n) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'ghost hub-cap';
-      b.dataset.cap = n;
-      const on = moi.caps[n] === true;
-      b.setAttribute('aria-pressed', String(on));
-      const l = document.createElement('span');
-      l.textContent = (CAP_TEXT[n] || { label: n }).label;
-      const s = document.createElement('small');
-      s.textContent = 'requis par : ' + neededBy(n).join(', ');
-      const st = document.createElement('span');
-      st.className = 'hub-cap-state';
-      st.textContent = on ? 'déclaré' : 'non déclaré';
-      b.append(l, s, st);
-      return b;
-    }));
-  }
-  $('hub-caps-list').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-cap]');
-    if (!b || !current) return;
-    const n = b.dataset.cap;
-    hub.setCaps({ [n]: !(mine(current.session, current.you).caps[n] === true) });
-  });
 
   // ------------------------------------------------------------- les jeux
   function renderPool(session, you) {
@@ -359,34 +326,6 @@
     hub.setConstraints(v ? Number(v) : null);
   });
 
-  // ------------------------------------------------------- réveil d'un serveur
-  // Sur le plan gratuit de Render, le serveur du jeu tiré peut dormir : le Hub
-  // attend jusqu'à 40 s sa réponse, et recale le candidat s'il ne vient pas.
-  // Sans rien à l'écran, ce silence passe pour une panne. On affiche donc
-  // l'état et le temps déjà passé — et RIEN d'autre : le Hub n'envoie pas quel
-  // jeu il réveille, pour ne pas éventer la caisse.
-  // ⚠️ Le compteur est la seule chose qui bouge en mouvement réduit (le point
-  // ne clignote plus) : c'est lui qui dit que ça avance.
-  let wakeTimer = null, wakeStart = 0, wakeKey = null;
-
-  function stopWake() {
-    if (wakeTimer) { clearInterval(wakeTimer); wakeTimer = null; }
-    wakeKey = null;
-    $('hub-waking').hidden = true;
-  }
-
-  function showWake(d, txt) {
-    // Nouveau tirage, ou nouvelle tentative : l'attente repart de zéro.
-    const key = d.id + ':' + d.tried;
-    if (wakeKey !== key) { wakeKey = key; wakeStart = Date.now(); }
-    $('hub-waking-title').textContent = txt.titre;
-    $('hub-waking-sub').textContent = txt.detail;
-    $('hub-waking').hidden = false;
-    const tick = () => { $('hub-waking-sec').textContent = Math.round((Date.now() - wakeStart) / 1000) + ' s'; };
-    tick();
-    if (!wakeTimer) wakeTimer = setInterval(tick, 1000);
-  }
-
   // ----------------------------------------------------------------- caisse
   function renderDraw(session, you) {
     const d = session.draw;
@@ -395,7 +334,7 @@
     const hist = session.history.played;
     $('hub-history').textContent = hist.length ? 'Tirés ce soir : ' + hist.map((id, i) => `${i + 1}. ${info(id).title}`).join(' · ') : '';
     if (!actif) {
-      if (!animating) { stage.hidden = true; stage.classList.remove('is-pending', 'is-open'); stopWake(); }
+      if (!animating) { stage.hidden = true; stage.classList.remove('is-pending', 'is-open'); }
       return;
     }
     stage.hidden = false;
@@ -408,9 +347,7 @@
       $('hub-result').hidden = true;
       HubCrate.reset($('hub-reel'));
       reelFor = null;
-      const txt = GameHub.wakingText(d);
-      if (txt.titre) showWake(d, txt); else stopWake();
-      $('hub-draw-status').textContent = txt.phrase;
+      $('hub-draw-status').textContent = 'La caisse est secouée… le Hub prépare le tirage.';
       return;
     }
     if (d.gameId && seen.get() !== d.id) return animate(d);
@@ -422,7 +359,6 @@
     const stage = $('hub-draw');
     animating = d.id;
     amene(d);
-    stopWake();
     stage.classList.remove('is-pending');
     stage.classList.add('is-open');
     $('hub-result').hidden = true;
@@ -439,7 +375,6 @@
 
   function showResult(session, you, d) {
     const stage = $('hub-draw');
-    stopWake();
     stage.classList.remove('is-pending');
     stage.classList.add('is-open');
     // Rechargement : la bande n'a pas été déroulée ici, on la pose à l'arrivée.

@@ -7,7 +7,7 @@
 // A (vraie photo), B et C (emoji), trois contextes isolés (trois localStorage,
 // trois player.id). Le parcours :
 //   portfolio → clic RÉEL sur l'entrée Game Hub → /games/ → A crée
-//   → B et C rejoignent → préférences et micro, visibles chez tous
+//   → B et C rejoignent → préférences, visibles chez tous
 //   → A tire : caisse, bande, révélation → CONTINUER → 2e tirage (récence)
 //   → C recharge pendant la révélation : même tirage, pas un nouveau
 //   → aucun jeu possible : le salon dit pourquoi
@@ -260,7 +260,7 @@ const stop = () => {
 console.log(`Game Hub — randomizer dans le navigateur, 3 joueurs (${REDUCED ? 'mouvement RÉDUIT' : 'mouvement normal'})\n`);
 const BASE = `http://127.0.0.1:${HTTP_PORT}`;
 const PAGE = `${BASE}/games/?hub=${encodeURIComponent(HUB)}`;
-const INTERDITS = ['morpion', 'puissance4', 'imitation', 'ban', 'precision'];   // pour ce groupe, voir étape 3
+const INTERDITS = ['morpion', 'puissance4', 'precision'];   // pour ce groupe, voir étape 3
 
 try {
   cdp = await cdpBrowser();
@@ -314,10 +314,9 @@ try {
   t('le catalogue affiché = le manifest réel, dans son ordre',
     JSON.stringify((await B.eval(VUE)).games.map((g) => g.id)) === JSON.stringify(MANIFEST_JSON.games.map((g) => g.id)));
 
-  // ═══ 3. préférences et capacités, visibles chez tous
+  // ═══ 3. préférences, visibles chez tous
   await B.click('#hub-games [data-pref=veto][data-game=precision]');
   await C.click('#hub-games [data-pref=love][data-game=passeur]');
-  await A.click('#hub-caps-list [data-cap=mic]');
   await A.until(`(() => { const v = ${VUE}; const p = v.games.find((g) => g.id === 'precision'); const s = v.games.find((g) => g.id === 'passeur');
     return p && !p.ok && /veto de Bruno/.test(p.etat) && /Chloé/.test(s.loves); })()`, 8000, 'prefs visibles chez A');
   const vA = await A.eval(VUE), vB = await B.eval(VUE), vC = await C.eval(VUE);
@@ -326,14 +325,21 @@ try {
   t('chacun voit SES boutons pressés : B son veto, C son cœur, A rien',
     vB.games.find((g) => g.id === 'precision').veto && vC.games.find((g) => g.id === 'passeur').love
     && !vA.games.some((g) => g.love || g.veto));
-  t('micro de A seulement : Imitation bloquée, et les noms de ceux qui n\'en ont pas',
-    /micro non déclaré : Bruno et Chloé/.test(vA.games.find((g) => g.id === 'imitation').etat), vA.games.find((g) => g.id === 'imitation').etat);
+  // ⚠️ L'écran « Ce que tu apportes » n'existe plus : micro et avertissement
+  // sont acquis d'office. Imitation et le Ban ne peuvent donc plus être écartés
+  // que par leurs bornes de joueurs — à 3, ils passent.
+  t('plus d\'écran « Ce que tu apportes » dans le salon',
+    await A.eval(`!document.getElementById('hub-caps') && !document.getElementById('hub-caps-list')`));
+  t('plus une seule mention de micro, d\'avertissement ou de « déclaré »',
+    !/micro|avertissement|non déclaré|Ce que tu apportes/i.test(vA.texte),
+    (vA.texte.match(/micro|avertissement|déclaré|Ce que tu apportes/gi) || []).join(' | '));
+  t('micro acquis : Imitation est possible, sans rien déclarer', vA.eligibles.includes('imitation'));
+  t('avertissement acquis : le Ban est possible, sans rien déclarer', vA.eligibles.includes('ban'));
   t('bloqué par nombre : Morpion (2 max) et Qui Ment ? possible à 3',
     /2 joueurs maximum, vous êtes 3/.test(vA.games.find((g) => g.id === 'morpion').etat) && vA.eligibles.includes('quiment'));
-  t('bloqué par capacité : le Ban (avertissement non accepté)', /avertissement non accepté/.test(vA.games.find((g) => g.id === 'ban').etat));
   t('jeu local : Puissance 4 « se joue seul »', /seul/.test(vA.games.find((g) => g.id === 'puissance4').etat));
-  const ELIG = ['demicercle', 'passeur', 'quiment'];
-  t('éligibles, identiques chez les trois : Demi-Cercle, Passeur, Qui Ment ?',
+  const ELIG = ['imitation', 'demicercle', 'ban', 'passeur', 'quiment'];
+  t('éligibles, identiques chez les trois : Imitation, Demi-Cercle, Ban, Passeur, Qui Ment ?',
     [vA, vB, vC].every((v) => JSON.stringify(v.eligibles) === JSON.stringify(ELIG)), vA.eligibles.join(','));
   t('les chances affichées suivent le cœur de C (Passeur plus probable)',
     (() => { const pct = (id) => +vA.games.find((g) => g.id === id).etat.match(/(\d+) %/)[1]; return pct('passeur') > pct('demicercle') && pct('demicercle') === pct('quiment'); })());
@@ -346,14 +352,14 @@ try {
   // redessine en box-shadow inset. On lit ce qui est réellement peint.
   await B.eval(`document.activeElement && document.activeElement.blur(); window.scrollTo(0, 0); true`);
   const vus = {};
-  for (let i = 0; i < 60 && Object.keys(vus).length < 3; i++) {
+  for (let i = 0; i < 60 && Object.keys(vus).length < 2; i++) {
     await B.tab();
     const f = await B.eval(`(() => { const a = document.activeElement; if (!a || a.tagName !== 'BUTTON') return null; const s = getComputedStyle(a);
-      const genre = a.dataset.pref ? 'pref' : a.dataset.cap ? 'cap' : a.id === 'hub-leave' ? 'quitter' : null;
+      const genre = a.dataset.pref ? 'pref' : a.id === 'hub-leave' ? 'quitter' : null;
       return genre && { genre, fv: a.matches(':focus-visible'), jaune: /rgb\\(255, 215, 0\\)/.test(s.boxShadow), filtre: s.filter, opacite: s.opacity }; })()`);
     if (f && !vus[f.genre]) vus[f.genre] = f;
   }
-  for (const g of ['cap', 'pref', 'quitter']) {
+  for (const g of ['pref', 'quitter']) {
     const f = vus[g];
     t(`clavier : anneau jaune visible sur un bouton « ${g} » atteint à la touche Tab`, !!f && f.fv && f.jaune && f.filtre === 'none' && f.opacite === '1', JSON.stringify(f));
   }
@@ -446,7 +452,7 @@ try {
       const vis = (id) => { const e = document.getElementById(id); if (!e || e.hidden) return false; const r = e.getBoundingClientRect(); return r.width > 0 && r.left >= -1 && r.right <= innerWidth + 1; };
       const stage = document.getElementById('hub-draw').getBoundingClientRect();
       const pps = [...document.querySelectorAll('#hub-players .g-av')].map((a) => a.getBoundingClientRect().width);
-      const boutons = [...document.querySelectorAll('#hub-games button, #hub-caps-list button, #hub-draw-btn, #hub-leave')].filter((b) => !b.hidden && b.offsetParent);
+      const boutons = [...document.querySelectorAll('#hub-games button, #hub-draw-btn, #hub-leave')].filter((b) => !b.hidden && b.offsetParent);
       return { over: document.documentElement.scrollWidth - innerWidth,
         caisse: stage.left >= -1 && stage.right <= innerWidth + 1 && stage.height <= innerHeight, caisseH: Math.round(stage.height),
         code: vis('hub-code'), tirer: vis('hub-draw-btn'), pp: pps.length === 3 && pps.every((x) => x >= 44),
@@ -459,17 +465,15 @@ try {
   await A.size(1100, 1000);
 
   // ═══ 8. aucun jeu possible : le salon explique, le bouton se tait
-  await B.click('#hub-games [data-pref=veto][data-game=demicercle]');
-  await B.click('#hub-games [data-pref=veto][data-game=passeur]');
-  await B.click('#hub-games [data-pref=veto][data-game=quiment]');
+  for (const id of ['imitation', 'demicercle', 'ban', 'passeur', 'quiment']) await B.click(`#hub-games [data-pref=veto][data-game=${id}]`);
   await A.until(`(${VUE}).eligibles.length === 0`, 8000, 'plus aucun éligible');
   const v8 = await A.eval(VUE), v8c = await C.eval(VUE);
   t('aucun jeu possible : le salon le dit, chez tout le monde', v8.none && v8c.none && /Aucun jeu possible/.test(v8.noneTxt));
   t('aucun jeu possible : le bouton de tirage est désactivé chez l\'hôte', v8.drawBtn && v8.drawBtnOff);
-  t('aucun jeu possible : chaque jeu garde sa raison (les vetos nomment Bruno)', v8.games.filter((g) => /veto de Bruno/.test(g.etat)).length === 4);
+  t('aucun jeu possible : chaque jeu garde sa raison (les vetos nomment Bruno)', v8.games.filter((g) => /veto de Bruno/.test(g.etat)).length === 6);
   await A.shot('5-aucun-jeu');
-  for (const id of ['demicercle', 'passeur', 'quiment']) await B.click(`#hub-games [data-pref=veto][data-game=${id}]`);
-  await A.until(`(${VUE}).eligibles.length === 3`, 8000, 'vetos levés');
+  for (const id of ['imitation', 'demicercle', 'ban', 'passeur', 'quiment']) await B.click(`#hub-games [data-pref=veto][data-game=${id}]`);
+  await A.until(`(${VUE}).eligibles.length === ${ELIG.length}`, 8000, 'vetos levés');
   t('B lève SES vetos : les jeux reviennent', true);
 
   // ═══ 9. le même front devant le Hub d'AVANT le randomizer
@@ -481,7 +485,7 @@ try {
     await D.click('#hub-create');
     await D.until(`!document.getElementById('lobby').hidden && document.querySelectorAll('#hub-players .hub-card').length === 1`, 15000, 'salon sur l\'ancien Hub');
     const v9 = await D.eval(VUE);
-    t('ancien Hub : le salon fonctionne, sans bloc de tirage', !v9.drawBtn && await D.eval(`document.getElementById('hub-pool').hidden && document.getElementById('hub-caps').hidden`));
+    t('ancien Hub : le salon fonctionne, sans bloc de tirage', !v9.drawBtn && await D.eval(`document.getElementById('hub-pool').hidden`));
     t('ancien Hub : la page le dit honnêtement', /pas encore le tirage/.test(v9.wait), v9.wait);
     t('ancien Hub : ni « [obj », ni « undefined », ni erreur JS', !/\[obj|undefined|NaN/.test(v9.texte) && D.erreurs.length === 0, D.erreurs.join(' | '));
     await D.shot('6-ancien-hub');
@@ -507,6 +511,16 @@ try {
     await E.until(`!document.getElementById('lobby').hidden && document.querySelectorAll('#hub-games .hub-game').length === 8`, 20000, 'salon de E');
     // Seule à bord : on ne laisse qu'UN jeu possible, pour que le résultat soit
     // connu d'avance — c'est le test « 1 joueur, Passeur seul éligible ».
+    // ⚠️ Avant de réduire : à 1 joueur, Imitation et le Ban doivent être bloqués
+    // par leur MINIMUM DE JOUEURS, et par rien d'autre — plus jamais par une
+    // capacité non déclarée.
+    const solo = await E.eval(VUE);
+    t('1 joueur : Imitation bloquée par les 2 joueurs, pas par le micro',
+      /il faut 2 joueurs/.test(solo.games.find((g) => g.id === 'imitation').etat)
+      && !/micro/i.test(solo.games.find((g) => g.id === 'imitation').etat), solo.games.find((g) => g.id === 'imitation').etat);
+    t('1 joueur : le Ban bloqué par les 2 joueurs, pas par l\'avertissement',
+      /il faut 2 joueurs/.test(solo.games.find((g) => g.id === 'ban').etat)
+      && !/avertissement/i.test(solo.games.find((g) => g.id === 'ban').etat), solo.games.find((g) => g.id === 'ban').etat);
     for (const id of ['precision', 'puissance4']) await E.click(`#hub-games [data-pref=veto][data-game=${id}]`);
     await E.until(`(${VUE}).eligibles.length === 1 && (${VUE}).eligibles[0] === 'passeur'`, 8000, 'Passeur seul éligible');
     t('1 joueur : Passeur reste proposé malgré son serveur muet', true);
@@ -530,7 +544,7 @@ try {
     // L'écran, pendant l'animation de la caisse : rien ne doit parler de réveil.
     const vus = [];
     for (let i = 0; i < 60; i++) {
-      vus.push(await E.eval(`(() => ({ reveil: !document.getElementById('hub-waking').hidden,
+      vus.push(await E.eval(`(() => ({ reveil: !!document.getElementById('hub-waking'),
         statut: document.getElementById('hub-draw-status').textContent,
         msg: document.getElementById('hub-lobby-msg').textContent,
         vu: !document.getElementById('hub-result').hidden,
@@ -541,10 +555,11 @@ try {
     const fin = vus[vus.length - 1];
     t('1 joueur : la caisse révèle Passeur', fin.vu && fin.jeu === 'passeur', JSON.stringify(fin));
     t('1 joueur : la caisse s\'ouvre sans attente de serveur', Date.now() - t0 < 20000, `${Date.now() - t0} ms`);
-    // ⚠️ Le bloc de réveil (#hub-waking) n'a plus de raison d'apparaître au
-    // tirage : plus rien ne pose `waking`. S'il revient ici, c'est qu'un
-    // /health s'est réinvité dans le chemin.
-    t('1 joueur : le bloc « Réveil du serveur… » ne s\'affiche jamais', vus.every((v) => !v.reveil),
+    // ⚠️ Le bloc « Réveil du serveur… » a été retiré : plus rien ne pose
+    // `waking`, puisque le tirage ne consulte plus aucun /health. S'il
+    // réapparaît, c'est qu'une attente de serveur s'est réinvitée dans le
+    // chemin du tirage.
+    t('1 joueur : aucun bloc « Réveil du serveur… » dans la page', vus.every((v) => !v.reveil),
       `${vus.filter((v) => v.reveil).length} relevé(s) sur ${vus.length}`);
     t('1 joueur : aucun message d\'erreur (ni NO_SERVER_AVAILABLE, ni refus générique)',
       vus.every((v) => !/refus|indisponible|ne répond/i.test(v.msg)), fin.msg);

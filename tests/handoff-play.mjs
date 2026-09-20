@@ -231,7 +231,9 @@ try {
   t('A crée, B et C rejoignent : trois joueurs au salon', true, code);
 
   // B ne laisse que Le Passeur : ses vetos, par les vrais boutons.
-  for (const id of ['demicercle', 'precision', 'quiment']) await B.click(`#hub-games [data-pref=veto][data-game=${id}]`);
+  // ⚠️ Imitation et le Ban sont désormais possibles à 3 joueurs : micro et
+  // avertissement sont acquis d'office, il n'y a plus rien à déclarer.
+  for (const id of ['imitation', 'demicercle', 'ban', 'precision', 'quiment']) await B.click(`#hub-games [data-pref=veto][data-game=${id}]`);
   await A.until(`[...document.querySelectorAll('#hub-games .hub-game[data-eligible=true]')].map((x) => x.dataset.game).join() === 'passeur'`, 8000, 'seul Passeur');
   t('seul Le Passeur reste possible (vetos de Bruno)', true);
 

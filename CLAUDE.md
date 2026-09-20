@@ -997,11 +997,14 @@ Elles sont validées par `tools/build.mjs` et testées par `tests/manifest.mjs`.
    est 12 : rien d'implicite, au prix d'un filtre conservateur. Le MJ peut
    allonger une fois dans la partie — le Hub ne surveille pas les réglages d'un
    jeu.
-3. ⚠️ **`needs` est DÉCLARATIF.** Le Hub compare ce que les joueurs annoncent
-   et ne teste JAMAIS une capacité : il ne déclenchera aucune demande de
-   permission micro ou caméra. C'est le jeu qui demande et qui vérifie, à
-   l'entrée. Ne pas « améliorer » le Hub en lui faisant appeler
+3. ⚠️ **Le Hub ne teste JAMAIS une capacité.** Il ne déclenchera aucune
+   demande de permission micro ou caméra : c'est le jeu qui demande et qui
+   vérifie, à l'entrée. Ne pas « améliorer » le Hub en lui faisant appeler
    `getUserMedia`.
+   ⚠️ Depuis le 2026-09-20, **`mic` et `consent` sont acquis d'office** : un
+   nouveau joueur naît avec `caps: { mic: true, consent: true }`
+   (`game-hub-server/src/session.js`), et plus personne ne déclare rien. Voir
+   « Les capacités sont acquises d'office » en fin de fichier.
 
 Vocabulaires fermés aussi pour `needs` (`mic`, `cam`, `consent`) et
 `categories` : `needs: ['micro']` créerait un filtre que rien ne satisfait, en
@@ -1373,7 +1376,8 @@ score de soirée, aucune base.
 ### Côté serveur (game-hub-server)
 
 - **`src/engine.js`, module pur** : FILTRER (nombre de joueurs, mode local,
-  capacités de TOUS, veto d'UN seul, durée max vs `minutes.max`, serveur mort)
+  capacités de TOUS — acquises d'office depuis le 2026-09-20, donc sans effet
+  en pratique —, veto d'UN seul, durée max vs `minutes.max`)
   → PONDÉRER (`(1 + 0,5 × ❤️) × récence`, récence 0,15 / 0,4 / 0,7 selon
   l'ancienneté) → TIRER (hasard crypto). Toutes les raisons d'exclusion sont
   rendues, nominatives, dans `session.pool.why`.
@@ -1399,10 +1403,12 @@ score de soirée, aucune base.
   « match trouvé » sans aucun serveur, donc prétendait trouver un groupe. La
   caisse **solo** « Je joue à quoi ? » reste (tirage sur la page, sans session),
   marquée « tirage solo, sans session », et renvoie au Game Hub.
-- `/games/` : ❤️ / 🚫 par jeu, « ce que tu apportes » (micro, avertissement —
-  dérivés des `needs` du catalogue), durée max (hôte), la raison de chaque
-  exclusion, les chances, la caisse (`games/hub-crate.js`), le résultat, et
-  l'historique de la soirée. `noindex` conservé.
+- `/games/` : ❤️ / 🚫 par jeu, durée max (hôte), la raison de chaque exclusion,
+  les chances, la caisse (`games/hub-crate.js`), le résultat, et l'historique de
+  la soirée. `noindex` conservé.
+  ⚠️ Le bloc « ce que tu apportes » (micro, avertissement) a été **retiré** le
+  2026-09-20 : ces capacités sont désormais acquises d'office. Ne pas le
+  remettre — voir la section de fin de fichier.
   ⚠️ La caisse ne choisit rien : sa bande est tirée dans `draw.eligible` et
   s'arrête sur `draw.gameId`, tous deux venus du serveur.
   ⚠️ Au début d'un tirage, la page amène la caisse à l'écran (chez tous) : au
@@ -1506,3 +1512,48 @@ Hub, plus le cas « serveur du jeu injoignable ».
 ⚠️ `tests/passeur-play.mjs` (Le Passeur hors Hub) reste **instable au premier
 clic sur ce poste** : mesuré 4 échecs sur 4 avec les fichiers de HEAD contre 1
 sur 4 avec ceux-ci — c'est le harnais, pas le jeu.
+
+## Les capacités sont acquises d'office (2026-09-20)
+
+L'écran **« Ce que tu apportes »** de `/games/` n'existe plus, et avec lui les
+deux interrupteurs « 🎤 J'ai un micro » et « ⚠️ J'accepte les jeux à
+avertissement », leurs états « déclaré / non déclaré » et les pastilles 🎤 / ⚠️
+sur les cartes joueur.
+
+**Un nouveau joueur naît avec `caps: { mic: true, consent: true }`** — une seule
+ligne, dans `game-hub-server/src/session.js`. C'est le seul changement de
+comportement ; le reste n'est que du retrait.
+
+⚠️ **Ce qui n'a PAS changé, et qu'il ne faut pas confondre** :
+- le **manifest** garde ses besoins : Imitation reste `needs: ['mic']`, le Ban
+  reste `needs: ['consent']`. Ne pas les retirer ;
+- la **règle `NEEDS` d'`engine.js` est intacte** : un joueur dont une capacité
+  vaut explicitement `false` écarte encore le jeu, nominativement. L'action
+  `caps` reste au protocole, et `reasonText` garde ses libellés côté client.
+  C'est le filet si un besoin redevient un jour un vrai filtre — il s'affichera
+  dans la raison du jeu, sans interface à refaire. Un test le vérifie
+  (`test-engine.js`, « la règle NEEDS tient toujours »).
+
+**Pourquoi** : le Hub n'a jamais testé ces capacités — c'est le jeu qui demande
+le micro à l'entrée, et l'avertissement est affiché sur sa page. Un défaut à
+`false` sans écran pour le lever aurait rendu Imitation et le Ban **impossibles
+pour tout le monde, pour toujours**.
+
+**Conséquence sur les listes** : Imitation et le Ban ne sont plus écartés que
+par leur minimum de 2 joueurs. À 3 joueurs on passe de 3 à **5 jeux possibles**
+(`imitation, demicercle, ban, passeur, quiment`). Plusieurs tests listaient ces
+ensembles en dur et ont dû suivre — si un test parle d'éligibilité, il connaît
+ces bornes.
+
+⚠️⚠️ **`cam` n'est PAS dans le défaut**, parce qu'aucun jeu ne le demande
+aujourd'hui. Le jour où un jeu déclarera `needs: ['cam']`, il sera impossible
+pour tout le monde **en silence** : il n'y a plus aucune interface pour déclarer
+quoi que ce soit. L'ajouter dans `session.js` ce jour-là. C'est noté en
+commentaire à l'endroit exact.
+
+**Dernier passage** : `game-hub-server` `npm test` 378/378 (deux fois), dont
+moteur 68 et `test-draw` 64 (trois fois, le tirage étant aléatoire) ;
+`tests/hub.mjs` 82, `tests/hub-draw.mjs` 79 et 77 en mouvement réduit,
+`tests/handoff-play.mjs` 42, `tests/handoff.mjs` 22, `tests/hub-play.mjs` 45,
+fichiers générés OK. Vérifié nommément : à 1 joueur, Imitation et le Ban sont
+bloqués par « il faut 2 joueurs » et par **rien d'autre**.

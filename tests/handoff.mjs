@@ -87,7 +87,9 @@ try {
   const code = (await A.create(pA)).session.code;
   await B.join(code, pB); await C.join(code, pC);
   await sA.until((s) => s.pool && s.pool.catalog === 'ready' && s.players.length === 3);
-  B.setPrefs([], ['demicercle', 'precision', 'quiment']);
+  // ⚠️ Imitation et le Ban sont possibles à 3 joueurs : micro et avertissement
+  // sont acquis d'office, il n'y a plus d'écran pour les déclarer.
+  B.setPrefs([], ['imitation', 'demicercle', 'ban', 'precision', 'quiment']);
   const seul = await sA.until((s) => JSON.stringify(s.pool.eligible) === '["passeur"]');
   t('le groupe (3) : seul Le Passeur est éligible (vetos de B)', !!seul, JSON.stringify(sA.last.pool.eligible));
   A.draw();

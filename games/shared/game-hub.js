@@ -126,13 +126,6 @@
       eligible: ids(d.eligible),
       weights: readWeights(d.weights),
       drawnAt: num(d.drawnAt),
-      // Le Hub réveille le serveur du jeu qu'il vient de tirer (plan gratuit
-      // Render : ~30 s). ⚠️ Il ne dit PAS lequel — la caisse ne doit pas être
-      // éventée avant de s'ouvrir. `tried` = combien de candidats ont déjà été
-      // recalés pour ce tirage. Un serveur d'avant cette version n'envoie ni
-      // l'un ni l'autre : false / 0, et la page se comporte comme avant.
-      waking: status === 'pending' && d.waking === true,
-      tried: Math.max(0, Math.floor(num(d.tried) || 0)),
     };
   }
 
@@ -258,10 +251,6 @@
     DRAW_IN_PROGRESS: 'Un tirage est déjà en cours.',
     NOT_DRAWN: 'Il n\'y a pas de tirage à confirmer.',
     NO_ELIGIBLE_GAME: 'Aucun jeu n\'est possible pour ce groupe : chaque jeu dit pourquoi dans la liste.',
-    // ⚠️ Plus émis depuis que le tirage ignore la santé des serveurs (un jeu
-    // n'est plus jamais écarté parce que son serveur dort). Gardé par sécurité,
-    // au cas où la page tourne devant un Hub plus ancien.
-    NO_SERVER_AVAILABLE: 'Aucun serveur de jeu ne répond pour l\'instant. Ils dorment peut-être (~30 s de réveil) : réessaie.',
     MANIFEST_UNAVAILABLE: 'Le Hub n\'arrive pas à lire le catalogue des jeux. Réessaie dans un instant.',
     DRAW_FAILED: 'Le tirage a échoué. Réessaie.',
     BAD_PREFS: 'Préférences refusées par le Hub.',
@@ -286,26 +275,6 @@
     CANCELLED: 'l\'hôte a annulé le lancement',
   };
   function launchFailureText(reason) { return ECHECS[reason] || 'le lancement a échoué'; }
-
-  // Ce qu'on dit pendant qu'un tirage est en attente. Trois cas, et aucun ne
-  // nomme un jeu : le Hub ne le dit pas, et la caisse ne doit pas être éventée.
-  //   { titre }  la ligne en gros, ou null s'il n'y a rien à réveiller
-  //   { detail } la précision sous le titre (l'attente, ou la tentative en cours)
-  //   { phrase } ce qui est ANNONCÉ (lecteur d'écran) — le titre et le détail
-  //              réunis, puisque le bloc visible est décoratif
-  function wakingText(d) {
-    if (!d || d.status !== 'pending' || !d.waking) {
-      return { titre: null, detail: null, phrase: 'La caisse est secouée… le Hub prépare le tirage.' };
-    }
-    var n = d.tried || 0;
-    if (!n) {
-      return { titre: 'Réveil du serveur…', detail: 'au repos, il peut mettre ~30 s à répondre',
-        phrase: 'Réveil du serveur du jeu tiré… au repos, il peut mettre ~30 s à répondre.' };
-    }
-    var muets = n > 1 ? n + ' serveurs muets' : '1 serveur muet';
-    return { titre: 'Réveil du serveur…', detail: 'tentative ' + (n + 1) + ' · ' + muets,
-      phrase: 'Réveil d\'un autre serveur… tentative ' + (n + 1) + ' (' + muets + ').' };
-  }
 
   function errorText(code, message) {
     if (TEXTES[code]) {
@@ -504,7 +473,6 @@
     launchedMsg: launchedMsg, enteredMsg: enteredMsg, startedMsg: startedMsg, endedMsg: endedMsg, abortMsg: abortMsg,
     readLaunch: readLaunch, launchFailureText: launchFailureText,
     parseMessage: parseMessage, readSession: readSession, errorText: errorText, reasonText: reasonText,
-    wakingText: wakingText,
     createClient: createClient,
   };
 });
