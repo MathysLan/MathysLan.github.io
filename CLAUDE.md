@@ -35,12 +35,18 @@ contexte**. Si tu débarques : lis-le en entier avant de toucher quoi que ce soi
 | **Le Jeu du Ban** | `games/ban/` | `ban-server` (Render) | Une vidéo (CDN R2) cache un mot interdit à `fatal` (secondes). Chacun son tour, on stoppe au plus tard sans dépasser. Serveur : `setTimeout` pour le rythme + filet anti-blocage, temps recoupé à l'horloge serveur (anti-triche), ordre de passage aléatoire par vidéo. `fatal` jamais envoyé avant `results`. **Catalogue = `games/ban/videos.json` DANS CE REPO** (`{id, fatal, startAt}`) : le serveur le fetch depuis Pages à chaque partie (cache 10 s), donc Mathys édite le JSON + push, aucun redeploy Render. Contrepartie assumée : `fatal` public. |
 | **Précision** | `games/precision/` | `precision-server` (Render) | Party game inspiré de dialed.gg : 4 épreuves (shape/color/sound/time). TOUT LE MONDE joue en même temps. Le serveur génère la cible, tient les timers de phase (`memorize`→`play`, durées selon la difficulté Facile→Impossible) et calcule la précision 0–100 %. Moteur pur `engine-precision.js` (barèmes + scoring : teinte circulaire, symétrie du triangle, cents pour le son). Cible envoyée en `memorize` seulement ; `time` recoupé à l'horloge serveur. |
 | **Puissance 4** | `js/connect4.js` (`launchConnect4`) | aucun (100 % navigateur) | Canvas, bot heuristique gagner > bloquer > centre. Lancé par le carousel, INSERT COIN, Ctrl+K, Konami. |
-| **Morpion** | `games/morpion/` | `morpion-server` (Render) | URL du serveur fixée dans `net.js` (pas de `?server=`, contrairement aux autres). |
+| **Morpion** | `games/morpion/` | `morpion-server` (Render) | Duel strict (X/O). Le serveur ne reçoit AUCUNE identité (ni pseudo, ni avatar) et ferme la room dès qu'un joueur part. `net.js` est toute l'appli ; `?server=` accepté comme ailleurs. |
 | **Le Passeur** | `games/passeur/` | `passeur-server` (Render) | Une situation de volley, cinq passes, cinq secondes. Points = pertinence × vitesse. Barèmes et `why` envoyés seulement au `results` ; temps recoupé à l'horloge serveur. Catalogue = `situations.js` côté serveur. |
 | **Qui Ment ?** | `games/quiment/` | `qui-ment-server` (Render) | Jeu de bluff. Tout le monde a le même mot sauf l'intrus, qui n'a que la catégorie. 2 tours d'indices en aveugle, vote, révélation, dernière chance. Le mot ne part JAMAIS en diffusion. Catalogue = `mots.js` côté serveur. |
 
 Le **carousel des jeux** (`js/carousel.js`) est un coverflow 3D ; le drag ne
 démarre qu'après un seuil de 6 px pour que le lien « Jouer » reste cliquable.
+
+Les **sept jeux en ligne** se lancent aussi depuis le **Game Hub** (`/games/`,
+handoff), et parlent tous à leur serveur par le même transport,
+`games/shared/game-net.js`, avec la **présence** des joueurs. Voir
+« Handoff et présence : l'état des sept jeux » en fin de fichier. Puissance 4
+(local) n'est pas concerné.
 
 ## Contraintes de l'environnement de dev (IMPORTANT)
 
@@ -1113,10 +1119,14 @@ s'affiche ». Ne pas « corriger » ça sans étendre d'abord les six serveurs.
 ### ⚠️ Morpion : l'exception, et elle est structurelle
 
 `morpion-server/src/server.js` lit `onJoin(ws, msg.code)` : **ni pseudo, ni
-avatar**. Sa page n'a d'ailleurs ni `#name-input` ni `#avatar-row`.
-`game-profile.js` n'y est donc **pas chargé** — on ne lui envoie pas une
-identité qu'il ne sait pas recevoir. Un commentaire dans
-`games/morpion/index.html` le dit, et `tests/profile.mjs` le vérifie.
+avatar**. Sa page n'a d'ailleurs ni `#name-input` ni `#avatar-row`, et on ne
+lui envoie jamais une identité qu'il ne sait pas recevoir.
+⚠️ `game-profile.js` y est **chargé quand même**, pour une seule raison : le
+handoff du Game Hub (`hub-handoff.js`) a besoin de l'identifiant local pour se
+présenter au HUB avec le même player.id. Il n'y remplit rien et n'ajoute
+aucune interface. `tests/profile.mjs` vérifie qu'aucun champ d'identité
+n'apparaît, `tests/handoff-morpion.mjs` relit chaque trame envoyée à
+morpion-server : jamais de `name` ni d'`avatar`.
 
 ### Ce qui a changé dans les six autres jeux
 
@@ -1201,7 +1211,7 @@ nœud créé à la main (`<img>` ou texte). **Tout `slot()` doit être suivi d'u
 décode pas redevient l'emoji sur place (`error`), sans toucher au profil.
 Le Demi-Cercle pose la photo au bout de l'aiguille en `<image>` SVG.
 Style : `.g-av-img` dans game-ui.css (1,5em, jamais plus que les 96 px de la
-source) — d'où `game-ui.css?v=4` sur les six pages (Morpion reste en v=3).
+source) — d'où un `?v=` relevé sur `game-ui.css` dans les pages de jeux.
 
 ⚠️ **Borne alignée** : le profil bornait la data-URL à 24 Ko de TEXTE (~18 Ko
 d'image) alors que la limite annoncée était 12 Ko. Une photo entre 12 et 18 Ko
@@ -1218,8 +1228,8 @@ maintenant les octets décodés, comme le serveur.
   WebSocket ET DOM lus (153 vérifications). Voir tests/README.md.
 
 ⚠️ Défauts **préexistants** vus en passant, non corrigés (hors tâche) :
-- Demi-Cercle : après `end`, le `room` qui suit fait `show('lobby')` sans garde
-  → le podium est rendu puis aussitôt masqué (les autres jeux ont une garde) ;
+- Demi-Cercle : après `end`, le `room` qui suit faisait `show('lobby')` sans
+  garde → podium masqué. **Corrigé depuis** (`inEndScreen` dans `app.js`) ;
 - `tests/manifest.mjs` : la mutation « jeu live sans bloc hub » est une regex
   en `
 ` — sur un poste en `core.autocrlf=true` (CRLF) elle ne s'applique pas
@@ -1290,8 +1300,8 @@ devenues un bloc d'identité, dans les six jeux, sans nouveau protocole.
 
 `/games/` n'existait pas (404). C'est maintenant l'entrée du Game Hub :
 profil → **Créer une session** ou **CODE + Rejoindre** → **salon** (code,
-joueurs, hôte). Rien de plus : aucun jeu lancé, pas de caisse, pas de
-randomizer, pas de handoff. game-hub-server et les 7 serveurs n'ont pas bougé.
+joueurs, hôte). Cette phase s'arrêtait là ; le tirage (caisse, randomizer) et
+le lancement des jeux (handoff) sont venus ensuite — sections suivantes.
 
 | Fichier | Rôle |
 |---|---|
@@ -1368,8 +1378,8 @@ jeu touché. **Pas encore déployé** : Mathys s'en charge sur Render.
 ## Game Hub : le randomizer (2026-09-19)
 
 Le Hub tire maintenant le jeu de la soirée. **Le serveur décide, la page met en
-scène.** Aucun serveur de jeu touché, aucun lancement de jeu (handoff), aucun
-score de soirée, aucune base.
+scène.** Aucun serveur de jeu touché, aucun score de soirée, aucune base. (Le
+lancement du jeu tiré — le handoff — est décrit dans la section suivante.)
 
     LOBBY → 🎲 (hôte) → le Hub filtre, pondère, tire → caisse → révélation
           → CONTINUER (debrief) → 🎲 tirage suivant → …   (même session, history.played grandit)
@@ -1443,8 +1453,9 @@ les `/health` simulés — aucun serveur Render réveillé.
 ## Handoff : le Hub lance vraiment Le Passeur (2026-09-19)
 
 `/games/` → tirage → **vraie room du Passeur, tout le monde dedans, partie
-jouée**. Un seul jeu branché (Le Passeur) ; `passeur-server` n'a **pas** été
-modifié, ni aucun autre serveur de jeu.
+jouée**. `passeur-server` n'a **pas** été modifié, ni aucun autre serveur de
+jeu. Le Passeur a été le pilote ; les **sept** jeux en ligne sont branchés
+depuis, sur le même principe (voir la fin du fichier).
 
     lobby → drawing → [continuer] → launching (create → join) → inGame → debrief
 
@@ -1478,8 +1489,9 @@ l'hôte DU LANCEMENT peut déclarer un code), le lancement est lié au tirage
   se fait refuser par `passeur-server` : « partie déjà commencée »), avec
   « Lancer sans attendre » pour l'hôte.
 - **`data/games.js` + `tools/build.mjs`** : clé `handoff` (schéma fermé, testée).
-  Seul `passeur` est à `true`. Un jeu qui ne l'a pas : `continuer` revient au
-  Hub comme avant. ⚠️ `tests/manifest.mjs` vérifie que `handoff: true`
+  Les sept jeux en ligne sont à `true` ; Puissance 4 (local) à `false`. Un jeu
+  qui ne l'a pas : `continuer` revient au Hub comme avant.
+  ⚠️ `tests/manifest.mjs` vérifie que `handoff: true`
   correspond à une page qui charge vraiment `hub-handoff.js`.
 - **Hub** : `src/launch.js` (module pur) + handlers `launched` / `entered` /
   `started` / `ended` / `abort` dans `hub.js`.
@@ -1649,3 +1661,78 @@ là où Render se réveille vraiment —, pas le tirage.
 **Dernier passage** : `game-hub-server` `npm test` 378/378 ; `tests/hub.mjs` 82,
 `tests/hub-draw.mjs` 79 (77 en mouvement réduit), `tests/handoff-play.mjs` 42,
 `tests/handoff.mjs` 22, `tests/hub-play.mjs` 45, fichiers générés OK.
+
+## Handoff et présence : l'état des sept jeux
+
+Les sept jeux en ligne (Morpion, Imitation, Demi-Cercle, Ban, Précision, Le
+Passeur, Qui Ment ?) ont le **même montage**. Puissance 4, local, n'en a pas
+besoin. Aucun serveur de jeu ne connaît le Hub.
+
+### Le handoff, page par page
+
+Chaque page charge `game-profile.js`, `game-net.js`, `game-hub.js` et
+`hub-handoff.js`, et appelle `HubHandoff.start({ gameId, join, onUpdate })`.
+Sans billet, `lien` vaut `null` et la page marche exactement comme hors Hub.
+Avec billet, le module appelle le `join` de la page — son chemin NORMAL (créer
+sans code, rejoindre avec) — et la page le prévient :
+
+- `roomReady(code)` à la première room obtenue, **une seule fois** (garde
+  `codeDeclare` : un retour au salon après une coupure renvoie le même code) ;
+- `started()` par l'hôte à la première vraie phase de jeu ;
+- `ended()` à la fin, et un lien **« ↩ Retour au Game Hub »** (`#to-hub`,
+  jamais la classe `.back`, réservée au retour portfolio) ;
+- `failed('JOIN' | 'UNREACHABLE', détail)` si l'entrée lancée par le Hub
+  échoue (`viaHub` et pas encore dans une room). Pour l'hôte déjà au stade
+  `join`, `failed` devient `cancel()` : sa room est perdue pour tout le groupe,
+  le lancement est annulé (`CANCELLED`) au lieu de laisser le groupe devant une
+  room morte jusqu'à l'échéance.
+
+Tant que des joueurs attendus manquent, « Lancer » est bloqué et nomme les
+absents, avec **« Lancer sans attendre »** (`#start-anyway`) — la règle propre
+à chaque jeu (3 joueurs pour Qui Ment ?…) s'applique en plus.
+
+Les écarts, voulus :
+- **Morpion** : aucune identité ne part vers `morpion-server` (voir « Morpion :
+  l'exception »). Pas de salon ni de « Lancer » : la room passe d'elle-même à
+  `playing` quand l'invité entre, c'est là que l'hôte envoie `started()`. Le
+  départ de l'adversaire (« room fermée ») vaut `ended()`. Écran de perte
+  propre au jeu (pas de `surPerte`), puisque la room n'existe plus.
+- **Qui Ment ?, « Rejouer »** : à la fin la room est en phase `end`, et
+  `qui-ment-server` n'accepte `start` QUE depuis le salon — ailleurs il
+  l'ignore **sans erreur**. « Rejouer » envoie donc `lobby` (MJ seulement), et
+  le `start` ne part qu'au retour du salon diffusé par le serveur. Ne pas
+  « simplifier » en renvoyant `start` directement : c'était le bug.
+- Une revanche jouée dans la même room (« Rejouer » de Qui Ment ?, du Passeur…)
+  **ne parle pas au Hub** : il reste en `debrief` sur le lancement terminé,
+  l'historique ne bouge pas, aucune session n'est créée.
+
+### La présence : qui est VRAIMENT là
+
+Un onglet gelé (arrière-plan, écran verrouillé) garde son WebSocket ouvert et
+répond au ping natif — c'est le navigateur qui répond, pas la page : un joueur
+fantôme. D'où une présence **applicative**.
+
+- **Serveur** : `presence.js`, **le même fichier dans les sept dépôts** (on le
+  copie, on ne l'adapte pas). Ping `{ type: 'presence', n }` dès la connexion
+  puis toutes les 10 s ; le client répond `{ action: 'presence', n }`. Adhésion
+  **volontaire** : un client qui n'a jamais répondu n'est jamais expulsé. Sans
+  signe de vie depuis 30 s → `close(4000, 'absent')`, puis `terminate` 3 s plus
+  tard. Ping natif séparé (20 s) pour les coupures réseau franches. `hold()`
+  donne un sursis (Imitation, pendant l'envoi d'une prise audio). Le module ne
+  connaît aucune room : c'est le `close` habituel du serveur qui retire le
+  joueur. Le routeur appelle `presence.consume(ws, msg)` en premier.
+- **Client** : `games/shared/game-net.js` (`GameNet.create`), même API que
+  l'ancien `NET` de chaque jeu. Il répond aux pings (jamais de lui-même),
+  émet `lost` une fois par connexion perdue, ne reconnecte **jamais** tout
+  seul. Une nouvelle connexion présente la clé de l'ancienne (`remplace`) : le
+  serveur ferme l'ancienne AVANT d'acquitter, donc jamais de doublon dans la
+  room. `pagehide` ferme en 1000 (le navigateur refuse 1001).
+- **Écran de perte** : `GameNet.surPerte(NET, …)` dans six jeux — au salon, un
+  retour automatique par le join normal ; en pleine partie, « elle a continué
+  sans toi ». Il exige `#lost`, `#lost-text`, `#lost-retry`, `#lost-hub`.
+
+### Les tests qui gardent tout ça
+
+`tests/handoff*.mjs` (un par jeu, vrais Hub + vrai serveur), `game-net.mjs`,
+`presence-jeux.mjs`, `presence-precision.mjs`, `presence-morpion.mjs`,
+`quiment-replay.mjs`. Détail et options dans `tests/README.md`.
