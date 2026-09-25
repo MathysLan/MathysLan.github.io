@@ -277,7 +277,11 @@
       li.setAttribute('aria-label', (personne ? '' : (l.rank === 1 ? '1er' : l.rank + 'e') + ' : ') + l.p.name
         + (l.p.id === you ? ' (toi)' : '') + ', ' + l.pts + ' point' + (l.pts > 1 ? 's' : '')
         + (gain[l.p.id] ? ', dont ' + gain[l.p.id] + ' à la dernière partie' : ''));
-      li.append(rang, nom, pts);
+      // Le même avatar que sur les cartes joueurs (photo ou emoji). Décoratif :
+      // l'aria-label de la ligne dit déjà qui c'est.
+      const av = GameAvatar.node(l.p.avatar, undefined, 'sm');
+      av.setAttribute('aria-hidden', 'true');
+      li.append(rang, av, nom, pts);
       return li;
     }));
     const caches = lignes.length - vues.length;

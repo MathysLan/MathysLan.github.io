@@ -110,7 +110,7 @@ async function joueur(cdp, nom) {
     }
   });
   const S = (m, p) => cdp.send(m, p, sessionId);
-  await S('Runtime.enable'); await S('Page.enable'); await S('Network.enable');
+  await S('Runtime.enable'); await S('Page.enable'); await S('DOM.enable'); await S('Network.enable');
   if (REDUCED) await S('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
   J.size = (w, h) => S('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile: w < 500 });
   await J.size(1280, 900);
@@ -149,6 +149,12 @@ async function joueur(cdp, nom) {
     await J.eval(`document.querySelector(${JSON.stringify(sel)}).select()`);
     await S('Input.insertText', { text });
     await sleep(60);
+  };
+  // Une vraie photo de profil, par le vrai champ fichier (comme handoff-play.mjs).
+  J.upload = async (sel, file) => {
+    const { result: { root } } = await S('DOM.getDocument', { depth: 0 });
+    const { result: { nodeId } } = await S('DOM.querySelector', { nodeId: root.nodeId, selector: sel });
+    await S('DOM.setFileInputFiles', { files: [file], nodeId });
   };
   J.key = async (k) => {
     for (const type of ['rawKeyDown', 'keyUp']) await S('Input.dispatchKeyEvent', { type, key: k, code: 'Digit' + k, windowsVirtualKeyCode: 48 + Number(k) });
@@ -299,6 +305,8 @@ try {
   const noms = { A: 'Alice', B: 'Bruno', C: 'Chloé-Anne la très longue' };
   await A.goto(PAGE);
   await A.type('#name-input', noms.A);
+  await A.upload('#gp-file', path.join(ROOT, 'assets', 'og-image.png'));      // A a une PHOTO, B et C un emoji
+  await A.until(`GameProfile.load().avatar.kind === 'image'`, 8000, 'photo de A');
   await A.click('#identity-done');
   await A.click('#hub-create');
   await A.until(`!document.getElementById('lobby').hidden`, 20000, 'salon de A');
@@ -318,6 +326,26 @@ try {
   await A.until(`[...document.querySelectorAll('#hub-games .hub-game[data-eligible=true]')].map((x) => x.dataset.game).join() === 'passeur'`, 8000, 'seul Passeur');
 
   const b0 = await B.eval(BLOC);
+  // L'avatar de chaque ligne : le rendu GameAvatar des cartes joueurs, en petit.
+  const AV = `(() => [...document.querySelectorAll('#hub-score-list .hub-score-row')].map((li) => {
+    const av = li.querySelector('.g-av'), r = av && av.getBoundingClientRect(), img = av && av.querySelector('img');
+    const nom = li.querySelector('.hub-score-name').getBoundingClientRect(), rang = li.querySelector('.hub-score-rank').getBoundingClientRect();
+    return { id: li.dataset.player, w: r ? Math.round(r.width) : 0, h: r ? Math.round(r.height) : 0, entre: !!r && r.left >= rang.right - 1 && r.right <= nom.left + 1,
+      img: !!img && img.complete && img.naturalWidth > 0, src: img ? img.getAttribute('src') : null, emoji: (av && av.querySelector('.g-av-e') || {}).textContent || null,
+      carte: (() => { const c = document.querySelector('#hub-players [data-player="' + li.dataset.player + '"] .g-av'); const ci = c && c.querySelector('img');
+        return ci ? ci.getAttribute('src') : (c && c.querySelector('.g-av-e') || {}).textContent || null; })() }; }))()`;
+  for (const [w, h] of [[1440, 900], [390, 780]]) {
+    await B.size(w, h); await sleep(250);
+    const av = await B.eval(AV);
+    const photoA = av.find((x) => x.id === id.A), autres = av.filter((x) => x.id !== id.A);
+    t(`${w} px : un avatar par ligne, entre le rang et le nom, 24–28 px`, av.length === 3 && av.every((x) => x.entre && x.w >= 24 && x.w <= 28 && x.w === x.h), JSON.stringify(av.map((x) => [x.w, x.h, x.entre])));
+    t(`${w} px : photo de A affichée (image chargée), emoji pour B et C`, !!photoA && photoA.img && autres.every((x) => !x.src && !!x.emoji), JSON.stringify(av.map((x) => x.img ? 'photo' : x.emoji)));
+    t(`${w} px : le même avatar que sur la carte joueur du salon`, av.every((x) => (x.src || x.emoji) === x.carte));
+    const g = await B.eval(GEO);
+    t(`${w} px : noms longs coupés proprement, aucun défilement horizontal`, g.over <= 0 && await B.eval(`[...document.querySelectorAll('#hub-score-list .hub-score-row')].every((li) => { const r = li.getBoundingClientRect();
+      return [...li.children].every((c) => { const b = c.getBoundingClientRect(); return b.left >= r.left - 1 && b.right <= r.right + 1; }); })`), String(g.over));
+  }
+  await B.size(1280, 900);
   t('avant tout tirage : « Score de la soirée », une ligne par joueur, tous à 0', b0.length === 3 && b0.every((l) => l.pts === 0)
     && /score de la soirée/i.test(await B.eval(`document.querySelector('.hub-score-title').textContent`)), JSON.stringify(b0.map((l) => l.txt)));
   t('avant tout tirage : pas de médaille (personne n\'a marqué)', b0.every((l) => !/🥇|🥈|🥉/.test(l.rang)));

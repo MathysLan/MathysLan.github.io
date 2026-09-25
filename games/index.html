@@ -100,10 +100,13 @@
     main:has(> #hub-score:not([hidden])) > #hub-score { grid-column: 2; grid-row: 2; margin: 0; position: sticky; top: 1rem; }
   }
   #hub-score-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .2rem; }
-  .hub-score-row { display: grid; grid-template-columns: 1.7rem minmax(0, 1fr) auto; align-items: center; gap: .45rem;
+  .hub-score-row { display: grid; grid-template-columns: 1.7rem auto minmax(0, 1fr) auto; align-items: center; gap: .45rem;
     padding: .28rem .4rem; min-width: 0; }
   .hub-score-rank { font-size: 1.1rem; line-height: 1; text-align: center; color: var(--ink-3); }
   .hub-score-rank.is-num { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: .85rem; }
+  /* L'avatar : le même rendu que les cartes joueurs (GameAvatar, taille sm),
+     réduit à 26 px ici seulement pour garder le classement compact. */
+  .hub-score-row .g-av--sm { --g-av-size: 26px; }
   .hub-score-name { font-size: .98rem; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .hub-score-pts { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 1rem; color: var(--ink);
     font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
@@ -427,6 +430,6 @@
   <script src="shared/game-hub.js?v=2"></script>
   <script src="shared/hub-handoff.js"></script>
   <script src="hub-crate.js"></script>
-  <script src="hub-page.js?v=3"></script>
+  <script src="hub-page.js?v=4"></script>
 </body>
 </html>
