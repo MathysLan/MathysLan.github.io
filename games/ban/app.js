@@ -14,6 +14,7 @@ let youActive = false, turnStopped = false, turnPlaying = false;
 let curVideoId = null, curFrom = 0, curActive = null, previewUntil = 0;
 let curOrder = [];
 let rafId = 0, rafMode = null;
+let nbJoueurs = 0;            // taille du salon, pour « Lancer la partie »
 
 const DEBUG = true;
 const dbg = (m, o) => { if (DEBUG) console.log('[ban] ' + m, o !== undefined ? o : ''); };
@@ -136,6 +137,8 @@ for (const em of AVATARS) {
 // Avertissement : on ne peut créer/rejoindre qu'après avoir coché la case.
 // Le choix est retenu localement pour ne pas le redemander à chaque partie.
 const TW_KEY = 'ban-tw-ok';
+// Entrée venue du Game Hub, suspendue à la case (voir plus bas) : { code }.
+let entreeEnAttente = null;
 function applyTw(ok) {
   $('host').disabled = !ok;
   $('join').disabled = !ok;
@@ -145,6 +148,8 @@ $('tw-check').addEventListener('change', (e) => {
   const ok = e.target.checked;
   applyTw(ok);
   try { ok ? localStorage.setItem(TW_KEY, '1') : localStorage.removeItem(TW_KEY); } catch (_) {}
+  // Case cochée : l'entrée demandée par le Hub reprend là où elle attendait.
+  if (ok && entreeEnAttente) { const e2 = entreeEnAttente; entreeEnAttente = null; enter(e2.code); }
 });
 applyTw((() => { try { return localStorage.getItem(TW_KEY) === '1'; } catch (_) { return false; } })());
 
@@ -159,9 +164,56 @@ async function enter(code) {
   // L'avatar complet : la photo du profil s'il y en a une, l'emoji toujours.
   const avatar = GameProfile.joinAvatar(myAvatar);
   try { await NET.connect(); NET.send(code === undefined ? { action: 'join', name, avatar } : { action: 'join', name, code, avatar }); }
-  catch (err) { showError(err.message); }
+  catch (err) {
+    showError(err.message);
+    // Entrée lancée par le Hub et ratée : on le dit, sinon le groupe attend un
+    // joueur qui n'arrivera jamais.
+    if (lien && viaHub && !you) { viaHub = false; lien.failed('UNREACHABLE', err.message); }
+  }
 }
-$('start').addEventListener('click', () => NET.send({ action: 'start', videos: +$('videos-select').value }));
+
+// --- lancé par le Game Hub -------------------------------------------------
+// Si la page a été ouverte par le Hub, un billet dit si l'on CRÉE la partie
+// (l'hôte du lancement) ou si l'on REJOINT le code du groupe. Dans les deux cas
+// on passe par `enter()`, le chemin normal de cette page : aucun second système
+// de création ni de join.
+// ⚠️ L'avertissement se demande à l'ENTRÉE, comme à la main : `enter()` ne
+// regarde pas la case (ce sont les boutons désactivés qui la font respecter),
+// donc une entrée venue du Hub attend qu'elle soit cochée. Déjà acceptée
+// (`ban-tw-ok`) : on entre tout de suite. Une fois dans le salon, plus jamais
+// redemandée — ni aux changements de phase, ni au retour au salon.
+// ⚠️ Sans billet, `lien` vaut null et la page marche exactement comme avant.
+let viaHub = false;            // le join en cours vient du Hub
+let partirSansAttendre = false;
+let codeDeclare = null;        // le code déjà annoncé au Hub (une seule fois)
+const lien = window.HubHandoff ? HubHandoff.start({
+  gameId: 'ban',
+  join: (code) => {
+    viaHub = true;
+    if (!$('name-input').value.trim()) $('name-input').value = GameProfile.load().name || '';
+    if ($('tw-check').checked) return enter(code || undefined);
+    entreeEnAttente = { code: code || undefined };
+    showError('coche l\'avertissement ci-dessus pour rejoindre la partie de ton groupe');
+    $('tw-check').focus();
+  },
+  onUpdate: attente,
+}) : null;
+
+// L'hôte ne lance pas tant que le groupe n'est pas dans la room : ban-server
+// refuse un join quand la phase n'est plus `lobby` (« partie en cours »), donc un
+// invité en retard serait laissé dehors. Il peut partir sans eux — explicitement.
+// Hors Hub, seule la règle habituelle s'applique : au moins 2 joueurs.
+function attente(i) {
+  const n = i && i.launch.stage === 'join' ? i.waitingIds.length : 0;
+  const bloque = isHost && n > 0 && !partirSansAttendre;
+  $('start').disabled = bloque || nbJoueurs < 2;
+  $('start').textContent = bloque ? `En attente de ${i.waiting}…` : 'Lancer la partie';
+  $('start-anyway').hidden = !bloque;
+}
+
+const lancer = () => NET.send({ action: 'start', videos: +$('videos-select').value });
+$('start').addEventListener('click', lancer);
+$('start-anyway').addEventListener('click', () => { partirSansAttendre = true; lancer(); });
 $('room-code').addEventListener('click', async () => {
   const hint = $('code-hint');
   const back = () => setTimeout(() => { hint.textContent = 'clique sur le code pour le copier'; }, 2000);
@@ -203,6 +255,11 @@ function sendStop(t, cause) {
 NET.on('room', (msg) => {
   you = msg.you;
   $('room-code').textContent = msg.code;
+  // Lancé par le Hub : on lui dit dans quelle room on est. L'hôte y déclare le
+  // code (le seul qu'il croira), les invités confirment y être entrés. ⚠️ `room`
+  // arrive à CHAQUE changement du salon : une seule annonce.
+  if (lien && !codeDeclare) { codeDeclare = msg.code; viaHub = false; lien.roomReady(msg.code); }
+  nbJoueurs = msg.players.length;
   msg.players.forEach((p) => { if (!colorById[p.id]) colorById[p.id] = PALETTE[Object.keys(colorById).length % PALETTE.length]; nameById[p.id] = p.name; });
   const me = msg.players.find((p) => p.id === you);
   isHost = !!(me && me.host);
@@ -210,12 +267,25 @@ NET.on('room', (msg) => {
     `<li class="g-player">${GameAvatar.slot(p.avatar, undefined, 'md')}<span class="g-player-name">${esc(p.name)}${p.host ? ' <span class="tag">MJ</span>' : ''}</span></li>`).join('');
   GameAvatar.fill($('players'));
   $('host-config').hidden = !isHost;
-  $('start').disabled = msg.players.length < 2;
+  attente(lien && lien.info());
   $('need-players').hidden = msg.players.length >= 2;
-  if (msg.phase === 'lobby' && phase === 'lobby') show('lobby');
+  // Retour au salon, SAUF derrière le podium : le serveur envoie `phase:end`
+  // PUIS un `room` en phase lobby, qui ne doit pas l'effacer (#to-lobby y
+  // ramène). Tout autre `room` lobby est un retour forcé (« plus assez de
+  // joueurs ») : avant, la garde `phase === 'lobby'` laissait le joueur coincé
+  // sur l'écran de jeu, sans aucun bouton pour en sortir.
+  if (msg.phase === 'lobby' && phase !== 'end') {
+    phase = 'lobby';
+    show('lobby');
+  }
 });
 
-NET.on('error', (msg) => showError(msg.message));
+NET.on('error', (msg) => {
+  showError(msg.message);
+  // Le serveur refuse d'entrer (code inconnu, room pleine, partie en cours) :
+  // le Hub est prévenu, pour que le groupe le sache au lieu d'attendre.
+  if (lien && viaHub && !you) { viaHub = false; lien.failed('JOIN', msg.message); }
+});
 NET.on('closed', () => { if (you) showError('connexion au serveur perdue'); });
 
 // lancement de la vidéo : découverte (MJ) ou tour (joueur actif)
@@ -270,10 +340,14 @@ const PHASES = {
     show('game'); parts('preview'); stopRaf();
     curFrom = msg.from || 0; previewUntil = msg.until; curActive = null; turnStopped = false; turnPlaying = false;
     loadVideo(msg.videoId); renderOrder(msg.order || []);
+    // Première vidéo : la partie a vraiment démarré, le Hub le sait. (Le serveur
+    // passe d'abord par `starting`, le temps de relire son catalogue ; il n'en
+    // dit rien — c'est cette découverte qui fait foi.)
+    if (msg.round === 1 && lien && isHost) lien.started();
     $('turn-title').innerHTML = `👀 Découverte — vidéo ${msg.round}/${msg.of}`;
     $('phase-badge').textContent = '👀 découverte';
     $('video-box').classList.remove('live');
-    hideHostBtns(); $('stop-btn').hidden = true; $('wait-turn').hidden = true; $('to-lobby').hidden = true;
+    hideHostBtns(); $('stop-btn').hidden = true; $('wait-turn').hidden = true; $('to-lobby').hidden = true; $('to-hub').hidden = true;
     // PAS d'autoplay : c'est le MJ qui lance la découverte quand il veut.
     const v = V();
     const seek = () => { v.currentTime = curFrom; v.pause(); $('timecode').textContent = fmtClock(curFrom); updatePlayhead(curFrom); };
@@ -294,7 +368,7 @@ const PHASES = {
     GameAvatar.fill($('turn-title'));
     $('phase-badge').textContent = '⏸ prêt';
     $('video-box').classList.remove('live');
-    $('stop-btn').hidden = true; $('wait-turn').hidden = true; $('to-lobby').hidden = true;
+    $('stop-btn').hidden = true; $('wait-turn').hidden = true; $('to-lobby').hidden = true; $('to-hub').hidden = true;
     const v = V();
     const seek = () => { v.currentTime = curFrom; v.pause(); updatePlayhead(curFrom); };
     if (v.readyState >= 1) seek(); else v.addEventListener('loadedmetadata', seek, { once: true });
@@ -312,7 +386,7 @@ const PHASES = {
     $('phase-badge').textContent = '🏁';
     $('video-box').classList.remove('live');
     renderResults(msg);
-    hideHostBtns(); $('stop-btn').hidden = true; $('wait-turn').hidden = true; $('to-lobby').hidden = true;
+    hideHostBtns(); $('stop-btn').hidden = true; $('wait-turn').hidden = true; $('to-lobby').hidden = true; $('to-hub').hidden = true;
     showHostBtn('host-next', msg.round >= msg.of ? 'TERMINER LA PARTIE' : 'TERMINER LE ROUND');
     status(isHost ? 'clique pour la suite' : 'en attente du MJ…');
   },
@@ -327,6 +401,7 @@ const PHASES = {
       `<li class="g-player"><span class="medal">${medals[i] || '·'}</span>${GameAvatar.slot(p.avatar, undefined, i < 3 ? 'lg' : 'md')}<span class="g-player-name">${esc(p.name)}</span> <span class="pts g-player-score">${p.score} pts</span></li>`).join('');
     GameAvatar.fill($('scores'));
     $('to-lobby').hidden = false;
+    if (lien) { lien.ended(); $('to-hub').hidden = false; }
     status('bien joué');
   },
 };
