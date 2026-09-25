@@ -208,7 +208,9 @@
     show('lobby');
     // Lancé par le Hub : on lui dit dans quelle room on est. L'hôte y déclare
     // le code (le seul qu'il croira) ; les invités confirment y être entrés.
-    if (lien) { viaHub = false; lien.roomReady(msg.code); attente(lien.info()); }
+    // Avec SA place dans la room (msg.id) : c'est elle qui relie le classement
+    // final à son joueur du Hub (score de soirée).
+    if (lien) { viaHub = false; lien.roomReady(msg.code, msg.id); attente(lien.info()); }
   });
 
   NET.on('lobby', (msg) => {
@@ -339,7 +341,16 @@
   NET.on('end', (msg) => {
     stopTimer();
     show('end');
-    if (lien) { lien.ended(); $('to-hub').hidden = false; }
+    if (lien) {
+      // Score de soirée : le classement du SERVEUR, transmis tel quel au Hub
+      // (l'hôte du lancement seulement — hub-handoff.js filtre). Le rang se lit
+      // sur les points de partie (ex æquo = même rang) ; c'est le Hub qui en
+      // fait des points de soirée. Toujours AVANT ended().
+      // (garde : un hub-handoff.js resté en cache n'a pas encore results)
+      if (lien.results) lien.results(rangs(msg.ranking));
+      lien.ended();
+      $('to-hub').hidden = false;
+    }
     const me = msg.ranking.find((r) => r.id === myId);
     $('final-title').textContent = me ? `${me.avg} / 100 — ${me.title}` : 'Fin de partie';
     $('ranking').innerHTML = msg.ranking.map((r, i) =>
@@ -374,6 +385,17 @@
       <p class="mine-verdict">${esc(verdict)}</p>
       <p class="mine-calc">pertinence <b>${r.relevance}/100</b> · vitesse <b>${r.speed} %</b>
         <span class="mine-t">(${esc(secs)} s)</span></p>`;
+  }
+
+  // Le classement de fin, en rangs « de compétition » : 480, 480, 350 → 1, 1, 3.
+  // `ranking` arrive déjà trié par le serveur ; on ne s'y fie pas pour autant.
+  function rangs(ranking) {
+    const tri = ranking.slice().sort((a, b) => b.score - a.score);
+    return tri.map((r) => ({
+      gamePlayerId: r.id,
+      rank: 1 + tri.filter((x) => x.score > r.score).length,
+      points: r.score,
+    }));
   }
 
   function esc(s) {

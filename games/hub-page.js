@@ -212,9 +212,78 @@
     const ok = !!session.pool;          // null = serveur d'avant le randomizer
     $('hub-pool').hidden = !ok;
     if (ok) renderPool(session, you);
+    renderScore(session, you);
     renderDraw(session, you);
     renderLaunch(session, you);
     renderFoot(session, you);
+  }
+
+  // ------------------------------------------------------ score de la soirée
+  // ⚠️ AUCUN CALCUL DE POINTS ICI. `session.scores` est tenu par le Hub, qui le
+  // tire des classements rendus par les jeux (game-hub-server, scores.js). La
+  // page trie, met en forme, et c'est tout.
+  //
+  // Une ligne par joueur de la session (0 tant qu'il n'a rien marqué), les
+  // meilleurs d'abord. Au-delà de 6, on garde les 5 premiers + TOI si tu es
+  // plus bas : le bloc reste compact, et chacun y trouve toujours sa ligne.
+  const MEDAILLES = ['🥇', '🥈', '🥉'];
+  const SCORE_MAX = 6;
+  function renderScore(session, you) {
+    const sc = session.scores || {};
+    const jeux = session.history.games || [];
+    const derniere = jeux[jeux.length - 1] || null;
+    const gain = {};
+    if (derniere) derniere.results.forEach((r) => { gain[r.playerId] = r.points; });
+    const lignes = session.players.map((p, i) => ({ p, i, pts: sc[p.id] || 0 }))
+      .sort((a, b) => b.pts - a.pts || a.i - b.i);
+    // Rang « de compétition » : 50, 40, 40, 10 → 1, 2, 2, 4.
+    lignes.forEach((l) => { l.rank = 1 + lignes.filter((x) => x.pts > l.pts).length; });
+    const personne = lignes.every((l) => l.pts === 0);
+
+    let vues = lignes;
+    if (lignes.length > SCORE_MAX) {
+      vues = lignes.slice(0, SCORE_MAX - 1);
+      const moi = lignes.find((l) => l.p.id === you);
+      vues.push(moi && !vues.includes(moi) ? moi : lignes[SCORE_MAX - 1]);
+    }
+    $('hub-score-list').replaceChildren(...vues.map((l) => {
+      const li = document.createElement('li');
+      li.className = 'hub-score-row' + (l.p.id === you ? ' is-me' : '') + (l.p.connected ? '' : ' is-away');
+      li.dataset.player = l.p.id;
+      li.dataset.points = String(l.pts);
+      const rang = document.createElement('span');
+      rang.setAttribute('aria-hidden', 'true');
+      // Pas de médaille tant que personne n'a marqué : tout le monde serait 🥇.
+      const medaille = !personne && l.pts > 0 && l.rank <= 3;
+      rang.className = 'hub-score-rank' + (medaille ? '' : ' is-num');
+      rang.textContent = medaille ? MEDAILLES[l.rank - 1] : (personne ? '·' : l.rank + '.');
+      const nom = document.createElement('span');
+      nom.className = 'hub-score-name';
+      nom.textContent = l.p.name + (l.p.id === you ? ' (toi)' : '');
+      nom.title = l.p.name;
+      const pts = document.createElement('span');
+      pts.className = 'hub-score-pts';
+      if (gain[l.p.id]) {
+        const d = document.createElement('span');
+        d.className = 'hub-score-delta';
+        d.textContent = '+' + gain[l.p.id];
+        pts.appendChild(d);
+      }
+      pts.append(String(l.pts));
+      const u = document.createElement('small');
+      u.textContent = 'pts';
+      pts.appendChild(u);
+      li.setAttribute('aria-label', (personne ? '' : (l.rank === 1 ? '1er' : l.rank + 'e') + ' : ') + l.p.name
+        + (l.p.id === you ? ' (toi)' : '') + ', ' + l.pts + ' point' + (l.pts > 1 ? 's' : '')
+        + (gain[l.p.id] ? ', dont ' + gain[l.p.id] + ' à la dernière partie' : ''));
+      li.append(rang, nom, pts);
+      return li;
+    }));
+    const caches = lignes.length - vues.length;
+    $('hub-score-note').textContent = !jeux.length
+      ? 'Les points tombent à la fin de chaque partie lancée depuis le Hub.'
+      : `après ${jeux.length} partie${jeux.length > 1 ? 's' : ''} · dernière : ${info(derniere.gameId).title}`
+        + (caches ? ` · +${caches} autre${caches > 1 ? 's' : ''}` : '');
   }
 
   // ------------------------------------------------------------- les jeux

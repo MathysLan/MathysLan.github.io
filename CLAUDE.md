@@ -1662,6 +1662,57 @@ là où Render se réveille vraiment —, pas le tirage.
 `tests/hub-draw.mjs` 79 (77 en mouvement réduit), `tests/handoff-play.mjs` 42,
 `tests/handoff.mjs` 22, `tests/hub-play.mjs` 45, fichiers générés OK.
 
+## Score de soirée (2026-09-26, pilote : Le Passeur)
+
+Le Hub tient maintenant un **score cumulé par session**, affiché en haut à
+droite du salon. **Seul Le Passeur rend son classement** ; les six autres jeux
+se lancent comme avant et ne rapportent rien (ne pas les brancher avant que
+Mathys ait validé le contrat).
+
+Deux autorités, qui ne se mélangent pas : **le jeu** reste maître de SA partie,
+**le Hub** (`game-hub-server/src/scores.js`, module pur) est maître de la
+soirée. La page ne calcule aucun point.
+
+    entrée dans la room   → launched / entered { …, gamePlayerId }   chacun SA place
+    fin de partie (hôte)  → results { drawId, gameId, results: [{ gamePlayerId, rank, points }] }
+                          → ended                                   (même socket : même ordre)
+
+- **Pourquoi `gamePlayerId` et pas le player.id du Hub** : l'hôte ne connaît
+  pas l'identifiant de jeu des autres (celui du Passeur est un id aléatoire de
+  room). Chacun déclare donc le sien en entrant (`lien.roomReady(code, you.id)`),
+  et le Hub relie une ligne du classement à qui s'est assis là. Une place déjà
+  prise par un autre est refusée : l'hôte ne peut pas donner de points à
+  quelqu'un d'autre. Les places ne sortent jamais dans l'état public.
+- **Conversion, commune à tous les jeux** : `10 × (classés − rang + 1)` —
+  10 par joueur battu, +10 pour avoir joué ; à trois 30 / 20 / 10 ; ex æquo =
+  même rang. Le rang, pas les points du jeu : Le Passeur va de 3 à 12 manches
+  (une partie longue pèserait 4×), le Morpion n'a pas de points. Les points du
+  jeu restent dans `history.games[].results[].gamePoints`.
+- **Validations du Hub** : hôte du lancement (ou hôte actuel), bon `drawId`,
+  bon `gameId`, partie lancée, **une fois par lancement** (une revanche dans la
+  même room ne compte pas : `RESULTS_ALREADY`), forme du classement
+  (`BAD_RESULTS`). Nouveaux codes : `BAD_RESULTS`, `GAME_MISMATCH`,
+  `RESULTS_ALREADY` (phrases dans `game-hub.js`, listés dans `tests/hub.mjs`).
+- `session.scores` (playerId → points) + `session.history.games` : vides à la
+  création, survivent aux tirages et aux reconnexions, meurent avec la session.
+- ⚠️ **Limite assumée** : le serveur du jeu ne parle pas au Hub, le classement
+  passe par le navigateur de l'hôte. Même confiance que pour le code de room.
+- **Le Passeur** : à `end`, `app.js` calcule les rangs de compétition sur les
+  scores DU SERVEUR et appelle `lien.results()` puis `lien.ended()`.
+  `hub-handoff.js` n'envoie que depuis l'hôte du lancement, une seule fois.
+  Garde `if (lien.results)` : un `hub-handoff.js` resté en cache n'a pas la
+  méthode (d'où aussi les `?v=2` sur la page du Passeur et du Hub).
+- **UI** (`games/index.html`, `renderScore` dans `hub-page.js`) : `#lobby`
+  est une **grille**. `#hub-score` est APRÈS `#hub-players` dans le DOM (ordre
+  téléphone : code → joueurs → score → caisse) et c'est la grille qui le
+  remonte en haut à droite au-dessus de 700 px. Le statut de session est passé
+  sous le code. Pas de médaille tant que personne n'a marqué ; au-delà de 6
+  joueurs, les 5 premiers + ta ligne. ⚠️ Ne pas déplacer `#hub-score` dans
+  `.hub-lobby-head` « pour simplifier » : l'ordre mobile casserait.
+- **Tests** : `game-hub-server/test-scores.js` (53 : module pur + protocole) ;
+  `tests/hub-score.mjs` (40 : trois navigateurs, deux vraies parties, mise en
+  page 1280 → 390 px).
+
 ## Handoff et présence : l'état des sept jeux
 
 Les sept jeux en ligne (Morpion, Imitation, Demi-Cercle, Ban, Précision, Le

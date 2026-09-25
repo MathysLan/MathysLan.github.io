@@ -18,8 +18,11 @@
 //   client → { action: 'draw' }                                hôte — rien d'autre
 //   client → { action: 'continue' }                            hôte
 //   Lancement (envoyés par la PAGE DU JEU, games/shared/hub-handoff.js) :
-//   client → { action: 'launched', drawId, roomCode }         hôte du lancement
-//   client → { action: 'entered', drawId, roomCode }          chacun, une fois dans la room
+//   client → { action: 'launched', drawId, roomCode, gamePlayerId? }   hôte du lancement
+//   client → { action: 'entered', drawId, roomCode, gamePlayerId? }    chacun, une fois dans la room
+//            gamePlayerId = SA place dans la room du jeu (score de soirée)
+//   client → { action: 'results', drawId, gameId, results: [{ gamePlayerId, rank, points }] }
+//            hôte du lancement — le classement final ; le Hub en fait le score de soirée
 //   client → { action: 'started' | 'ended', drawId }          hôte du lancement
 //   client → { action: 'abort', drawId, reason, detail }      création / entrée impossible
 //   serveur → { type: 'created' | 'joined', you, session }
@@ -87,8 +90,12 @@
   var constraintsMsg = function (maxMinutes) { return { action: 'constraints', maxMinutes: maxMinutes == null ? null : maxMinutes }; };
   var drawMsg = function () { return { action: 'draw' }; };
   var continueMsg = function () { return { action: 'continue' }; };
-  var launchedMsg = function (drawId, roomCode) { return { action: 'launched', drawId: drawId, roomCode: roomCode }; };
-  var enteredMsg = function (drawId, roomCode) { return { action: 'entered', drawId: drawId, roomCode: roomCode }; };
+  // gamePlayerId : facultatif — un jeu qui ne le donne pas se lance pareil,
+  // il ne rapporte simplement aucun point de soirée.
+  var seatOf = function (m, gamePlayerId) { if (typeof gamePlayerId === 'string' && gamePlayerId) m.gamePlayerId = gamePlayerId; return m; };
+  var launchedMsg = function (drawId, roomCode, gamePlayerId) { return seatOf({ action: 'launched', drawId: drawId, roomCode: roomCode }, gamePlayerId); };
+  var enteredMsg = function (drawId, roomCode, gamePlayerId) { return seatOf({ action: 'entered', drawId: drawId, roomCode: roomCode }, gamePlayerId); };
+  var resultsMsg = function (drawId, gameId, results) { return { action: 'results', drawId: drawId, gameId: gameId, results: results }; };
   var startedMsg = function (drawId) { return { action: 'started', drawId: drawId }; };
   var endedMsg = function (drawId) { return { action: 'ended', drawId: drawId }; };
   var abortMsg = function (drawId, reason, detail) { return { action: 'abort', drawId: drawId, reason: reason, detail: detail }; };
@@ -168,8 +175,30 @@
       expected: ids(l.expected), entered: ids(l.entered), waiting: ids(l.waiting), missed: ids(l.missed),
       failed: failed,
       reason: typeof l.reason === 'string' ? l.reason : null,
+      scored: l.scored === true,
       expiresInMs: num(l.expiresInMs),
     };
+  }
+
+  // Le score de la soirée : calculé par le Hub, jamais ici. On relit seulement.
+  function readScores(sc) {
+    var out = {};
+    if (sc && typeof sc === 'object') Object.keys(sc).forEach(function (k) { if (num(sc[k]) !== null) out[k] = sc[k]; });
+    return out;
+  }
+  function readGames(list) {
+    return (Array.isArray(list) ? list : []).filter(function (g) { return g && typeof g.gameId === 'string'; }).map(function (g) {
+      return {
+        n: num(g.n) || 0,
+        drawId: typeof g.drawId === 'string' ? g.drawId : null,
+        gameId: g.gameId,
+        at: num(g.at),
+        players: num(g.players) || 0,
+        results: (Array.isArray(g.results) ? g.results : []).filter(function (r) { return r && typeof r.playerId === 'string'; }).map(function (r) {
+          return { playerId: r.playerId, name: typeof r.name === 'string' ? r.name : '?', rank: num(r.rank) || 0, gamePoints: num(r.gamePoints), points: num(r.points) || 0 };
+        }),
+      };
+    });
   }
 
   function readSession(s) {
@@ -202,7 +231,8 @@
         }),
       constraints: { maxMinutes: s.constraints ? num(s.constraints.maxMinutes) : null },
       draw: readDraw(s.draw),
-      history: { played: ids(history.played) },
+      history: { played: ids(history.played), games: readGames(history.games) },
+      scores: readScores(s.scores),
       launch: readLaunch(s.launch),
       pool: readPool(s.pool),
     };
@@ -263,6 +293,9 @@
     LAUNCH_EXPIRED: 'Le lancement a expiré.',
     BAD_ROOM_CODE: 'Le code de la partie est mal formé.',
     WRONG_ROOM: 'Ce n\'est pas la partie du groupe.',
+    BAD_RESULTS: 'Le classement de la partie a été refusé par le Hub.',
+    GAME_MISMATCH: 'Ce classement ne vient pas du jeu lancé.',
+    RESULTS_ALREADY: 'Le classement de cette partie est déjà compté.',
   };
 
   // Pourquoi un lancement a échoué (launch.reason), dit au groupe entier.
@@ -451,8 +484,9 @@
       setConstraints: function (maxMinutes) { send(constraintsMsg(maxMinutes)); },
       draw: function () { send(drawMsg()); },
       confirm: function () { send(continueMsg()); },
-      launched: function (drawId, roomCode) { send(launchedMsg(drawId, roomCode)); },
-      entered: function (drawId, roomCode) { send(enteredMsg(drawId, roomCode)); },
+      launched: function (drawId, roomCode, gamePlayerId) { send(launchedMsg(drawId, roomCode, gamePlayerId)); },
+      entered: function (drawId, roomCode, gamePlayerId) { send(enteredMsg(drawId, roomCode, gamePlayerId)); },
+      results: function (drawId, gameId, results) { send(resultsMsg(drawId, gameId, results)); },
       started: function (drawId) { send(startedMsg(drawId)); },
       ended: function (drawId) { send(endedMsg(drawId)); },
       abort: function (drawId, reason, detail) { send(abortMsg(drawId, reason, detail)); },
@@ -470,7 +504,7 @@
     hubUrl: hubUrl, healthUrl: healthUrl, normalizeCode: normalizeCode,
     playerFrom: playerFrom, createMsg: createMsg, joinMsg: joinMsg, leaveMsg: leaveMsg,
     prefsMsg: prefsMsg, capsMsg: capsMsg, constraintsMsg: constraintsMsg, drawMsg: drawMsg, continueMsg: continueMsg,
-    launchedMsg: launchedMsg, enteredMsg: enteredMsg, startedMsg: startedMsg, endedMsg: endedMsg, abortMsg: abortMsg,
+    launchedMsg: launchedMsg, enteredMsg: enteredMsg, resultsMsg: resultsMsg, startedMsg: startedMsg, endedMsg: endedMsg, abortMsg: abortMsg,
     readLaunch: readLaunch, launchFailureText: launchFailureText,
     parseMessage: parseMessage, readSession: readSession, errorText: errorText, reasonText: reasonText,
     createClient: createClient,

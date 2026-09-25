@@ -90,7 +90,7 @@
 
     var b = banner();
     var hub = GameHub.createClient({ url: t.hub });
-    var session = null, fini = false, joint = false, monCode = null;
+    var session = null, fini = false, joint = false, monCode = null, rapporte = false;
     var noms = function (list) {
       return (list || []).map(function (id) { var p = session && session.players.find(function (x) { return x.id === id; }); return p ? p.name : '?'; }).join(', ');
     };
@@ -148,12 +148,30 @@
     var api = {
       role: t.role,
       // La page du jeu a obtenu SA room (message du serveur du jeu).
-      roomReady: function (code) {
+      // `gamePlayerId` (facultatif) : l'identifiant que le serveur du jeu vient
+      // de lui donner. C'est sa PLACE dans la room : le Hub s'en sert pour relier
+      // le classement final à ce joueur (score de soirée). Chacun ne déclare que
+      // la sienne — l'hôte ne peut pas l'écrire pour les autres.
+      roomReady: function (code, gamePlayerId) {
         monCode = code;
         var l = session && session.launch;
         if (!l || l.drawId !== t.drawId) return;
-        if (l.hostId === t.playerId && !l.roomCode) hub.launched(t.drawId, code);
-        else hub.entered(t.drawId, code);
+        var place = gamePlayerId == null ? undefined : String(gamePlayerId);
+        if (l.hostId === t.playerId && !l.roomCode) hub.launched(t.drawId, code, place);
+        else hub.entered(t.drawId, code, place);
+      },
+      // Le classement FINAL de la partie, tel que le serveur du jeu l'a envoyé :
+      // [{ gamePlayerId, rank, points }]. Seul l'hôte du lancement le rapporte,
+      // une seule fois, et AVANT `ended()` (même socket, donc même ordre). Le Hub
+      // valide tout et le convertit en points de soirée — cette page ne calcule
+      // aucun score de soirée.
+      results: function (rows) {
+        if (rapporte || fini) return false;
+        var l = session && session.launch;
+        if (!l || l.drawId !== t.drawId || l.hostId !== t.playerId) return false;
+        rapporte = true;
+        hub.results(t.drawId, t.gameId, rows);
+        return true;
       },
       // L'hôte a démarré la partie (première manche).
       started: function () {
