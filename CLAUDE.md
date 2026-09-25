@@ -1665,9 +1665,17 @@ là où Render se réveille vraiment —, pas le tirage.
 ## Score de soirée (2026-09-26, pilote : Le Passeur)
 
 Le Hub tient maintenant un **score cumulé par session**, affiché en haut à
-droite du salon. **Seul Le Passeur rend son classement** ; les six autres jeux
-se lancent comme avant et ne rapportent rien (ne pas les brancher avant que
-Mathys ait validé le contrat).
+droite du salon. Contrat validé en production le 2026-09-26. **Deux jeux rendent
+leur classement : Le Passeur et Imitation** ; les cinq autres se lancent comme
+avant et ne rapportent rien (on les branche un par un, à la demande).
+
+**Imitation** (2026-09-26) : aucun changement d'`imitation-server` — son
+`phase: end` porte déjà `podium: [{ id, name, avatar, score }]`. Son id de
+joueur arrive dans `room.you` (pas de message `you`). `room` arrive à chaque
+changement du salon : l'annonce au Hub est gardée, mais **ré-émise quand `you`
+change** (reconnexion au salon = nouvel id ; sans ça, la place déclarée serait
+l'ancienne et le joueur ne marquerait rien). Helper `rangs()` dans
+`games/imitation/app.js`. Test : `tests/hub-score-imitation.mjs`.
 
 Deux autorités, qui ne se mélangent pas : **le jeu** reste maître de SA partie,
 **le Hub** (`game-hub-server/src/scores.js`, module pur) est maître de la
