@@ -175,6 +175,8 @@
         <label for="rounds-select" class="wait">Manches</label>
         <select id="rounds-select" style="width:auto"><option>3</option><option selected>5</option><option>8</option></select>
         <button id="start" type="button" class="tf-btn tf-btn-buy">Lancer la partie</button>
+        <!-- Lancé par le Game Hub : l'hôte peut partir sans les retardataires. -->
+        <button id="start-anyway" type="button" class="tf-btn tf-btn-sm" hidden>Lancer sans attendre</button>
       </div>
       <p id="need-players" class="wait">En attente du MJ…</p>
     </section>
@@ -254,6 +256,7 @@
       <div class="actions">
         <button id="again" type="button" class="tf-btn tf-btn-buy">Rejouer</button>
         <a class="tf-btn tf-btn-sm" href="../../#games">Les autres jeux</a>
+        <a id="to-hub" class="tf-btn tf-btn-sm" href="../" hidden>↩ Retour au Game Hub</a>
       </div>
     </section>
 
@@ -268,7 +271,10 @@
   <script src="../shared/game-avatar.js"></script>
   <!-- Transport commun : connexion, présence du joueur, perte de connexion. -->
   <script src="../shared/game-net.js?v=1"></script>
+  <!-- Lancé par le Game Hub : billet en sessionStorage, sinon rien ne change. -->
+  <script src="../shared/game-hub.js"></script>
+  <script src="../shared/hub-handoff.js"></script>
   <script src="net.js?v=2"></script>
-  <script src="app.js?v=2"></script>
+  <script src="app.js?v=3"></script>
 </body>
 </html>

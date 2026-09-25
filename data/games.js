@@ -365,7 +365,7 @@ const GAMES = [
       join: 'v1',
       content: false,
       replay: true,                       // action: 'lobby' vérifiée dans server.js
-      handoff: false,
+      handoff: true,                      // branché au Game Hub (games/shared/hub-handoff.js)
     },
   },
   {

@@ -59,25 +59,67 @@
       await NET.connect();
       // L'avatar complet : la photo du profil s'il y en a une, l'emoji toujours.
       NET.send({ action: 'join', name: $('name-input').value, avatar: GameProfile.joinAvatar(myAvatar), code: code || undefined });
-    } catch (err) { showError(err.message); perte.refus(err.message); }
+    } catch (err) {
+      showError(err.message);
+      perte.refus(err.message);
+      // Entrée lancée par le Hub et ratée : on le dit, sinon le groupe attend
+      // un joueur qui n'arrivera jamais.
+      if (lien && viaHub && !myId) { viaHub = false; lien.failed('UNREACHABLE', err.message); }
+    }
   }
   $('host').addEventListener('click', () => enter());
   $('join').addEventListener('click', () => enter($('code-input').value));
   $('code-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') enter($('code-input').value); });
 
+  // --- lancé par le Game Hub -------------------------------------------------
+  // Si la page a été ouverte par le Hub, un billet dit si l'on CRÉE la partie
+  // (l'hôte du lancement) ou si l'on REJOINT le code du groupe. Dans les deux
+  // cas on passe par `enter()`, le chemin normal de cette page : aucun second
+  // système de création ni de join.
+  // ⚠️ Sans billet, `lien` vaut null et la page marche exactement comme avant.
+  let viaHub = false;            // le join en cours vient du Hub
+  let partirSansAttendre = false;
+  let codeDeclare = null;        // le code déjà annoncé au Hub (une seule fois)
+  const lien = window.HubHandoff ? HubHandoff.start({
+    gameId: 'quiment',
+    join: (code) => {
+      viaHub = true;
+      if (!$('name-input').value.trim()) $('name-input').value = GameProfile.load().name || '';
+      enter(code || undefined);
+    },
+    onUpdate: attente,
+  }) : null;
+
+  // L'hôte ne lance pas tant que le groupe n'est pas dans la room :
+  // qui-ment-server refuse un join une fois la partie commencée (« partie déjà
+  // commencée »), donc un invité en retard serait laissé dehors. Il peut partir
+  // sans eux — explicitement. La règle du jeu tient toujours : 3 joueurs au
+  // moins, avec ou sans Hub.
+  function attente(i) {
+    if (!isHost) return;
+    const n = i && i.launch.stage === 'join' ? i.waitingIds.length : 0;
+    const bloque = n > 0 && !partirSansAttendre;
+    $('start').disabled = bloque || players.length < 3;
+    $('start').textContent = bloque ? `En attente de ${i.waiting}…` : 'Lancer la partie';
+    $('start-anyway').hidden = !bloque;
+  }
+
   // --- connexion perdue (games/shared/game-net.js) --------------------------
   // Au salon, UN retour automatique par le join NORMAL, avec le même code ; en
   // pleine partie, aucune reprise : on dit qu'elle a continué sans nous.
+  // `myId = null` (dans quitter) rend aussi sa garde à lien.failed() : un
+  // retour raté depuis le Game Hub lui est bien signalé.
   const perte = GameNet.surPerte(NET, {
     dansRoom: () => !!myId,
     enPartie: () => ['play', 'vote', 'guess', 'results'].some((s) => !$(s).hidden),
     code: () => $('room-code').textContent.trim(),
     quitter: () => {
       myId = null;
+      $('to-hub').hidden = true;
       showError('');
     },
-    revenir: (code) => enter(code),
-    show, hub: false,
+    revenir: (code) => { if (lien) viaHub = true; enter(code); },
+    show, hub: !!lien,
   });
 
   $('room-code').addEventListener('click', async () => {
@@ -92,7 +134,9 @@
     back();
   });
 
-  $('start').addEventListener('click', () => NET.send({ action: 'start', rounds: +$('rounds-select').value }));
+  const lancer = () => NET.send({ action: 'start', rounds: +$('rounds-select').value });
+  $('start').addEventListener('click', lancer);
+  $('start-anyway').addEventListener('click', () => { partirSansAttendre = true; lancer(); });
   $('again').addEventListener('click', () => NET.send({ action: 'start', rounds: +$('rounds-select').value }));
   $('next').addEventListener('click', () => NET.send({ action: 'next' }));
   ['skip-clue', 'skip-vote', 'skip-guess'].forEach((id) =>
@@ -167,6 +211,9 @@
     perte.retour();                           // de retour dans une room
     isHost = msg.host;
     $('room-code').textContent = msg.code;
+    // Lancé par le Hub : le code de CETTE room remonte, une seule fois (un
+    // retour au salon après une coupure renvoie un `you` avec le même code).
+    if (lien && !codeDeclare) { codeDeclare = msg.code; viaHub = false; lien.roomReady(msg.code); }
     show('lobby');
   });
 
@@ -183,6 +230,7 @@
       $('start').disabled = few;
       $('need-players').hidden = !few;
       $('need-players').textContent = few ? 'il faut au moins 3 joueurs' : '';
+      attente(lien && lien.info());
     }
     show('lobby');
   });
@@ -193,6 +241,8 @@
   NET.on('role', (msg) => {
     players = msg.players;
     amImpostor = msg.impostor;
+    // La première manche démarre : c'est l'hôte qui le dit au Hub.
+    if (msg.round === 1 && lien && isHost) lien.started();
     $('round-num').textContent = msg.round;
     $('round-of').textContent = msg.of;
     $('score').textContent = (players.find((p) => p.id === myId) || {}).score || 0;
@@ -301,12 +351,17 @@
       `<div class="rank-row"><span class="g-player"><span class="medal">${i + 1}.</span>${av(r.avatar, i < 3 ? 'lg' : 'md')}<span class="g-player-name">${esc(r.name)}</span></span><span class="avg">${r.score} pts</span></div>`).join('');
     GameAvatar.fill($('ranking'));
     $('again').hidden = !isHost;
+    // Lancé par le Hub : la partie est finie, on peut y retourner.
+    if (lien) { lien.ended(); $('to-hub').hidden = false; }
     show('end');
   });
 
   NET.on('error', (msg) => {
     showError(msg.message);
     perte.refus(msg.message);                // un retour dans le salon refusé : on le dit
+    // Entrée lancée par le Hub et refusée (partie commencée, complète…) : le
+    // Hub est prévenu, sinon le groupe attend un joueur qui n'arrivera jamais.
+    if (lien && viaHub && !myId) { viaHub = false; lien.failed('JOIN', msg.message); }
     // Un indice refusé doit rendre la main, sinon le joueur reste bloqué sur
     // une saisie verrouillée pour un indice que le serveur n'a pas gardé.
     if (!$('play').hidden) lockClue(false);
