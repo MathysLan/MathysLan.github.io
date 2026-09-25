@@ -576,7 +576,7 @@ async function enter(code) {
   try { await NET.connect(); NET.send(code === undefined ? { action: 'join', name, avatar } : { action: 'join', name, code, avatar }); }
   catch (err) {
     AUDIO.error(); showError(err.message);
-    if (codePerdu && !$('lost').hidden) perdu(`Impossible de revenir dans le salon : ${err.message}.`);
+    perte.refus(err.message);                  // un retour dans le salon refusé : on le dit
     // Entrée lancée par le Hub et ratée : on le dit, sinon le groupe attend un
     // joueur qui n'arrivera jamais.
     if (lien && viaHub && !you) { viaHub = false; lien.failed('UNREACHABLE', err.message); }
@@ -693,7 +693,7 @@ function armAutoSubmit(ms) {
 // ============================================================ serveur
 NET.on('room', (msg) => {
   you = msg.you;
-  codePerdu = null;                           // de retour dans une room
+  perte.retour();                             // de retour dans une room
   if (!$('lost').hidden) showError('');
   $('room-code').textContent = msg.code;
   // Lancé par le Hub : on lui dit dans quelle room on est. L'hôte y déclare le
@@ -716,7 +716,7 @@ NET.on('error', (msg) => {
   AUDIO.error(); showError(msg.message);
   // Retour dans le salon refusé (room fermée, partie en cours…) : on le dit
   // sur l'écran de connexion perdue, sans réessayer tout seul.
-  if (!you && codePerdu && !$('lost').hidden) perdu(`Impossible de revenir dans le salon : ${msg.message}.`);
+  perte.refus(msg.message);
   // Le serveur refuse d'entrer (code inconnu, room pleine, partie en cours) :
   // le Hub est prévenu, pour que le groupe le sache au lieu d'attendre.
   if (lien && viaHub && !you) { viaHub = false; lien.failed('JOIN', msg.message); }
@@ -724,48 +724,27 @@ NET.on('error', (msg) => {
 // --- connexion perdue --------------------------------------------------------
 // games/shared/game-net.js émet `lost` UNE fois par connexion perdue : fermée
 // par le serveur (onglet gelé → « absent »), coupée par le réseau, ou muette.
-// Au salon — et sur le podium, la room y est revenue — on tente UNE fois de
-// revenir, par le chemin NORMAL : enter(code), le même join qu'au clic sur
+// Au salon — et sur le podium, la room y est revenue — UN retour automatique,
+// par le chemin NORMAL : enter(code), le même join qu'au clic sur
 // « Rejoindre ». En pleine partie, on ne reprend rien : elle a continué sans
 // nous, on le dit. Dans les deux cas, plus jamais de salon périmé à l'écran.
-let codePerdu = null;          // la room d'où l'on vient d'être déconnecté
-NET.on('lost', () => {
-  if (!you) {                                 // pas (encore) dans une room : rien à reprendre…
-    if (codePerdu && !$('lost').hidden) perdu('La connexion a de nouveau été coupée.');   // …sauf un retour en cours
-    return;
-  }
-  const enPartie = phase === 'memorize' || phase === 'play' || phase === 'reveal';
-  codePerdu = $('room-code').textContent.trim();
-  // On n'est plus dans la room. `you = null` rend aussi sa garde à
-  // lien.failed() : un retour raté depuis le Hub lui est bien signalé.
-  you = null;
-  clearTimeout(autoTimer); autoTimer = 0; stopBar(); stopAll(); setFab(null);
-  phase = 'lobby'; game = null; submitted = false;
-  $('to-hub').hidden = true;
-  $('lost-hub').hidden = !lien;
-  showError('');
-  show('lost');
-  if (enPartie) {
-    perdu('Ta connexion a été coupée pendant la partie : elle a continué sans toi. Tu pourras revenir dans le salon quand elle sera finie.');
-    return;
-  }
-  $('lost-text').textContent = 'Connexion perdue — retour dans le salon…';
-  $('lost-retry').hidden = true;
-  revenir();
+// La logique est commune aux jeux (GameNet.surPerte, tirée de celle-ci) ; ne
+// reste ici que ce qui est propre à Précision : son état à remettre à zéro.
+const perte = GameNet.surPerte(NET, {
+  dansRoom: () => !!you,
+  enPartie: () => phase === 'memorize' || phase === 'play' || phase === 'reveal',
+  code: () => $('room-code').textContent.trim(),
+  quitter: () => {
+    // `you = null` rend aussi sa garde à lien.failed() : un retour raté depuis
+    // le Hub lui est bien signalé.
+    you = null;
+    clearTimeout(autoTimer); autoTimer = 0; stopBar(); stopAll(); setFab(null);
+    phase = 'lobby'; game = null; submitted = false;
+    $('to-hub').hidden = true; showError('');
+  },
+  revenir: (code) => { if (lien) viaHub = true; enter(code); },   // un échec sera dit au Hub
+  show, hub: !!lien,
 });
-// Le retour dans le salon : le join AVEC code, rien d'autre.
-function revenir() {
-  if (!codePerdu) return;
-  $('lost-retry').hidden = true;
-  if (lien) viaHub = true;                    // un échec sera dit au Hub, comme une entrée ratée
-  enter(codePerdu);
-}
-// Pas de nouvel essai automatique : on explique, et le joueur décide.
-function perdu(texte) {
-  $('lost-text').textContent = texte;
-  $('lost-retry').hidden = !codePerdu;
-}
-$('lost-retry').addEventListener('click', () => { $('lost-text').textContent = 'Retour dans le salon…'; revenir(); });
 NET.on('ready', (msg) => {
   if (phase === 'play' && submitted) $('phase-sub').textContent = `${msg.ids.length}/${msg.of} ont validé`;
 });
