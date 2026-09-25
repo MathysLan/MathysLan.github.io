@@ -137,7 +137,17 @@
   const lancer = () => NET.send({ action: 'start', rounds: +$('rounds-select').value });
   $('start').addEventListener('click', lancer);
   $('start-anyway').addEventListener('click', () => { partirSansAttendre = true; lancer(); });
-  $('again').addEventListener('click', () => NET.send({ action: 'start', rounds: +$('rounds-select').value }));
+  // « Rejouer » : à la fin, le serveur est en phase `end` et n'accepte `start`
+  // QUE depuis le salon (sinon il l'ignore, sans erreur). On lui demande donc
+  // d'abord d'y revenir (`lobby`, réservé au MJ) ; le nouveau `start` ne part
+  // qu'au retour du salon diffusé par le serveur — jamais avant, et une fois.
+  let rejouer = false;
+  $('again').addEventListener('click', () => {
+    if (rejouer) return;
+    rejouer = true;
+    $('again').disabled = true;
+    NET.send({ action: 'lobby' });
+  });
   $('next').addEventListener('click', () => NET.send({ action: 'next' }));
   ['skip-clue', 'skip-vote', 'skip-guess'].forEach((id) =>
     $(id).addEventListener('click', () => NET.send({ action: 'skip' })));
@@ -233,6 +243,9 @@
       attente(lien && lien.info());
     }
     show('lobby');
+    // Retour au salon demandé par « Rejouer » : la room est de nouveau en
+    // `lobby`, le serveur accepte maintenant le lancement.
+    if (rejouer) { rejouer = false; if (isHost) lancer(); }
   });
 
   // Le rôle : le seul message qui arrive joueur par joueur. `word` est null
@@ -351,6 +364,7 @@
       `<div class="rank-row"><span class="g-player"><span class="medal">${i + 1}.</span>${av(r.avatar, i < 3 ? 'lg' : 'md')}<span class="g-player-name">${esc(r.name)}</span></span><span class="avg">${r.score} pts</span></div>`).join('');
     GameAvatar.fill($('ranking'));
     $('again').hidden = !isHost;
+    $('again').disabled = false;
     // Lancé par le Hub : la partie est finie, on peut y retourner.
     if (lien) { lien.ended(); $('to-hub').hidden = false; }
     show('end');
@@ -362,6 +376,8 @@
     // Entrée lancée par le Hub et refusée (partie commencée, complète…) : le
     // Hub est prévenu, sinon le groupe attend un joueur qui n'arrivera jamais.
     if (lien && viaHub && !myId) { viaHub = false; lien.failed('JOIN', msg.message); }
+    // « Rejouer » refusé (on n'est plus le MJ) : on rend le bouton.
+    if (rejouer) { rejouer = false; $('again').disabled = false; }
     // Un indice refusé doit rendre la main, sinon le joueur reste bloqué sur
     // une saisie verrouillée pour un indice que le serveur n'a pas gardé.
     if (!$('play').hidden) lockClue(false);
