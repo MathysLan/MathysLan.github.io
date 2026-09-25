@@ -145,7 +145,7 @@
       b.say('Game Hub injoignable (' + e.message + ') — la partie reste jouable : ' + (t.role === 'host' ? 'crée-la et donne le code.' : 'demande le code à l\'hôte.'));
     });
 
-    return {
+    var api = {
       role: t.role,
       // La page du jeu a obtenu SA room (message du serveur du jeu).
       roomReady: function (code) {
@@ -170,13 +170,30 @@
       },
       // Création ou entrée impossible (serveur injoignable, code refusé…).
       failed: function (reason, detail) {
+        // L'HÔTE du lancement a déjà déclaré sa room et ne peut plus y revenir
+        // (connexion perdue alors qu'il y était seul : la room a disparu). Elle
+        // est perdue pour tout le groupe. Le Hub n'accepte un échec de l'hôte
+        // qu'à la création ; au-delà, c'est une annulation — sinon le groupe
+        // resterait devant « Rejoindre » une room morte jusqu'à l'échéance du
+        // lancement (120 s). Mesuré : tests/presence-precision.mjs.
+        var l = session && session.launch;
+        if (l && l.drawId === t.drawId && l.hostId === t.playerId && l.stage === 'join') return api.cancel(detail);
         joint = false;
         hub.abort(t.drawId, reason === 'UNREACHABLE' ? 'UNREACHABLE' : 'CREATE_FAILED', String(detail || '').slice(0, 120));
         b.say('Game Hub · ' + (reason === 'UNREACHABLE' ? 'serveur du jeu injoignable' : 'impossible d\'entrer dans la partie') + (detail ? ' (' + detail + ')' : '') + ' — le Hub est prévenu.');
       },
+      // Annuler le lancement : tout le groupe revient au salon du Hub (raison
+      // CANCELLED, que le Hub accepte déjà de l'hôte) et peut retirer.
+      cancel: function (detail) {
+        joint = false;
+        hub.abort(t.drawId, 'CANCELLED');
+        clear();
+        b.say('Game Hub · la partie est perdue' + (detail ? ' (' + detail + ')' : '') + ' — lancement annulé, le groupe revient au Hub.');
+      },
       code: function () { return monCode; },
       info: info,
     };
+    return api;
   }
 
   return { KEY: KEY, MAX_AGE_MS: MAX_AGE_MS, readTicket: readTicket, write: write, read: read, clear: clear, start: start };

@@ -214,6 +214,11 @@
      ⚠️ Surtout pas la classe `.back` : elle est réservée au retour vers le
      portfolio, et tests/games.html lit le premier `a.back` de la page. */
   #to-hub { display: block; margin: .9rem auto 0; text-align: center; color: var(--accent); }
+  /* Connexion perdue : un panneau simple, jamais le salon d'avant (qui mentirait). */
+  #lost { text-align: center; }
+  #lost-text { margin: .4rem 0 1rem; line-height: 1.5; }
+  #lost-retry { display: block; margin: 0 auto; }
+  #lost-hub { display: block; margin-top: .9rem; color: var(--accent); }
 
   /* ---------- SHAPE ---------- */
   #shape-board { position: absolute; inset: 0; touch-action: none;
@@ -447,6 +452,15 @@
       </div>
     </section>
 
+    <!-- connexion perdue (`lost`, games/shared/game-net.js) : au salon on y
+         revient tout seul, en pleine partie on le dit — jamais de faux salon. -->
+    <section id="lost" class="panel g-screen pad" hidden>
+      <p class="lobby-head">Connexion perdue</p>
+      <p id="lost-text" role="status"></p>
+      <button type="button" id="lost-retry" hidden>Revenir dans le salon</button>
+      <a id="lost-hub" href="../" hidden>↩ Retour au Game Hub</a>
+    </section>
+
     <!-- jeu -->
     <section id="game" class="panel g-screen play-card" hidden>
       <div id="timefill"></div>
@@ -567,6 +581,8 @@
   <script src="../shared/game-profile.js"></script>
   <!-- Avatar des joueurs (emoji ou photo) à l'affichage, sans innerHTML. -->
   <script src="../shared/game-avatar.js"></script>
+  <!-- Transport commun : connexion, présence du joueur, perte de connexion. -->
+  <script src="../shared/game-net.js"></script>
   <script src="net.js"></script>
   <!-- Le Game Hub : lu seulement si la page a été ouverte par lui (un billet en
        sessionStorage). Sans billet, ces deux fichiers ne font rien du tout et
