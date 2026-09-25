@@ -148,6 +148,7 @@ async function enter(code) {
   try { await NET.connect(); NET.send(code === undefined ? { action: 'join', name, avatar } : { action: 'join', name, code, avatar }); }
   catch (err) {
     showError(err.message);
+    perte.refus(err.message);
     // Entrée lancée par le Hub et ratée : on le dit, sinon le groupe attend un
     // joueur qui n'arrivera jamais.
     if (lien && viaHub && !you) { viaHub = false; lien.failed('UNREACHABLE', err.message); }
@@ -190,6 +191,24 @@ $('start').addEventListener('click', lancer);
 $('start-anyway').addEventListener('click', () => { partirSansAttendre = true; lancer(); });
 $('back-lobby').addEventListener('click', () => { inEndScreen = false; show('lobby'); });
 
+// --- connexion perdue (games/shared/game-net.js) ----------------------------
+// Au salon (ou sur le podium), UN retour automatique par le join NORMAL, avec
+// le même code ; en pleine partie, aucune reprise : on dit qu'elle a continué.
+// `you = null` (dans quitter) rend aussi sa garde à lien.failed() : un retour
+// raté depuis le Game Hub lui est bien signalé.
+const perte = GameNet.surPerte(NET, {
+  dansRoom: () => !!you,
+  enPartie: () => ['setup', 'clue', 'guessing', 'results'].includes(phase),
+  code: () => $('room-code').textContent.trim(),
+  quitter: () => {
+    you = null; phase = 'lobby'; inEndScreen = false;
+    resetStage();
+    $('to-hub').hidden = true; showError('');
+  },
+  revenir: (code) => { if (lien) viaHub = true; enter(code); },
+  show, hub: !!lien,
+});
+
 $('theme-send').addEventListener('click', () => {
   const label = $('theme-label').value.trim(), low = $('theme-low').value.trim(), high = $('theme-high').value.trim();
   if (!label || !low || !high) return showError('remplis le thème et les deux extrémités');
@@ -230,6 +249,7 @@ $('guess-send').addEventListener('click', () => {
 // --- messages serveur ------------------------------------------------------
 NET.on('room', (msg) => {
   you = msg.you;
+  perte.retour();                             // de retour dans une room
   $('room-code').textContent = msg.code;
   // Lancé par le Hub : on lui dit dans quelle room on est. L'hôte y déclare le
   // code (le seul qu'il croira), les invités confirment y être entrés. ⚠️ `room`
@@ -253,11 +273,11 @@ NET.on('room', (msg) => {
 
 NET.on('error', (msg) => {
   showError(msg.message);
+  perte.refus(msg.message);                  // un retour dans le salon refusé : on le dit
   // Le serveur refuse d'entrer (code inconnu, room pleine, partie en cours) :
   // le Hub est prévenu, pour que le groupe le sache au lieu d'attendre.
   if (lien && viaHub && !you) { viaHub = false; lien.failed('JOIN', msg.message); }
 });
-NET.on('closed', () => { if (you) showError('connexion au serveur perdue'); });
 
 // curseur live d'un devineur → seul le Guide reçoit ce message
 NET.on('move', (msg) => {

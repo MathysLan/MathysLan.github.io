@@ -259,6 +259,7 @@ async function enter(code) {
   } catch (err) {
     const micro = err.name === 'NotAllowedError';
     showError(micro ? 'accès micro refusé - le jeu en a besoin' : err.message);
+    perte.refus(micro ? 'accès micro refusé' : err.message);
     // Entrée lancée par le Hub et ratée : on le dit, sinon le groupe attend un
     // joueur qui n'arrivera jamais. Le micro refusé est un échec d'ENTRÉE (le
     // jeu en a besoin), pas un serveur injoignable.
@@ -332,6 +333,24 @@ $('room-code').addEventListener('click', async () => {
 });
 
 $('back-lobby').addEventListener('click', () => { inEndScreen = false; show('lobby'); });
+
+// --- connexion perdue (games/shared/game-net.js) ----------------------------
+// Au salon (ou sur le podium), UN retour automatique par le join NORMAL, avec
+// le même code ; en pleine partie, aucune reprise : on dit qu'elle a continué.
+// `you = null` (dans quitter) rend aussi sa garde à lien.failed() : un retour
+// raté depuis le Game Hub lui est bien signalé.
+const perte = GameNet.surPerte(NET, {
+  dansRoom: () => !!you,
+  enPartie: () => currentPhase !== 'lobby' && !inEndScreen,
+  code: () => $('room-code').textContent.trim(),
+  quitter: () => {
+    you = null; currentPhase = 'lobby'; inEndScreen = false;
+    stopTake(); try { $('ref-video').pause(); } catch (_) {}
+    $('to-hub').hidden = true; showError('');
+  },
+  revenir: (code) => { if (lien) viaHub = true; enter(code); },
+  show, hub: !!lien,
+});
 $('next-btn').addEventListener('click', () => NET.send({ action: 'next' }));
 
 // --- enregistrement : ⏺, stop automatique à la fin du clip, réécoute -------
@@ -441,6 +460,7 @@ function renderHostControls() {
 
 NET.on('room', (msg) => {
   you = msg.you;
+  perte.retour();                             // de retour dans une room
   $('room-code').textContent = msg.code;
   // Lancé par le Hub : on lui dit dans quelle room on est. L'hôte y déclare le
   // code (le seul qu'il croira), les invités confirment y être entrés. ⚠️ `room`
@@ -481,11 +501,11 @@ NET.on('room', (msg) => {
 NET.on('scores', (msg) => renderScoreboard(msg.scores));
 NET.on('error', (msg) => {
   showError(msg.message);
+  perte.refus(msg.message);                  // un retour dans le salon refusé : on le dit
   // Le serveur refuse d'entrer (code inconnu, room pleine, partie en cours) :
   // le Hub est prévenu, pour que le groupe le sache au lieu d'attendre.
   if (lien && viaHub && !you) { viaHub = false; lien.failed('JOIN', msg.message); }
 });
-NET.on('closed', () => { if (you) showError('connexion au serveur perdue'); });
 NET.on('hurry', () => stopTake()); // le host a clôturé : la prise en cours part telle quelle
 NET.on('listen', (msg) => { pendingListen = msg; });
 

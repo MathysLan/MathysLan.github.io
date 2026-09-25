@@ -152,6 +152,12 @@
   #room-code { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 2.4rem; line-height: 1.15;
     letter-spacing: .4em; text-indent: .4em; color: #f87171; }
   #room-code:hover { color: #fca5a5; }
+  /* Connexion perdue (games/shared/game-net.js) : un panneau simple, jamais le
+     salon d'avant (qui mentirait). */
+  #lost { text-align: center; }
+  #lost-text { margin: .4rem 0 1rem; line-height: 1.5; }
+  #lost-retry { display: block; margin: 0 auto; }
+  #lost-hub { display: block; margin-top: .9rem; color: #fca5a5; }
 </style>
 </head>
 <body>
@@ -202,6 +208,15 @@
              (ban-server refuse un join hors lobby). Il peut passer outre. -->
         <button id="start-anyway" type="button" hidden>Lancer sans attendre</button>
       </div>
+    </section>
+
+    <!-- connexion perdue (`lost`, games/shared/game-net.js) : au salon on y
+         revient tout seul, en pleine partie on le dit — jamais de faux salon. -->
+    <section id="lost" class="panel g-screen" hidden>
+      <p class="lobby-head">Connexion perdue</p>
+      <p id="lost-text" role="status"></p>
+      <button type="button" id="lost-retry" hidden>Revenir dans le salon</button>
+      <a id="lost-hub" href="../" hidden>↩ Retour au Game Hub</a>
     </section>
 
     <!-- jeu -->
@@ -258,6 +273,8 @@
   <script src="../shared/game-profile.js"></script>
   <!-- Avatar des joueurs (emoji ou photo) à l'affichage, sans innerHTML. -->
   <script src="../shared/game-avatar.js"></script>
+  <!-- Transport commun : connexion, présence du joueur, perte de connexion. -->
+  <script src="../shared/game-net.js"></script>
   <script src="net.js"></script>
   <!-- Le Game Hub : lu seulement si la page a été ouverte par lui (un billet en
        sessionStorage). Sans billet, ces deux fichiers ne font rien du tout et

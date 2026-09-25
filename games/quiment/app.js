@@ -18,7 +18,7 @@
 
   let myId = null, isHost = false, players = [], amImpostor = false;
 
-  const SCREENS = ['home', 'lobby', 'play', 'vote', 'guess', 'results', 'end'];
+  const SCREENS = ['home', 'lobby', 'play', 'vote', 'guess', 'results', 'end', 'lost'];
   const show = (id) => SCREENS.forEach((s) => { $(s).hidden = s !== id; });
   const showError = (m) => { $('error').textContent = m ? '> ' + m : ''; };
   const nameOf = (id) => (players.find((p) => p.id === id) || {}).name || 'quelqu un';
@@ -59,11 +59,26 @@
       await NET.connect();
       // L'avatar complet : la photo du profil s'il y en a une, l'emoji toujours.
       NET.send({ action: 'join', name: $('name-input').value, avatar: GameProfile.joinAvatar(myAvatar), code: code || undefined });
-    } catch (err) { showError(err.message); }
+    } catch (err) { showError(err.message); perte.refus(err.message); }
   }
   $('host').addEventListener('click', () => enter());
   $('join').addEventListener('click', () => enter($('code-input').value));
   $('code-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') enter($('code-input').value); });
+
+  // --- connexion perdue (games/shared/game-net.js) --------------------------
+  // Au salon, UN retour automatique par le join NORMAL, avec le même code ; en
+  // pleine partie, aucune reprise : on dit qu'elle a continué sans nous.
+  const perte = GameNet.surPerte(NET, {
+    dansRoom: () => !!myId,
+    enPartie: () => ['play', 'vote', 'guess', 'results'].some((s) => !$(s).hidden),
+    code: () => $('room-code').textContent.trim(),
+    quitter: () => {
+      myId = null;
+      showError('');
+    },
+    revenir: (code) => enter(code),
+    show, hub: false,
+  });
 
   $('room-code').addEventListener('click', async () => {
     const hint = $('code-hint');
@@ -149,6 +164,7 @@
   // ------------------------------------------------------ messages serveur
   NET.on('you', (msg) => {
     myId = msg.id;
+    perte.retour();                           // de retour dans une room
     isHost = msg.host;
     $('room-code').textContent = msg.code;
     show('lobby');
@@ -290,9 +306,10 @@
 
   NET.on('error', (msg) => {
     showError(msg.message);
+    perte.refus(msg.message);                // un retour dans le salon refusé : on le dit
     // Un indice refusé doit rendre la main, sinon le joueur reste bloqué sur
     // une saisie verrouillée pour un indice que le serveur n'a pas gardé.
     if (!$('play').hidden) lockClue(false);
   });
-  NET.on('closed', () => showError('connexion au serveur perdue'));
+  // (La perte de connexion : voir surPerte plus haut.)
 })();

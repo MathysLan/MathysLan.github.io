@@ -265,6 +265,39 @@ const presences = (ws) => ws.envoye.filter((m) => m.action === 'presence');
   t('un pageshow ordinaire (premier affichage) ne touche à rien', NET.connected() && ev.length === 1);
 }
 
+// ═══ GameNet.surPerte : la perte, côté écran (commune aux jeux)
+// Un faux document minimal : #lost, #lost-text, #lost-retry, #lost-hub.
+{
+  const elts = {};
+  const elt = (id) => (elts[id] ||= { id, hidden: true, textContent: '', ecoute: {}, addEventListener(t, f) { this.ecoute[t] = f; } });
+  globalThis.document = { getElementById: elt };
+  const NET = net();
+  let etat = { room: true, partie: false }, ecran = 'lobby', revenus = [], quittes = [];
+  const perte = GameNet.surPerte(NET, {
+    dansRoom: () => etat.room, enPartie: () => etat.partie, code: () => 'ABCD',
+    quitter: (p) => { quittes.push(p); etat.room = false; },
+    revenir: (c) => revenus.push(c),
+    show: (id) => { ecran = id; for (const k of ['lost', 'lobby']) elt(k).hidden = k !== id; }, hub: true,
+  });
+  NET.dispatch({ type: 'lost' });
+  t('surPerte, au salon : écran « connexion perdue », état du jeu remis, UN retour avec le même code', ecran === 'lost' && quittes.join() === 'false' && revenus.join() === 'ABCD' && elt('lost-retry').hidden);
+  t('… le lien vers le Game Hub suit l\'option hub', elt('lost-hub').hidden === false);
+  perte.refus('partie en cours');
+  t('retour refusé : expliqué, bouton pour réessayer, aucun nouvel essai automatique', /Impossible de revenir dans le salon : partie en cours/.test(elt('lost-text').textContent) && !elt('lost-retry').hidden && revenus.length === 1);
+  elt('lost-retry').ecoute.click();
+  t('« Revenir dans le salon » : un nouvel essai, à la demande', revenus.length === 2);
+  perte.retour(); elt('lost').hidden = true;
+  perte.refus('autre');
+  t('de retour dans une room : les erreurs suivantes ne touchent plus l\'écran de perte', !/autre/.test(elt('lost-text').textContent));
+  etat = { room: true, partie: true }; revenus = []; quittes = [];
+  NET.dispatch({ type: 'lost' });
+  t('surPerte, en pleine partie : AUCUNE tentative, « elle a continué sans toi », bouton pour après', revenus.length === 0 && quittes.join() === 'true' && /continué sans toi/.test(elt('lost-text').textContent) && !elt('lost-retry').hidden);
+  etat = { room: false, partie: false };
+  NET.dispatch({ type: 'lost' });
+  t('perte hors d\'une room (retour en cours) : dit, sans rien relancer', /de nouveau été coupée/.test(elt('lost-text').textContent) && revenus.length === 0);
+  delete globalThis.document;
+}
+
 // ═══ option `binary` (Imitation)
 {
   const NET = net({ binary: true });

@@ -227,5 +227,55 @@
     return NET;
   }
 
-  return { create: create, INJOIGNABLE: INJOIGNABLE };
+  // ----------------------------------------------------------------------
+  // La perte de connexion, côté ÉCRAN — commune aux jeux (Précision a la même
+  // logique écrite en ligne, c'est d'elle qu'elle est tirée).
+  //   · au salon : UN retour automatique, par le chemin NORMAL du jeu (son
+  //     `join` avec le même code) ; refusé → on explique, sans boucler ;
+  //   · en pleine partie : aucune reprise ; on dit que la partie a continué,
+  //     avec « Revenir dans le salon » pour après.
+  // Le jeu fournit ce qui lui est propre : où il en est, comment remettre son
+  // état à zéro (minuteurs, médias…), comment rejoindre, comment afficher.
+  // Il doit avoir, dans sa page : #lost, #lost-text, #lost-retry, #lost-hub.
+  //
+  // o : { dansRoom(), enPartie(), code(), quitter(enPartie), revenir(code),
+  //       show(id), hub: bool }
+  // Rend : { refus(message), retour(), actif() } — à appeler depuis le
+  // gestionnaire d'erreur du jeu (refus), et à l'arrivée dans un salon (retour).
+  function surPerte(NET, o) {
+    var el = function (id) { return document.getElementById(id); };
+    var codePerdu = null;
+    var visible = function () { return !!codePerdu && !el('lost').hidden; };
+    var dire = function (texte, bouton) { el('lost-text').textContent = texte; el('lost-retry').hidden = !bouton; };
+    function revenir() {
+      if (!codePerdu) return;
+      el('lost-retry').hidden = true;
+      o.revenir(codePerdu);
+    }
+    el('lost-retry').addEventListener('click', function () { el('lost-text').textContent = 'Retour dans le salon…'; revenir(); });
+    NET.on('lost', function () {
+      if (!o.dansRoom()) {                       // pas (encore) dans une room : rien à reprendre…
+        if (visible()) dire('La connexion a de nouveau été coupée.', true);   // …sauf un retour en cours
+        return;
+      }
+      var enPartie = o.enPartie();
+      codePerdu = o.code();
+      o.quitter(enPartie);                       // le jeu remet son état (et « n'est plus dans la room »)
+      el('lost-hub').hidden = !o.hub;
+      o.show('lost');
+      if (enPartie) {
+        dire('Ta connexion a été coupée pendant la partie : elle a continué sans toi. Tu pourras revenir dans le salon quand elle sera finie.', true);
+        return;
+      }
+      dire('Connexion perdue — retour dans le salon…', false);
+      revenir();
+    });
+    return {
+      refus: function (message) { if (visible()) dire('Impossible de revenir dans le salon : ' + message + '.', true); },
+      retour: function () { codePerdu = null; },
+      actif: visible,
+    };
+  }
+
+  return { create: create, surPerte: surPerte, INJOIGNABLE: INJOIGNABLE };
 });

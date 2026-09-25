@@ -27,7 +27,7 @@
   let lastScene = null;          // sa scène, rejouée telle quelle aux résultats
   let armTimer = 0;              // filet si le « go » du serveur n'arrive pas
 
-  const show = (id) => ['home', 'lobby', 'game', 'results', 'end']
+  const show = (id) => ['home', 'lobby', 'game', 'results', 'end', 'lost']
     .forEach((s) => { $(s).hidden = s !== id; });
   const showError = (m) => { $('error').textContent = m ? '> ' + m : ''; };
 
@@ -57,6 +57,7 @@
       NET.send({ action: 'join', name: $('name-input').value, avatar: GameProfile.joinAvatar(myAvatar), code: code || undefined });
     } catch (err) {
       showError(err.message);
+      perte.refus(err.message);
       if (lien && viaHub && !myId) lien.failed('UNREACHABLE', err.message);
     }
   }
@@ -78,6 +79,23 @@
     },
     onUpdate: attente,
   }) : null;
+
+  // --- connexion perdue (games/shared/game-net.js) --------------------------
+  // Au salon, UN retour automatique par le join NORMAL, avec le même code ; en
+  // pleine partie, aucune reprise : on dit qu'elle a continué sans nous.
+  const perte = GameNet.surPerte(NET, {
+    dansRoom: () => !!myId,
+    enPartie: () => !$('game').hidden || !$('results').hidden,
+    code: () => $('room-code').textContent.trim(),
+    quitter: () => {
+      myId = null;   // rend aussi sa garde à lien.failed() : un retour raté est signalé au Hub
+      stopTimer(); clearTimeout(armTimer);
+      $('to-hub').hidden = true;
+      showError('');
+    },
+    revenir: (code) => { if (lien) viaHub = true; enter(code); },
+    show, hub: !!lien,
+  });
 
   // L'hôte ne lance pas la partie tant que le groupe n'est pas dans la room :
   // un invité qui arriverait après le « start » serait refusé par le serveur
@@ -185,6 +203,7 @@
   // ------------------------------------------------------ messages serveur
   NET.on('you', (msg) => {
     myId = msg.id; isHost = msg.host;
+    perte.retour();                           // de retour dans une room
     $('room-code').textContent = msg.code;
     show('lobby');
     // Lancé par le Hub : on lui dit dans quelle room on est. L'hôte y déclare
@@ -331,11 +350,12 @@
 
   NET.on('error', (msg) => {
     showError(msg.message);
+    perte.refus(msg.message);                // un retour dans le salon refusé : on le dit
     // Le serveur du jeu refuse d'entrer (code inconnu, partie pleine ou déjà
     // commencée) : le Hub est prévenu, pour que le groupe le sache.
     if (lien && viaHub && !myId) { viaHub = false; lien.failed('JOIN', msg.message); }
   });
-  NET.on('closed', () => { stopTimer(); showError('connexion au serveur perdue'); });
+  NET.on('closed', () => stopTimer());    // la perte elle-même : voir surPerte plus haut
 
   // D'où viennent mes points. Les trois chiffres sont ceux du serveur : la
   // pertinence de la passe jouée, la vitesse mesurée à SON horloge, et le

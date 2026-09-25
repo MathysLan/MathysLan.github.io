@@ -2,36 +2,22 @@
 // Aucune règle de jeu ici - le serveur décide, on transmet et on affiche.
 
 // ?server=ws://localhost:8080 permet de tester contre un serveur local.
+//
+// Le transport lui-même — connexion, présence du joueur, perte de connexion
+// (`lost`) — est commun aux jeux : games/shared/game-net.js. Même API `NET`
+// qu'avant (connect, on, send, dispatch, ws).
 const WS_URL = new URLSearchParams(location.search).get('server')
   || 'wss://imitation-server.onrender.com';
 
-const NET = {
-  ws: null,
-  handlers: {},   // type de message → fonction
-  onBinary: null, // la frame binaire qui suit un message 'listen'
+// binary : les prises audio passent en frames binaires (onBinary pour la
+// frame qui suit un message « listen »).
+const NET = GameNet.create({ url: WS_URL, binary: true });
 
-  connect() {
-    return new Promise((resolve, reject) => {
-      if (this.ws && this.ws.readyState === WebSocket.OPEN) return resolve();
-      const ws = new WebSocket(WS_URL);
-      ws.binaryType = 'arraybuffer';
-      ws.onopen = () => { this.ws = ws; resolve(); };
-      ws.onerror = () => reject(new Error('serveur injoignable (réveil Render ~30 s ? réessaie)'));
-      ws.onclose = () => this.dispatch({ type: 'closed' });
-      ws.onmessage = (e) => {
-        if (typeof e.data === 'string') this.dispatch(JSON.parse(e.data));
-        else if (this.onBinary) this.onBinary(e.data);
-      };
-    });
-  },
-
-  dispatch(msg) { (this.handlers[msg.type] || (() => {}))(msg); },
-  on(type, fn) { this.handlers[type] = fn; },
-  send(obj) { this.ws.send(JSON.stringify(obj)); },
-
-  // Une méta JSON puis UNE frame binaire : l'ordre des frames est garanti par WebSocket.
-  async sendAudio(blob) {
-    this.send({ action: 'audio-meta', mime: blob.type, size: blob.size });
-    this.ws.send(await blob.arrayBuffer());
-  },
+// Une méta JSON puis UNE frame binaire : l'ordre des frames est garanti par WebSocket.
+// (Le serveur accorde un sursis de présence dès audio-meta : pendant un envoi
+// lent, nos réponses de présence attendent derrière ces octets.)
+NET.sendAudio = async function (blob) {
+  NET.send({ action: 'audio-meta', mime: blob.type, size: blob.size });
+  const buf = await blob.arrayBuffer();
+  if (NET.ws && NET.ws.readyState === 1) NET.ws.send(buf);
 };

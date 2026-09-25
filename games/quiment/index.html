@@ -132,6 +132,12 @@
   .tf-btn:disabled:hover { opacity: .45; cursor: default; }
 
   @media (max-width: 560px) { h1 { font-size: 1.5rem; } .role-word { font-size: 1.6rem; } .clue-row .who { min-width: 6rem; } }
+  /* Connexion perdue (games/shared/game-net.js) : un panneau simple, jamais le
+     salon d'avant (qui mentirait). */
+  #lost { text-align: center; }
+  #lost-text { margin: .4rem 0 1rem; line-height: 1.5; }
+  #lost-retry { display: block; margin: 0 auto; }
+  #lost-hub { display: inline-block; margin-top: .9rem; }
 </style>
 </head>
 <body>
@@ -171,6 +177,15 @@
         <button id="start" type="button" class="tf-btn tf-btn-buy">Lancer la partie</button>
       </div>
       <p id="need-players" class="wait">En attente du MJ…</p>
+    </section>
+
+    <!-- connexion perdue (`lost`, games/shared/game-net.js) : au salon on y
+         revient tout seul, en pleine partie on le dit — jamais de faux salon. -->
+    <section id="lost" class="panel screen center" hidden>
+      <p class="lobby-head">Connexion perdue</p>
+      <p id="lost-text" role="status"></p>
+      <button type="button" id="lost-retry" class="tf-btn" hidden>Revenir dans le salon</button>
+      <a id="lost-hub" class="tf-btn tf-btn-sm" href="../" hidden>↩ Retour au Game Hub</a>
     </section>
 
     <!-- MANCHE : rôle + indices -->
@@ -251,7 +266,9 @@
   <script src="../shared/game-profile.js"></script>
   <!-- Avatar des joueurs (emoji ou photo) à l'affichage, sans innerHTML. -->
   <script src="../shared/game-avatar.js"></script>
-  <script src="net.js?v=1"></script>
-  <script src="app.js?v=1"></script>
+  <!-- Transport commun : connexion, présence du joueur, perte de connexion. -->
+  <script src="../shared/game-net.js?v=1"></script>
+  <script src="net.js?v=2"></script>
+  <script src="app.js?v=2"></script>
 </body>
 </html>
