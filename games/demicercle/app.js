@@ -13,6 +13,11 @@ const avatarById = {};        // id joueur -> avatar
 const nameById = {};          // id joueur -> pseudo
 const liveGuesses = {};       // (côté Guide) id -> valeur live des devineurs
 let lastMoveSent = 0;
+// Le podium est affiché. ⚠️ Le serveur envoie `phase:end` PUIS un `room` en
+// phase lobby (endGame) : sans ce drapeau, le second effaçait le podium dans la
+// milliseconde. Le joueur revient au salon quand il veut (#back-lobby).
+let inEndScreen = false;
+let nbJoueurs = 0;            // taille du salon, pour « Lancer la partie »
 
 const PALETTE = ['#8b5cf6', '#f59e0b', '#34d399', '#38bdf8', '#f472b6', '#facc15', '#fb7185', '#a3e635', '#c084fc', '#22d3ee'];
 
@@ -141,9 +146,49 @@ async function enter(code) {
   // L'avatar complet : la photo du profil s'il y en a une, l'emoji toujours.
   const avatar = GameProfile.joinAvatar(myAvatar);
   try { await NET.connect(); NET.send(code === undefined ? { action: 'join', name, avatar } : { action: 'join', name, code, avatar }); }
-  catch (err) { showError(err.message); }
+  catch (err) {
+    showError(err.message);
+    // Entrée lancée par le Hub et ratée : on le dit, sinon le groupe attend un
+    // joueur qui n'arrivera jamais.
+    if (lien && viaHub && !you) { viaHub = false; lien.failed('UNREACHABLE', err.message); }
+  }
 }
-$('start').addEventListener('click', () => NET.send({ action: 'start', rounds: +$('rounds-select').value, mode: $('mode-select').value }));
+
+// --- lancé par le Game Hub -------------------------------------------------
+// Si la page a été ouverte par le Hub, un billet dit si l'on CRÉE la partie
+// (l'hôte du lancement) ou si l'on REJOINT le code du groupe. Dans les deux cas
+// on passe par `enter()`, le chemin normal de cette page : aucun second système
+// de création ni de join.
+// ⚠️ Sans billet, `lien` vaut null et la page marche exactement comme avant.
+let viaHub = false;            // le join en cours vient du Hub
+let partirSansAttendre = false;
+let codeDeclare = null;        // le code déjà annoncé au Hub (une seule fois)
+const lien = window.HubHandoff ? HubHandoff.start({
+  gameId: 'demicercle',
+  join: (code) => {
+    viaHub = true;
+    if (!$('name-input').value.trim()) $('name-input').value = GameProfile.load().name || '';
+    enter(code || undefined);
+  },
+  onUpdate: attente,
+}) : null;
+
+// L'hôte ne lance pas tant que le groupe n'est pas dans la room : demicercle-server
+// refuse un join quand la phase n'est plus `lobby` (« partie en cours »), donc un
+// invité en retard serait laissé dehors. Il peut partir sans eux — explicitement.
+// Hors Hub, seule la règle habituelle s'applique : au moins 2 joueurs.
+function attente(i) {
+  const n = i && i.launch.stage === 'join' ? i.waitingIds.length : 0;
+  const bloque = isHost && n > 0 && !partirSansAttendre;
+  $('start').disabled = bloque || nbJoueurs < 2;
+  $('start').textContent = bloque ? `En attente de ${i.waiting}…` : 'Lancer la partie';
+  $('start-anyway').hidden = !bloque;
+}
+
+const lancer = () => NET.send({ action: 'start', rounds: +$('rounds-select').value, mode: $('mode-select').value });
+$('start').addEventListener('click', lancer);
+$('start-anyway').addEventListener('click', () => { partirSansAttendre = true; lancer(); });
+$('back-lobby').addEventListener('click', () => { inEndScreen = false; show('lobby'); });
 
 $('theme-send').addEventListener('click', () => {
   const label = $('theme-label').value.trim(), low = $('theme-low').value.trim(), high = $('theme-high').value.trim();
@@ -186,6 +231,11 @@ $('guess-send').addEventListener('click', () => {
 NET.on('room', (msg) => {
   you = msg.you;
   $('room-code').textContent = msg.code;
+  // Lancé par le Hub : on lui dit dans quelle room on est. L'hôte y déclare le
+  // code (le seul qu'il croira), les invités confirment y être entrés. ⚠️ `room`
+  // arrive à CHAQUE changement du salon : une seule annonce.
+  if (lien && !codeDeclare) { codeDeclare = msg.code; viaHub = false; lien.roomReady(msg.code); }
+  nbJoueurs = msg.players.length;
   msg.players.forEach((p, i) => { if (!colorById[p.id]) colorById[p.id] = PALETTE[i % PALETTE.length]; avatarById[p.id] = p.avatar; nameById[p.id] = p.name; });
   const me = msg.players.find((p) => p.id === you);
   isHost = !!(me && me.host);
@@ -193,13 +243,20 @@ NET.on('room', (msg) => {
     `<li class="g-player">${GameAvatar.slot(p.avatar, undefined, 'md')}<span class="g-player-name">${esc(p.name)}${p.host ? ' <span class="tag">MJ</span>' : ''}</span></li>`).join('');
   GameAvatar.fill($('players'));
   $('host-config').hidden = !isHost;
-  $('start').disabled = msg.players.length < 2;
+  attente(lien && lien.info());
   $('need-players').hidden = msg.players.length >= 2;
   renderScores(msg.players);
-  if (msg.phase === 'lobby') { phase = 'lobby'; show('lobby'); }
+  // Le salon est tenu à jour même derrière le podium ; on n'y bascule pas tant
+  // que le joueur regarde l'écran de fin.
+  if (msg.phase === 'lobby') { phase = 'lobby'; if (!inEndScreen) show('lobby'); }
 });
 
-NET.on('error', (msg) => showError(msg.message));
+NET.on('error', (msg) => {
+  showError(msg.message);
+  // Le serveur refuse d'entrer (code inconnu, room pleine, partie en cours) :
+  // le Hub est prévenu, pour que le groupe le sache au lieu d'attendre.
+  if (lien && viaHub && !you) { viaHub = false; lien.failed('JOIN', msg.message); }
+});
 NET.on('closed', () => { if (you) showError('connexion au serveur perdue'); });
 
 // curseur live d'un devineur → seul le Guide reçoit ce message
@@ -221,8 +278,11 @@ NET.on('phase', (msg) => { phase = msg.phase; readyIds = new Set(); (PHASES[msg.
 
 const PHASES = {
   setup(msg) {
+    inEndScreen = false;
     show('game'); iAmGuide = msg.guide === you; resetStage();
     if (iAmGuide) myTarget = msg.target;
+    // Première manche : la partie a vraiment démarré, le Hub le sait.
+    if (msg.round === 1 && lien && isHost) lien.started();
 
     // mode custom + je suis le Guide + thème pas encore défini → formulaire
     if (msg.mode === 'custom' && iAmGuide && !msg.theme) {
@@ -285,7 +345,10 @@ const PHASES = {
   },
 
   end(msg) {
+    inEndScreen = true;
     show('game'); resetStage();
+    if (lien) { lien.ended(); $('to-hub').hidden = false; }
+    $('back-lobby').hidden = false;
     const medals = ['🥇', '🥈', '🥉'];
     setStage('🏆 Fin de partie', 'le podium');
     renderScores(msg.podium);
@@ -322,6 +385,7 @@ function resetStage() {
   for (const k in liveGuesses) delete liveGuesses[k];
   $('clue-row').hidden = true; $('theme-row').hidden = true; $('guess-send').hidden = true; $('scores').hidden = true;
   $('next-btn').hidden = true; $('wait-host').hidden = true; $('dial-legend').hidden = true;
+  $('back-lobby').hidden = true; $('to-hub').hidden = true;
   armDial(false); dragging = false; locked = false;
 }
 function renderScores(list) { lastScores = [...list]; renderScoresLive(); }

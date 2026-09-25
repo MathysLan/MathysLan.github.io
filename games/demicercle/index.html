@@ -75,6 +75,7 @@
   #host-config select { width: 100%; max-width: 15rem; justify-self: start; }
   /* le bouton prend toute la largeur de la grille, mais garde sa taille */
   #host-config #start { grid-column: 1 / -1; justify-self: center; margin-top: .4rem; }
+  #host-config #start-anyway { grid-column: 1 / -1; justify-self: center; }
   #need-players { color: #8b87a0; font-size: .75rem; margin-top: 1rem; }
 
   /* --- écran de jeu : scoreboard + scène --- */
@@ -111,6 +112,13 @@
   #theme-row .theme-poles input { flex: 1; }
 
   #scores { margin-top: 1rem; }
+  #back-lobby { margin-top: 1.2rem; }
+  /* Retour au Game Hub, visible seulement quand la partie vient de lui.
+     ⚠️ Surtout pas la classe `.back` : elle est réservée au retour vers le
+     portfolio, et tests/games.html lit le premier `a.back` de la page.
+     Même violet clair que le code de salle : l'accent pur ne tient pas sur le
+     brun du panneau. */
+  #to-hub { display: block; margin-top: .8rem; color: #c4b5fd; }
   [hidden] { display: none !important; }
   @media (max-width: 640px) { .game-wrap { flex-direction: column; } #scorepanel { width: 100%; flex: none; } }
   /* Le code de salle : l'élément central du salon, même hiérarchie que le
@@ -165,6 +173,9 @@
           <option value="custom">le Guide invente</option>
         </select>
         <button id="start">Lancer la partie</button>
+        <!-- Lancé par le Game Hub : l'hôte attend que le groupe soit entré
+             (demicercle-server refuse un join hors lobby). Il peut passer outre. -->
+        <button id="start-anyway" type="button" hidden>Lancer sans attendre</button>
       </div>
     </section>
 
@@ -222,6 +233,8 @@
           </div>
 
           <ul id="scores" hidden></ul>
+          <button id="back-lobby" type="button" hidden>← retour au salon</button>
+          <a id="to-hub" href="../" hidden>↩ Retour au Game Hub</a>
         </div>
       </div>
     </section>
@@ -235,6 +248,11 @@
   <!-- Avatar des joueurs (emoji ou photo) à l'affichage, sans innerHTML. -->
   <script src="../shared/game-avatar.js"></script>
   <script src="net.js"></script>
+  <!-- Le Game Hub : lu seulement si la page a été ouverte par lui (un billet en
+       sessionStorage). Sans billet, ces deux fichiers ne font rien du tout et
+       le Demi-Cercle s'ouvre et se joue exactement comme avant. -->
+  <script src="../shared/game-hub.js"></script>
+  <script src="../shared/hub-handoff.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -519,10 +519,11 @@ const JEUX = {
     }
     await A.click('#next-btn');
     await B.until(`/podium/.test(document.getElementById('stage-sub').textContent)`, 8000, 'podium');
-    // ⚠️ Défaut PRÉEXISTANT, hors de cette tâche : juste après `end`, le
-    // serveur renvoie `room` (phase lobby) et le client fait show('lobby') sans
-    // garde — le podium est rendu puis aussitôt masqué. On vérifie donc son
-    // CONTENU (l'image y est, décodée), pas sa taille à l'écran.
+    // Juste après `end`, le serveur renvoie `room` (phase lobby). Le client
+    // avait fait show('lobby') sans garde, et le podium disparaissait aussitôt.
+    // Corrigé depuis (`inEndScreen` dans app.js), et c'est
+    // tests/handoff-demicercle.mjs qui vérifie qu'il RESTE à l'écran. Ici on
+    // vérifie son CONTENU (l'image y est, décodée).
     await verifie(B, 'demicercle / podium (contenu)', '#scores', P, ['A', 'B']);
   },
 
