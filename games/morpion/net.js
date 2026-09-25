@@ -17,13 +17,24 @@ let state = null; // dernier état reçu du serveur - la seule vérité affiché
 // serveur Render endormi met ~30 s à répondre.
 const NET = GameNet.create({ url: WS_URL });
 
-NET.on('state', (msg) => { state = msg; showError(''); render(); });
-NET.on('error', (msg) => showError(msg.message));
+NET.on('state', (msg) => { state = msg; showError(''); render(); relais(); });
+NET.on('error', (msg) => {
+  showError(msg.message);
+  // Entrée lancée par le Hub et refusée (room introuvable, pleine…) : on le
+  // dit au Hub, sinon le groupe attend un joueur qui n'arrivera jamais.
+  if (lien && viaHub && !state) { viaHub = false; lien.failed('JOIN', msg.message); }
+  // L'autre joueur est parti : morpion-server a fermé la room, la partie
+  // s'arrête là. Pour le Hub, elle est finie.
+  else if (lien && state && /adversaire est parti/.test(msg.message)) finie();
+});
 NET.on('lost', perdu);
 
 async function envoyer(obj) {
   try { await NET.connect(); NET.send(obj); }
-  catch (err) { showError(err.message); }
+  catch (err) {
+    showError(err.message);
+    if (lien && viaHub && !state) { viaHub = false; lien.failed('UNREACHABLE', err.message); }
+  }
 }
 
 // Pas de pseudo ni d'avatar : morpion-server ne lit que `code` (voir index.html).
@@ -35,6 +46,36 @@ function join(code) {
 }
 
 const play = (index) => NET.send({ action: 'play', index });
+
+// --- lancé par le Game Hub -------------------------------------------------
+// Si la page a été ouverte par le Hub, un billet dit si l'on CRÉE la partie
+// (l'hôte du lancement) ou si l'on REJOINT le code du groupe. Dans les deux cas
+// on passe par le chemin normal de cette page — host() ou join(code) — donc
+// par le même `{ action: 'join' }` qu'un clic : ni pseudo, ni avatar. Le profil
+// ne sert qu'à se présenter au HUB (même player.id), jamais à morpion-server.
+// ⚠️ Sans billet, `lien` vaut null et la page marche exactement comme avant.
+let viaHub = false;            // le join en cours vient du Hub
+let codeDeclare = null;        // le code déjà annoncé au Hub (une seule fois)
+let demarre = false;           // `started` déjà envoyé
+const lien = window.HubHandoff ? HubHandoff.start({
+  gameId: 'morpion',
+  join: (code) => { viaHub = true; return code ? join(code) : host(); },
+}) : null;
+
+// À chaque état reçu : ce que le Hub doit savoir. Le Morpion se joue à deux,
+// donc la room passe à `playing` à l'instant où l'invité y entre — c'est
+// l'hôte qui le déclare au Hub (`started` n'est pris en compte que de lui).
+function relais() {
+  if (!lien) return;
+  if (!codeDeclare) { codeDeclare = state.code; viaHub = false; lien.roomReady(state.code); }
+  if (state.status === 'playing' && !demarre) { demarre = true; lien.started(); }
+  if (state.status === 'over') finie();
+}
+
+function finie() {
+  lien.ended();
+  $('to-hub').hidden = false;
+}
 
 // --- connexion perdue --------------------------------------------------------
 // Le Morpion ferme sa room dès qu'un joueur part (règle du serveur, inchangée) :
@@ -53,6 +94,16 @@ function perdu() {
     : status === 'over'
       ? 'Connexion perdue. La partie était terminée.'
       : 'Connexion perdue pendant la partie : elle s\'arrête là — le Morpion se joue à deux.';
+  if (!lien) return;
+  $('lost-hub').hidden = false;
+  // Seule la room du lancement concerne le Hub : une partie recréée ensuite à
+  // la main (« Créer une nouvelle partie ») ne le regarde plus.
+  if (code !== lien.code()) return;
+  // Pour le Hub : une room perdue AVANT que l'invité n'y entre est un
+  // lancement raté (hub-handoff en fait une annulation quand l'hôte avait déjà
+  // donné son code) ; une partie commencée est une partie finie.
+  if (status === 'waiting') lien.failed('UNREACHABLE', 'connexion perdue');
+  else lien.ended();
 }
 
 // --- rendu -----------------------------------------------------------------
@@ -127,7 +178,7 @@ $('host').addEventListener('click', host);
 $('join').addEventListener('click', () => join($('code-input').value));
 
 // Après une connexion perdue : une nouvelle partie (nouveau code), ou l'accueil.
-$('lost-new').addEventListener('click', host);
+$('lost-new').addEventListener('click', () => { $('lost-hub').hidden = true; $('to-hub').hidden = true; host(); });
 $('lost-home').addEventListener('click', () => { $('lost').hidden = true; $('home').hidden = false; });
 $('code-input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') join($('code-input').value);

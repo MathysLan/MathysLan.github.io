@@ -9,8 +9,9 @@
 //
 // ⚠️ MORPION EST L'EXCEPTION, et elle est voulue. Son serveur lit
 // `onJoin(ws, msg.code)` : ni pseudo, ni avatar, et sa page n'a ni #name-input
-// ni #avatar-row. Ce fichier n'y est donc pas chargé — on ne lui envoie pas une
-// identité qu'il ne sait pas recevoir. Vérifié dans morpion-server/src/server.js.
+// ni #avatar-row. Ce fichier n'y est chargé QUE pour le Game Hub (hub-handoff
+// s'y présente au Hub avec le même player.id) : il n'y remplit rien, et rien
+// de ce profil ne part vers morpion-server. Vérifié dans son server.js.
 //
 // La photo PART EN JEU (depuis le 2026-09-19). `joinAvatar()` donne l'avatar
 // complet à mettre dans le `join` — `{ kind: 'image', emoji, src }` ou

@@ -26,7 +26,7 @@
       "join": "anon",
       "content": false,
       "replay": false,
-      "handoff": false
+      "handoff": true
     },
     {
       "id": "imitation",

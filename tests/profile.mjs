@@ -222,6 +222,10 @@ async function run(cdp, errs) {
   }
 
   // ═══ 9. Morpion : l'exception, vérifiée sur la vraie page
+  // Le module y est chargé depuis le handoff du Game Hub, UNIQUEMENT pour que
+  // hub-handoff.js se présente au Hub avec le même player.id. Il ne doit rien
+  // y ajouter : morpion-server ne reçoit ni pseudo ni avatar (le fil est
+  // vérifié par tests/handoff-morpion.mjs).
   await go(cdp, URLS('morpion'));
   const m = await evaluate(cdp, `({
     module: typeof window.GameProfile,
@@ -230,7 +234,7 @@ async function run(cdp, errs) {
     photo: !!document.querySelector('.gp-photo'),
     boutons: !!document.getElementById('host') && !!document.getElementById('join'),
   })`);
-  t('morpion : le module de profil n\'est PAS chargé', m.module === 'undefined', m.module);
+  t('morpion : le module de profil est chargé (identité Game Hub seulement)', m.module === 'object', m.module);
   t('morpion : aucun champ d\'identité n\'a été ajouté', !m.champ && !m.row && !m.photo);
   t('morpion : la page reste fonctionnelle', m.boutons === true);
 

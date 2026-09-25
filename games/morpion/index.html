@@ -22,7 +22,7 @@
      tactiles, messages d'état, et les deux polices auto-hébergées (plus aucun
      appel à Google Fonts). La DA du jeu reste dans le <style> ci-dessous. -->
 <link rel="stylesheet" href="../../css/tf2.css?v=9">
-<link rel="stylesheet" href="../shared/game-ui.css?v=3">
+<link rel="stylesheet" href="../shared/game-ui.css?v=5">
 <style>
   /* L'accent du Morpion : le violet de son X. Tout le chrome — panneaux,
      boutons, champs, titres, salon, code de salle — vient du socle commun
@@ -86,6 +86,10 @@
   #lost { text-align: center; }
   #lost-text { margin: .4rem 0 1rem; line-height: 1.5; }
   #lost button { display: block; margin: .6rem auto 0; }
+  /* Retour au Game Hub (partie lancée par le Hub) : un lien simple, sous le
+     plateau ou sous « connexion perdue ». Jamais `.back`, qui garde son sens
+     de « retour au portfolio ». */
+  #to-hub, #lost-hub { display: block; margin-top: .9rem; color: var(--g-accent); }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -111,6 +115,7 @@
       <p id="code-hint" role="status">clique sur le code pour le copier</p>
       <div id="board"></div>
       <p id="status" role="status"></p>
+      <a id="to-hub" href="../" hidden>↩ Retour au Game Hub</a>
     </section>
 
     <!-- connexion perdue (`lost`, games/shared/game-net.js) : le Morpion ferme sa
@@ -120,19 +125,25 @@
       <p id="lost-text" role="status"></p>
       <button type="button" id="lost-new">Créer une nouvelle partie</button>
       <button type="button" id="lost-home" class="ghost">Retour à l'accueil</button>
+      <a id="lost-hub" href="../" hidden>↩ Retour au Game Hub</a>
     </section>
 
     <p id="error" class="g-error" role="alert"></p>
     <a class="back" href="../../">← retour au portfolio</a>
   </main>
-  <!-- ⚠️ Pas de games/shared/game-profile.js ici, et c'est VOULU.
-       morpion-server lit `onJoin(ws, msg.code)` : ni pseudo, ni avatar —
-       vérifié dans morpion-server/src/server.js. Cette page n'a d'ailleurs
-       ni #name-input ni #avatar-row. On ne lui envoie donc pas une identité
-       qu'elle ne sait pas recevoir. À rebrancher le jour où le serveur
-       acceptera name + avatar, pas avant. -->
+  <!-- ⚠️ AUCUNE identité ne part vers morpion-server, et c'est VOULU.
+       Il lit `onJoin(ws, msg.code)` : ni pseudo, ni avatar — vérifié dans
+       morpion-server/src/server.js. Cette page n'a d'ailleurs ni #name-input
+       ni #avatar-row, et net.js n'envoie que `{ action: 'join', code? }`.
+       game-profile.js n'est chargé QUE pour le Game Hub : hub-handoff.js se
+       présente au Hub avec le même player.id que sur /games/. Il ne remplit
+       rien ici (pas de champ à remplir) et n'ajoute aucune interface. -->
+  <script src="../shared/game-profile.js"></script>
   <!-- Transport commun : connexion, présence du joueur, perte de connexion. -->
   <script src="../shared/game-net.js"></script>
-  <script src="net.js"></script>
+  <!-- Lancé par le Game Hub : billet en sessionStorage, sinon rien ne change. -->
+  <script src="../shared/game-hub.js"></script>
+  <script src="../shared/hub-handoff.js"></script>
+  <script src="net.js?v=2"></script>
 </body>
 </html>

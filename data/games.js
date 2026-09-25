@@ -68,7 +68,7 @@ const GAMES = [
       join: 'anon',                       // le seul sans pseudo ni avatar
       content: false,
       replay: false,
-      handoff: false,
+      handoff: true,                      // branché au Game Hub (games/shared/hub-handoff.js)
     },
   },
   {
