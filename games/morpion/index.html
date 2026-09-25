@@ -81,6 +81,11 @@
 
   #status { margin-top: 1.2rem; font-size: .85rem; color: var(--ink-3); min-height: 1.4em; }
   #error { margin-top: 1rem; }
+  /* Connexion perdue (games/shared/game-net.js) : un panneau simple, jamais le
+     plateau ou l'attente d'avant (qui mentiraient). */
+  #lost { text-align: center; }
+  #lost-text { margin: .4rem 0 1rem; line-height: 1.5; }
+  #lost button { display: block; margin: .6rem auto 0; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -108,6 +113,15 @@
       <p id="status" role="status"></p>
     </section>
 
+    <!-- connexion perdue (`lost`, games/shared/game-net.js) : le Morpion ferme sa
+         room quand un joueur part, il n'y a donc pas de salon où revenir. -->
+    <section id="lost" class="panel g-screen" hidden>
+      <p><b>Connexion perdue</b></p>
+      <p id="lost-text" role="status"></p>
+      <button type="button" id="lost-new">Créer une nouvelle partie</button>
+      <button type="button" id="lost-home" class="ghost">Retour à l'accueil</button>
+    </section>
+
     <p id="error" class="g-error" role="alert"></p>
     <a class="back" href="../../">← retour au portfolio</a>
   </main>
@@ -117,6 +131,8 @@
        ni #name-input ni #avatar-row. On ne lui envoie donc pas une identité
        qu'elle ne sait pas recevoir. À rebrancher le jour où le serveur
        acceptera name + avatar, pas avant. -->
+  <!-- Transport commun : connexion, présence du joueur, perte de connexion. -->
+  <script src="../shared/game-net.js"></script>
   <script src="net.js"></script>
 </body>
 </html>

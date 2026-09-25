@@ -9,42 +9,51 @@
 const WS_URL = new URLSearchParams(location.search).get('server')
   || 'wss://morpion-server-eygy.onrender.com';
 
-let ws = null;
 let state = null; // dernier état reçu du serveur - la seule vérité affichée
 
 // --- transport -------------------------------------------------------------
+// Commun aux jeux : games/shared/game-net.js (connexion, présence du joueur,
+// perte de connexion). Même phrase d'erreur réseau que les autres jeux : un
+// serveur Render endormi met ~30 s à répondre.
+const NET = GameNet.create({ url: WS_URL });
 
-function connect() {
-  return new Promise((resolve, reject) => {
-    if (ws && ws.readyState === WebSocket.OPEN) return resolve();
-    ws = new WebSocket(WS_URL);
-    ws.onopen = () => resolve();
-    // Même phrase que les quatre autres jeux : un serveur Render endormi met
-    // ~30 s à répondre, et « il tourne ? » n'aide pas un joueur.
-    ws.onerror = () => reject(new Error('serveur injoignable (réveil Render ~30 s ? réessaie)'));
-    ws.onclose = () => { if (state) showError('connexion au serveur perdue'); };
-    ws.onmessage = (e) => {
-      const msg = JSON.parse(e.data);
-      if (msg.type === 'state') { state = msg; showError(''); render(); }
-      else if (msg.type === 'error') showError(msg.message);
-    };
-  });
-}
+NET.on('state', (msg) => { state = msg; showError(''); render(); });
+NET.on('error', (msg) => showError(msg.message));
+NET.on('lost', perdu);
 
-const send = (obj) => ws.send(JSON.stringify(obj));
-
-async function host() {
-  try { await connect(); send({ action: 'join' }); }
+async function envoyer(obj) {
+  try { await NET.connect(); NET.send(obj); }
   catch (err) { showError(err.message); }
 }
 
-async function join(code) {
+// Pas de pseudo ni d'avatar : morpion-server ne lit que `code` (voir index.html).
+const host = () => envoyer({ action: 'join' });
+
+function join(code) {
   if (!code.trim()) return showError('rentre un code de room');
-  try { await connect(); send({ action: 'join', code }); }
-  catch (err) { showError(err.message); }
+  return envoyer({ action: 'join', code });
 }
 
-const play = (index) => send({ action: 'play', index });
+const play = (index) => NET.send({ action: 'play', index });
+
+// --- connexion perdue --------------------------------------------------------
+// Le Morpion ferme sa room dès qu'un joueur part (règle du serveur, inchangée) :
+// après une perte, il n'y a PLUS de room où revenir — ni en attente, ni en
+// partie. Donc aucune reconnexion automatique (elle échouerait toujours) : on
+// le dit, et le joueur recrée une partie ou revient à l'accueil. Jamais le
+// plateau ou l'attente d'avant à l'écran : ils mentiraient.
+function perdu() {
+  if (!state) return;                          // pas encore dans une room
+  const { status, code } = state;
+  state = null;
+  showError('');
+  $('home').hidden = true; $('game').hidden = true; $('lost').hidden = false;
+  $('lost-text').textContent = status === 'waiting'
+    ? `Connexion perdue : ta partie en attente (code ${code}) a été fermée. Crée-en une nouvelle et envoie le nouveau code.`
+    : status === 'over'
+      ? 'Connexion perdue. La partie était terminée.'
+      : 'Connexion perdue pendant la partie : elle s\'arrête là — le Morpion se joue à deux.';
+}
 
 // --- rendu -----------------------------------------------------------------
 
@@ -70,6 +79,7 @@ for (let i = 0; i < 9; i++) {
 
 function render() {
   $('home').hidden = true;
+  $('lost').hidden = true;
   $('game').hidden = false;
   $('room-code').textContent = state.code;
   $('you').textContent = state.you;
@@ -115,6 +125,10 @@ $('room-code').addEventListener('click', async () => {
 
 $('host').addEventListener('click', host);
 $('join').addEventListener('click', () => join($('code-input').value));
+
+// Après une connexion perdue : une nouvelle partie (nouveau code), ou l'accueil.
+$('lost-new').addEventListener('click', host);
+$('lost-home').addEventListener('click', () => { $('lost').hidden = true; $('home').hidden = false; });
 $('code-input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') join($('code-input').value);
 });
