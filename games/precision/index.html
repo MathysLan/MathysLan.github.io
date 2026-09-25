@@ -206,6 +206,14 @@
   #host-config { margin-top: 1.2rem; padding-top: 1.2rem; border-top: 1px solid var(--p-line); display: grid; gap: .5rem; }
   #host-config label { font-size: .66rem; color: var(--dim); letter-spacing: .1em; }
   #need-players { color: #8a8a94; font-size: .7rem; margin-top: .9rem; text-align: center; }
+  /* Lancé par le Game Hub : entré sans clic sur cette page, le navigateur a pu
+     garder le son bloqué. Le bouton reste là tant que l'audio n'est pas actif. */
+  #sound-on { display: block; margin: .9rem auto 0; }
+  /* Retour au Game Hub, HORS du plateau (ratio fixe, couches positionnées),
+     visible seulement à la fin d'une partie lancée par le Hub.
+     ⚠️ Surtout pas la classe `.back` : elle est réservée au retour vers le
+     portfolio, et tests/games.html lit le premier `a.back` de la page. */
+  #to-hub { display: block; margin: .9rem auto 0; text-align: center; color: var(--accent); }
 
   /* ---------- SHAPE ---------- */
   #shape-board { position: absolute; inset: 0; touch-action: none;
@@ -408,6 +416,7 @@
       <p id="code-hint" role="status">clique sur le code pour le copier</p>
       <ul id="players"></ul>
       <p id="need-players"></p>
+      <button type="button" id="sound-on" class="ghost" hidden>🔊 Activer le son</button>
       <div id="host-config" hidden>
         <label for="diff-select">DIFFICULTÉ</label>
         <select id="diff-select">
@@ -432,6 +441,9 @@
           <option value="typing">Frappe seulement</option>
         </select>
         <button id="start">Lancer la partie</button>
+        <!-- Lancé par le Game Hub : l'hôte attend que le groupe soit entré
+             (precision-server refuse un join hors lobby). Il peut passer outre. -->
+        <button id="start-anyway" type="button" hidden>Lancer sans attendre</button>
       </div>
     </section>
 
@@ -546,6 +558,7 @@
       <button class="fab" id="fab" hidden></button>
     </section>
 
+    <a id="to-hub" href="../" hidden>↩ Retour au Game Hub</a>
     <p id="error" class="g-error" role="alert"></p>
     <a class="back" href="../../">← retour au portfolio</a>
   </main>
@@ -555,6 +568,11 @@
   <!-- Avatar des joueurs (emoji ou photo) à l'affichage, sans innerHTML. -->
   <script src="../shared/game-avatar.js"></script>
   <script src="net.js"></script>
+  <!-- Le Game Hub : lu seulement si la page a été ouverte par lui (un billet en
+       sessionStorage). Sans billet, ces deux fichiers ne font rien du tout et
+       Précision s'ouvre et se joue exactement comme avant. -->
+  <script src="../shared/game-hub.js"></script>
+  <script src="../shared/hub-handoff.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -28,9 +28,15 @@ const setHidden = (el, on) => { on ? el.setAttribute('hidden', '') : el.removeAt
 // ============================================================ SON (SFX + tons)
 // Tout est synthétisé : aucun fichier audio à héberger.
 const AUDIO = (() => {
-  let actx = null;
+  let actx = null, surEtat = null;
   function ctx() {
-    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    if (!actx) {
+      actx = new (window.AudioContext || window.webkitAudioContext)();
+      // La propriété, pas addEventListener : un contexte de substitution (celui
+      // de tests/games.html, sans périphérique audio) n'a que les méthodes
+      // qu'on lui a données, et un appel manquant casserait le clic en cours.
+      actx.onstatechange = () => { if (surEtat) surEtat(actx.state); };
+    }
     if (actx.state === 'suspended') actx.resume();
     return actx;
   }
@@ -50,6 +56,10 @@ const AUDIO = (() => {
 
   return {
     resume() { try { ctx(); } catch (_) {} },
+    // L'état du contexte de CE jeu ('none' tant qu'il n'existe pas) : lu par le
+    // salon lancé par le Game Hub, pour savoir si le son est bloqué.
+    state() { return actx ? actx.state : 'none'; },
+    onState(fn) { surEtat = fn; },
     // --- SFX d'interface ---
     click() { blip(520, 0.05, 'square', 0.06); },
     pick() { blip(760, 0.06, 'triangle', 0.09); },
@@ -109,7 +119,7 @@ $('fab').addEventListener('click', () => {
   const mode = $('fab').dataset.mode;
   if (mode === 'submit') doSubmit();
   else if (mode === 'next') { AUDIO.click(); NET.send({ action: 'next' }); }
-  else if (mode === 'lobby') { AUDIO.click(); phase = 'lobby'; show('lobby'); }
+  else if (mode === 'lobby') { AUDIO.click(); phase = 'lobby'; show('lobby'); $('to-hub').hidden = true; }
 });
 
 // ============================================================ SHAPE
@@ -564,12 +574,76 @@ async function enter(code) {
   // L'avatar complet : la photo du profil s'il y en a une, l'emoji toujours.
   const avatar = GameProfile.joinAvatar(myAvatar);
   try { await NET.connect(); NET.send(code === undefined ? { action: 'join', name, avatar } : { action: 'join', name, code, avatar }); }
-  catch (err) { AUDIO.error(); showError(err.message); }
+  catch (err) {
+    AUDIO.error(); showError(err.message);
+    // Entrée lancée par le Hub et ratée : on le dit, sinon le groupe attend un
+    // joueur qui n'arrivera jamais.
+    if (lien && viaHub && !you) { viaHub = false; lien.failed('UNREACHABLE', err.message); }
+  }
 }
-$('start').addEventListener('click', () => {
+
+// --- lancé par le Game Hub -------------------------------------------------
+// Si la page a été ouverte par le Hub, un billet dit si l'on CRÉE la partie
+// (l'hôte du lancement) ou si l'on REJOINT le code du groupe. Dans les deux cas
+// on passe par `enter()`, le chemin normal de cette page : aucun second système
+// de création ni de join.
+// ⚠️ Sans billet, `lien` vaut null et la page marche exactement comme avant.
+let viaHub = false;            // le join en cours vient du Hub
+let partirSansAttendre = false;
+let codeDeclare = null;        // le code déjà annoncé au Hub (une seule fois)
+const lien = window.HubHandoff ? HubHandoff.start({
+  gameId: 'precision',
+  join: (code) => {
+    viaHub = true;
+    if (!$('name-input').value.trim()) $('name-input').value = GameProfile.load().name || '';
+    enter(code || undefined);
+  },
+  onUpdate: attente,
+}) : null;
+
+// L'hôte ne lance pas tant que le groupe n'est pas dans la room : precision-server
+// refuse un join quand la phase n'est plus `lobby` (« partie en cours »), donc un
+// invité en retard serait laissé dehors. Il peut partir sans eux — explicitement.
+// ⚠️ Aucun minimum de joueurs ici : Précision se joue en solo (MIN_PLAYERS = 1),
+// hors Hub comme via le Hub. Seule l'attente du groupe désactive « Lancer ».
+function attente(i) {
+  const n = i && i.launch.stage === 'join' ? i.waitingIds.length : 0;
+  const bloque = isHost && n > 0 && !partirSansAttendre;
+  $('start').disabled = bloque;
+  $('start').textContent = bloque ? `En attente de ${i.waiting}…` : 'Lancer la partie';
+  $('start-anyway').hidden = !bloque;
+}
+
+// --- le son, quand on arrive par le Hub ------------------------------------
+// Un navigateur ne laisse jouer du son qu'après un geste sur la page. En direct,
+// c'est le clic sur « Créer » / « Rejoindre ». Via le Hub, `enter()` part du
+// socket, sans clic. Mesuré dans Edge : arrivé par le bouton « Rejoindre » de
+// /games/, le clic suit la navigation (même origine) et le son est actif ; mais
+// une page RECHARGÉE n'a plus aucun geste, et le contexte naît « suspended » —
+// la cible de l'épreuve Son serait muette, sans que le joueur le sache. D'où :
+// un bouton explicite tant que le son n'est pas actif, et une reprise au premier
+// geste. ⚠️ Rien de tout ça hors Hub : le jeu direct garde son audio tel quel.
+function majSon(etat) {
+  const actif = (etat || AUDIO.state()) === 'running';
+  $('sound-on').hidden = !lien || actif;
+  if (actif && phase === 'memorize' && game === 'sound') $('phase-sub').textContent = 'mémorise…';
+}
+if (lien) {
+  AUDIO.onState(majSon);
+  $('sound-on').addEventListener('click', () => { AUDIO.resume(); AUDIO.pick(); });
+  // `pointerdown` et `keydown` sont des gestes qui autorisent le son : on en
+  // profite, où qu'ils tombent. Le bouton reste le filet visible.
+  for (const ev of ['pointerdown', 'keydown']) {
+    document.addEventListener(ev, () => { if (AUDIO.state() === 'suspended') AUDIO.resume(); }, true);
+  }
+}
+
+const lancer = () => {
   AUDIO.start();
   NET.send({ action: 'start', rounds: +$('rounds-select').value, difficulty: $('diff-select').value, game: $('game-select').value || undefined });
-});
+};
+$('start').addEventListener('click', lancer);
+$('start-anyway').addEventListener('click', () => { partirSansAttendre = true; lancer(); });
 // TIMING : on peut cliquer N'IMPORTE OÙ sur la carte pour arrêter le chrono
 // (pas seulement sur le petit bouton rond). Le garde de doSubmit évite le double envoi.
 $('game').addEventListener('click', () => {
@@ -619,6 +693,10 @@ function armAutoSubmit(ms) {
 NET.on('room', (msg) => {
   you = msg.you;
   $('room-code').textContent = msg.code;
+  // Lancé par le Hub : on lui dit dans quelle room on est. L'hôte y déclare le
+  // code (le seul qu'il croira), les invités confirment y être entrés. ⚠️ `room`
+  // arrive à CHAQUE changement du salon : une seule annonce.
+  if (lien && !codeDeclare) { codeDeclare = msg.code; viaHub = false; lien.roomReady(msg.code); }
   const me = msg.players.find((p) => p.id === you);
   const wasHost = isHost; isHost = !!(me && me.host);
   $('players').innerHTML = msg.players.map((p) =>
@@ -626,10 +704,17 @@ NET.on('room', (msg) => {
   GameAvatar.fill($('players'));
   $('host-config').hidden = !isHost;
   $('need-players').textContent = msg.players.length < 2 ? 'ça marche en solo, mais c\'est plus drôle à plusieurs' : '';
+  attente(lien && lien.info());
+  majSon();
   if (msg.phase === 'lobby' && phase === 'lobby') { show('lobby'); if (!wasHost && !isHost) AUDIO.join(); }
 });
 
-NET.on('error', (msg) => { AUDIO.error(); showError(msg.message); });
+NET.on('error', (msg) => {
+  AUDIO.error(); showError(msg.message);
+  // Le serveur refuse d'entrer (code inconnu, room pleine, partie en cours) :
+  // le Hub est prévenu, pour que le groupe le sache au lieu d'attendre.
+  if (lien && viaHub && !you) { viaHub = false; lien.failed('JOIN', msg.message); }
+});
 NET.on('closed', () => { if (you) showError('connexion au serveur perdue'); });
 NET.on('ready', (msg) => {
   if (phase === 'play' && submitted) $('phase-sub').textContent = `${msg.ids.length}/${msg.of} ont validé`;
@@ -643,9 +728,15 @@ NET.on('phase', (msg) => { phase = msg.phase; dbg('phase → ' + msg.phase, msg)
 const PHASES = {
   memorize(msg) {
     show('game'); stopAll(); game = msg.game; submitted = false; lastRound = msg;
+    $('to-hub').hidden = true;
+    // Première manche : la partie a vraiment démarré, le Hub le sait.
+    if (msg.round === 1 && lien && isHost) lien.started();
     $('hud-round').textContent = `${msg.round} / ${msg.of}`;
     $('phase-title').textContent = HINTS[game].memo;
     $('phase-sub').textContent = 'mémorise…';
+    // Épreuve Son avec l'audio encore bloqué (voir majSon) : on le DIT. Un geste
+    // sur la page le reprend, et le ton déjà lancé devient audible.
+    if (lien && game === 'sound' && AUDIO.state() !== 'running') $('phase-sub').textContent = '🔇 son bloqué — touche l\'écran pour l\'entendre';
     showStage(game); setFab(null); AUDIO.memorize();
     $('score-block').hidden = true; $('reveal-view').classList.remove('sheet');
     $('score-block').classList.remove('compact'); $('shape-board').classList.remove('fit');
@@ -693,6 +784,7 @@ const PHASES = {
       `<li class="g-player"><span class="medal">${medals[i] || '·'}</span>${GameAvatar.slot(p.avatar, undefined, i < 3 ? 'lg' : 'md')}<span class="g-player-name">${esc(p.name)}</span><span class="pts g-player-score">${p.score}</span></li>`).join('');
     GameAvatar.fill($('scores'));
     setFab('lobby'); AUDIO.end();
+    if (lien) { lien.ended(); $('to-hub').hidden = false; }
   },
 };
 

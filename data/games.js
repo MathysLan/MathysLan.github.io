@@ -273,7 +273,7 @@ const GAMES = [
       join: 'v1',
       content: false,
       replay: false,
-      handoff: false,
+      handoff: true,                      // branché au Game Hub (games/shared/hub-handoff.js)
     },
   },
   {
