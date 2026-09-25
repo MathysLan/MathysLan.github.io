@@ -35,7 +35,8 @@
     clear() { try { sessionStorage.removeItem(RESUME); } catch (_) {} },
   };
 
-  const show = (id) => { $('entry').hidden = id !== 'entry'; $('lobby').hidden = id !== 'lobby'; };
+  // Le score de la soirée est un panneau à part : il n'existe qu'avec le salon.
+  const show = (id) => { $('entry').hidden = id !== 'entry'; $('lobby').hidden = id !== 'lobby'; $('hub-score').hidden = id !== 'lobby'; };
   const say = (t) => { $('hub-state').textContent = t || ''; };
   const warn = (t) => { $('hub-msg').textContent = t ? '> ' + t : ''; };
 

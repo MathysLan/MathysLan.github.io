@@ -156,7 +156,7 @@ async function joueur(cdp, nom) {
   };
   // Capture d'une zone précise : `--screenshot` cadre toujours le haut du
   // document, ici on vise le salon lui-même.
-  J.shot = async (nomFichier, sel = '#lobby') => {
+  J.shot = async (nomFichier, sel = 'main') => {
     if (!SHOTS) return;
     const r0 = await J.eval(`(() => { window.scrollTo(0, 0); const r = document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect();
       return { x: r.left + scrollX, y: r.top + scrollY, width: r.width, height: Math.min(r.height, 1400) }; })()`);
@@ -324,27 +324,36 @@ try {
   t('le joueur courant est mis en évidence (une seule ligne, la sienne)', b0.filter((l) => l.me).length === 1 && b0.find((l) => l.me).id === id.B);
   t('la session diffusée porte un score vide', same(B.hub().scores, {}) && same(B.hub().history.games, []));
 
-  // Mise en page : 1280 (bureau), 390 (téléphone), et 700/701 autour de la bascule.
-  await C.size(1280, 900); await sleep(250);
+  // Mise en page. Le score est un panneau À PART, frère du salon :
+  //   ≥ 1200 px : colonne de droite, alignée sur le haut du salon, qui ne le
+  //              chevauche pas et ne le rétrécit pas ;
+  //   < 1200 px : dans le flux, pleine largeur, entre le titre et le salon.
+  const aDroite = (x) => x.score.l >= x.lobby.r && Math.abs(x.score.t - x.lobby.t) <= 2 && x.lobby.w >= 860;
+  const auDessus = (x) => x.score.b <= x.lobby.t && Math.abs(x.score.w - x.lobby.w) <= 2;
+  await C.size(1440, 900); await sleep(250);
   let g = await C.eval(GEO);
-  t('1280 : le bloc est en haut à droite du salon (même hauteur que le code)', !!g.score && Math.abs(g.score.t - g.head.t) <= 4 && g.score.l >= g.code.r && g.score.r <= g.lobby.r + 1, JSON.stringify({ s: g.score, h: g.head }));
-  t('1280 : largeur raisonnable (240–320 px), pas un tableau', g.score.w >= 240 && g.score.w <= 320, String(Math.round(g.score.w)));
-  t('1280 : il ne recouvre ni les joueurs, ni la liste des jeux', g.score.b <= g.players.t + 1 && (!g.pool || g.score.b <= g.pool.t), JSON.stringify({ s: g.score.b, p: g.players.t }));
-  t('1280 : le statut de session est passé sous le code, à gauche', !!g.status && g.status.r <= g.score.l && g.status.t >= g.code.b - 1);
-  t('1280 : aucun défilement horizontal', g.over <= 0, String(g.over));
-  await C.shot('1-score-vide-1280');
+  t('1440 : panneau séparé, à droite du salon, aligné sur son haut, le salon garde sa largeur', !!g.score && aDroite(g), JSON.stringify({ s: g.score, l: g.lobby }));
+  t('1440 : compact (240–320 px), pas un tableau', g.score.w >= 240 && g.score.w <= 320, String(Math.round(g.score.w)));
+  t('1440 : le statut de session est à droite du code, dans le salon', !!g.status && g.status.l >= g.code.r && g.status.r <= g.lobby.r);
+  t('1440 : aucun défilement horizontal', g.over <= 0, String(g.over));
+  await C.shot('1-score-vide-1440');
   await C.size(390, 780); await sleep(250);
   g = await C.eval(GEO);
-  t('390 : ordre code → joueurs → score', g.code.b <= g.players.t && g.players.b <= g.score.t, JSON.stringify({ c: g.code.b, p: [g.players.t, g.players.b], s: g.score.t }));
-  t('390 : bloc pleine largeur, aucun défilement horizontal', g.over <= 0 && g.score.w >= g.lobby.w - 60 && g.score.r <= g.vw, JSON.stringify({ over: g.over, w: g.score.w, lobby: g.lobby.w }));
+  t('390 : dans le flux, pleine largeur, au-dessus du salon', auDessus(g), JSON.stringify({ s: g.score, l: g.lobby }));
+  t('390 : aucun défilement horizontal', g.over <= 0 && g.score.r <= g.vw, JSON.stringify({ over: g.over }));
   t('390 : taille lisible (noms ≥ 14 px), le nom long est coupé proprement', g.nomPx >= 14 && await C.eval(`[...document.querySelectorAll('.hub-score-name')].every((n) => n.getBoundingClientRect().right <= n.closest('li').getBoundingClientRect().right + 1)`), String(g.nomPx));
   await C.shot('2-score-vide-390');
-  for (const w of [701, 700, 560]) {
+  for (const w of [1920, 1280, 1200, 1199, 1024, 768, 560]) {
     await C.size(w, 900); await sleep(200);
     const x = await C.eval(GEO);
-    const ok = x.over <= 0 && x.score.r <= x.vw && (w > 700 ? Math.abs(x.score.t - x.head.t) <= 4 : x.score.t >= x.players.b);
-    t(`${w} px : ${w > 700 ? 'deux colonnes' : 'une colonne'}, rien ne déborde`, ok, JSON.stringify({ over: x.over, s: x.score, code: x.code }));
+    const ok = x.over <= 0 && x.score.r <= x.vw && (w >= 1200 ? aDroite(x) : auDessus(x));
+    t(`${w} px : ${w >= 1200 ? 'colonne de droite' : 'dans le flux, au-dessus du salon'}, rien ne déborde`, ok, JSON.stringify({ over: x.over, s: x.score, l: x.lobby }));
+    if (w === 1024) await C.shot('2b-score-vide-1024');
   }
+  // Le panneau suit le défilement sur grand écran (sticky), sans quitter sa colonne.
+  await C.size(1440, 900); await sleep(200);
+  const colle = await C.eval(`(() => { window.scrollTo({ top: 900, behavior: 'instant' }); const r = document.getElementById('hub-score').getBoundingClientRect(); const top = r.top; window.scrollTo({ top: 0, behavior: 'instant' }); return top; })()`);
+  t('1440 : en faisant défiler le salon, le score reste à l\'écran (sticky)', colle >= 0 && colle <= 40, String(Math.round(colle)));
   await C.size(1280, 900);
 
   // ═══ 2. première partie

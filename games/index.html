@@ -61,23 +61,15 @@
   .hub-state:empty, #hub-msg:empty { margin: 0; min-height: 0; }
 
   /* --- salon -------------------------------------------------------------- */
-  /* Le salon est une grille : l'en-tête (code + statut) à gauche, le SCORE DE
-     LA SOIRÉE en haut à droite ; tout le reste en pleine largeur dessous. Au
-     téléphone, une seule colonne et l'ordre du DOM : code → joueurs → score →
-     caisse. C'est pour ça que #hub-score est APRÈS #hub-players dans le HTML :
-     sur grand écran, c'est la grille qui le remonte. */
-  #lobby { display: grid; grid-template-columns: minmax(0, 1fr) minmax(250px, 300px); align-items: start; }
-  #lobby > * { grid-column: 1 / -1; }
-  #lobby > .hub-lobby-head { grid-column: 1; grid-row: 1; align-self: stretch; }
-  #lobby > #hub-score { grid-column: 2; grid-row: 1; }
-  .hub-lobby-head { padding-bottom: 1.1rem; margin-bottom: 1.2rem; border-bottom: 1px solid var(--panel-edge); }
+  .hub-lobby-head { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 1rem;
+    padding-bottom: 1.1rem; margin-bottom: 1.2rem; border-bottom: 1px solid var(--panel-edge); }
   .hub-session { text-align: left; }
   /* Le code : l'élément central du salon — gros, à l'accent, copiable. */
   #hub-code { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: clamp(2.6rem, 11vw, 3.6rem);
     line-height: 1; letter-spacing: .3em; text-indent: 0; color: #f2a15f; text-align: left; width: auto; }
   #hub-code:hover { color: #ffc28f; }
   #hub-code-hint { font-size: .72rem; color: var(--ink-3); margin: .35rem 0 0; }
-  .hub-status { text-align: left; margin-top: .8rem; }
+  .hub-status { text-align: right; }
   #hub-count { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 1.05rem; margin: 0; }
   #hub-count-sub { font-size: .75rem; color: var(--ink-3); margin: .15rem 0 0; }
   #hub-conn { display: inline-flex; align-items: center; gap: .4rem; font-size: .75rem; color: var(--ink-3); margin-top: .3rem; }
@@ -86,12 +78,27 @@
   #hub-conn.is-off::before { background: #d8584a; }
 
   /* --- score de la soirée ------------------------------------------------
-     Compact et lisible d'un coup d'œil : un titre, une ligne par joueur. Ce
-     n'est pas un tableau de stats — le détail des parties reste dans le Hub. */
-  #hub-score { margin: 0 0 1.2rem 1.2rem; padding: .8rem .9rem .75rem; min-width: 0;
-    background: rgba(0,0,0,.22); border: 1px solid var(--panel-edge); border-top: 3px solid #f2a15f; }
+     Un panneau À PART, frère du salon : le salon est découpé au clip-path, rien
+     ne peut en sortir. Même matière Mann Co. (.panel), en plus petit : c'est
+     un panneau secondaire, pas un second salon.
+     Grand écran (≥ 1200 px) : une colonne à droite du salon, qui reste à l'écran
+     pendant qu'on fait défiler (sticky). En dessous : dans le flux, entre le
+     titre et le salon — compact (3 à 6 lignes), plutôt qu'après les huit fiches
+     de jeux où personne ne le verrait. */
+  #hub-score { padding: 1rem 1rem .85rem; margin: 0 0 1rem; min-width: 0; }
   .hub-score-title { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: .8rem; letter-spacing: .16em;
-    text-transform: uppercase; color: #f2a15f; margin: 0 0 .55rem; }
+    text-transform: uppercase; color: #f2a15f; margin: 0 0 .6rem; padding-bottom: .5rem; border-bottom: 1px solid var(--panel-edge); }
+  @media (min-width: 1200px) {
+    /* :has() : la colonne n'existe que quand le panneau est là (pas à l'entrée).
+       Sans :has(), le panneau reste simplement dans le flux, au-dessus. */
+    main:has(> #hub-score:not([hidden])) { width: min(1180px, 100%); display: grid;
+      grid-template-columns: minmax(0, 1fr) 270px; column-gap: 1.25rem; align-items: start; }
+    main:has(> #hub-score:not([hidden])) > * { grid-column: 1; }
+    main:has(> #hub-score:not([hidden])) > .hub-top { grid-column: 1 / -1; }
+    /* ⚠️ Même préfixe :has() que la règle > * ci-dessus : elle contient un ID,
+       un simple `main > #hub-score` perdrait contre elle (colonne 1). */
+    main:has(> #hub-score:not([hidden])) > #hub-score { grid-column: 2; grid-row: 2; margin: 0; position: sticky; top: 1rem; }
+  }
   #hub-score-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .2rem; }
   .hub-score-row { display: grid; grid-template-columns: 1.7rem minmax(0, 1fr) auto; align-items: center; gap: .45rem;
     padding: .28rem .4rem; min-width: 0; }
@@ -259,16 +266,9 @@
     .crate-lid, .crate-glow { transition: none; }
   }
 
-  /* Sous 700 px, le code (3,6 rem espacé) et le score ne tiennent plus côte à
-     côte : une colonne, dans l'ordre du DOM. */
-  @media (max-width: 700px) {
-    #lobby { grid-template-columns: minmax(0, 1fr); }
-    #lobby > .hub-lobby-head, #lobby > #hub-score { grid-column: 1; grid-row: auto; }
-    #hub-score { margin: 1.2rem 0 0; }
-  }
-
   @media (max-width: 560px) {
     .hub-panel { padding: 1.2rem 1rem; }
+    .hub-lobby-head { grid-template-columns: 1fr; }
     .hub-session, .hub-status { text-align: center; }
     #hub-code { text-align: center; width: 100%; text-indent: .3em; }
     #hub-players { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -288,6 +288,16 @@
       <h1>Game Hub<span class="a">.</span></h1>
       <p class="sub">une session, tes amis, et la caisse Mann Co. tire le jeu</p>
     </header>
+
+    <!-- LE SCORE DE LA SOIRÉE : calculé par le Hub (game-hub-server,
+         scores.js) à partir du classement que chaque jeu lui rend. La page ne
+         fait que l'afficher. Panneau à part, visible avec le salon seulement ;
+         sur grand écran, il devient la colonne de droite (voir le CSS). -->
+    <aside id="hub-score" class="panel hub-side" aria-labelledby="hub-score-title" hidden>
+      <h2 class="hub-score-title" id="hub-score-title">🏆 Score de la soirée</h2>
+      <ol id="hub-score-list"></ol>
+      <p class="hub-note" id="hub-score-note"></p>
+    </aside>
 
     <!-- ENTRÉE : ton profil, puis créer ou rejoindre -->
     <section id="entry" class="panel g-screen hub-panel">
@@ -325,23 +335,14 @@
           <p class="hub-label">Salon · code de session</p>
           <button type="button" id="hub-code" class="g-copy" title="clique pour copier">·····</button>
           <p id="hub-code-hint" role="status">clique sur le code pour le copier</p>
-          <div class="hub-status">
-            <p id="hub-count">— joueurs</p>
-            <p id="hub-count-sub"></p>
-            <span id="hub-conn" role="status">connecté</span>
-          </div>
+        </div>
+        <div class="hub-status">
+          <p id="hub-count">— joueurs</p>
+          <p id="hub-count-sub"></p>
+          <span id="hub-conn" role="status">connecté</span>
         </div>
       </div>
       <ul id="hub-players" aria-label="joueurs de la session"></ul>
-      <!-- LE SCORE DE LA SOIRÉE : calculé par le Hub (game-hub-server,
-           scores.js) à partir du classement que chaque jeu lui rend. La page
-           ne fait que l'afficher. Sur grand écran, la grille le remonte en
-           haut à droite du salon. -->
-      <section id="hub-score" aria-labelledby="hub-score-title">
-        <h2 class="hub-score-title" id="hub-score-title">🏆 Score de la soirée</h2>
-        <ol id="hub-score-list"></ol>
-        <p class="hub-note" id="hub-score-note"></p>
-      </section>
       <!-- Un lancement raté ramène au salon : on dit pourquoi, à tout le monde. -->
       <p id="hub-failed" role="alert" hidden></p>
 
@@ -426,6 +427,6 @@
   <script src="shared/game-hub.js?v=2"></script>
   <script src="shared/hub-handoff.js"></script>
   <script src="hub-crate.js"></script>
-  <script src="hub-page.js?v=2"></script>
+  <script src="hub-page.js?v=3"></script>
 </body>
 </html>

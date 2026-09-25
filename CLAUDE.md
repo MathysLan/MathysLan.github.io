@@ -1710,13 +1710,17 @@ soirée. La page ne calcule aucun point.
   `hub-handoff.js` n'envoie que depuis l'hôte du lancement, une seule fois.
   Garde `if (lien.results)` : un `hub-handoff.js` resté en cache n'a pas la
   méthode (d'où aussi les `?v=2` sur la page du Passeur et du Hub).
-- **UI** (`games/index.html`, `renderScore` dans `hub-page.js`) : `#lobby`
-  est une **grille**. `#hub-score` est APRÈS `#hub-players` dans le DOM (ordre
-  téléphone : code → joueurs → score → caisse) et c'est la grille qui le
-  remonte en haut à droite au-dessus de 700 px. Le statut de session est passé
-  sous le code. Pas de médaille tant que personne n'a marqué ; au-delà de 6
-  joueurs, les 5 premiers + ta ligne. ⚠️ Ne pas déplacer `#hub-score` dans
-  `.hub-lobby-head` « pour simplifier » : l'ordre mobile casserait.
+- **UI** (`games/index.html`, `renderScore` dans `hub-page.js`) :
+  `#hub-score` est un **panneau à part** (`<aside class="panel">`), FRÈRE du
+  salon, placé juste avant lui dans `main` — le salon est découpé au
+  `clip-path`, rien ne peut en sortir. `show()` le montre avec le salon
+  seulement. **≥ 1200 px** : `main:has(> #hub-score:not([hidden]))` devient une
+  grille (salon ~880 px + colonne de 270 px), le panneau est `sticky`.
+  **< 1200 px** : dans le flux, pleine largeur, entre le titre et le salon.
+  ⚠️ La règle du panneau porte le MÊME préfixe `:has()` que `> *` : ce
+  dernier contient un ID, un simple `main > #hub-score` perdait (colonne 1).
+  Pas de médaille tant que personne n'a marqué ; au-delà de 6 joueurs, les 5
+  premiers + ta ligne.
 - **Tests** : `game-hub-server/test-scores.js` (53 : module pur + protocole) ;
   `tests/hub-score.mjs` (40 : trois navigateurs, deux vraies parties, mise en
   page 1280 → 390 px).
