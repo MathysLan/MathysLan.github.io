@@ -1665,9 +1665,10 @@ là où Render se réveille vraiment —, pas le tirage.
 ## Score de soirée (2026-09-26, pilote : Le Passeur)
 
 Le Hub tient maintenant un **score cumulé par session**, affiché en haut à
-droite du salon. Contrat validé en production le 2026-09-26. **Deux jeux rendent
-leur classement : Le Passeur et Imitation** ; les cinq autres se lancent comme
-avant et ne rapportent rien (on les branche un par un, à la demande).
+droite du salon. Contrat validé en production le 2026-09-26. **Trois jeux rendent
+leur classement : Le Passeur, Imitation et Demi-Cercle** ; les quatre autres se
+lancent comme avant et ne rapportent rien (on les branche un par un, à la
+demande).
 
 **Imitation** (2026-09-26) : aucun changement d'`imitation-server` — son
 `phase: end` porte déjà `podium: [{ id, name, avatar, score }]`. Son id de
@@ -1676,6 +1677,18 @@ changement du salon : l'annonce au Hub est gardée, mais **ré-émise quand `you
 change** (reconnexion au salon = nouvel id ; sans ça, la place déclarée serait
 l'ancienne et le joueur ne marquerait rien). Helper `rangs()` dans
 `games/imitation/app.js`. Test : `tests/hub-score-imitation.mjs`.
+
+**Demi-Cercle** (2026-09-26) : même raccord qu'Imitation, trait pour trait —
+`demicercle-server` inchangé, `podium` dans `phase: end`, place = `room.you`
+ré-annoncée quand elle change, `rangs()` dans `games/demicercle/app.js`. Test :
+`tests/hub-score-demicercle.mjs` (partie jouée à la souris sur le cadran, ex
+æquo 13 / 13 / 5 construit en visant la cible que seul le Guide reçoit).
+⚠️ Ce lot a révélé un défaut de `hub-handoff.js` : `failed()` remettait
+`joint = false`, donc un retardataire refusé « partie en cours » était re-joint
+à la diffusion SUIVANTE du Hub. Avant le score, c'était `ended` (billet
+périmé, aucun effet) ; maintenant c'est le classement, qui arrive encore en
+`playing` — et le retardataire entrait en douce dans la room revenue au salon.
+En `playing`, `failed()` ne rouvre plus d'essai (`?v=3` sur les 8 pages).
 
 Deux autorités, qui ne se mélangent pas : **le jeu** reste maître de SA partie,
 **le Hub** (`game-hub-server/src/scores.js`, module pur) est maître de la

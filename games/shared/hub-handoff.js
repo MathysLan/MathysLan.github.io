@@ -196,7 +196,12 @@
         // lancement (120 s). Mesuré : tests/presence-precision.mjs.
         var l = session && session.launch;
         if (l && l.drawId === t.drawId && l.hostId === t.playerId && l.stage === 'join') return api.cancel(detail);
-        joint = false;
+        // Un nouvel essai n'a de sens qu'avant le début de la partie. En
+        // `playing`, le serveur du jeu vient de refuser un retardataire : sans
+        // cette garde, la diffusion suivante du Hub (le classement arrive
+        // avant `ended`) le faisait entrer en douce dans la room revenue au
+        // salon. Mesuré : tests/handoff-demicercle.mjs.
+        if (!l || l.stage !== 'playing') joint = false;
         hub.abort(t.drawId, reason === 'UNREACHABLE' ? 'UNREACHABLE' : 'CREATE_FAILED', String(detail || '').slice(0, 120));
         b.say('Game Hub · ' + (reason === 'UNREACHABLE' ? 'serveur du jeu injoignable' : 'impossible d\'entrer dans la partie') + (detail ? ' (' + detail + ')' : '') + ' — le Hub est prévenu.');
       },

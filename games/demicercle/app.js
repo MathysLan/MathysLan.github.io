@@ -164,6 +164,7 @@ async function enter(code) {
 let viaHub = false;            // le join en cours vient du Hub
 let partirSansAttendre = false;
 let codeDeclare = null;        // le code déjà annoncé au Hub (une seule fois)
+let placeDeclaree = null;      // notre id Demi-Cercle déjà annoncé au Hub (score de soirée)
 const lien = window.HubHandoff ? HubHandoff.start({
   gameId: 'demicercle',
   join: (code) => {
@@ -246,6 +247,16 @@ $('guess-send').addEventListener('click', () => {
   armDial(false);
 });
 
+// Le podium en rangs « de compétition » : 4, 4, 1 → 1, 1, 3. Le serveur l'envoie
+// trié, mais le rang se lit sur les points, pas sur l'index.
+function rangs(podium) {
+  return podium.map((p) => ({
+    gamePlayerId: p.id,
+    rank: 1 + podium.filter((x) => x.score > p.score).length,
+    points: p.score,
+  }));
+}
+
 // --- messages serveur ------------------------------------------------------
 NET.on('room', (msg) => {
   you = msg.you;
@@ -254,7 +265,14 @@ NET.on('room', (msg) => {
   // Lancé par le Hub : on lui dit dans quelle room on est. L'hôte y déclare le
   // code (le seul qu'il croira), les invités confirment y être entrés. ⚠️ `room`
   // arrive à CHAQUE changement du salon : une seule annonce.
-  if (lien && !codeDeclare) { codeDeclare = msg.code; viaHub = false; lien.roomReady(msg.code); }
+  // Avec SA place dans la room (msg.you, l'id Demi-Cercle — jamais celui du
+  // Hub) : c'est elle qui relie le podium final à son joueur du Hub (score de
+  // soirée). Une reconnexion donne un NOUVEL id : on ne ré-annonce que dans ce
+  // cas, pour que la place suive le joueur.
+  if (lien && (!codeDeclare || placeDeclaree !== msg.you)) {
+    codeDeclare = codeDeclare || msg.code; placeDeclaree = msg.you; viaHub = false;
+    lien.roomReady(msg.code, msg.you);
+  }
   nbJoueurs = msg.players.length;
   msg.players.forEach((p, i) => { if (!colorById[p.id]) colorById[p.id] = PALETTE[i % PALETTE.length]; avatarById[p.id] = p.avatar; nameById[p.id] = p.name; });
   const me = msg.players.find((p) => p.id === you);
@@ -367,7 +385,15 @@ const PHASES = {
   end(msg) {
     inEndScreen = true;
     show('game'); resetStage();
-    if (lien) { lien.ended(); $('to-hub').hidden = false; }
+    if (lien) {
+      // Score de soirée : le podium du SERVEUR, transmis tel quel au Hub
+      // (l'hôte du lancement seulement, une fois — hub-handoff.js filtre). Le
+      // Hub en fait des points de soirée. Toujours AVANT ended().
+      // (garde : un hub-handoff.js resté en cache n'a pas encore results)
+      if (lien.results) lien.results(rangs(msg.podium));
+      lien.ended();
+      $('to-hub').hidden = false;
+    }
     $('back-lobby').hidden = false;
     const medals = ['🥇', '🥈', '🥉'];
     setStage('🏆 Fin de partie', 'le podium');
