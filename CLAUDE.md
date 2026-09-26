@@ -1665,10 +1665,10 @@ là où Render se réveille vraiment —, pas le tirage.
 ## Score de soirée (2026-09-26, pilote : Le Passeur)
 
 Le Hub tient maintenant un **score cumulé par session**, affiché en haut à
-droite du salon. Contrat validé en production le 2026-09-26. **Trois jeux rendent
-leur classement : Le Passeur, Imitation et Demi-Cercle** ; les quatre autres se
-lancent comme avant et ne rapportent rien (on les branche un par un, à la
-demande).
+droite du salon. Contrat validé en production le 2026-09-26. **Quatre jeux rendent
+leur classement : Le Passeur, Imitation, Demi-Cercle et le Ban** ; les trois
+autres se lancent comme avant et ne rapportent rien (on les branche un par un,
+à la demande).
 
 **Imitation** (2026-09-26) : aucun changement d'`imitation-server` — son
 `phase: end` porte déjà `podium: [{ id, name, avatar, score }]`. Son id de
@@ -1689,6 +1689,14 @@ ré-annoncée quand elle change, `rangs()` dans `games/demicercle/app.js`. Test 
 périmé, aucun effet) ; maintenant c'est le classement, qui arrive encore en
 `playing` — et le retardataire entrait en douce dans la room revenue au salon.
 En `playing`, `failed()` ne rouvre plus d'essai (`?v=3` sur les 8 pages).
+
+**Le Jeu du Ban** (2026-09-26) : même raccord, `ban-server` inchangé. L'étape
+d'avertissement n'est pas touchée : le `join` du handoff attend toujours la
+case, et c'est le `room` obtenu ENSUITE qui déclare la place. Les points du Ban
+peuvent être négatifs (malus −1 quand le mot sort) : le Hub les accepte, seul
+le rang compte. Test : `tests/hub-score-ban.mjs` — ex æquo 0 / 0 / −1 (deux
+STOP immédiats, un mot lâché), choisi parce qu'il ne dépend d'aucun réglage au
+centième et se rejoue tel quel en production.
 
 Deux autorités, qui ne se mélangent pas : **le jeu** reste maître de SA partie,
 **le Hub** (`game-hub-server/src/scores.js`, module pur) est maître de la
