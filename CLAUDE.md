@@ -1665,10 +1665,10 @@ là où Render se réveille vraiment —, pas le tirage.
 ## Score de soirée (2026-09-26, pilote : Le Passeur)
 
 Le Hub tient maintenant un **score cumulé par session**, affiché en haut à
-droite du salon. Contrat validé en production le 2026-09-26. **Quatre jeux rendent
-leur classement : Le Passeur, Imitation, Demi-Cercle et le Ban** ; les trois
-autres se lancent comme avant et ne rapportent rien (on les branche un par un,
-à la demande).
+droite du salon. Contrat validé en production le 2026-09-26. **Cinq jeux rendent
+leur classement : Le Passeur, Imitation, Demi-Cercle, le Ban et Précision** ;
+Morpion et Qui Ment ? se lancent comme avant et ne rapportent rien (on les
+branche un par un, à la demande).
 
 **Imitation** (2026-09-26) : aucun changement d'`imitation-server` — son
 `phase: end` porte déjà `podium: [{ id, name, avatar, score }]`. Son id de
@@ -1697,6 +1697,24 @@ peuvent être négatifs (malus −1 quand le mot sort) : le Hub les accepte, seu
 le rang compte. Test : `tests/hub-score-ban.mjs` — ex æquo 0 / 0 / −1 (deux
 STOP immédiats, un mot lâché), choisi parce qu'il ne dépend d'aucun réglage au
 centième et se rejoue tel quel en production.
+
+**Précision** (2026-09-26) : même raccord, `precision-server` inchangé, son et
+lancement solo intacts. Jouable SEUL (MIN_PLAYERS = 1) : podium d'une ligne,
+rang 1, 10 points de soirée — aucun minimum ajouté. Test :
+`tests/hub-score-precision.mjs` (trio : trois manches de FRAPPE en Impossible
+au vrai clavier, la seule épreuve dont on force le score exact → 300 / 300 / 0 ;
+puis un scénario solo).
+⚠️⚠️ **Défaut connu de `game-hub-server`, non corrigé** (vu avec ce test) :
+`onClose` (src/hub.js) ne protège une session VIDE que pendant `launching` /
+`inGame`. Au `debrief` d'un lancement, elle est fermée tout de suite. Seul,
+le joueur quitte la page du jeu (son socket Hub se ferme) avant que `/games/`
+ne se reconnecte → « Ta session précédente n'existe plus », **score de soirée
+perdu**. Touche aussi Le Passeur en solo, et un groupe qui reviendrait tout
+entier au même instant. Le Hub a pourtant bien reçu le classement et crédité
+les points. Piste : traiter `debrief` + `launch.stage === 'ended'` comme
+`HANDOFF_STATES` dans `onClose` (même logique que le `cycle` de
+`session.js`), les grâces individuelles faisant le ménage. Le test solo s'arrête
+donc à la trame du Hub ; il dit quoi ajouter une fois le Hub corrigé.
 
 Deux autorités, qui ne se mélangent pas : **le jeu** reste maître de SA partie,
 **le Hub** (`game-hub-server/src/scores.js`, module pur) est maître de la

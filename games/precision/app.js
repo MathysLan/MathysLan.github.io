@@ -592,6 +592,7 @@ async function enter(code) {
 let viaHub = false;            // le join en cours vient du Hub
 let partirSansAttendre = false;
 let codeDeclare = null;        // le code déjà annoncé au Hub (une seule fois)
+let placeDeclaree = null;      // notre id Précision déjà annoncé au Hub (score de soirée)
 const lien = window.HubHandoff ? HubHandoff.start({
   gameId: 'precision',
   join: (code) => {
@@ -690,6 +691,16 @@ function armAutoSubmit(ms) {
   autoTimer = setTimeout(() => doSubmit(true), Math.max(200, ms - 350));
 }
 
+// Le podium en rangs « de compétition » : 100, 100, 50 → 1, 1, 3. Le serveur
+// l'envoie trié, mais le rang se lit sur les points, pas sur l'index.
+function rangs(podium) {
+  return podium.map((p) => ({
+    gamePlayerId: p.id,
+    rank: 1 + podium.filter((x) => x.score > p.score).length,
+    points: p.score,
+  }));
+}
+
 // ============================================================ serveur
 NET.on('room', (msg) => {
   you = msg.you;
@@ -699,7 +710,14 @@ NET.on('room', (msg) => {
   // Lancé par le Hub : on lui dit dans quelle room on est. L'hôte y déclare le
   // code (le seul qu'il croira), les invités confirment y être entrés. ⚠️ `room`
   // arrive à CHAQUE changement du salon : une seule annonce.
-  if (lien && !codeDeclare) { codeDeclare = msg.code; viaHub = false; lien.roomReady(msg.code); }
+  // Avec SA place dans la room (msg.you, l'id Précision — jamais celui du
+  // Hub) : c'est elle qui relie le podium final à son joueur du Hub (score de
+  // soirée). Une reconnexion donne un NOUVEL id : on ne ré-annonce que dans ce
+  // cas, pour que la place suive le joueur.
+  if (lien && (!codeDeclare || placeDeclaree !== msg.you)) {
+    codeDeclare = codeDeclare || msg.code; placeDeclaree = msg.you; viaHub = false;
+    lien.roomReady(msg.code, msg.you);
+  }
   const me = msg.players.find((p) => p.id === you);
   const wasHost = isHost; isHost = !!(me && me.host);
   $('players').innerHTML = msg.players.map((p) =>
@@ -813,7 +831,16 @@ const PHASES = {
       `<li class="g-player"><span class="medal">${medals[i] || '·'}</span>${GameAvatar.slot(p.avatar, undefined, i < 3 ? 'lg' : 'md')}<span class="g-player-name">${esc(p.name)}</span><span class="pts g-player-score">${p.score}</span></li>`).join('');
     GameAvatar.fill($('scores'));
     setFab('lobby'); AUDIO.end();
-    if (lien) { lien.ended(); $('to-hub').hidden = false; }
+    if (lien) {
+      // Score de soirée : le podium du SERVEUR, transmis tel quel au Hub
+      // (l'hôte du lancement seulement, une fois — hub-handoff.js filtre). Le
+      // Hub en fait des points de soirée. Toujours AVANT ended(). En solo, une
+      // ligne, rang 1 : rien de particulier à faire.
+      // (garde : un hub-handoff.js resté en cache n'a pas encore results)
+      if (lien.results) lien.results(rangs(msg.podium));
+      lien.ended();
+      $('to-hub').hidden = false;
+    }
   },
 };
 
