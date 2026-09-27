@@ -302,7 +302,17 @@ try {
   const finishVu = `(() => { const b = document.getElementById('hub-finish'); return !b.hidden && !!b.offsetParent; })()`;
   t('seul l\'hôte voit « 🏁 Terminer la soirée »', (await A.eval(finishVu)) && !(await B.eval(finishVu)) && !(await C.eval(finishVu)));
   t('… et tout le monde garde « Quitter la session »', (await Promise.all([A, B, C].map((J) => J.eval(`document.getElementById('hub-leave').textContent`)))).every((x) => x === 'Quitter la session'));
-  t('le bouton de fin est distinct du départ (bouton plein, pas fantôme)', await A.eval(`!document.getElementById('hub-finish').classList.contains('ghost') && document.getElementById('hub-leave').classList.contains('ghost')`));
+  // Distinct du départ (liseré ROUGE, pas le fantôme gris), mais SECONDAIRE :
+  // pas de fond plein, et loin de l'action principale (« Tirer », sous les
+  // joueurs) — dans le panneau des jeux, en bas, après la liste.
+  const fin = await A.eval(`(() => { const f = document.getElementById('hub-finish'), l = document.getElementById('hub-leave'), d = document.getElementById('hub-draw-btn');
+    const cs = getComputedStyle(f), rf = f.getBoundingClientRect(), rd = d.getBoundingClientRect();
+    return { ghost: f.classList.contains('ghost'), leaveGhost: l.classList.contains('ghost'), fond: cs.backgroundImage === 'none' && /rgba\\(0, 0, 0, 0\\)|transparent/.test(cs.backgroundColor),
+      liseré: /184, 69, 47/.test(cs.boxShadow), panneau: !!f.closest('#hub-lobby-games'), tirerVu: !d.hidden, ecart: Math.round(rf.top - rd.bottom),
+      apresJeux: rf.top >= document.getElementById('hub-pool').getBoundingClientRect().bottom }; })()`);
+  t('le bouton de fin : distinct du départ (liseré rouge, pas fantôme gris) mais secondaire (sans fond plein)',
+    !fin.ghost && fin.leaveGhost && fin.fond && fin.liseré, JSON.stringify(fin));
+  t('le bouton de fin est loin de « Tirer » : autre panneau, après la liste des jeux', fin.panneau && fin.tirerVu && fin.apresJeux && fin.ecart >= 200, JSON.stringify(fin));
 
   // Annuler : rien ne part.
   const env0 = A.envoyes.length;

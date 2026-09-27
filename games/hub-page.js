@@ -38,7 +38,10 @@
   // Le score de la soirée est un panneau à part : il n'existe qu'avec le salon.
   // Le débrief de soirée (#hub-recap) ne s'affiche qu'en sortant d'une session,
   // AU-DESSUS de l'entrée (voir leave) : tout autre écran le range.
-  const show = (id) => { $('entry').hidden = id !== 'entry'; $('lobby').hidden = id !== 'lobby'; $('hub-score').hidden = id !== 'lobby'; $('hub-recap').hidden = true; };
+  // Le salon, ce sont TROIS blocs frères : #lobby (joueurs, action, caisse),
+  // #hub-score, puis #hub-lobby-games (catalogue, actions secondaires).
+  const show = (id) => { $('entry').hidden = id !== 'entry'; $('lobby').hidden = id !== 'lobby'; $('hub-score').hidden = id !== 'lobby';
+    $('hub-lobby-games').hidden = id !== 'lobby'; $('hub-recap').hidden = true; };
   const say = (t) => { $('hub-state').textContent = t || ''; };
   const warn = (t) => { $('hub-msg').textContent = t ? '> ' + t : ''; };
 
@@ -290,13 +293,17 @@
       return li;
     }));
     const caches = lignes.length - vues.length;
+    // Aucune partie classée : pas de liste de zéros (elle repoussait le reste),
+    // une ligne. Les lignes existent quand même dans le DOM, masquées.
+    $('hub-score').classList.toggle('is-empty', !jeux.length);
     $('hub-score-note').textContent = !jeux.length
-      ? 'Les points tombent à la fin de chaque partie lancée depuis le Hub.'
+      ? 'Aucune partie jouée — les points tombent à la fin de chaque partie lancée depuis le Hub.'
       : `après ${jeux.length} partie${jeux.length > 1 ? 's' : ''} · dernière : ${info(derniere.gameId).title}`
         + (caches ? ` · +${caches} autre${caches > 1 ? 's' : ''}` : '');
   }
 
   // ------------------------------------------------------------- les jeux
+  let sansJeu = null;          // aucun jeu possible au dernier rendu ?
   function renderPool(session, you) {
     const pool = session.pool;
     const moi = mine(session, you);
@@ -312,7 +319,9 @@
 
     const none = $('hub-none');
     if (pool.catalog !== 'ready') {
-      $('hub-games').replaceChildren();
+      $('hub-games-ok').replaceChildren();
+      $('hub-games-out').replaceChildren();
+      $('hub-out').hidden = true;
       $('hub-elig-count').textContent = '';
       none.hidden = false;
       none.textContent = pool.catalog === 'error'
@@ -323,7 +332,7 @@
     const total = pool.eligible.reduce((s, id) => s + (pool.weights[id] || 0), 0);
     $('hub-elig-count').textContent = `· ${pool.eligible.length} possible${pool.eligible.length > 1 ? 's' : ''} sur ${pool.games.length}`;
 
-    $('hub-games').replaceChildren(...pool.games.map((id) => {
+    const fiches = pool.games.map((id) => {
       const g = info(id);
       const ok = pool.eligible.includes(id);
       const li = document.createElement('li');
@@ -382,10 +391,26 @@
       prefs.append(pref('love', '❤️', 'J\'aime', moi.love.includes(id)), pref('veto', '🚫', 'Veto sur', moi.veto.includes(id)));
       li.append(em, main, prefs);
       return li;
-    }));
+    });
+    // Les possibles d'abord, dans l'ordre du catalogue ; les autres dans un
+    // <details> qui dit combien — ouvert, chaque fiche garde sa raison et ses
+    // boutons ❤️ / 🚫 (c'est là qu'on lève son propre veto).
+    const ok = fiches.filter((li) => li.dataset.eligible === 'true');
+    const out = fiches.filter((li) => li.dataset.eligible !== 'true');
+    $('hub-games-ok').replaceChildren(...ok);
+    $('hub-games-out').replaceChildren(...out);
+    const det = $('hub-out');
+    det.hidden = !out.length;
+    const miens = out.filter((li) => moi.veto.includes(li.dataset.game)).length;
+    $('hub-out-sum').textContent = `${out.length} jeu${out.length > 1 ? 'x' : ''} indisponible${out.length > 1 ? 's' : ''} ce soir — pourquoi ?`
+      + (miens ? ` (dont ${miens} par ton veto)` : '');
+    // Plus AUCUN jeu possible : les raisons deviennent l'information principale,
+    // on déplie (une fois, au passage à zéro — sans forcer qui l'a refermé).
+    if (!ok.length && sansJeu !== true) det.open = true;
+    sansJeu = !ok.length;
 
     none.hidden = pool.eligible.length > 0;
-    none.textContent = pool.eligible.length ? '' : 'Aucun jeu possible pour ce groupe. Chaque jeu dit pourquoi ci-dessus : '
+    none.textContent = pool.eligible.length ? '' : 'Aucun jeu possible pour ce groupe. Chaque jeu dit pourquoi dans la liste des indisponibles : '
       + 'un veto ne se lève que par la personne qui l\'a posé' + (max ? ', et l\'hôte peut relâcher la durée max' : '') + '.';
   }
   // ❤️ / 🚫 : on n'envoie que SES propres listes, relues dans l'état serveur.
@@ -461,13 +486,16 @@
   function renderRound(session, you, round) {
     const card = $('hub-round');
     const btn = $('hub-draw-btn');
-    const pied = document.querySelector('.hub-foot-actions');
+    const barre = $('hub-act');
+    // La carte Résultat porte sa propre suite (Tirage suivant / attente) : la
+    // barre d'action, juste au-dessus, se tait pendant ce temps.
+    barre.hidden = !!round;
     if (!round) {
       card.hidden = true;
       card.classList.remove('is-new');
       roundShown = null;
-      // « Tirer » retourne à sa place, en tête des actions du pied.
-      if (btn.parentNode !== pied) pied.insertBefore(btn, pied.firstChild);
+      // « Tirer » retourne à sa place, dans la barre d'action sous les joueurs.
+      if (btn.parentNode !== barre) barre.insertBefore(btn, barre.firstChild);
       return;
     }
     const isHost = session.hostId === you;
@@ -523,7 +551,7 @@
     // chez les autres.
     const actions = $('round-actions');
     if (isHost) { if (btn.parentNode !== actions) actions.insertBefore(btn, actions.firstChild); }
-    else if (btn.parentNode !== pied) pied.insertBefore(btn, pied.firstChild);
+    else if (btn.parentNode !== barre) barre.insertBefore(btn, barre.firstChild);
     $('round-wait').hidden = isHost;
     $('round-wait').textContent = isHost ? '' : `En attente de ${host ? host.name : 'l\'hôte'} pour le tirage suivant.`;
 
@@ -703,9 +731,11 @@
     if (current && current.session.launch) hub.ended(current.session.launch.drawId);
   });
 
-  // ----------------------------------------------------------------- pied
+  // ----------------------------------------------- action principale + pied
   function renderFoot(session, you) {
     const isHost = session.hostId === you;
+    // Un invité n'a pas de bouton : sa phrase prend la place, en encart.
+    $('hub-act').classList.toggle('is-waiting', !isHost);
     const host = session.players.find((p) => p.host);
     const hostName = host ? host.name : 'l\'hôte';
     const btn = $('hub-draw-btn');
@@ -733,7 +763,7 @@
     } else if (isHost) {
       $('hub-wait').textContent = pool.eligible.length ? 'Tu es l\'hôte : c\'est toi qui tires.' : 'Tu es l\'hôte. Aucun jeu n\'est possible pour l\'instant.';
     } else {
-      $('hub-wait').textContent = `En attente du tirage de l'hôte (${hostName}).`;
+      $('hub-wait').textContent = `⏳ En attente de ${hostName} — c'est l'hôte qui tire le jeu.`;
     }
   }
 

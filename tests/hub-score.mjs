@@ -206,6 +206,11 @@ const GEO = `(() => {
   return { vw: innerWidth, over: document.documentElement.scrollWidth - innerWidth,
     lobby: r('#lobby'), head: r('.hub-lobby-head'), code: r('#hub-code'), status: r('.hub-status'), score: r('#hub-score'),
     players: r('#hub-players'), draw: r('#hub-draw'), pool: r('#hub-pool'),
+    act: r('#hub-act'), tirer: r('#hub-draw-btn'), attente: r('#hub-wait'), games: r('#hub-lobby-games'), ok: r('#hub-games-ok'),
+    out: r('#hub-out'), finish: r('#hub-finish'), leave: r('#hub-leave'),
+    attenteTxt: document.getElementById('hub-wait').textContent, enAttente: document.getElementById('hub-act').classList.contains('is-waiting'),
+    vide: document.getElementById('hub-score').classList.contains('is-empty'),
+    lignesVues: [...document.querySelectorAll('#hub-score-list .hub-score-row')].filter((li) => li.offsetParent).length,
     nomPx: nom ? parseFloat(getComputedStyle(nom).fontSize) : 0,
     titre: (document.querySelector('.hub-score-title') || {}).textContent || '' }; })()`;
 
@@ -349,30 +354,44 @@ try {
       img: !!img && img.complete && img.naturalWidth > 0, src: img ? img.getAttribute('src') : null, emoji: (av && av.querySelector('.g-av-e') || {}).textContent || null,
       carte: (() => { const c = document.querySelector('#hub-players [data-player="' + li.dataset.player + '"] .g-av'); const ci = c && c.querySelector('img');
         return ci ? ci.getAttribute('src') : (c && c.querySelector('.g-av-e') || {}).textContent || null; })() }; }))()`;
-  for (const [w, h] of [[1440, 900], [390, 780]]) {
-    await B.size(w, h); await sleep(250);
-    const av = await B.eval(AV);
-    const photoA = av.find((x) => x.id === id.A), autres = av.filter((x) => x.id !== id.A);
-    t(`${w} px : un avatar par ligne, entre le rang et le nom, 24–28 px`, av.length === 3 && av.every((x) => x.entre && x.w >= 24 && x.w <= 28 && x.w === x.h), JSON.stringify(av.map((x) => [x.w, x.h, x.entre])));
-    t(`${w} px : photo de A affichée (image chargée), emoji pour B et C`, !!photoA && photoA.img && autres.every((x) => !x.src && !!x.emoji), JSON.stringify(av.map((x) => x.img ? 'photo' : x.emoji)));
-    t(`${w} px : le même avatar que sur la carte joueur du salon`, av.every((x) => (x.src || x.emoji) === x.carte));
-    const g = await B.eval(GEO);
-    t(`${w} px : noms longs coupés proprement, aucun défilement horizontal`, g.over <= 0 && await B.eval(`[...document.querySelectorAll('#hub-score-list .hub-score-row')].every((li) => { const r = li.getBoundingClientRect();
-      return [...li.children].every((c) => { const b = c.getBoundingClientRect(); return b.left >= r.left - 1 && b.right <= r.right + 1; }); })`), String(g.over));
+  // Avant toute partie classée : UNE ligne, pas une liste de zéros.
+  const v0 = await B.eval(GEO);
+  t('avant tout tirage : « Score de la soirée — Aucune partie jouée », aucune ligne de score visible',
+    v0.vide && v0.lignesVues === 0 && /score de la soirée/i.test(v0.titre)
+    && /^Aucune partie jouée/.test(await B.eval(`document.getElementById('hub-score-note').textContent`)), JSON.stringify({ vide: v0.vide, lignes: v0.lignesVues }));
+  t('avant tout tirage : les lignes restent calculées (points du Hub, à 0), juste masquées', b0.length === 3 && b0.every((l) => l.pts === 0) && b0.filter((l) => l.me).length === 1);
+  t('avant tout tirage : le bloc vide est compact (≤ 110 px de haut)', v0.score.b - v0.score.t <= 110, String(Math.round(v0.score.b - v0.score.t)));
+
+  // L'action principale : sous les joueurs. L'hôte a « Tirer », les invités
+  // savent qui ils attendent (un texte en encart, pas un bouton grisé).
+  for (const [J, w, h] of [[A, 1280, 900], [B, 1100, 900], [C, 768, 1024], [A, 390, 780]]) {
+    await J.size(w, h); await sleep(250);
+    const x = await J.eval(GEO);
+    if (J === A) t(`${w} px — hôte : « 🎲 Tirer un jeu » juste sous les joueurs, dans le salon, avant le score et le catalogue`,
+      !!x.tirer && x.tirer.t >= x.players.b && x.tirer.b <= x.lobby.b && (w >= 1200 || x.tirer.b <= x.score.t) && x.tirer.b <= x.games.t
+      && /Tirer un jeu/.test(await A.eval(`document.getElementById('hub-draw-btn').textContent`)) && !x.enAttente, JSON.stringify({ t: x.tirer, p: x.players }));
+    else t(`${w} px — invité ${J.nom} : pas de bouton, « En attente de Alice » juste sous les joueurs`,
+      !x.tirer && x.enAttente && /En attente de Alice/.test(x.attenteTxt) && x.attente.t >= x.players.b && x.attente.b <= x.lobby.b, JSON.stringify({ a: x.attente, txt: x.attenteTxt }));
+    t(`${w} px (${J.nom}) : ordre joueurs → action → score → jeux possibles → indisponibles → actions secondaires, aucun débordement`,
+      (w >= 1200 ? x.score.l >= x.lobby.r : x.act.b <= x.score.t && x.score.b <= x.games.t) && x.act.b <= x.games.t && x.ok.b <= x.out.t && x.out.b <= x.leave.t && x.over <= 0
+      && (!x.finish || x.finish.t >= x.out.b), JSON.stringify({ act: x.act && x.act.b, s: [x.score.t, x.score.b], g: x.games.t, ok: x.ok.b, out: [x.out.t, x.out.b], leave: x.leave.t }));
+    if (J === A) t(`${w} px — hôte : « Terminer la soirée » est loin de « Tirer » (autre panneau, en bas), secondaire`,
+      !!x.finish && x.finish.t - x.tirer.b >= 200 && x.finish.t >= x.games.t, JSON.stringify({ tirer: x.tirer.b, finish: x.finish && x.finish.t }));
+    else t(`${w} px — invité : pas de « Terminer la soirée »`, !x.finish);
+    if (SHOTS) await J.shot(`0-salon-${J.nom}-${w}`);
+    await J.size(1280, 900);
   }
-  await B.size(1280, 900);
-  t('avant tout tirage : « Score de la soirée », une ligne par joueur, tous à 0', b0.length === 3 && b0.every((l) => l.pts === 0)
-    && /score de la soirée/i.test(await B.eval(`document.querySelector('.hub-score-title').textContent`)), JSON.stringify(b0.map((l) => l.txt)));
-  t('avant tout tirage : pas de médaille (personne n\'a marqué)', b0.every((l) => !/🥇|🥈|🥉/.test(l.rang)));
-  t('le joueur courant est mis en évidence (une seule ligne, la sienne)', b0.filter((l) => l.me).length === 1 && b0.find((l) => l.me).id === id.B);
   t('la session diffusée porte un score vide', same(B.hub().scores, {}) && same(B.hub().history.games, []));
 
   // Mise en page. Le score est un panneau À PART, frère du salon :
   //   ≥ 1200 px : colonne de droite, alignée sur le haut du salon, qui ne le
   //              chevauche pas et ne le rétrécit pas ;
-  //   < 1200 px : dans le flux, pleine largeur, entre le titre et le salon.
-  const aDroite = (x) => x.score.l >= x.lobby.r && Math.abs(x.score.t - x.lobby.t) <= 2 && x.lobby.w >= 860;
-  const auDessus = (x) => x.score.b <= x.lobby.t && Math.abs(x.score.w - x.lobby.w) <= 2;
+  //   < 1200 px : dans le flux, pleine largeur, APRÈS le salon (joueurs,
+  //              action) et AVANT le panneau des jeux.
+  // Et au-dessus du code de session : rien que le titre de la page.
+  const aDroite = (x) => x.score.l >= x.lobby.r && Math.abs(x.score.t - x.lobby.t) <= 2 && x.lobby.w >= 860
+    && x.games.t >= x.lobby.b && Math.abs(x.games.l - x.lobby.l) <= 2 && Math.abs(x.games.w - x.lobby.w) <= 2;
+  const auDessus = (x) => x.score.t >= x.lobby.b && x.score.b <= x.games.t && Math.abs(x.score.w - x.lobby.w) <= 2;
   await C.size(1440, 900); await sleep(250);
   let g = await C.eval(GEO);
   t('1440 : panneau séparé, à droite du salon, aligné sur son haut, le salon garde sa largeur', !!g.score && aDroite(g), JSON.stringify({ s: g.score, l: g.lobby }));
@@ -382,15 +401,14 @@ try {
   await C.shot('1-score-vide-1440');
   await C.size(390, 780); await sleep(250);
   g = await C.eval(GEO);
-  t('390 : dans le flux, pleine largeur, au-dessus du salon', auDessus(g), JSON.stringify({ s: g.score, l: g.lobby }));
+  t('390 : dans le flux, pleine largeur, entre le salon et les jeux (plus rien devant le code)', auDessus(g) && g.lobby.t < g.score.t, JSON.stringify({ s: g.score, l: g.lobby, g: g.games }));
   t('390 : aucun défilement horizontal', g.over <= 0 && g.score.r <= g.vw, JSON.stringify({ over: g.over }));
-  t('390 : taille lisible (noms ≥ 14 px), le nom long est coupé proprement', g.nomPx >= 14 && await C.eval(`[...document.querySelectorAll('.hub-score-name')].every((n) => n.getBoundingClientRect().right <= n.closest('li').getBoundingClientRect().right + 1)`), String(g.nomPx));
   await C.shot('2-score-vide-390');
   for (const w of [1920, 1280, 1200, 1199, 1024, 768, 560]) {
     await C.size(w, 900); await sleep(200);
     const x = await C.eval(GEO);
     const ok = x.over <= 0 && x.score.r <= x.vw && (w >= 1200 ? aDroite(x) : auDessus(x));
-    t(`${w} px : ${w >= 1200 ? 'colonne de droite' : 'dans le flux, au-dessus du salon'}, rien ne déborde`, ok, JSON.stringify({ over: x.over, s: x.score, l: x.lobby }));
+    t(`${w} px : ${w >= 1200 ? 'colonne de droite' : 'dans le flux, entre le salon et les jeux'}, rien ne déborde`, ok, JSON.stringify({ over: x.over, s: x.score, l: x.lobby, g: x.games }));
     if (w === 1024) await C.shot('2b-score-vide-1024');
   }
   // Le panneau suit le défilement sur grand écran (sticky), sans quitter sa colonne.
@@ -418,6 +436,26 @@ try {
   const b1 = await A.eval(BLOC);
   t('partie 1 — le premier a sa médaille 🥇, et le gain de la partie est affiché', b1[0].rang === '🥇' && /^\+\d+/.test(b1[0].txt), b1[0].txt);
   t('partie 1 — note : « après 1 partie · dernière : Le Passeur »', /après 1 partie · dernière : Le Passeur/.test(await A.eval(`document.getElementById('hub-score-note').textContent`)));
+  const v1 = await C.eval(GEO);
+  t('partie 1 — le bloc normal revient : plus d\'état vide, une ligne visible par joueur', !v1.vide && v1.lignesVues === 3, JSON.stringify({ vide: v1.vide, lignes: v1.lignesVues }));
+  for (const [w, h] of [[1440, 900], [390, 780]]) {
+    await B.size(w, h); await sleep(250);
+    const av = await B.eval(AV);
+    const photoA = av.find((x) => x.id === id.A), autres = av.filter((x) => x.id !== id.A);
+    t(`${w} px : un avatar par ligne, entre le rang et le nom, 24–28 px`, av.length === 3 && av.every((x) => x.entre && x.w >= 24 && x.w <= 28 && x.w === x.h), JSON.stringify(av.map((x) => [x.w, x.h, x.entre])));
+    t(`${w} px : photo de A affichée (image chargée), emoji pour B et C`, !!photoA && photoA.img && autres.every((x) => !x.src && !!x.emoji), JSON.stringify(av.map((x) => x.img ? 'photo' : x.emoji)));
+    t(`${w} px : le même avatar que sur la carte joueur du salon`, av.every((x) => (x.src || x.emoji) === x.carte));
+    const g = await B.eval(GEO);
+    t(`${w} px : noms longs coupés proprement, aucun défilement horizontal`, g.over <= 0 && await B.eval(`[...document.querySelectorAll('#hub-score-list .hub-score-row')].every((li) => { const r = li.getBoundingClientRect();
+      return [...li.children].every((c) => { const b = c.getBoundingClientRect(); return b.left >= r.left - 1 && b.right <= r.right + 1; }); })`), String(g.over));
+  }
+  await B.size(1280, 900);
+  {
+    await C.size(390, 780); await sleep(250);
+    const g = await C.eval(GEO);
+    t('partie 1 — 390 : taille lisible (noms ≥ 14 px), le nom long est coupé proprement', g.nomPx >= 14 && await C.eval(`[...document.querySelectorAll('.hub-score-name')].every((n) => n.getBoundingClientRect().right <= n.closest('li').getBoundingClientRect().right + 1)`), String(g.nomPx));
+    await C.size(1280, 900);
+  }
   // La carte « Résultat » : la partie qu'on vient de jouer, lue dans
   // history.games (le Hub), chez les trois ; « Tirage suivant » chez l'hôte seul.
   const h1 = p1.session.history.games[0];

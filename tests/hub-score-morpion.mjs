@@ -288,7 +288,7 @@ try {
     return { vu: !c.hidden, draw: c.dataset.draw, titre: document.getElementById('round-title').textContent,
       lignes: [...document.querySelectorAll('#round-list .round-row')].map((li) => [li.dataset.player, +li.dataset.rank, +li.dataset.points]),
       ptsJeu: document.querySelectorAll('#round-list .round-game-pts').length, caisse: !document.getElementById('hub-draw').hidden,
-      tirerAuPied: !!btn.closest('.hub-foot'), pret: document.getElementById('hub-ready').textContent }; })()`;
+      tirerAuSalon: !!btn.closest('#hub-act'), pret: document.getElementById('hub-ready').textContent }; })()`;
   // Vrai retour au Hub des deux joueurs : même session, rien de perdu.
   async function retour(n, attendu) {
     const depuis = tous.map((J) => J.recus.length);
@@ -364,8 +364,8 @@ try {
   t('abandon : A revient au Hub, même session, score toujours 50 / 50', (await A.eval(`document.getElementById('hub-code').textContent.trim()`)) === code
     && same(idsHub.map((id) => A.hub().scores[id]), [50, 50]));
   const c4 = await A.eval(CARTE);
-  t('abandon : AUCUNE carte « Résultat » (pas de partie classée) — la caisse et « Partie … terminée » comme avant, « Tirer » à sa place au pied',
-    !c4.vu && c4.caisse && /terminée/.test(c4.pret) && c4.tirerAuPied, JSON.stringify(c4));
+  t('abandon : AUCUNE carte « Résultat » (pas de partie classée) — la caisse et « Partie … terminée » comme avant, « Tirer » à sa place sous les joueurs',
+    !c4.vu && c4.caisse && /terminée/.test(c4.pret) && c4.tirerAuSalon, JSON.stringify(c4));
 
   const errs = tous.flatMap((J) => J.erreurs.map((e) => `[${J.nom}] ${e}`));
   t('aucune erreur JS dans les deux navigateurs', errs.length === 0, errs.slice(0, 3).join(' | '));

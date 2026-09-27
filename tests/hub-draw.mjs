@@ -317,8 +317,14 @@ try {
         emojis: [...document.querySelectorAll('#hub-players .hub-card')].filter((x) => !x.querySelector('.g-av img')).length }; })()`);
     t(`${J.nom} : trois joueurs — la vraie PP de A, deux emojis`, v.img === srcA && v.ok && v.emojis === 2);
   }
-  t('le catalogue affiché = le manifest réel, dans son ordre',
-    JSON.stringify((await B.eval(VUE)).games.map((g) => g.id)) === JSON.stringify(MANIFEST_JSON.games.map((g) => g.id)));
+  {
+    // Les possibles d'abord, puis les indisponibles (repliés) : chaque groupe
+    // garde l'ordre du manifest, et aucune fiche ne manque ni ne se double.
+    const vb = (await B.eval(VUE)).games, ordre = MANIFEST_JSON.games.map((g) => g.id);
+    const attendu = [...ordre.filter((id) => vb.find((g) => g.id === id).ok), ...ordre.filter((id) => !vb.find((g) => g.id === id).ok)];
+    t('le catalogue affiché = le manifest réel : possibles d\'abord, puis les autres, chacun dans l\'ordre du manifest',
+      JSON.stringify(vb.map((g) => g.id)) === JSON.stringify(attendu) && vb.length === ordre.length, vb.map((g) => g.id).join(','));
+  }
 
   // ═══ 3. préférences, visibles chez tous
   await B.click('#hub-games [data-pref=veto][data-game=precision]');
@@ -349,8 +355,34 @@ try {
     [vA, vB, vC].every((v) => JSON.stringify(v.eligibles) === JSON.stringify(ELIG)), vA.eligibles.join(','));
   t('les chances affichées suivent le cœur de C (Passeur plus probable)',
     (() => { const pct = (id) => +vA.games.find((g) => g.id === id).etat.match(/(\d+) %/)[1]; return pct('passeur') > pct('demicercle') && pct('demicercle') === pct('quiment'); })());
-  t('hôte : A a le bouton de tirage ; B et C non, et le texte le dit',
-    vA.drawBtn && !vA.drawBtnOff && !vB.drawBtn && !vC.drawBtn && /En attente du tirage de l'hôte \(Alice\)/.test(vB.wait));
+  t('hôte : A a le bouton de tirage ; B et C non, et le texte le dit (« En attente de Alice »)',
+    vA.drawBtn && !vA.drawBtnOff && !vB.drawBtn && !vC.drawBtn && /En attente de Alice — c'est l'hôte qui tire le jeu/.test(vB.wait), vB.wait);
+
+  // Le catalogue : les possibles d'abord, les indisponibles repliés — rien
+  // n'est perdu, tout reste dans #hub-games (la raison comprise).
+  const CAT = `(() => { const ok = [...document.querySelectorAll('#hub-games-ok .hub-game')], out = [...document.querySelectorAll('#hub-games-out .hub-game')];
+    const det = document.getElementById('hub-out');
+    return { ok: ok.map((li) => li.dataset.game), okElig: ok.every((li) => li.dataset.eligible === 'true'),
+      out: out.map((li) => li.dataset.game), outElig: out.some((li) => li.dataset.eligible === 'true'),
+      tous: document.querySelectorAll('#hub-games .hub-game').length, cache: det.hidden, ouvert: det.open,
+      sum: document.getElementById('hub-out-sum').textContent,
+      raisonsVues: out.map((li) => ({ id: li.dataset.game, vu: li.checkVisibility(), etat: li.querySelector('.hub-game-state').textContent })) }; })()`;
+  const same = (x, y) => JSON.stringify(x) === JSON.stringify(y);
+  const cA = await A.eval(CAT), cB = await B.eval(CAT);
+  const HORS = vA.games.filter((g) => !g.ok).map((g) => g.id);
+  t('catalogue : les possibles d\'abord, dans l\'ordre du catalogue ; #hub-games garde les 8 fiches',
+    same(cA.ok, ELIG) && cA.okElig && cA.tous === 8, JSON.stringify(cA.ok));
+  t(`catalogue : les ${HORS.length} indisponibles sont repliés sous « ${HORS.length} jeux indisponibles ce soir — pourquoi ? »`,
+    same(cA.out, HORS) && !cA.outElig && !cA.cache && !cA.ouvert && cA.sum.startsWith(`${HORS.length} jeux indisponibles ce soir — pourquoi ?`)
+    && cA.raisonsVues.every((r) => !r.vu), cA.sum);
+  t('catalogue : B, qui a posé un veto, le lit dans le résumé (« dont 1 par ton veto »)', / \(dont 1 par ton veto\)$/.test(cB.sum) && !/veto/.test(cA.sum), cB.sum);
+  await A.click('#hub-out-sum');
+  const cA2 = await A.eval(CAT);
+  t('catalogue : ouvert, chaque indisponible montre sa raison (celle du serveur, inchangée)',
+    cA2.ouvert && cA2.raisonsVues.every((r) => r.vu && r.etat.length > 3 && r.etat === vA.games.find((g) => g.id === r.id).etat), JSON.stringify(cA2.raisonsVues));
+  await A.shot('1b-indisponibles-A');
+  await A.click('#hub-out-sum');
+  t('catalogue : se referme au clic', !(await A.eval(CAT)).ouvert);
   await A.shot('1-salon-A'); await B.shot('1-salon-B');
 
   // Clavier : l'anneau de focus doit SE VOIR sur les boutons du Hub. Le socle le
@@ -368,6 +400,30 @@ try {
   for (const g of ['pref', 'quitter']) {
     const f = vus[g];
     t(`clavier : anneau jaune visible sur un bouton « ${g} » atteint à la touche Tab`, !!f && f.fv && f.jaune && f.filtre === 'none' && f.opacite === '1', JSON.stringify(f));
+  }
+  // L'ordre de tabulation suit la hiérarchie du salon (vraies frappes Tab, chez
+  // l'hôte) : code → « Tirer » → durée → ❤️ / 🚫 → indisponibles → Quitter → Terminer.
+  {
+    // Point de départ : le code (blur() ne ramène PAS le point de départ de la
+    // tabulation en haut de page, il reste sur le dernier élément cliqué).
+    await A.eval(`document.getElementById('hub-code').focus(); true`);
+    const ordre = ['hub-code'];
+    for (let i = 0; i < 40; i++) {
+      await A.tab();
+      const k = await A.eval(`(() => { const a = document.activeElement; if (!a) return null;
+        if (a.dataset && a.dataset.pref) return 'pref'; if (a.id === 'hub-out-sum') return 'indispo'; return a.id || null; })()`);
+      if (k && !ordre.includes(k)) ordre.push(k);
+      if (k === 'hub-finish') break;
+    }
+    const cles = ['hub-code', 'hub-draw-btn', 'hub-max-min', 'pref', 'indispo', 'hub-leave', 'hub-finish'];
+    const pos = cles.map((c) => ordre.indexOf(c));
+    t('clavier : ordre de tabulation = code → Tirer → durée → ❤️/🚫 → indisponibles → Quitter → Terminer',
+      pos.every((p) => p >= 0) && pos.every((p, i) => i === 0 || p > pos[i - 1]), ordre.join(' → '));
+    // ⚠️ Atteindre « Terminer » au clavier fait défiler la page en DOUX
+    // (scroll-behavior: smooth de tf2.css) : un clic envoyé pendant ce défilement
+    // tombe à côté (mesuré : sur #lobby, pas sur « Tirer »). On remonte, on attend.
+    await A.eval(`document.activeElement && document.activeElement.blur(); window.scrollTo({ top: 0, behavior: 'instant' }); true`);
+    await sleep(700);
   }
 
   // ═══ 4. premier tirage
@@ -485,6 +541,10 @@ try {
   t('aucun jeu possible : le salon le dit, chez tout le monde', v8.none && v8c.none && /Aucun jeu possible/.test(v8.noneTxt));
   t('aucun jeu possible : le bouton de tirage est désactivé chez l\'hôte', v8.drawBtn && v8.drawBtnOff);
   t('aucun jeu possible : chaque jeu garde sa raison (les vetos nomment Bruno)', v8.games.filter((g) => /veto de Bruno/.test(g.etat)).length === 6);
+  const c8 = await B.eval(`({ ok: document.querySelectorAll('#hub-games-ok .hub-game').length, ouvert: document.getElementById('hub-out').open,
+    none: document.getElementById('hub-none').textContent })`);
+  t('aucun jeu possible : la liste des indisponibles s\'ouvre d\'elle-même (les raisons deviennent l\'essentiel)',
+    c8.ok === 0 && c8.ouvert && /liste des indisponibles/.test(c8.none), JSON.stringify(c8));
   await A.shot('5-aucun-jeu');
   for (const id of ['imitation', 'demicercle', 'ban', 'passeur', 'quiment']) await B.click(`#hub-games [data-pref=veto][data-game=${id}]`);
   await A.until(`(${VUE}).eligibles.length === ${ELIG.length}`, 8000, 'vetos levés');

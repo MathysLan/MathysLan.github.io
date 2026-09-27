@@ -81,11 +81,16 @@
      Un panneau À PART, frère du salon : le salon est découpé au clip-path, rien
      ne peut en sortir. Même matière Mann Co. (.panel), en plus petit : c'est
      un panneau secondaire, pas un second salon.
-     Grand écran (≥ 1200 px) : une colonne à droite du salon, qui reste à l'écran
-     pendant qu'on fait défiler (sticky). En dessous : dans le flux, entre le
-     titre et le salon — compact (3 à 6 lignes), plutôt qu'après les huit fiches
-     de jeux où personne ne le verrait. */
-  #hub-score { padding: 1rem 1rem .85rem; margin: 0 0 1rem; min-width: 0; }
+     Grand écran (≥ 1200 px) : une colonne à droite du salon ET des jeux, qui
+     reste à l'écran pendant qu'on fait défiler (sticky). En dessous : dans le
+     flux, APRÈS les joueurs et l'action principale, AVANT le catalogue — le
+     code et les joueurs d'abord, jamais un bloc de scores vides devant eux.
+     Tant qu'aucune partie n'est classée : une ligne, pas une liste de zéros. */
+  #hub-score { padding: 1rem 1rem .85rem; margin: 1rem 0; min-width: 0; }
+  #hub-score.is-empty { padding-block: .8rem .75rem; }
+  #hub-score.is-empty .hub-score-title { border-bottom: 0; padding-bottom: 0; margin-bottom: .3rem; }
+  #hub-score.is-empty #hub-score-list { display: none; }
+  #hub-score.is-empty #hub-score-note { margin: 0; font-size: .8rem; }
   .hub-score-title { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: .8rem; letter-spacing: .16em;
     text-transform: uppercase; color: #f2a15f; margin: 0 0 .6rem; padding-bottom: .5rem; border-bottom: 1px solid var(--panel-edge); }
   @media (min-width: 1200px) {
@@ -97,7 +102,7 @@
     main:has(> #hub-score:not([hidden])) > .hub-top { grid-column: 1 / -1; }
     /* ⚠️ Même préfixe :has() que la règle > * ci-dessus : elle contient un ID,
        un simple `main > #hub-score` perdrait contre elle (colonne 1). */
-    main:has(> #hub-score:not([hidden])) > #hub-score { grid-column: 2; grid-row: 2; margin: 0; position: sticky; top: 1rem; }
+    main:has(> #hub-score:not([hidden])) > #hub-score { grid-column: 2; grid-row: 2 / span 2; margin: 0; position: sticky; top: 1rem; }
   }
   #hub-score-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .2rem; }
   .hub-score-row { display: grid; grid-template-columns: 1.7rem auto minmax(0, 1fr) auto; align-items: center; gap: .45rem;
@@ -135,9 +140,24 @@
   .hub-tag.me { color: var(--ink-3); }
   .hub-tag.away { color: #e0a040; }
 
-  .hub-foot { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;
+  .hub-foot { display: flex; justify-content: flex-end; align-items: center; gap: 1rem; flex-wrap: wrap;
     margin-top: 1.3rem; padding-top: 1rem; border-top: 1px solid var(--panel-edge); }
   .hub-wait { font-size: .82rem; color: var(--ink-3); margin: 0; }
+
+  /* --- l'action principale : juste sous les joueurs ----------------------
+     L'hôte : un gros bouton. Les autres : une phrase posée, liseré à gauche —
+     une information, pas un bouton grisé ni une place vide. */
+  .hub-act { display: flex; flex-direction: column; align-items: center; gap: .5rem; text-align: center;
+    margin-top: 1.2rem; padding-top: 1.1rem; border-top: 1px solid var(--panel-edge); }
+  .hub-act #hub-draw-btn { min-width: 16rem; font-size: 1.25rem; padding-block: .9rem; }
+  .hub-act .hub-wait { font-size: .88rem; color: var(--ink-2); }
+  .hub-act.is-waiting .hub-wait { font-size: 1rem; color: var(--ink); padding: .65rem 1rem; text-align: left;
+    background: rgba(0,0,0,.2); border-left: 3px solid #cf6a32; }
+  #hub-lobby-msg { text-align: center; }
+
+  /* Le second panneau : le catalogue, puis les actions secondaires. */
+  #hub-lobby-games { margin-top: 1rem; }
+  #hub-lobby-games > .hub-block:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
 
   .hub-back { display: block; text-align: center; margin-top: 1.6rem; }
 
@@ -154,7 +174,7 @@
   .hub-dur select { padding: .35rem .6rem; font-size: .85rem; }
   /* Deux colonnes au plus : à trois, les noms de jeux se coupaient (« DEMI- /
      CERCLE ») et les raisons s'empilaient sur cinq lignes. */
-  #hub-games { list-style: none; padding: 0; margin: 0; display: grid; gap: .55rem;
+  .hub-games-list { list-style: none; padding: 0; margin: 0; display: grid; gap: .55rem;
     grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }
   .hub-game { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .3rem .7rem;
     padding: .7rem .75rem; background: rgba(0,0,0,.2); border: 1px solid var(--panel-edge); border-left: 4px solid #6fbf73; min-width: 0; }
@@ -175,6 +195,14 @@
   .hub-pref.ghost[aria-pressed="true"] { opacity: 1; filter: none; background: rgba(255,255,255,.08); }
   .hub-pref.love[aria-pressed="true"] { box-shadow: inset 0 0 0 2px #e06d8a; }
   .hub-pref.veto[aria-pressed="true"] { box-shadow: inset 0 0 0 2px #d8584a; }
+  /* Les indisponibles : repliés sous une ligne qui dit combien, et qui s'ouvre
+     sur les fiches ET leurs raisons (rien n'est caché, juste rangé). */
+  .hub-out { margin-top: .7rem; }
+  .hub-out:first-child { margin-top: 0; }
+  .hub-out > summary { cursor: pointer; padding: .6rem .8rem; font-size: .88rem; color: var(--ink-2);
+    background: rgba(0,0,0,.14); border: 1px dashed var(--panel-edge); }
+  .hub-out > summary:hover { color: var(--ink); background: rgba(0,0,0,.24); }
+  .hub-out[open] > summary { margin-bottom: .55rem; }
   #hub-none { margin: .8rem 0 0; padding: .7rem .9rem; border: 1px dashed #d8584a; color: var(--ink-2); font-size: .85rem; }
 
   /* --- la caisse Mann Co. ------------------------------------------------ */
@@ -313,7 +341,7 @@
      anneau visible sur les boutons du Hub. On le redessine donc À L'INTÉRIEUR,
      en box-shadow inset, la seule forme que clip-path laisse passer. Les ID
      (1,1,1) passent devant les états pressés (❤️ / 🚫, capacités). */
-  #entry button:focus-visible, #lobby button:focus-visible, #hub-recap button:focus-visible, #finish-dialog button:focus-visible {
+  #entry button:focus-visible, #lobby button:focus-visible, #hub-lobby-games button:focus-visible, #hub-recap button:focus-visible, #finish-dialog button:focus-visible {
     box-shadow: inset 0 0 0 2px #ffd700, inset 0 0 0 4px rgba(0, 0, 0, .6);
   }
 
@@ -379,10 +407,13 @@
   #hub-recap.is-final .recap-row.is-top { animation: recap-crown .9s ease-out 1; }
   @keyframes recap-crown { 0% { box-shadow: 0 0 0 0 rgba(242, 161, 95, .0); } 40% { box-shadow: inset 0 0 0 2px #f2a15f; } 100% { box-shadow: none; } }
 
-  /* Terminer la soirée : l'hôte seul. Distinct du simple départ (fantôme) —
-     un bouton plein, rouge Mann Co., et une confirmation. */
-  #hub-finish { background: linear-gradient(180deg, #b8452f, #8e3322); color: #fff3e6; }
-  #hub-finish:hover { background: linear-gradient(180deg, #c9543c, #9b3a27); }
+  /* Terminer la soirée : l'hôte seul, avec confirmation. Distinct du simple
+     départ (fantôme gris) par son liseré rouge — mais une action SECONDAIRE :
+     plus de bouton plein qui volait la vedette à « Tirer ». Ni .ghost ni
+     fond : le liseré est en ombre interne (clip-path rogne les bordures). */
+  #hub-finish { background: transparent; color: #f08a74; font-size: .95rem;
+    box-shadow: inset 0 0 0 2px #b8452f; }
+  #hub-finish:hover { background: rgba(184, 69, 47, .14); color: #ffab98; filter: none; }
   .hub-foot-actions { display: flex; flex-wrap: wrap; gap: .6rem; justify-content: flex-end; }
   /* La confirmation : un <dialog> natif (focus piégé, Échap, fond), habillé
      d'un panneau Mann Co. à l'intérieur — .panel sur le <dialog> lui-même
@@ -411,7 +442,9 @@
     #hub-code { text-align: center; width: 100%; text-indent: .3em; }
     #hub-players { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     #hub-count { font-size: .9rem; }
-    #hub-games { grid-template-columns: minmax(0, 1fr); }
+    .hub-games-list { grid-template-columns: minmax(0, 1fr); }
+    .hub-act #hub-draw-btn { width: 100%; min-width: 0; }
+    .hub-act.is-waiting .hub-wait { align-self: stretch; }
     .hub-foot { flex-direction: column; align-items: stretch; }
     .hub-foot button { width: 100%; }
     .hub-foot-actions { flex-direction: column; }
@@ -441,16 +474,6 @@
       <h1>Game Hub<span class="a">.</span></h1>
       <p class="sub">une session, tes amis, et la caisse Mann Co. tire le jeu</p>
     </header>
-
-    <!-- LE SCORE DE LA SOIRÉE : calculé par le Hub (game-hub-server,
-         scores.js) à partir du classement que chaque jeu lui rend. La page ne
-         fait que l'afficher. Panneau à part, visible avec le salon seulement ;
-         sur grand écran, il devient la colonne de droite (voir le CSS). -->
-    <aside id="hub-score" class="panel hub-side" aria-labelledby="hub-score-title" hidden>
-      <h2 class="hub-score-title" id="hub-score-title">🏆 Score de la soirée</h2>
-      <ol id="hub-score-list"></ol>
-      <p class="hub-note" id="hub-score-note"></p>
-    </aside>
 
     <!-- DÉBRIEF DE SOIRÉE : en quittant une session où une partie a compté.
          Tout vient de l'état du Hub (hub-recap.js ne fait que ranger) ; l'entrée
@@ -524,6 +547,16 @@
         </div>
       </div>
       <ul id="hub-players" aria-label="joueurs de la session"></ul>
+
+      <!-- L'ACTION PRINCIPALE, juste sous les joueurs. L'hôte : « 🎲 Tirer un
+           jeu » (le seul #hub-draw-btn ; au retour d'une partie classée,
+           hub-page.js le pose dans la carte Résultat). Les autres : qui ils
+           attendent, en texte — pas un bouton grisé. -->
+      <div class="hub-act" id="hub-act">
+        <button type="button" id="hub-draw-btn" hidden>🎲 Tirer un jeu</button>
+        <p class="hub-wait" id="hub-wait" role="status">Le salon est prêt.</p>
+      </div>
+      <p id="hub-lobby-msg" class="g-error" role="alert"></p>
       <!-- Un lancement raté ramène au salon : on dit pourquoi, à tout le monde. -->
       <p id="hub-failed" role="alert" hidden></p>
 
@@ -585,7 +618,23 @@
         <p id="hub-history"></p>
       </section>
 
-      <!-- LES JEUX : tout le catalogue, possible ou non, et pourquoi. -->
+    </section>
+
+    <!-- LE SCORE DE LA SOIRÉE : calculé par le Hub (game-hub-server,
+         scores.js) à partir du classement que chaque jeu lui rend. La page ne
+         fait que l'afficher. Panneau à part, visible avec le salon seulement ;
+         sur grand écran, il devient la colonne de droite (voir le CSS). -->
+    <aside id="hub-score" class="panel hub-side" aria-labelledby="hub-score-title" hidden>
+      <h2 class="hub-score-title" id="hub-score-title">🏆 Score de la soirée</h2>
+      <ol id="hub-score-list"></ol>
+      <p class="hub-note" id="hub-score-note"></p>
+    </aside>
+
+    <!-- LES JEUX et les actions secondaires : un second panneau, sous le score
+         (au téléphone) ou sous le salon (grand écran, score en colonne). Il
+         s'affiche et se cache avec le salon (show() dans hub-page.js). -->
+    <section id="hub-lobby-games" class="panel g-screen hub-panel" aria-label="jeux de la soirée et options" hidden>
+      <!-- LES JEUX : les possibles d'abord ; les autres repliés, raison comprise. -->
       <div class="hub-block" id="hub-pool" hidden>
         <div class="hub-block-head">
           <p class="hub-label">Les jeux de la soirée <span id="hub-elig-count"></span></p>
@@ -601,19 +650,25 @@
           <p class="hub-note" id="hub-dur-guest"></p>
         </div>
         <p class="hub-note" id="hub-pool-note">❤️ = j'aime (plus de chances) · 🚫 = veto (jamais tiré, et seul toi peux le lever)</p>
-        <ul id="hub-games" aria-label="jeux du catalogue"></ul>
+        <!-- #hub-games contient TOUTES les fiches (les tests et le clic ❤️ / 🚫
+             passent par lui) : la liste des possibles, puis les autres. -->
+        <div id="hub-games">
+          <ul class="hub-games-list" id="hub-games-ok" aria-label="jeux possibles ce soir"></ul>
+          <details class="hub-out" id="hub-out" hidden>
+            <summary id="hub-out-sum"></summary>
+            <ul class="hub-games-list" id="hub-games-out" aria-label="jeux indisponibles ce soir, avec la raison"></ul>
+          </details>
+        </div>
         <p id="hub-none" role="status" hidden></p>
       </div>
 
-      <p id="hub-lobby-msg" class="g-error" role="alert"></p>
+      <!-- Les actions secondaires, loin de « Tirer ». -->
       <div class="hub-foot">
-        <p class="hub-wait" id="hub-wait">Le salon est prêt.</p>
         <div class="hub-foot-actions">
-          <button type="button" id="hub-draw-btn" hidden>🎲 Tirer un jeu</button>
-          <!-- L'HÔTE seul : termine la soirée pour tout le monde (podium final). -->
-          <button type="button" id="hub-finish" hidden>🏁 Terminer la soirée</button>
           <!-- Tout le monde : ne fait partir que soi. -->
           <button type="button" class="ghost" id="hub-leave">Quitter la session</button>
+          <!-- L'HÔTE seul : termine la soirée pour tout le monde (podium final). -->
+          <button type="button" id="hub-finish" hidden>🏁 Terminer la soirée</button>
         </div>
       </div>
     </section>
@@ -642,6 +697,6 @@
   <script src="shared/hub-handoff.js?v=3"></script>
   <script src="hub-crate.js"></script>
   <script src="hub-recap.js?v=3"></script>
-  <script src="hub-page.js?v=7"></script>
+  <script src="hub-page.js?v=8"></script>
 </body>
 </html>

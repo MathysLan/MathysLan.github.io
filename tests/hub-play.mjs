@@ -232,6 +232,18 @@ try {
   await B.click('#hub-join');
   t('code mal formé : refusé avant le réseau, en phrase', /5 caractères/.test(await B.eval(`document.getElementById('hub-msg').textContent`)));
 
+  // L'action principale du salon (sous les joueurs) : le bouton chez l'hôte,
+  // la phrase d'attente chez les autres ; et les trois blocs frères du salon.
+  const ACT = `(() => { const R = (id) => { const e = document.getElementById(id); return e && !e.hidden && e.offsetParent ? e.getBoundingClientRect() : null; };
+    const pl = R('hub-players'), btn = R('hub-draw-btn'), wait = R('hub-wait'), act = R('hub-act');
+    return { bouton: !!btn, sousJoueurs: !!act && !!pl && act.top >= pl.bottom - 1 && (!btn || btn.top >= pl.bottom),
+      dansSalon: !!document.getElementById('hub-act').closest('#lobby'), attente: document.getElementById('hub-act').classList.contains('is-waiting'),
+      texte: document.getElementById('hub-wait').textContent, attenteVue: !!wait,
+      salon: !!R('lobby'), score: !!R('hub-score'), jeux: !!R('hub-lobby-games'), finish: !!R('hub-finish'),
+      scoreVide: document.getElementById('hub-score').classList.contains('is-empty'), scoreH: R('hub-score') ? Math.round(R('hub-score').height) : 0,
+      lignesVues: [...document.querySelectorAll('#hub-score-list .hub-score-row')].filter((li) => li.offsetParent).length,
+      lignes: document.querySelectorAll('#hub-score-list .hub-score-row').length }; })()`;
+
   // ═══ 3. A crée, B rejoint
   await A.click('#hub-create');
   await A.until(`!document.getElementById('lobby').hidden && document.querySelectorAll('#hub-players .hub-card').length === 1`, 60000, 'salon de A');
@@ -255,6 +267,14 @@ try {
     t(`${vu} : aucun « [object » ni « [obj » à l'écran`, !/\[obj/.test(s.texte));
   }
   t("compte des joueurs", /^2 joueurs dans la session$/.test((await A.eval(SALON)).count));
+  {
+    const a = await A.eval(ACT), b = await B.eval(ACT);
+    t('hôte A : « Tirer » juste sous les joueurs, dans le salon ; « Terminer » à lui seul', a.bouton && a.sousJoueurs && a.dansSalon && !a.attente && a.finish, JSON.stringify(a));
+    t('invité B : pas de bouton ni de « Terminer », mais « En attente de Alice », à la même place', !b.bouton && !b.finish && b.attente && b.attenteVue && b.sousJoueurs
+      && /En attente de Alice/.test(b.texte), JSON.stringify(b));
+    t('les trois blocs du salon sont là chez les deux (salon, score, jeux)', [a, b].every((x) => x.salon && x.score && x.jeux));
+    t('2 joueurs, aucune partie : score en une ligne (« Aucune partie jouée »), aucune ligne à 0 visible', [a, b].every((x) => x.scoreVide && x.lignesVues === 0 && x.lignes === 2 && x.scoreH <= 110), JSON.stringify([a.scoreH, b.scoreH]));
+  }
   await A.shot('2-salon-A'); await B.shot('2-salon-B');
 
   // Copier : exactement le code reçu.
@@ -279,6 +299,10 @@ try {
   t('coupure de socket : B voit A « absent » (gardé, pas retiré)', vuB.cartes.find((c) => c.id === idA1).absent && vuB.cartes.length === 2);
   t("coupure de socket : l'hôte passe à B", vuB.cartes.find((c) => c.id === idB).host && !vuB.cartes.find((c) => c.id === idA1).host);
   t("le texte le dit à B : « Tu es l'hôte »", /Tu es l'hôte/.test(await B.eval(`document.getElementById('hub-wait').textContent`)));
+  {
+    const b = await B.eval(ACT);
+    t('changement d\'hôte : B reçoit le bouton « Tirer » sous les joueurs, et « Terminer »', b.bouton && b.sousJoueurs && !b.attente && b.finish, JSON.stringify(b));
+  }
   await B.shot('3-hote-change-B');
   // A revient dans le même onglet pendant le délai de grâce : il reprend SA place.
   await A.goto(PAGE);
@@ -287,6 +311,10 @@ try {
   const retour = await B.eval(SALON);
   t('pendant la grâce : A revient avec le MÊME id, aucun doublon', retour.cartes.length === 2 && retour.cartes.filter((c) => c.id === idA1).length === 1);
   t('pendant la grâce : B reste hôte (le plus ancien encore connecté)', retour.cartes.find((c) => c.id === idB).host);
+  {
+    const a = await A.eval(ACT);
+    t('A revenu, désormais invité : plus de bouton, « En attente de Bruno »', !a.bouton && !a.finish && a.attente && /En attente de Bruno/.test(a.texte), JSON.stringify(a));
+  }
 
   // ═══ 6. salon plein : 12 joueurs, aux 3 tailles
   for (let i = 0; i < 10; i++) {
@@ -296,6 +324,10 @@ try {
       avatar: { kind: 'emoji', emoji: ['🐸', '🤖', '👻', '😎', '🔥', '⚡', '🎯', '🎧', '🍕', '🚀'][i] } });
   }
   await B.until(`document.querySelectorAll('#hub-players .hub-card').length === 12`, 10000, '12 cartes');
+  {
+    const b = await B.eval(ACT);
+    t('12 joueurs, aucune partie : toujours une seule ligne de score, pas douze zéros', b.scoreVide && b.lignesVues === 0 && b.lignes === 6 && b.scoreH <= 110, JSON.stringify({ h: b.scoreH, l: b.lignes }));
+  }
   for (const [w, h] of [[390, 780], [768, 1024], [1920, 1080]]) {
     await B.size(w, h); await sleep(250);
     const m = await B.eval(`(() => { const cards = [...document.querySelectorAll('#hub-players .hub-card')];
@@ -304,11 +336,14 @@ try {
         const a = boxes[i], b = boxes[j]; if (a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1) chev++; }
       const code = document.getElementById('hub-code').getBoundingClientRect();
       const leave = document.getElementById('hub-leave').getBoundingClientRect();
+      const act = document.getElementById('hub-act').getBoundingClientRect(), der = boxes.reduce((m, b) => Math.max(m, b.bottom), 0);
       return { over: document.documentElement.scrollWidth - innerWidth, chev, cols: new Set(boxes.map((b) => Math.round(b.left))).size,
         code: code.width > 0 && code.right <= innerWidth && code.left >= 0, leave: leave.width > 0 && leave.right <= innerWidth,
+        act: act.top >= der - 1, tirer: !document.getElementById('hub-draw-btn').hidden && document.getElementById('hub-draw-btn').getBoundingClientRect().top >= der,
         av: [...document.querySelectorAll('#hub-players .g-av')].every((a) => a.getBoundingClientRect().width >= 44) }; })()`);
     t(`${w}×${h} : 12 joueurs, aucun débordement ni chevauchement (${m.cols} colonnes)`, m.over <= 0 && m.chev === 0, JSON.stringify(m));
     t(`${w}×${h} : code visible, bouton « Quitter » accessible, PP ≥ 44 px`, m.code && m.leave && m.av);
+    t(`${w}×${h} : 12 joueurs — « Tirer » (B, hôte) reste juste après la DERNIÈRE carte`, m.act && m.tirer, JSON.stringify({ act: m.act, tirer: m.tirer }));
     await B.shot(`4-salon-12-${w}`);
   }
   await B.size(1100, 1000);
@@ -324,6 +359,10 @@ try {
   t(`leave explicite de A : B le voit disparaître immédiatement (${ms7} ms, sans délai de grâce)`, ms7 < 3000 && seul.cartes.length === 1);
   t('leave explicite de A : B reste dans la session, et hôte', seul.visible && seul.cartes[0].id === idB && seul.cartes[0].host);
   t("A est revenu à l'écran d'entrée", await A.until(`!document.getElementById('entry').hidden`, 5000));
+  {
+    const a = await A.eval(ACT);
+    t("… et tout le salon est rangé chez A (salon, score, jeux et actions secondaires)", !a.salon && !a.score && !a.jeux && !a.finish, JSON.stringify(a));
+  }
 
   // ═══ 8. B, dernier présent, fait un leave : la session disparaît IMMÉDIATEMENT
   await B.click('#hub-leave');
