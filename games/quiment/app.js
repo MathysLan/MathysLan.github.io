@@ -80,6 +80,7 @@
   let viaHub = false;            // le join en cours vient du Hub
   let partirSansAttendre = false;
   let codeDeclare = null;        // le code déjà annoncé au Hub (une seule fois)
+  let placeDeclaree = null;      // SA place annoncée au Hub (id Qui Ment ?)
   const lien = window.HubHandoff ? HubHandoff.start({
     gameId: 'quiment',
     join: (code) => {
@@ -221,9 +222,15 @@
     perte.retour();                           // de retour dans une room
     isHost = msg.host;
     $('room-code').textContent = msg.code;
-    // Lancé par le Hub : le code de CETTE room remonte, une seule fois (un
-    // retour au salon après une coupure renvoie un `you` avec le même code).
-    if (lien && !codeDeclare) { codeDeclare = msg.code; viaHub = false; lien.roomReady(msg.code); }
+    // Lancé par le Hub : le code de CETTE room remonte, avec SA place (msg.id,
+    // l'id Qui Ment ? — jamais celui du Hub) : c'est elle qui relie le
+    // classement final à son joueur du Hub (score de soirée). Un retour au
+    // salon après une coupure renvoie le même code mais un NOUVEL id : on ne
+    // ré-annonce que dans ce cas, pour que la place suive le joueur.
+    if (lien && (!codeDeclare || placeDeclaree !== msg.id)) {
+      codeDeclare = codeDeclare || msg.code; placeDeclaree = msg.id; viaHub = false;
+      lien.roomReady(msg.code, msg.id);
+    }
     show('lobby');
   });
 
@@ -357,6 +364,17 @@
     show('results');
   });
 
+  // Le classement en rangs « de compétition » : 13, 13, 5 → 1, 1, 3. Le
+  // serveur l'envoie trié, mais le rang se lit sur le score, pas sur l'index.
+  // Seul `score` part (points du jeu) : ni avg ni title, le Hub n'en a que faire.
+  function rangs(ranking) {
+    return ranking.map((r) => ({
+      gamePlayerId: r.id,
+      rank: 1 + ranking.filter((x) => x.score > r.score).length,
+      points: r.score,
+    }));
+  }
+
   NET.on('end', (msg) => {
     const me = msg.ranking.find((r) => r.id === myId);
     $('final-title').textContent = me ? me.title : '';
@@ -366,7 +384,15 @@
     $('again').hidden = !isHost;
     $('again').disabled = false;
     // Lancé par le Hub : la partie est finie, on peut y retourner.
-    if (lien) { lien.ended(); $('to-hub').hidden = false; }
+    // Score de soirée : le classement du SERVEUR, transmis tel quel au Hub
+    // (l'hôte du lancement seulement, une fois — hub-handoff.js filtre, et
+    // une revanche via « Rejouer » ne recompte pas). Toujours AVANT ended().
+    // (garde : un hub-handoff.js resté en cache n'a pas encore results)
+    if (lien) {
+      if (lien.results) lien.results(rangs(msg.ranking));
+      lien.ended();
+      $('to-hub').hidden = false;
+    }
     show('end');
   });
 

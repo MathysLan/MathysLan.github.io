@@ -1665,10 +1665,10 @@ là où Render se réveille vraiment —, pas le tirage.
 ## Score de soirée (2026-09-26, pilote : Le Passeur)
 
 Le Hub tient maintenant un **score cumulé par session**, affiché en haut à
-droite du salon. Contrat validé en production le 2026-09-26. **Cinq jeux rendent
-leur classement : Le Passeur, Imitation, Demi-Cercle, le Ban et Précision** ;
-Morpion et Qui Ment ? se lancent comme avant et ne rapportent rien (on les
-branche un par un, à la demande).
+droite du salon. Contrat validé en production le 2026-09-26. **Six jeux rendent
+leur classement : Le Passeur, Imitation, Demi-Cercle, le Ban, Précision et
+Qui Ment ?** ; Morpion se lance comme avant et ne rapporte rien (branché à la
+demande).
 
 **Imitation** (2026-09-26) : aucun changement d'`imitation-server` — son
 `phase: end` porte déjà `podium: [{ id, name, avatar, score }]`. Son id de
@@ -1725,6 +1725,18 @@ toujours tout de suite. Tests : `game-hub-server/test-debrief.js` (31, dans
 `tests/hub-score-precision.mjs` va maintenant jusqu'au vrai retour au Hub
 (`#to-hub`) et un nouveau tirage — il échoue en `SESSION_NOT_FOUND` contre
 le Hub d'avant `d679eab` (vérifié). Production : sonde solo 4/4, trio 5/5.
+
+**Qui Ment ?** (2026-09-27) : même raccord, `qui-ment-server` inchangé. La
+place est l'`id` du message `you` (pas de `room.you` ici) : `roomReady(code,
+msg.id)`, ré-annoncée quand l'id change (garde `placeDeclaree`, comme
+Demi-Cercle). À `end`, `rangs(msg.ranking)` → `{ gamePlayerId, rank, points:
+score }` — ni `avg` ni `title` —, puis `results` AVANT `ended`. « Rejouer »
+(`end` → `lobby` → `start`) ne recompte rien : `ended()` a consommé le billet,
+donc le second `end` n'envoie plus rien au Hub. Test :
+`tests/hub-score-quiment.mjs`. ⚠️ L'intrus est tiré au hasard par le serveur :
+l'ex æquo 1 / 1 / 3 n'est pas espéré mais **construit** — le test choisit les
+votes et la dernière chance manche par manche (`gagnable`, recherche
+exhaustive : en 3 manches c'est toujours possible, pour une paire quelconque).
 
 Deux autorités, qui ne se mélangent pas : **le jeu** reste maître de SA partie,
 **le Hub** (`game-hub-server/src/scores.js`, module pur) est maître de la
