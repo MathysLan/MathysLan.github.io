@@ -18,7 +18,7 @@ Des suites qui ne se recouvrent pas :
 | `handoff-morpion.mjs` | **le handoff du Morpion**, vrai `game-hub-server` + vrai `morpion-server` : protocole en Node (room créée par `{ action: 'join' }` sans code, code relayé, `playing`, victoire, « room pleine », debrief), puis deux navigateurs de la home jusqu'au retour au Hub, un second lancement où l'invité part en pleine partie, un troisième où l'hôte perd sa connexion en attente (lancement annulé pour le groupe), et le jeu hors Hub. Relit chaque trame **envoyée** à `morpion-server` : ni `name`, ni `avatar`, jamais. `--reduced`, `--shots` |
 | `handoff-quiment.mjs` | **le handoff de Qui Ment ?**, vrai `game-hub-server` + vrai `qui-ment-server` : protocole à trois en Node (rôles, le mot jamais chez l'intrus avant les résultats, retardataire refusé, classement), puis quatre navigateurs — « Lancer » attend Dora, départ sans elle, Dora refusée, une manche jouée pour de vrai, classement, retour au Hub ; un second lancement à quatre ; trois joueurs hors Hub. `--reduced`, `--shots` |
 | `quiment-replay.mjs` | **« Rejouer » dans Qui Ment ?**, vrai `qui-ment-server` (+ vrai `game-hub-server`) : au niveau du protocole, `start` est ignoré en phase `end` et `lobby` (MJ seulement) ramène au salon ; puis trois navigateurs hors Hub — trois « Rejouer » de suite (double clic compris : un seul `lobby`, un seul `start`, même room, aucun nouveau `you`), le dernier à deux joueurs (salon valide, un nouveau venu entre par le code) ; puis via le Hub — la revanche se joue dans la même room sans rien envoyer au Hub, toujours une seule session. `--reduced` |
-| `hub-score.mjs` | **le score de soirée**, vrai `game-hub-server` + vrai `passeur-server`, trois navigateurs : bloc « Score de la soirée » à zéro avant tout tirage (panneau à part, mesuré de 1920 à 390 px : colonne de droite collante à partir de 1200 px, au-dessus du salon en dessous, aucun défilement horizontal), deux vraies parties du Passeur où chacun joue une passe différente, chaque joueur déclare SA place (`gamePlayerId`), seul l'hôte rapporte le classement (avant `ended`), points du Hub = conversion recalculée depuis la trame `end` de passeur-server, affichage chez les trois, **addition** à la 2e partie, nouvelle session à zéro. `--reduced`, `--shots` (captures du salon) |
+| `hub-score.mjs` | **le score de soirée**, vrai `game-hub-server` + vrai `passeur-server`, trois navigateurs : bloc « Score de la soirée » réduit à une ligne (« Aucune partie jouée ») avant tout tirage (panneau à part, mesuré de 1920 à 390 px : colonne de droite collante à partir de 1200 px, entre le salon et le panneau des jeux en dessous, aucun défilement horizontal), ordre du salon et « Tirer » de l'hôte / attente des invités à 390, 768, 1100 et 1280 px, deux vraies parties du Passeur où chacun joue une passe différente, chaque joueur déclare SA place (`gamePlayerId`), seul l'hôte rapporte le classement (avant `ended`), points du Hub = conversion recalculée depuis la trame `end` de passeur-server, affichage chez les trois, **addition** à la 2e partie, nouvelle session à zéro. `--reduced`, `--shots` (captures du salon) |
 | `hub-score-imitation.mjs` | **le score de soirée d'Imitation**, vrai `game-hub-server` + vrai `imitation-server`, trois navigateurs au micro factice : chacun déclare SA place (id Imitation, jamais celui du Hub), une reconnexion au salon ré-annonce la nouvelle place, une manche où A et B enregistrent et C non → ex æquo réel 4 / 4 / 0 → rangs 1 / 1 / 3 ; `results` puis `ended`, depuis l'hôte seul ; 30 / 30 / 10 au Hub, deux 🥇 dans le bloc. `--reduced`, `--shots`, `--prod` (site GitHub Pages + serveurs Render, cumule avec les points déjà présents) |
 | `hub-score-demicercle.mjs` | **le score de soirée du Demi-Cercle**, vrai `game-hub-server` + vrai `demicercle-server`, trois navigateurs : chacun déclare SA place (id Demi-Cercle, jamais celui du Hub), une reconnexion au salon ré-annonce la nouvelle place (et elle seule), trois manches jouées au vrai clic sur le cadran — A et B visent la cible reçue par le Guide, C l'opposé → ex æquo réel 13 / 13 / 5 → rangs 1 / 1 / 3 ; `results` puis `ended`, depuis l'hôte seul ; helper `rangs()` sur 4 / 4 / 0 et sur un podium non trié ; 30 / 30 / 10 au Hub, deux 🥇 dans le bloc. `--reduced`, `--shots`, `--prod` |
 | `hub-score-ban.mjs` | **le score de soirée du Ban**, vrai `game-hub-server` + vrai `ban-server`, trois navigateurs : l'avertissement est demandé à chacun et aucune room n'existe avant la case, chacun déclare SA place (id Ban), une reconnexion au salon ré-annonce la nouvelle place et B marque bien par elle, une vidéo aux vrais boutons — deux STOP immédiats (0), un mot lâché (−1) → ex æquo 0 / 0 / −1 → rangs 1 / 1 / 3 ; `results` puis `ended`, depuis l'hôte seul ; helper `rangs()` sur 13 / 13 / 5 et 13 / 5 / 13 ; 30 / 30 / 10 au Hub, deux 🥇. `--reduced`, `--shots`, `--prod` (vraies vidéos R2, mot lu dans `videos.json`) |
@@ -285,3 +285,32 @@ Trois pièges déjà rencontrés :
   boutons ont une box-shadow (le biseau) : sur un bouton découpé au
   `clip-path`, un outline rogné passe donc pour un anneau visible. `hub-draw`
   vérifie la COULEUR de l'anneau (le jaune `rgb(255, 215, 0)`) à la place.
+- ⚠️ **Tab déclenche un défilement DOUX** (`scroll-behavior: smooth` de
+  tf2.css). Après la vérification de l'ordre de tabulation (le focus finit sur
+  « Terminer la soirée », en bas), un clic envoyé pendant un défilement doux
+  tombait à côté (tracé sur `#lobby`) et le tirage suivant n'avait pas lieu. Un
+  `window.scrollTo(0, 0)` sans `behavior` hérite lui aussi du défilement doux.
+  Course **intermittente** (2 sur 2 un jour, 0 sur 6 le lendemain, variantes
+  comprises) : un avant / après ne prouve donc rien. `J.scrollFini()` attend la
+  FIN réelle du défilement (`scrollY` stable 6 images d'affilée, par
+  `requestAnimationFrame`), la page remonte en `instant`, et on attend à nouveau ;
+  le test vérifie qu'elle est bien stable en haut. Pas d'attente fixe, et le
+  produit n'est pas touché.
+- Le contenu d'un `<details>` fermé (jeux indisponibles) est en
+  `content-visibility: hidden` : `offsetParent` n'y est PAS nul. Tester la
+  visibilité avec `checkVisibility()`.
+
+## Lots UX du Game Hub (2026-09-27) : ce que chaque suite garde
+
+Front seulement (lot B : retour de partie, lot A : hiérarchie du salon ; voir
+CLAUDE.md, « Game Hub : le salon et le retour de partie »).
+
+| Suite | Ce qui a été ajouté | Normal | Réduit |
+|---|---|---|---|
+| `hub-recap.mjs` | `HubRecap.lastResult()` (partie normale, ex æquo, solo, joueur parti, pas classé, **aucune carte sans partie classée**) ; carte Résultat dans la vraie page à 1280 / 1100 / 390 px ; focus sur le titre ; rechargement sans rien rejouer ni doubler | 76 | 76 |
+| `hub-score.mjs` | carte Résultat chez l'hôte (« Tirage suivant » dans la carte) et les invités (« En attente de Alice ») ; gain en pastille ; score vide en une ligne ; ordre du salon et place de « Tirer » / « Terminer » à 390 / 768 / 1100 / 1280 px | 80 | 80 |
+| `hub-play.mjs` | action de l'hôte sous les joueurs, attente de l'invité, changement d'hôte (le bouton suit), score vide à 2 et 12 joueurs, salon rangé au départ | 56 | — |
+| `hub-draw.mjs` | plaque / couvercle (échoue sur l'ancienne marge : −11 px) ; catalogue : possibles d'abord, indisponibles repliés avec leur raison, dépliés d'office s'il n'y a plus rien ; **ordre de tabulation réel** (code → Tirer → durée → ❤️/🚫 → indisponibles → Quitter → Terminer) et fin du défilement attendue | 92 | 90 |
+| `hub-finale.mjs` | « Terminer » secondaire (liseré rouge, sans fond plein), dans le panneau des jeux, loin de « Tirer » | 34 | 32 |
+| `hub-score-morpion.mjs` | carte Résultat à chaque partie (sans points de partie) ; **aucune carte après l'abandon**, « Tirer » à sa place | 52 | — |
+| `hub-score-precision.mjs` | solo : une ligne, sans rang, « Partie terminée · +10 pts », « Tirage suivant » dans la carte | 41 | — |

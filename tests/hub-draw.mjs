@@ -180,6 +180,13 @@ async function joueur(cdp, nom) {
     for (const type of ['rawKeyDown', 'keyUp']) await S('Input.dispatchKeyEvent', { type, key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 });
     await sleep(40);
   };
+  // Attend la FIN d'un défilement (doux ou non) : scrollY inchangé pendant 6
+  // images d'affilée, mesuré dans la page par requestAnimationFrame. Rend
+  // { fini, y } — pas d'attente fixe, qui serait trop courte ou trop longue.
+  J.scrollFini = () => J.eval(`new Promise((res) => { let y = scrollY, n = 0, k = 0;
+    const f = () => { if (scrollY === y) n++; else { n = 0; y = scrollY; }
+      if (n >= 6 || ++k > 600) res({ fini: n >= 6, y: Math.round(scrollY) }); else requestAnimationFrame(f); };
+    requestAnimationFrame(f); })`);
   J.upload = async (sel, file) => {
     const { result: { root } } = await S('DOM.getDocument', { depth: 0 });
     const { result: { nodeId } } = await S('DOM.querySelector', { nodeId: root.nodeId, selector: sel });
@@ -419,11 +426,18 @@ try {
     const pos = cles.map((c) => ordre.indexOf(c));
     t('clavier : ordre de tabulation = code → Tirer → durée → ❤️/🚫 → indisponibles → Quitter → Terminer',
       pos.every((p) => p >= 0) && pos.every((p, i) => i === 0 || p > pos[i - 1]), ordre.join(' → '));
-    // ⚠️ Atteindre « Terminer » au clavier fait défiler la page en DOUX
-    // (scroll-behavior: smooth de tf2.css) : un clic envoyé pendant ce défilement
-    // tombe à côté (mesuré : sur #lobby, pas sur « Tirer »). On remonte, on attend.
+    // ⚠️ Un défilement DOUX en cours fait rater le clic suivant du harnais : le
+    // clic a été tracé sur #lobby, pas sur « Tirer », et le tirage n'avait pas
+    // lieu. Source : scroll-behavior: smooth de tf2.css (le produit n'est pas
+    // touché), qui s'applique au défilement de la tabulation (le focus finit sur
+    // « Terminer », en bas) ET à un window.scrollTo(0, 0) sans behavior. Course
+    // INTERMITTENTE (vue 2 fois sur 2 un jour, 0 sur 6 le lendemain) : on ne
+    // parie pas sur un délai, on attend la FIN réelle du défilement, on remonte
+    // en 'instant', et on attend qu'il soit stable en haut avant de cliquer.
+    const s1 = await A.scrollFini();
     await A.eval(`document.activeElement && document.activeElement.blur(); window.scrollTo({ top: 0, behavior: 'instant' }); true`);
-    await sleep(700);
+    const s2 = await A.scrollFini();
+    t('clavier : le défilement lancé par la tabulation s\'est terminé, la page est revenue en haut, stable', s1.fini && s2.fini && s2.y === 0, JSON.stringify({ s1, s2 }));
   }
 
   // ═══ 4. premier tirage

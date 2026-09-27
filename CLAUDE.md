@@ -1811,18 +1811,22 @@ soirée. La page ne calcule aucun point.
   méthode (d'où aussi les `?v=2` sur la page du Passeur et du Hub).
 - **UI** (`games/index.html`, `renderScore` dans `hub-page.js`) :
   `#hub-score` est un **panneau à part** (`<aside class="panel">`), FRÈRE du
-  salon, placé juste avant lui dans `main` — le salon est découpé au
-  `clip-path`, rien ne peut en sortir. `show()` le montre avec le salon
-  seulement. **≥ 1200 px** : `main:has(> #hub-score:not([hidden]))` devient une
-  grille (salon ~880 px + colonne de 270 px), le panneau est `sticky`.
-  **< 1200 px** : dans le flux, pleine largeur, entre le titre et le salon.
+  salon — le salon est découpé au `clip-path`, rien ne peut en sortir.
+  Depuis le lot A (2026-09-27), il est placé ENTRE `#lobby` et
+  `#hub-lobby-games` dans `main` ; `show()` montre les trois ensemble.
+  **≥ 1200 px** : `main:has(> #hub-score:not([hidden]))` devient une grille
+  (salon ~880 px + colonne de 270 px), le panneau est `sticky` sur
+  `grid-row: 2 / span 2` (le salon ET le panneau des jeux).
+  **< 1200 px** : dans le flux, pleine largeur, APRÈS les joueurs et l'action,
+  AVANT le catalogue. Sans partie classée : une ligne (voir « Game Hub : le
+  salon et le retour de partie »).
   ⚠️ La règle du panneau porte le MÊME préfixe `:has()` que `> *` : ce
   dernier contient un ID, un simple `main > #hub-score` perdait (colonne 1).
   Pas de médaille tant que personne n'a marqué ; au-delà de 6 joueurs, les 5
   premiers + ta ligne.
 - **Tests** : `game-hub-server/test-scores.js` (53 : module pur + protocole) ;
-  `tests/hub-score.mjs` (40 : trois navigateurs, deux vraies parties, mise en
-  page 1280 → 390 px).
+  `tests/hub-score.mjs` (trois navigateurs, deux vraies parties, mise en
+  page 1280 → 390 px ; 40 à l'origine, 80 depuis les lots UX).
 
 ## Débrief de soirée (2026-09-27)
 
@@ -1904,6 +1908,83 @@ Tests : `game-hub-server/test-finale.js` (34, vraies connexions) ;
 mouvement réduit). ⚠️ Dans ce dernier, attendre ~300 ms après le passage
 390 → 1280 px avant de cliquer : sans cette pause, un clic s'est perdu 2 fois
 sur 5 en mouvement réduit (plus aucun échec sur 5 exécutions depuis).
+
+## Game Hub : le salon et le retour de partie (2026-09-27, lots UX B et A)
+
+Deux lots issus d'un audit UX, **front seulement** (`games/index.html`,
+`games/hub-page.js`, `games/hub-recap.js`). Aucun serveur, aucun protocole,
+aucun calcul de score ni cycle de session n'a bougé ; aucun id existant n'a été
+renommé.
+
+### Lot B — le retour d'une partie (`5b1df70`)
+
+- **Carte `#hub-round` « 🏆 Résultat — <jeu> »**, au debrief d'une partie
+  CLASSÉE, à la place de la caisse (qui ne montrait plus que le tirage
+  d'avant). Données : `HubRecap.lastResult()` (pur, testé en Node) = la
+  dernière entrée de `history.games`, **à condition** que son `drawId` soit
+  celui du lancement terminé (`launch.stage === 'ended'`). ⚠️ C'est cette
+  condition qui empêche une fausse carte après un abandon du Morpion, un
+  lancement annulé ou un « Partie terminée » sans classement : ne pas la
+  relâcher en « la dernière partie de l'historique ».
+- Par joueur : avatar, nom, rang (ex æquo = même rang), points de partie
+  (masqués si tous à 0, le Morpion), `+X pts de soirée`. Phrase du joueur :
+  « Tu termines 2e · +20 pts », « 1er ex æquo », solo « Partie terminée ·
+  +10 pts » (pas de rang ni de médaille en solo). Le panneau Score met TON gain
+  en pastille (`.hub-score-delta.is-fresh`).
+- **« 🎲 Tirage suivant » dans la carte** : c'est le **même** `#hub-draw-btn`,
+  déplacé par `renderRound()` (même écouteur). Invités : « En attente de
+  <hôte> pour le tirage suivant. »
+- Arrivée (fondu + la phrase qui grossit) et **focus sur le titre**
+  (`tabindex="-1"`, `aria-describedby` = la phrase) **une fois par partie et
+  par onglet** : `sessionStorage` `mathys_hub_round`. Un rechargement ne rejoue
+  rien. ⚠️ Le focus part dans un `setTimeout(0)` : au retour du jeu, le premier
+  rendu a lieu AVANT `show('lobby')`, et un élément caché ne prend pas le
+  focus. Pas d'anneau sur ces titres (non tabulables, et `:focus-visible`
+  s'allume sur une page qu'on vient d'ouvrir). `showRecap` met aussi le focus
+  sur `#recap-title` (avant : il retombait sur `<body>`).
+- **Bug corrigé** : le couvercle ouvert de la caisse recouvrait « DE LA » de
+  la plaque (−11 px). Marge de `.crate-plate` 1.6rem → 2.9rem (+10 px, mesuré
+  de 390 à 1920 px dans `hub-draw.mjs`, qui échoue sur l'ancienne marge).
+
+### Lot A — la hiérarchie du salon (`b3a7446`)
+
+Ordre, bureau et téléphone : **joueurs → action → score → jeux possibles →
+indisponibles → Quitter / Terminer.**
+
+- Le salon = **trois blocs frères** dans `main` : `#lobby` (code, joueurs,
+  `#hub-act`, caisse, carte Résultat), `#hub-score`, `#hub-lobby-games`
+  (nouveau panneau : catalogue, puis `.hub-foot` avec Quitter et Terminer).
+  ⚠️ `show()` doit toujours basculer les trois, et la règle d'anneau de focus
+  (box-shadow inset, à cause du `clip-path`) liste `#hub-lobby-games button`.
+- **`#hub-act`**, juste sous les joueurs : `#hub-draw-btn` chez l'hôte ; chez
+  les invités, `#hub-wait` en encart (`.is-waiting`) « ⏳ En attente de <hôte>
+  — c'est l'hôte qui tire le jeu. ». Pendant le debrief d'une partie classée,
+  `#hub-act` se tait : la carte Résultat porte la suite.
+- **Score vide** : tant que `history.games` est vide, `#hub-score.is-empty`
+  (une ligne, « Aucune partie jouée — … »). Les lignes restent calculées dans
+  le DOM, masquées.
+- **Catalogue** : `#hub-games` est désormais un `<div>` qui contient TOUJOURS
+  les 8 fiches : `#hub-games-ok` (possibles, ordre du manifest) puis
+  `<details id="hub-out">` (« N jeux indisponibles ce soir — pourquoi ? (dont
+  N par ton veto) ») avec `#hub-games-out`. Les raisons et les boutons ❤️ / 🚫
+  y restent (c'est là qu'on lève son veto). Plus aucun jeu possible → le
+  `<details>` s'ouvre de lui-même, une fois.
+  ⚠️ Le contenu d'un `<details>` fermé est en `content-visibility: hidden` :
+  `offsetParent` reste non nul. Pour tester la visibilité, `checkVisibility()`.
+- **« 🏁 Terminer la soirée »** : secondaire (liseré rouge en `box-shadow`
+  inset, sans fond plein, pas `.ghost`), en bas du second panneau, loin de
+  « Tirer ». Confirmation inchangée.
+
+⚠️ **Piège de test rencontré** : un clic de harnais envoyé pendant un
+défilement DOUX (`scroll-behavior: smooth` de tf2.css — celui de la touche Tab
+qui amène le focus sur « Terminer », ou un `scrollTo(0, 0)` sans `behavior`)
+tombe à côté (tracé sur `#lobby`). La course est INTERMITTENTE (2 sur 2 un
+jour, 0 sur 6 le lendemain) : `hub-draw.mjs` attend la fin réelle du défilement
+(`J.scrollFini()` : `scrollY` stable 6 images d'affilée) au lieu d'un délai
+fixe, et rien n'est changé dans le produit.
+
+**Dernier passage** : voir le tableau de `tests/README.md` (suites du Hub,
+normal et mouvement réduit).
 
 ## Handoff et présence : l'état des sept jeux
 
