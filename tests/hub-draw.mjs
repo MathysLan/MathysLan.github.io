@@ -224,6 +224,12 @@ const VUE = `(() => {
 const SOUS_REPERE = `(() => { const r = document.getElementById('hub-reel').getBoundingClientRect(); const x = r.left + r.width / 2, y = r.top + r.height / 2;
   const c = [...document.querySelectorAll('#hub-reel .reel-cell')].find((el) => { const b = el.getBoundingClientRect(); return x >= b.left && x <= b.right && y >= b.top && y <= b.bottom; });
   return c ? c.dataset.game : null; })()`;
+// La plaque « Mann Co. · caisse de la soirée » et le couvercle OUVERT : la
+// boîte du couvercle (rotation comprise) doit rester sous la plaque. Avant la
+// correction, il montait sur « DE LA » à toutes les largeurs.
+const PLAQUE = `(() => { const st = document.getElementById('hub-draw'); if (st.hidden) return null;
+  const p = st.querySelector('.crate-plate').getBoundingClientRect(), l = st.querySelector('.crate-lid').getBoundingClientRect();
+  return { ouvert: st.classList.contains('is-open'), ecart: Math.round(l.top - p.bottom), ok: l.top >= p.bottom - 0.5 }; })()`;
 const DECALAGE = `(() => { const s = document.querySelector('#hub-reel .reel-strip'); return s ? new DOMMatrix(getComputedStyle(s).transform).m41 : 0; })()`;
 
 // --- orchestration ---------------------------------------------------------
@@ -460,7 +466,15 @@ try {
     t(`${w}×${h} : aucun débordement horizontal`, m.over <= 0, String(m.over));
     t(`${w}×${h} : caisse entièrement visible (${m.caisseH} px de haut)`, m.caisse);
     t(`${w}×${h} : code, bouton de tirage, PP (≥ 44 px) et boutons accessibles`, m.code && m.tirer && m.pp && m.boutons, JSON.stringify(m));
+    const pl = await A.eval(PLAQUE);
+    t(`${w}×${h} : caisse ouverte, le couvercle ne recouvre pas la plaque`, pl && pl.ouvert && pl.ok, JSON.stringify(pl));
     await A.shot(`4-hub-${w}`);
+  }
+  for (const [w, h] of [[1280, 900], [1100, 1000]]) {
+    await A.size(w, h); await sleep(250);
+    const pl = await A.eval(PLAQUE);
+    t(`${w}×${h} : caisse ouverte, le couvercle ne recouvre pas la plaque`, pl && pl.ouvert && pl.ok, JSON.stringify(pl));
+    await A.shot(`4-caisse-${w}`);
   }
   await A.size(1100, 1000);
 

@@ -215,8 +215,11 @@
     const ok = !!session.pool;          // null = serveur d'avant le randomizer
     $('hub-pool').hidden = !ok;
     if (ok) renderPool(session, you);
-    renderScore(session, you);
-    renderDraw(session, you);
+    // Le résultat de la partie qu'on vient de jouer (null hors debrief classé).
+    const round = HubRecap.lastResult(session, you, info);
+    renderScore(session, you, round);
+    renderRound(session, you, round);
+    renderDraw(session, you, round);
     renderLaunch(session, you);
     renderFoot(session, you);
   }
@@ -231,7 +234,7 @@
   // plus bas : le bloc reste compact, et chacun y trouve toujours sa ligne.
   const MEDAILLES = HubRecap.MEDAILLES;
   const SCORE_MAX = 6;
-  function renderScore(session, you) {
+  function renderScore(session, you, round) {
     const jeux = session.history.games || [];
     const derniere = jeux[jeux.length - 1] || null;
     const gain = {};
@@ -266,7 +269,9 @@
       pts.className = 'hub-score-pts';
       if (gain[l.p.id]) {
         const d = document.createElement('span');
-        d.className = 'hub-score-delta';
+        // TON gain de la partie qu'on vient de finir : une pastille, pour qu'on
+        // voie qu'il vient d'entrer dans ce total (la carte Résultat le dit aussi).
+        d.className = 'hub-score-delta' + (round && l.p.id === you ? ' is-fresh' : '');
         d.textContent = '+' + gain[l.p.id];
         pts.appendChild(d);
       }
@@ -401,7 +406,7 @@
   });
 
   // ----------------------------------------------------------------- caisse
-  function renderDraw(session, you) {
+  function renderDraw(session, you, round) {
     const d = session.draw;
     const stage = $('hub-draw');
     const actif = ['drawing', 'debrief', 'launching', 'inGame'].includes(session.state) && d;
@@ -424,8 +429,122 @@
       $('hub-draw-status').textContent = 'La caisse est secouée… le Hub prépare le tirage.';
       return;
     }
+    // Retour d'une partie classée : la carte Résultat prend la place de la
+    // caisse, qui ne montrerait plus que le tirage d'AVANT la partie. La fiche
+    // du jeu est tout de même tenue à jour (#hub-ready, lu par les tests et
+    // par qui rechargerait), et la caisse ne rejoue jamais ce tirage.
+    if (round) {
+      seen.set(d.id);
+      showResult(session, you, d);
+      stage.hidden = true;
+      return;
+    }
     if (d.gameId && seen.get() !== d.id) return animate(d);
     showResult(session, you, d);
+  }
+
+  // ------------------------------------------------------ résultat de partie
+  // ⚠️ AUCUN CALCUL ICI non plus : `round` sort de HubRecap.lastResult(), qui
+  // relit la dernière entrée de history.games (rangs, points de partie, points
+  // de soirée : ceux du Hub). null = pas de partie classée → pas de carte.
+  //
+  // L'arrivée (animation + focus sur le titre) n'a lieu qu'UNE fois par
+  // partie et par onglet : au retour du jeu, ou quand le résultat tombe sous
+  // les yeux de qui est resté au Hub. Un rechargement la retrouve telle quelle,
+  // sans rien rejouer — même principe que `seen` pour la caisse.
+  const ROUND_SEEN = 'mathys_hub_round';
+  const roundSeen = {
+    get() { try { return sessionStorage.getItem(ROUND_SEEN); } catch (_) { return null; } },
+    set(id) { try { sessionStorage.setItem(ROUND_SEEN, id); } catch (_) {} },
+  };
+  let roundShown = null;       // drawId du résultat affiché dans cette page
+  function renderRound(session, you, round) {
+    const card = $('hub-round');
+    const btn = $('hub-draw-btn');
+    const pied = document.querySelector('.hub-foot-actions');
+    if (!round) {
+      card.hidden = true;
+      card.classList.remove('is-new');
+      roundShown = null;
+      // « Tirer » retourne à sa place, en tête des actions du pied.
+      if (btn.parentNode !== pied) pied.insertBefore(btn, pied.firstChild);
+      return;
+    }
+    const isHost = session.hostId === you;
+    const host = session.players.find((p) => p.host);
+    card.hidden = false;
+    card.classList.toggle('is-solo', round.solo);
+    card.dataset.game = round.gameId;
+    card.dataset.draw = round.drawId;
+    $('round-kicker').textContent = `Partie ${round.n} · terminée`;
+    $('round-game').textContent = round.title;
+
+    const me = $('round-me');
+    me.replaceChildren();
+    me.classList.toggle('is-out', !round.me);
+    if (!round.me) me.textContent = 'Tu n\'as pas été classé dans cette partie.';
+    else {
+      me.append(round.solo ? 'Partie terminée · ' : `Tu termines ${HubRecap.ordinal(round.me.rank)}${round.me.tie ? ' ex æquo' : ''} · `,
+        el('span', 'round-gain', `+${round.me.points} pts`));
+    }
+
+    $('round-list').replaceChildren(...round.rows.map((r) => {
+      const li = el('li', 'round-row' + (r.me ? ' is-me' : ''));
+      li.dataset.player = r.id;
+      li.dataset.rank = String(r.rank);
+      li.dataset.points = String(r.points);
+      const medaille = r.rank >= 1 && r.rank <= 3;
+      const rang = el('span', 'round-rank' + (medaille ? '' : ' is-num'), medaille ? MEDAILLES[r.rank - 1] : r.rank + '.');
+      rang.setAttribute('aria-hidden', 'true');
+      const av = GameAvatar.node(r.avatar, undefined, 'md');
+      av.setAttribute('aria-hidden', 'true');
+      const qui = el('span', 'round-who');
+      const nom = el('span', 'round-name', r.name);
+      if (r.me) nom.appendChild(el('small', 'hub-tag me', 'toi'));
+      if (r.gone) nom.appendChild(el('small', 'hub-tag away', 'parti'));
+      qui.appendChild(nom);
+      if (round.gamePoints && r.gamePoints != null) qui.appendChild(el('span', 'round-game-pts', `${r.gamePoints} pts de partie`));
+      const gain = el('span', 'round-gain-col');
+      gain.append(el('b', null, '+' + r.points), el('small', null, 'pts de soirée'));
+      li.setAttribute('aria-label', (round.solo ? '' : `${HubRecap.ordinal(r.rank)}${r.tie ? ' ex æquo' : ''} : `)
+        + r.name + (r.me ? ' (toi)' : '') + (r.gone ? ' (parti)' : '')
+        + (round.gamePoints && r.gamePoints != null ? `, ${r.gamePoints} points de partie` : '')
+        + `, plus ${r.points} points de soirée`);
+      li.append(rang, av, qui, gain);
+      return li;
+    }));
+
+    $('round-total').textContent = round.me
+      ? `Ajouté au score de la soirée : tu as maintenant ${round.total} pts.`
+      : `Ton score de la soirée : ${round.total} pts.`;
+
+    // La suite, juste sous le résultat : le VRAI bouton de tirage chez l'hôte
+    // (même élément, même écouteur, affiché ou non par renderFoot), l'attente
+    // chez les autres.
+    const actions = $('round-actions');
+    if (isHost) { if (btn.parentNode !== actions) actions.insertBefore(btn, actions.firstChild); }
+    else if (btn.parentNode !== pied) pied.insertBefore(btn, pied.firstChild);
+    $('round-wait').hidden = isHost;
+    $('round-wait').textContent = isHost ? '' : `En attente de ${host ? host.name : 'l\'hôte'} pour le tirage suivant.`;
+
+    if (roundShown === round.drawId) return;
+    roundShown = round.drawId;
+    const neuf = roundSeen.get() !== round.drawId;
+    card.classList.remove('is-new');
+    if (!neuf) return;
+    roundSeen.set(round.drawId);
+    void card.offsetWidth;                     // relance l'animation si une carte précédente l'avait
+    card.classList.add('is-new');
+    // Le focus va au titre (annoncé avec la phrase du joueur, aria-describedby).
+    // Saut immédiat : un défilement animé avalerait le clic suivant (voir showRecap).
+    // ⚠️ Un tour plus tard : au retour du jeu, ce premier rendu a lieu AVANT
+    // show('lobby') — le salon est encore caché, et un élément caché ne prend
+    // pas le focus.
+    setTimeout(() => {
+      if (card.hidden || $('lobby').hidden) return;
+      card.scrollIntoView({ block: 'start', behavior: 'instant' });
+      $('round-title').focus({ preventScroll: true });
+    }, 0);
   }
 
   // Le serveur a tiré : on déroule la bande jusqu'à SON jeu, puis on révèle.
@@ -829,6 +948,9 @@
     // ⚠️ 'instant' et pas 'auto' : 'auto' suit le `scroll-behavior: smooth` de
     // tf2.css, donc reste animé.
     $('hub-recap').scrollIntoView({ block: 'start', behavior: 'instant' });
+    // Le bouton cliqué (Quitter, Terminer) vient de disparaître avec le salon :
+    // sans ça le focus retombait sur <body>. Le titre est annoncé à sa place.
+    $('recap-title').focus({ preventScroll: true });
   }
 
   // Copier le code : exactement celui reçu du serveur.

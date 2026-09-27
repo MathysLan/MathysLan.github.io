@@ -182,7 +182,11 @@
     background: radial-gradient(ellipse at 50% 30%, rgba(207, 106, 50, .18), transparent 70%), rgba(0,0,0,.25);
     border: 1px solid var(--panel-edge); }
   .crate-plate { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; letter-spacing: .32em; text-transform: uppercase;
-    font-size: .8rem; color: #f2a15f; margin: 0 0 1.6rem; }   /* place pour le couvercle qui se soulève */
+    font-size: .8rem; color: #f2a15f; margin: 0 0 2.9rem; }
+  /* ⚠️ Place pour le couvercle OUVERT : il monte de 14 px et pivote de −10°
+     autour de son coin gauche, donc son bout droit s'élève d'environ 40 px
+     au-dessus de la caisse. À 1.6rem (26 px), il recouvrait « DE LA » de la
+     plaque. tests/hub-draw.mjs mesure les deux boîtes. */
   .crate { position: relative; width: 148px; height: 112px; margin: 0 auto; }
   .crate-box, .crate-lid { position: absolute; left: 0; right: 0;
     background: repeating-linear-gradient(90deg, #7a4f2c 0 22px, #6b4426 22px 24px), #7a4f2c;
@@ -237,6 +241,55 @@
   #hub-history { margin: .7rem 0 0; font-size: .78rem; color: var(--ink-3); }
   #hub-history:empty { display: none; }
   #hub-draw-btn { font-size: 1.1rem; }
+
+  /* --- le RÉSULTAT de la partie qu'on vient de jouer ---------------------
+     Au retour d'une partie classée, cette carte REMPLACE la caisse (qui ne
+     montrait plus que le tirage d'avant). Trois étages : le titre, TA phrase
+     (« Tu termines 1er · +30 pts »), le classement de la partie ; puis la
+     suite — « Tirage suivant » chez l'hôte, l'attente chez les autres. */
+  #hub-round { margin-top: 1.4rem; padding: 1.2rem 1rem 1.1rem; text-align: center;
+    background: radial-gradient(ellipse at 50% 0%, rgba(207, 106, 50, .2), transparent 70%), rgba(0,0,0,.25);
+    border: 1px solid var(--panel-edge); border-top: 3px solid #cf6a32; }
+  .round-kicker { margin: 0; }
+  .round-title { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: clamp(1.5rem, 6vw, 2.1rem); line-height: 1.1;
+    letter-spacing: .03em; color: var(--ink); margin: .3rem 0 0; text-transform: uppercase; }
+  /* Titres focalisés PAR PROGRAMME (tabindex="-1") : ils ne sont pas dans
+     l'ordre de tabulation, le focus n'y est qu'un point de départ pour la
+     lecture et la touche Tab suivante. Pas d'anneau : sur une page qu'on vient
+     d'ouvrir, :focus-visible s'allume et encadrait tout le titre en jaune. */
+  .round-title:focus, .recap-title:focus { outline: none; }
+  /* LA phrase du joueur : c'est elle qu'on doit lire en premier après le titre. */
+  #round-me { display: inline-block; margin: .8rem 0 0; padding: .45rem 1rem; font-family: 'TF2 Build', 'Arial Narrow', sans-serif;
+    font-size: clamp(1.15rem, 4.8vw, 1.5rem); letter-spacing: .03em; color: var(--ink);
+    background: rgba(207, 106, 50, .18); box-shadow: inset 0 0 0 2px #cf6a32; }
+  #round-me .round-gain { color: #9fd3a9; white-space: nowrap; }
+  #round-me.is-out { background: rgba(0,0,0,.2); box-shadow: inset 0 0 0 1px var(--panel-edge); color: var(--ink-2); font-size: 1rem; }
+  #round-list { list-style: none; margin: 1rem auto 0; padding: 0; display: grid; gap: .3rem; max-width: 560px; text-align: left; }
+  .round-row { display: grid; grid-template-columns: 2.2rem auto minmax(0, 1fr) auto; align-items: center; gap: .6rem;
+    padding: .4rem .7rem; background: rgba(0,0,0,.2); border: 1px solid var(--panel-edge); }
+  .round-row.is-me { background: rgba(207, 106, 50, .16); border-color: #cf6a32; box-shadow: inset 3px 0 0 #cf6a32; }
+  #hub-round.is-solo .round-row { grid-template-columns: auto minmax(0, 1fr) auto; }
+  #hub-round.is-solo .round-rank { display: none; }
+  .round-rank { font-size: 1.4rem; line-height: 1; text-align: center; }
+  .round-rank.is-num { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: .95rem; color: var(--ink-3); }
+  .round-who { min-width: 0; }
+  .round-name { font-size: 1.05rem; color: var(--ink); overflow-wrap: anywhere; display: flex; flex-wrap: wrap; align-items: center; gap: .2rem .5rem; }
+  .round-game-pts { display: block; font-size: .74rem; color: var(--ink-3); margin-top: .1rem; }
+  .round-gain-col { text-align: right; white-space: nowrap; font-family: 'TF2 Build', 'Arial Narrow', sans-serif; }
+  .round-gain-col b { font-weight: normal; font-size: 1.25rem; color: #9fd3a9; }
+  .round-gain-col small { display: block; font-family: 'TF2 Secondary', system-ui, sans-serif; font-size: .68rem; color: var(--ink-3); }
+  #round-total { margin: .8rem 0 0; }
+  .round-actions { margin-top: 1rem; display: flex; flex-direction: column; align-items: center; gap: .5rem; }
+  .round-actions #hub-draw-btn { min-width: 15rem; font-size: 1.2rem; padding-block: .85rem; }
+  #round-wait { margin: 0; font-size: .9rem; color: var(--ink-2); }
+  /* L'arrivée : une fois par partie (pas au rechargement, voir hub-page.js),
+     jamais bloquante — la carte est lisible et cliquable tout de suite. */
+  #hub-round.is-new { animation: round-in .4s ease-out both; }
+  #hub-round.is-new #round-me { animation: round-pop .7s .25s ease-out both; }
+  @keyframes round-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  @keyframes round-pop { 0% { transform: scale(.85); opacity: 0; } 60% { transform: scale(1.06); opacity: 1; } 100% { transform: none; } }
+  /* Score de la soirée : TON gain de la partie qu'on vient de finir, en pastille. */
+  .hub-score-delta.is-fresh { color: #10170f; background: #9fd3a9; padding: .05rem .3rem; font-size: .76rem; }
 
   /* Le lancement. */
   #hub-launch { margin-top: 1.1rem; padding-top: 1rem; border-top: 1px dashed var(--panel-edge); }
@@ -347,6 +400,7 @@
     #hub-recap .recap-row, #hub-recap .recap-later { transition: none; }
     #hub-recap.is-final .recap-row.is-top { animation: none; }
     #hub-draw.is-pending .crate { animation: none; }
+    #hub-round.is-new, #hub-round.is-new #round-me { animation: none; }
     .crate-lid, .crate-glow { transition: none; }
   }
 
@@ -375,6 +429,8 @@
     .recap-game-me { grid-column: 2; grid-row: 1 / span 2; }
     .recap-game-pts { grid-column: 3; grid-row: 1 / span 2; }
     .recap-row { gap: .45rem; padding-inline: .5rem; }
+    .round-row { gap: .45rem; padding-inline: .5rem; }
+    .round-actions #hub-draw-btn { width: 100%; min-width: 0; }
   }
 </style>
 </head>
@@ -402,7 +458,7 @@
     <section id="hub-recap" class="panel g-screen hub-panel" aria-labelledby="recap-title" hidden>
       <div class="recap-head">
         <p class="hub-label">Game Hub · session <span id="recap-code"></span></p>
-        <h2 class="recap-title" id="recap-title">🏆 Soirée terminée</h2>
+        <h2 class="recap-title" id="recap-title" tabindex="-1">🏆 Soirée terminée</h2>
         <p class="hub-note" id="recap-sub"></p>
       </div>
       <ol id="recap-ranking" aria-label="classement de la soirée"></ol>
@@ -470,6 +526,23 @@
       <ul id="hub-players" aria-label="joueurs de la session"></ul>
       <!-- Un lancement raté ramène au salon : on dit pourquoi, à tout le monde. -->
       <p id="hub-failed" role="alert" hidden></p>
+
+      <!-- LE RÉSULTAT de la partie qu'on vient de jouer (debrief d'une partie
+           CLASSÉE seulement). Tout vient de history.games, tenu par le Hub :
+           HubRecap.lastResult() range, la page affiche. Sans classement
+           (abandon, annulation), elle n'apparaît pas. -->
+      <section id="hub-round" aria-labelledby="round-title" hidden>
+        <p class="hub-label round-kicker" id="round-kicker"></p>
+        <h2 class="round-title" id="round-title" tabindex="-1" aria-describedby="round-me">🏆 Résultat — <span id="round-game"></span></h2>
+        <p id="round-me"></p>
+        <ol id="round-list" aria-label="classement de la partie"></ol>
+        <p class="hub-note" id="round-total"></p>
+        <!-- L'hôte : « 🎲 Tirage suivant » (le vrai #hub-draw-btn, déplacé ici
+             par hub-page.js). Les autres : qui ils attendent. -->
+        <div class="round-actions" id="round-actions">
+          <p id="round-wait"></p>
+        </div>
+      </section>
 
       <!-- LA CAISSE : visible pendant et après un tirage. Elle ne met en scène
            que le résultat envoyé par le serveur (hub-crate.js). -->
@@ -568,7 +641,7 @@
   <script src="shared/game-hub.js?v=3"></script>
   <script src="shared/hub-handoff.js?v=3"></script>
   <script src="hub-crate.js"></script>
-  <script src="hub-recap.js?v=2"></script>
-  <script src="hub-page.js?v=6"></script>
+  <script src="hub-recap.js?v=3"></script>
+  <script src="hub-page.js?v=7"></script>
 </body>
 </html>

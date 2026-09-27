@@ -96,9 +96,44 @@
     };
   }
 
+  // Le RÉSULTAT de la partie qu'on vient de jouer, pour la carte du debrief.
+  // Rien de recalculé : c'est la dernière entrée de `history.games`, telle que
+  // le Hub l'a écrite (rangs, points de partie, points de soirée). Rend null
+  // quand le debrief ne suit PAS une partie classée — abandon du Morpion,
+  // lancement annulé, « partie terminée » sans classement, jeu non lancé :
+  // la dernière entrée doit être celle du lancement qui vient de finir.
+  function lastResult(session, you, info) {
+    if (!session || session.state !== 'debrief') return null;
+    const l = session.launch;
+    const jeux = (session.history && session.history.games) || [];
+    const g = jeux[jeux.length - 1];
+    if (!l || l.stage !== 'ended' || !g || !g.drawId || g.drawId !== l.drawId || !g.results.length) return null;
+    const i = info(g.gameId);
+    const rows = g.results.slice().sort((a, b) => a.rank - b.rank).map((r) => {
+      const p = session.players.find((x) => x.id === r.playerId);
+      return { id: r.playerId, name: p ? p.name : r.name, avatar: p ? p.avatar : null, rank: r.rank,
+        gamePoints: r.gamePoints, points: r.points, me: r.playerId === you, gone: !p,
+        tie: g.results.filter((x) => x.rank === r.rank).length > 1 };
+    });
+    const moi = rows.find((r) => r.me) || null;
+    return {
+      drawId: g.drawId, n: g.n, gameId: g.gameId, emoji: i.emoji, title: i.title,
+      // Seul dans la partie : pas de vainqueur à désigner.
+      solo: g.players <= 1 && rows.length === 1,
+      // Le Morpion rend 0 partout : une colonne de zéros n'apprend rien.
+      gamePoints: rows.some((r) => r.gamePoints != null && r.gamePoints !== 0),
+      rows,
+      me: moi ? { rank: moi.rank, points: moi.points, tie: moi.tie } : null,
+      // Le score de soirée APRÈS cette partie : celui du Hub, tel quel.
+      total: (session.scores && session.scores[you]) || 0,
+    };
+  }
+
   // 1 → 🥇, 2 → 🥈, 3 → 🥉, puis « 4e ». Pour un rang de partie ou de soirée.
   const MEDAILLES = ['🥇', '🥈', '🥉'];
   const place = (rank) => (rank >= 1 && rank <= 3 ? MEDAILLES[rank - 1] : rank + 'e');
+  // En toutes lettres, pour une phrase : 1 → « 1er », 2 → « 2e ».
+  const ordinal = (rank) => (rank === 1 ? '1er' : rank + 'e');
 
-  return { ranking, build, fromFinale, place, MEDAILLES };
+  return { ranking, build, fromFinale, lastResult, place, ordinal, MEDAILLES };
 });

@@ -283,6 +283,12 @@ try {
     return deb.session;
   }
 
+  // La carte « Résultat » du debrief, telle qu'affichée (ou son absence).
+  const CARTE = `(() => { const c = document.getElementById('hub-round'); const btn = document.getElementById('hub-draw-btn');
+    return { vu: !c.hidden, draw: c.dataset.draw, titre: document.getElementById('round-title').textContent,
+      lignes: [...document.querySelectorAll('#round-list .round-row')].map((li) => [li.dataset.player, +li.dataset.rank, +li.dataset.points]),
+      ptsJeu: document.querySelectorAll('#round-list .round-game-pts').length, caisse: !document.getElementById('hub-draw').hidden,
+      tirerAuPied: !!btn.closest('.hub-foot'), pret: document.getElementById('hub-ready').textContent }; })()`;
   // Vrai retour au Hub des deux joueurs : même session, rien de perdu.
   async function retour(n, attendu) {
     const depuis = tous.map((J) => J.recus.length);
@@ -300,6 +306,15 @@ try {
     t(`après la partie ${n} : vrai retour au Hub des deux — même session, score et historique conservés, debrief`, oks.every(Boolean), JSON.stringify(oks));
     const b = await A.eval(`[...document.querySelectorAll('#hub-score-list .hub-score-row')].map((li) => [li.dataset.player, +li.dataset.points, li.querySelector('.hub-score-rank').textContent])`);
     t(`après la partie ${n} : le bloc affiche les points du Hub`, b.every(([id, pts]) => pts === attendu.scores[id]), JSON.stringify(b));
+    // La carte « Résultat » : CETTE partie (dernière entrée de history.games),
+    // sans colonne de points de partie (le Morpion n'en a pas : 0 partout).
+    const g = attendu.history.games[attendu.history.games.length - 1];
+    for (const J of tous) {
+      const c = await J.eval(CARTE);
+      t(`après la partie ${n} : ${J.nom} voit la carte « Résultat — Morpion » de CETTE partie (rangs et gains du Hub, aucun point de partie)`,
+        c.vu && c.draw === g.drawId && /Résultat — Morpion/.test(c.titre) && !c.caisse && c.ptsJeu === 0
+        && same(c.lignes, g.results.slice().sort((x, y) => x.rank - y.rank).map((r) => [r.playerId, r.rank, r.points])), JSON.stringify(c));
+    }
     return b;
   }
 
@@ -348,6 +363,9 @@ try {
   await A.until(`${auSalon} && document.querySelectorAll('#hub-score-list li').length === 2`, 20000 * LENT, 'retour Hub A (abandon)');
   t('abandon : A revient au Hub, même session, score toujours 50 / 50', (await A.eval(`document.getElementById('hub-code').textContent.trim()`)) === code
     && same(idsHub.map((id) => A.hub().scores[id]), [50, 50]));
+  const c4 = await A.eval(CARTE);
+  t('abandon : AUCUNE carte « Résultat » (pas de partie classée) — la caisse et « Partie … terminée » comme avant, « Tirer » à sa place au pied',
+    !c4.vu && c4.caisse && /terminée/.test(c4.pret) && c4.tirerAuPied, JSON.stringify(c4));
 
   const errs = tous.flatMap((J) => J.erreurs.map((e) => `[${J.nom}] ${e}`));
   t('aucune erreur JS dans les deux navigateurs', errs.length === 0, errs.slice(0, 3).join(' | '));

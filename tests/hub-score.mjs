@@ -184,6 +184,21 @@ const BLOC = `(() => [...document.querySelectorAll('#hub-score-list .hub-score-r
   rang: li.querySelector('.hub-score-rank').textContent, nom: li.querySelector('.hub-score-name').textContent,
   txt: li.querySelector('.hub-score-pts').textContent })))()`;
 
+// La carte « Résultat » du debrief (#hub-round), telle que la page l'affiche.
+const CARTE = `(() => { const c = document.getElementById('hub-round'); const btn = document.getElementById('hub-draw-btn');
+  const R = (e) => e.getBoundingClientRect(); const carte = R(c);
+  return { vu: !c.hidden, titre: document.getElementById('round-title').textContent, moi: document.getElementById('round-me').textContent,
+    lignes: [...document.querySelectorAll('#round-list .round-row')].map((li) => ({ id: li.dataset.player, rank: +li.dataset.rank, pts: +li.dataset.points,
+      jeu: (li.querySelector('.round-game-pts') || {}).textContent || '', moi: li.classList.contains('is-me') })),
+    total: document.getElementById('round-total').textContent,
+    tirerIci: !!btn.closest('#hub-round') && !btn.hidden, tirerTxt: btn.textContent, tirerCache: btn.hidden,
+    tirerDansCarte: !btn.hidden && R(btn).top >= carte.top && R(btn).bottom <= carte.bottom,
+    attente: document.getElementById('round-wait').hidden ? '' : document.getElementById('round-wait').textContent,
+    caisse: !document.getElementById('hub-draw').hidden,
+    pastille: (document.querySelector('#hub-score-list .hub-score-row.is-me .hub-score-delta.is-fresh') || {}).textContent || '',
+    pastilles: document.querySelectorAll('#hub-score-list .hub-score-delta.is-fresh').length,
+    over: document.documentElement.scrollWidth - innerWidth }; })()`;
+
 // La géométrie du salon, pour vérifier la place du bloc.
 const GEO = `(() => {
   const r = (s) => { const e = document.querySelector(s); if (!e || e.hidden || !e.offsetParent) return null; const b = e.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top + scrollY, b: b.bottom + scrollY, w: b.width }; };
@@ -403,6 +418,33 @@ try {
   const b1 = await A.eval(BLOC);
   t('partie 1 — le premier a sa médaille 🥇, et le gain de la partie est affiché', b1[0].rang === '🥇' && /^\+\d+/.test(b1[0].txt), b1[0].txt);
   t('partie 1 — note : « après 1 partie · dernière : Le Passeur »', /après 1 partie · dernière : Le Passeur/.test(await A.eval(`document.getElementById('hub-score-note').textContent`)));
+  // La carte « Résultat » : la partie qu'on vient de jouer, lue dans
+  // history.games (le Hub), chez les trois ; « Tirage suivant » chez l'hôte seul.
+  const h1 = p1.session.history.games[0];
+  const lignesHub = h1.results.slice().sort((x, y) => x.rank - y.rank).map((r) => [r.playerId, r.rank, r.points]);
+  for (const J of [A, B, C]) {
+    await J.until(`!document.getElementById('hub-round').hidden`, 8000, `carte résultat chez ${J.nom}`);
+    const c = await J.eval(CARTE);
+    const moi = h1.results.find((r) => r.playerId === id[J.nom]);
+    t(`partie 1 — ${J.nom} : carte « Résultat — Le Passeur » à la place de la caisse, lignes = history.games (rang, gain), points de partie de passeur-server`,
+      c.vu && /Résultat — Le Passeur/.test(c.titre) && !c.caisse && same(c.lignes.map((l) => [l.id, l.rank, l.pts]), lignesHub)
+      && c.lignes.every((l) => l.jeu === `${h1.results.find((r) => r.playerId === l.id).gamePoints} pts de partie`), JSON.stringify(c));
+    t(`partie 1 — ${J.nom} : sa ligne en évidence, sa phrase (${moi.rank === 1 ? '1er' : moi.rank + 'e'}, +${moi.points}), son total = score du Hub`,
+      c.lignes.filter((l) => l.moi).length === 1 && c.lignes.find((l) => l.moi).id === id[J.nom]
+      && c.moi.startsWith(`Tu termines ${moi.rank === 1 ? '1er' : moi.rank + 'e'}`) && c.moi.endsWith(`+${moi.points} pts`)
+      && c.total.includes(`${p1.session.scores[id[J.nom]]} pts`), c.moi + ' | ' + c.total);
+    t(`partie 1 — ${J.nom} : le panneau Score met SON gain en pastille (+${moi.points}), et seulement le sien`, c.pastille === '+' + moi.points && c.pastilles === 1, c.pastille);
+    if (J === A) t('partie 1 — hôte : « 🎲 Tirage suivant » DANS la carte, sous le résultat', c.tirerIci && c.tirerDansCarte && /Tirage suivant/.test(c.tirerTxt) && !c.attente, JSON.stringify(c));
+    else t(`partie 1 — ${J.nom} (invité) : aucun bouton de tirage, « En attente de Alice pour le tirage suivant. »`,
+      !c.tirerIci && c.tirerCache && c.attente === 'En attente de Alice pour le tirage suivant.', JSON.stringify(c));
+  }
+  for (const [w, h] of [[1100, 900], [390, 780]]) {
+    await A.size(w, h); await sleep(250);
+    const c = await A.eval(CARTE);
+    t(`partie 1 — ${w} px (hôte) : carte sans défilement horizontal, Tirage suivant dans la carte`, c.over <= 0 && c.tirerDansCarte, JSON.stringify({ over: c.over, dans: c.tirerDansCarte }));
+    await A.shot(`3b-resultat-${w}`);
+  }
+  await A.size(1280, 900); await sleep(300);
   await A.shot('3-score-apres-partie1-1280');
   await B.size(390, 780); await sleep(250);
   await B.shot('4-score-apres-partie1-390');
@@ -420,6 +462,10 @@ try {
   const b2 = await C.eval(BLOC);
   t('partie 2 — le bloc suit (chez C)', b2.every((l) => l.pts === p2.session.scores[l.id]), JSON.stringify(b2.map((l) => l.txt)));
   t('partie 2 — note : « après 2 parties »', /après 2 parties/.test(await C.eval(`document.getElementById('hub-score-note').textContent`)));
+  const c2 = await C.eval(CARTE);
+  t('partie 2 — la carte montre la partie 2 (et plus la 1), gain de C en pastille', c2.vu && same(c2.lignes.map((l) => [l.id, l.pts]),
+    p2.session.history.games[1].results.slice().sort((x, y) => x.rank - y.rank).map((r) => [r.playerId, r.points]))
+    && c2.pastille === '+' + p2.session.history.games[1].results.find((r) => r.playerId === id.C).points, JSON.stringify(c2));
   await C.shot('5-score-apres-partie2-1280');
 
   // ═══ 4. nouvelle session : zéro

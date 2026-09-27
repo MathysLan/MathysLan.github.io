@@ -421,11 +421,28 @@ try {
     rang: li.querySelector('.hub-score-rank').textContent, me: li.classList.contains('is-me') }; })()`);
   t('solo : le bloc affiche 🥇 10, sa ligne en évidence', !!ligne && ligne.id === idD && ligne.pts === 10 && ligne.rang === '🥇' && ligne.me, JSON.stringify(ligne));
 
+  // La carte « Résultat » en solo : une ligne, pas de vainqueur, le gain,
+  // et « Tirage suivant » dans la carte (il est l'hôte).
+  const carte = await D.eval(`(() => { const c = document.getElementById('hub-round'); const btn = document.getElementById('hub-draw-btn');
+    const rows = [...document.querySelectorAll('#round-list .round-row')];
+    return { vu: !c.hidden, solo: c.classList.contains('is-solo'), titre: document.getElementById('round-title').textContent,
+      moi: document.getElementById('round-me').textContent, n: rows.length, pts: rows[0] && +rows[0].dataset.points,
+      rangVu: rows[0] && getComputedStyle(rows[0].querySelector('.round-rank')).display !== 'none',
+      jeu: rows[0] && (rows[0].querySelector('.round-game-pts') || {}).textContent,
+      tirerIci: !!btn.closest('#hub-round') && !btn.hidden, focus: document.activeElement && document.activeElement.id,
+      over: document.documentElement.scrollWidth - innerWidth }; })()`);
+  const gD = sD.history.games[0].results[0];
+  t('solo : carte « Résultat — Précision », une ligne sans rang ni vainqueur, « Partie terminée · +10 pts », points de partie du serveur',
+    carte.vu && carte.solo && /Résultat — Précision/.test(carte.titre) && carte.n === 1 && carte.pts === 10 && !carte.rangVu
+    && carte.moi === 'Partie terminée · +10 pts' && carte.jeu === gD.gamePoints + ' pts de partie', JSON.stringify(carte));
+  t('solo : « Tirage suivant » dans la carte, focus sur son titre, pas de défilement horizontal', carte.tirerIci && carte.focus === 'round-title' && carte.over <= 0, JSON.stringify(carte));
+
   // Et la soirée continue : un nouveau tirage depuis cette même session.
   await D.click('#hub-draw-btn');
   await D.until(`document.getElementById('hub-result').dataset.game === 'precision' && !document.getElementById('hub-continue').hidden`, 20000, 'nouveau tirage solo');
   const tirage2 = apres((d) => d.session && d.session.draw && d.session.draw.status === 'drawn' && d.session.draw.n === 2);
   t('solo : nouveau tirage possible depuis la session retrouvée (tirage n° 2)', !!tirage2 && tirage2.d.session.code === codeD);
+  t('solo : pendant le nouveau tirage, la carte se range et la caisse revient', await D.eval(`document.getElementById('hub-round').hidden && !document.getElementById('hub-draw').hidden`));
   tous.push(D);
 
   const errs = tous.flatMap((J) => J.erreurs.map((e) => `[${J.nom}] ${e}`));
