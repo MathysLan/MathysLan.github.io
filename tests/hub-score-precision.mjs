@@ -20,7 +20,10 @@
 //
 // SOLO (un quatrième contexte) : Précision se joue seul (MIN_PLAYERS = 1). Une
 // session d'un joueur → seul Précision → partie → podium d'une ligne → rang 1
-// → 10 points de soirée.
+// → 10 points de soirée → VRAI retour au Hub (#to-hub, même onglet) : la
+// session, vide le temps de la navigation, est retrouvée avec son score, son
+// historique et son debrief, et un nouveau tirage part. C'est la régression du
+// défaut corrigé dans game-hub-server d679eab (SESSION_NOT_FOUND avant).
 //
 // Pourquoi la frappe : c'est la seule épreuve dont on peut forcer le score
 // exact sans viser au pixel ni au centième (le barème plafonne à 100 %).
@@ -381,12 +384,48 @@ try {
   t('solo : le Hub donne 10 points de soirée', debD.session.scores[idD] === 10, JSON.stringify(debD.session.scores));
   await D.until(`!document.getElementById('to-hub').hidden`, 10000, 'fin solo');
   t('solo : « Retour au Game Hub » proposé', true);
-  // ⚠️ PAS de retour au Hub ici : c'est un défaut CONNU de game-hub-server, hors
-  // de ce raccord. Au debrief d'un lancement, une session sans personne de
-  // connecté est fermée tout de suite (onClose) ; seul, le joueur quitte la page
-  // du jeu avant que /games/ ne se reconnecte → « Ta session précédente n'existe
-  // plus ». Voir CLAUDE.md, « Score de soirée ». Quand le Hub sera corrigé :
-  // cliquer #to-hub et vérifier « 🥇 +10 » dans #hub-score-list.
+
+  // ═══ 8. SOLO : le retour au Hub — régression du défaut corrigé dans
+  // game-hub-server d679eab. Le vrai clic navigue dans le même onglet : la page
+  // du jeu se ferme (et son socket du Hub avec), /games/ se reconnecte ensuite.
+  // Entre les deux, la session n'a AUCUN joueur connecté. Avant le correctif,
+  // onClose la fermait sur-le-champ → SESSION_NOT_FOUND, score perdu. Rien n'est
+  // simulé : seules les trames reçues APRÈS le clic comptent.
+  const codeD = debD.session.code;
+  const avantD = { played: debD.session.history.played, games: debD.session.history.games };
+  const depuis = D.recus.length, depuisEnv = D.envoyes.length;
+  const socketsAvant = Object.keys(D.sockets).filter((k) => D.sockets[k] === 'hub').length;
+  await D.click('#to-hub');
+  const apres = (pred) => D.recus.slice(depuis).find((f) => f.g === 'hub' && pred(f.d));
+  try {
+    await D.until(`${auSalon} && document.querySelectorAll('#hub-score-list li').length === 1`, 20000 * LENT, 'retour Hub solo');
+  } catch (e) {
+    const err = apres((d) => d.type === 'error');
+    throw new Error(e.message + (err ? ` (le Hub a répondu ${err.d.code})` : ''));
+  }
+  t('solo : la page du jeu est quittée, /games/ ouvre un NOUVEAU socket du Hub',
+    Object.keys(D.sockets).filter((k) => D.sockets[k] === 'hub').length > socketsAvant && await D.eval(`location.pathname.endsWith('/games/')`));
+  const joinD = D.envoyes.slice(depuisEnv).find((f) => f.g === 'hub' && f.d.action === 'join' && f.d.code === codeD);
+  const rejoint = apres((d) => d.type === 'joined');
+  t('solo : le Hub le reprend (join avec le même player.id → joined, aucune erreur)',
+    !!joinD && joinD.d.player.id === idD && !!rejoint && rejoint.d.you === idD && !apres((d) => d.type === 'error'),
+    rejoint ? 'joined' : JSON.stringify((apres((d) => d.type === 'error') || {}).d));
+  const sD = rejoint ? rejoint.d.session : {};
+  t('solo : même session, même code affiché', sD.code === codeD && (await D.eval(`document.getElementById('hub-code').textContent.trim()`)) === codeD, codeD);
+  t('solo : score de soirée toujours à 10', sD.scores && sD.scores[idD] === 10 && Object.keys(sD.scores).length === 1, JSON.stringify(sD.scores));
+  t('solo : history.played contient toujours precision', same(sD.history && sD.history.played, avantD.played) && sD.history.played.includes('precision'), JSON.stringify(sD.history && sD.history.played));
+  t('solo : history.games contient toujours la partie terminée', same(sD.history && sD.history.games, avantD.games) && sD.history.games.length === 1 && sD.history.games[0].gameId === 'precision');
+  t('solo : état debrief', sD.state === 'debrief');
+  t('solo : il est toujours le joueur (et l\'hôte) de la session', sD.hostId === idD && same((sD.players || []).map((p) => p.id), [idD]) && sD.players[0].connected === true);
+  const ligne = await D.eval(`(() => { const li = document.querySelector('#hub-score-list .hub-score-row'); return li && { id: li.dataset.player, pts: +li.dataset.points,
+    rang: li.querySelector('.hub-score-rank').textContent, me: li.classList.contains('is-me') }; })()`);
+  t('solo : le bloc affiche 🥇 10, sa ligne en évidence', !!ligne && ligne.id === idD && ligne.pts === 10 && ligne.rang === '🥇' && ligne.me, JSON.stringify(ligne));
+
+  // Et la soirée continue : un nouveau tirage depuis cette même session.
+  await D.click('#hub-draw-btn');
+  await D.until(`document.getElementById('hub-result').dataset.game === 'precision' && !document.getElementById('hub-continue').hidden`, 20000, 'nouveau tirage solo');
+  const tirage2 = apres((d) => d.session && d.session.draw && d.session.draw.status === 'drawn' && d.session.draw.n === 2);
+  t('solo : nouveau tirage possible depuis la session retrouvée (tirage n° 2)', !!tirage2 && tirage2.d.session.code === codeD);
   tous.push(D);
 
   const errs = tous.flatMap((J) => J.erreurs.map((e) => `[${J.nom}] ${e}`));

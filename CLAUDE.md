@@ -1704,17 +1704,27 @@ rang 1, 10 points de soirée — aucun minimum ajouté. Test :
 `tests/hub-score-precision.mjs` (trio : trois manches de FRAPPE en Impossible
 au vrai clavier, la seule épreuve dont on force le score exact → 300 / 300 / 0 ;
 puis un scénario solo).
-⚠️⚠️ **Défaut connu de `game-hub-server`, non corrigé** (vu avec ce test) :
-`onClose` (src/hub.js) ne protège une session VIDE que pendant `launching` /
-`inGame`. Au `debrief` d'un lancement, elle est fermée tout de suite. Seul,
-le joueur quitte la page du jeu (son socket Hub se ferme) avant que `/games/`
-ne se reconnecte → « Ta session précédente n'existe plus », **score de soirée
-perdu**. Touche aussi Le Passeur en solo, et un groupe qui reviendrait tout
-entier au même instant. Le Hub a pourtant bien reçu le classement et crédité
-les points. Piste : traiter `debrief` + `launch.stage === 'ended'` comme
-`HANDOFF_STATES` dans `onClose` (même logique que le `cycle` de
-`session.js`), les grâces individuelles faisant le ménage. Le test solo s'arrête
-donc à la trame du Hub ; il dit quoi ajouter une fois le Hub corrigé.
+✅ **Défaut de `game-hub-server` vu avec ce test — CORRIGÉ le 2026-09-27
+(`d679eab`, « fix: keep completed sessions during debrief grace »).** Ce
+n'est plus un défaut actuel ; l'historique reste utile :
+`onClose` (src/hub.js) ne protégeait une session VIDE que pendant `launching`
+/ `inGame`. Au `debrief` d'un lancement, elle était fermée tout de suite.
+Seul, le joueur quitte la page du jeu (son socket Hub se ferme) avant que
+`/games/` ne se reconnecte → « Ta session précédente n'existe plus », **score
+de soirée perdu**. Touchait aussi Le Passeur en solo, et un groupe revenant
+tout entier au même instant — alors que le Hub avait bien crédité les points.
+Correctif : `S.backFromGame(s)` (`debrief` + `launch` + `launch.stage ===
+'ended'`, la condition que `electHost` utilisait déjà) garde la session vide
+dans `onClose`, **sans** l'ajouter à `HANDOFF_STATES` et sans nouveau timer :
+ce sont les grâces individuelles (`GRACE_MS`, 60 s) qui la ferment si personne
+ne revient. Le joueur qui revient avec le même player.id retrouve la session,
+son score, `history.played` / `history.games` et le `debrief`. Inchangé :
+`lobby`, `drawing`, un `debrief` sans partie terminée et `leave` ferment
+toujours tout de suite. Tests : `game-hub-server/test-debrief.js` (31, dans
+`npm test`) ; côté portfolio, le scénario solo de
+`tests/hub-score-precision.mjs` va maintenant jusqu'au vrai retour au Hub
+(`#to-hub`) et un nouveau tirage — il échoue en `SESSION_NOT_FOUND` contre
+le Hub d'avant `d679eab` (vérifié). Production : sonde solo 4/4, trio 5/5.
 
 Deux autorités, qui ne se mélangent pas : **le jeu** reste maître de SA partie,
 **le Hub** (`game-hub-server/src/scores.js`, module pur) est maître de la
