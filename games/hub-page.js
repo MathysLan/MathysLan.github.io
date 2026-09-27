@@ -598,15 +598,16 @@
     }
     const libre = session.state === 'lobby' || session.state === 'debrief';
     btn.hidden = !isHost || !libre;
+    // Terminer la soirée (pour TOUT le monde) : l'hôte seul, au salon seulement
+    // — le serveur refuse aussi pendant un tirage, un lancement ou une partie.
+    $('hub-finish').hidden = !isHost || !libre;
     if (session.state === 'launching' || session.state === 'inGame') {
       const g = session.launch ? info(session.launch.gameId).title : 'le jeu';
       $('hub-wait').textContent = session.state === 'launching' ? `Lancement ${de(g)} en cours.` : `Partie ${de(g)} en cours.`;
       return;
     }
     btn.textContent = session.history.played.length ? '🎲 Tirage suivant' : '🎲 Tirer un jeu';
-    // Même action (leave) : une fois qu'une partie a compté, quitter, c'est
-    // finir sa soirée — et le débrief s'affiche.
-    $('hub-leave').textContent = (session.history.games || []).length ? 'Terminer ma soirée' : 'Quitter la session';
+    $('hub-finish').disabled = false;
     btn.disabled = pool.catalog !== 'ready' || !pool.eligible.length;
     if (session.state === 'drawing') {
       $('hub-wait').textContent = isHost ? 'Tirage en cours.' : `${hostName} a lancé le tirage.`;
@@ -638,6 +639,8 @@
   // La session est finie pour ce client : disparue pendant une reprise,
   // reprise dans un autre onglet (REPLACED), ou réseau définitivement perdu.
   hub.on('ended', (err) => {
+    // Pendant une reconnexion, la soirée a été terminée : le refus porte le podium.
+    if (err && err.finale) return showFinale(err.finale, GameProfile.load().id);
     store.clear();
     show('entry');
     say('');
@@ -664,24 +667,113 @@
     warn('');
     say('Tu as quitté la session.');
     renderMe();
-    if (recap) showRecap(recap);
+    if (recap) showRecap(recap, 'leave');
+  });
+
+  // ---------------------------------------------------- terminer la soirée
+  // L'hôte termine la soirée pour tout le monde : confirmation obligatoire
+  // (un <dialog> natif : focus piégé, Échap = annuler). Le serveur répond par
+  // la finale, à tous — c'est elle qui ouvre le podium, pas ce clic.
+  const dlg = $('finish-dialog');
+  $('hub-finish').addEventListener('click', () => {
+    if (typeof dlg.showModal === 'function') dlg.showModal();
+    else if (window.confirm('Terminer la soirée ? Tous les joueurs verront le podium final et la session ne pourra plus continuer.')) confirmerFin();
+  });
+  $('finish-cancel').addEventListener('click', () => dlg.close());
+  function confirmerFin() {
+    $('hub-finish').disabled = true;            // un seul envoi ; le serveur est idempotent de toute façon
+    if (!hub.finish()) {
+      $('hub-finish').disabled = false;
+      $('hub-lobby-msg').textContent = '> Connexion au Hub perdue : réessaie dans un instant.';
+    }
+  }
+  $('finish-confirm').addEventListener('click', () => { dlg.close(); confirmerFin(); });
+
+  // La finale : en direct (message du serveur), après un rechargement ou en
+  // revenant (refus SESSION_CLOSED qui porte le podium). Toujours le podium
+  // FIGÉ par le Hub, jamais recalculé ici.
+  function showFinale(finale, you) {
+    store.clear();
+    current = null;
+    try { if (dlg.open) dlg.close(); } catch (_) {}
+    show('entry');
+    $('entry').hidden = true;                   // le podium d'abord ; l'accueil après
+    warn(''); say('');
+    showRecap(HubRecap.fromFinale(finale, you, info), 'finale');
+  }
+  hub.on('finale', ({ finale, you }) => showFinale(finale, you));
+  $('recap-home').addEventListener('click', () => {
+    clearReveal();
+    show('entry');
+    say('La soirée est terminée. À la prochaine !');
+    renderMe();
+    $('hub-create').focus();
   });
 
   // ------------------------------------------------------ débrief de soirée
   // Affiché en quittant une session où au moins une partie a été classée, au-
   // dessus de l'écran d'entrée : la suite (créer, rejoindre) est juste dessous.
   // Tout vient de HubRecap.build(), donc du Hub ; rien n'est recalculé ici.
+  // La RÉVÉLATION du podium final : « La soirée est terminée », un temps, puis
+  // le 3e, le 2e, le 1er (par RANG : des ex æquo apparaissent ensemble, et un
+  // rang absent — 1, 1, 3 — est simplement sauté), puis le reste. Tout est déjà
+  // dans le DOM : une connexion lente n'y change rien, seule la mise en scène
+  // attend. Mouvement réduit : tout est là tout de suite.
+  const REVEAL_FIRST = 1100, REVEAL_STEP = 950;
+  let revealTimers = [];
+  function clearReveal() {
+    revealTimers.forEach(clearTimeout);
+    revealTimers = [];
+    $('hub-recap').classList.remove('is-revealing');
+    $('recap-ranking').removeAttribute('aria-busy');
+  }
+  function reveler(r) {
+    const sec = $('hub-recap');
+    const rows = [...document.querySelectorAll('#recap-ranking .recap-row')];
+    const later = [...sec.querySelectorAll('.recap-later')];
+    const tops = r.ranking.filter((l) => l.rank === 1).map((l) => l.name);
+    const annonce = () => { $('recap-live').textContent = (tops.length > 1 ? 'Vainqueurs de la soirée, à égalité : ' : 'Vainqueur de la soirée : ') + tops.join(', ') + '.'; };
+    if (reduced()) { annonce(); return; }
+    sec.classList.add('is-revealing');
+    $('recap-ranking').setAttribute('aria-busy', 'true');
+    [...rows, ...later].forEach((x) => x.classList.remove('is-shown'));
+    let t = REVEAL_FIRST;
+    for (const k of [3, 2, 1]) {
+      const groupe = rows.filter((x) => Number(x.dataset.rank) === k);
+      if (!groupe.length) continue;
+      revealTimers.push(setTimeout(() => groupe.forEach((x) => x.classList.add('is-shown')), t));
+      t += REVEAL_STEP;
+    }
+    revealTimers.push(setTimeout(() => {
+      [...rows, ...later].forEach((x) => x.classList.add('is-shown'));
+      clearReveal();
+      annonce();
+    }, t));
+  }
+
   const el = (tagName, cls, text) => {
     const n = document.createElement(tagName);
     if (cls) n.className = cls;
     if (text != null) n.textContent = text;
     return n;
   };
-  function showRecap(r) {
+  //   mode 'leave'  : ton récap, en quittant (l'entrée reste juste dessous) ;
+  //   mode 'finale' : la soirée terminée par l'hôte, pour tous — révélée.
+  function showRecap(r, mode) {
+    const finale = mode === 'finale';
+    clearReveal();
+    $('hub-recap').classList.toggle('is-final', finale);
     $('recap-code').textContent = r.code;
-    $('recap-sub').textContent = r.othersOnline
-      ? 'Classement au moment de ton départ — la session continue pour les autres.'
-      : `${r.facts.count} partie${r.facts.count > 1 ? 's' : ''} au compteur. Merci d'avoir joué !`;
+    $('recap-title').textContent = finale ? '🏆 Soirée terminée' : '📋 Ton récap de soirée';
+    const moi = r.ranking.find((l) => l.me);
+    $('recap-sub').textContent = finale
+      ? (r.by && moi && r.by === moi.id ? 'Tu as terminé la soirée. Voici le podium final.' : `${r.byName || 'L\'hôte'} a terminé la soirée. Voici le podium final.`)
+      : r.othersOnline
+        ? 'Tu as quitté la session — elle continue pour les autres. Classement au moment de ton départ.'
+        : `Tu as quitté la session. ${r.facts.count} partie${r.facts.count > 1 ? 's' : ''} au compteur. Merci d'avoir joué !`;
+    $('recap-next').hidden = finale;
+    $('recap-home').hidden = !finale;
+    $('recap-live').textContent = '';
 
     const personne = r.ranking.every((l) => l.pts === 0);
     $('recap-ranking').replaceChildren(...r.ranking.map((l) => {
@@ -706,10 +798,14 @@
 
     const f = r.facts;
     $('recap-count').textContent = String(f.count);
-    $('recap-last').textContent = `${f.last.emoji} ${f.last.title}`;
+    $('recap-last').textContent = f.last ? `${f.last.emoji} ${f.last.title}` : '—';
     $('recap-gain').textContent = f.lastGain == null ? '—' : '+' + f.lastGain + ' pts';
 
     $('hub-recap').classList.toggle('is-solo', r.solo);
+    const aucune = !r.games.length;
+    $('recap-empty').hidden = !aucune;
+    document.querySelectorAll('#hub-recap .recap-games-head, #hub-recap .recap-game-cols').forEach((x) => { x.hidden = aucune; });
+    $('recap-games').hidden = aucune;
     $('recap-games').replaceChildren(...r.games.map((g) => {
       const li = el('li', 'recap-game');
       li.dataset.game = g.gameId;
@@ -726,6 +822,7 @@
     }));
 
     $('hub-recap').hidden = false;
+    if (finale) reveler(r);
     // Un changement d'écran, pas un déplacement dans la page : saut immédiat.
     // (Animé, le défilement continuait sous le doigt de qui cliquait déjà
     // « Créer une session » juste dessous — mesuré par tests/hub-score.mjs.)
@@ -758,6 +855,9 @@
     hub.join(resume, GameHub.playerFrom(GameProfile.load())).then(() => say(''), (e) => {
       store.clear();
       say('');
+      // Soirée terminée pendant qu'on n'était pas là (ou rechargement juste
+      // après) : pas de reprise, mais le podium, si on en faisait partie.
+      if (e.finale) return showFinale(e.finale, GameProfile.load().id);
       warn(e.code === 'SESSION_NOT_FOUND' || e.code === 'SESSION_CLOSED'
         ? 'Ta session précédente n\'existe plus.' : e.message);
       renderMe();

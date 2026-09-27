@@ -99,6 +99,8 @@
   var startedMsg = function (drawId) { return { action: 'started', drawId: drawId }; };
   var endedMsg = function (drawId) { return { action: 'ended', drawId: drawId }; };
   var abortMsg = function (drawId, reason, detail) { return { action: 'abort', drawId: drawId, reason: reason, detail: detail }; };
+  // Fin de soirée : l'hôte termine la session pour tout le monde. Ne porte rien.
+  var finishMsg = function () { return { action: 'finish' }; };
 
   // Ce qui arrive du réseau n'est jamais pris tel quel.
   function parseMessage(raw) {
@@ -262,6 +264,23 @@
     }
   }
 
+  // Le podium FINAL, tel que le Hub l'a figé (game-hub-server, finale.js).
+  // Relu en liste blanche comme le reste : la page n'en recalcule rien.
+  function readFinale(f) {
+    if (!f || typeof f !== 'object' || typeof f.code !== 'string' || !Array.isArray(f.ranking)) return null;
+    return {
+      code: f.code,
+      at: num(f.at),
+      by: typeof f.by === 'string' ? f.by : null,
+      played: num(f.played) || 0,
+      games: readGames(f.games),
+      ranking: f.ranking.filter(function (l) { return l && typeof l.playerId === 'string'; }).map(function (l) {
+        return { playerId: l.playerId, name: typeof l.name === 'string' ? l.name : '?', avatar: l.avatar,
+          points: num(l.points) || 0, rank: num(l.rank) || 0, present: l.present !== false };
+      }),
+    };
+  }
+
   // Codes du serveur → phrases lisibles. Jamais d'erreur brute à l'écran.
   var TEXTES = {
     SESSION_NOT_FOUND: 'Aucune session avec ce code. Vérifie-le avec la personne qui l\'a créée.',
@@ -296,6 +315,8 @@
     BAD_RESULTS: 'Le classement de la partie a été refusé par le Hub.',
     GAME_MISMATCH: 'Ce classement ne vient pas du jeu lancé.',
     RESULTS_ALREADY: 'Le classement de cette partie est déjà compté.',
+    // Fin de soirée.
+    FINISH_NOT_ALLOWED: 'On ne peut pas terminer la soirée pendant un tirage ou une partie.',
   };
 
   // Pourquoi un lancement a échoué (launch.reason), dit au groupe entier.
@@ -327,7 +348,8 @@
 
   // --------------------------------------------------------------- client
   // États : idle → connecting → in-session ⇄ reconnecting ; ended (fin).
-  // Événements : status, session, error, ended.
+  // Événements : status, session, error, ended, finale (soirée terminée par
+  // l'hôte : { finale, you } — le client est alors fini, comme après ended).
   function createClient(options) {
     options = options || {};
     var url = options.url || PROD;
@@ -387,8 +409,23 @@
         emit('session', { session: s2, you: you });
         return;
       }
+      // La soirée est terminée par l'hôte : le serveur détache ce socket et le
+      // ferme. On ne revient PAS (il n'y a plus de session où revenir).
+      if (m.type === 'finale') {
+        var fin = readFinale(m.finale);
+        if (!fin) return;
+        closedByUs = true;
+        clearTimeout(retryTimer);
+        try { if (ws) ws.close(); } catch (_) {}
+        ws = null; session = null; code = null;
+        setStatus('ended');
+        emit('finale', { finale: fin, you: you });
+        return;
+      }
       if (m.type === 'error') {
         var err = { code: m.code, text: errorText(m.code, m.message), why: m.why && typeof m.why === 'object' ? m.why : null };
+        // Une soirée terminée refusée à un de ses joueurs porte son podium.
+        if (m.code === 'SESSION_CLOSED' && m.finale) err.finale = readFinale(m.finale);
         // Remplacé ailleurs : on NE revient PAS tout seul, sinon deux onglets du
         // même profil s'éjecteraient l'un l'autre en boucle.
         if (m.code === 'REPLACED') { closedByUs = true; setStatus('ended'); emit('ended', err); return; }
@@ -396,7 +433,7 @@
         if (status === 'reconnecting' && (m.code === 'SESSION_NOT_FOUND' || m.code === 'SESSION_CLOSED')) {
           end(err); return;
         }
-        if (pending) { pending.reject(fail(m.code, m.message)); pending = null; return; }
+        if (pending) { var e = fail(m.code, m.message); if (err.finale) e.finale = err.finale; pending.reject(e); pending = null; return; }
         emit('error', err);
       }
     }
@@ -490,6 +527,8 @@
       started: function (drawId) { send(startedMsg(drawId)); },
       ended: function (drawId) { send(endedMsg(drawId)); },
       abort: function (drawId, reason, detail) { send(abortMsg(drawId, reason, detail)); },
+      // Fin de soirée (hôte). Rend false si le message n'a pas pu partir.
+      finish: function () { if (!ws || ws.readyState !== 1) return false; send(finishMsg()); return true; },
       get status() { return status; },
       get session() { return session; },
       get you() { return you; },
@@ -505,6 +544,7 @@
     playerFrom: playerFrom, createMsg: createMsg, joinMsg: joinMsg, leaveMsg: leaveMsg,
     prefsMsg: prefsMsg, capsMsg: capsMsg, constraintsMsg: constraintsMsg, drawMsg: drawMsg, continueMsg: continueMsg,
     launchedMsg: launchedMsg, enteredMsg: enteredMsg, resultsMsg: resultsMsg, startedMsg: startedMsg, endedMsg: endedMsg, abortMsg: abortMsg,
+    finishMsg: finishMsg, readFinale: readFinale,
     readLaunch: readLaunch, launchFailureText: launchFailureText,
     parseMessage: parseMessage, readSession: readSession, errorText: errorText, reasonText: reasonText,
     createClient: createClient,

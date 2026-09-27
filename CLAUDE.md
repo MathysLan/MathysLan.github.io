@@ -1826,12 +1826,13 @@ soirée. La page ne calcule aucun point.
 
 ## Débrief de soirée (2026-09-27)
 
-⚠️ **Le Hub n'a pas d'état « soirée terminée ».** `debrief` revient après
-CHAQUE partie et la session reste active (on retire). La seule fin réelle,
-pour un joueur, c'est de partir. Le débrief final s'affiche donc **au clic sur
-« Quitter » quand au moins une partie a été classée** — le bouton dit alors
-« Terminer ma soirée » (même action : `leave`). Aucune partie → départ comme
-avant. Rien n'a changé côté serveur ni dans le cycle de vie de la session.
+Le récap PERSONNEL : `debrief` revient après CHAQUE partie et la session reste
+active ; en QUITTANT une session où au moins une partie a été classée, le
+joueur voit « 📋 Ton récap de soirée » (`leave` inchangé, la session continue
+pour les autres). Aucune partie → départ comme avant. La vraie fin, pour tout
+le monde, c'est l'hôte qui la décide : voir « Fin de soirée » juste dessous.
+⚠️ Le bouton de départ a brièvement dit « Terminer ma soirée » : il dit de
+nouveau « Quitter la session » depuis que la fin de soirée existe.
 
 - `games/hub-recap.js` : module PUR (page + Node). `ranking()` = la règle de
   rang du panneau Score, qui l'utilise aussi (plus deux copies à tenir) ;
@@ -1860,6 +1861,49 @@ avant. Rien n'a changé côté serveur ni dans le cycle de vie de la session.
 - Test : `tests/hub-recap.mjs` (module pur + vraie page contre un vrai
   game-hub-server, aucun jeu lancé : des clients Node jouent le protocole,
   l'un porte l'id du profil du navigateur, qui reprend la session).
+
+## Fin de soirée : l'hôte termine, tout le monde voit le podium (2026-09-27)
+
+**Quitter ≠ terminer.** « Quitter la session » (`leave`, tout le monde) ne
+fait partir que soi : ses points restent, les autres continuent. « 🏁 Terminer
+la soirée » (`finish`, l'HÔTE seul, avec confirmation) termine la session pour
+TOUS et révèle le podium final.
+
+**Serveur (game-hub-server)** — nouvel état `finished`, nouvelle action
+`finish`, nouveau message `{ type: 'finale', finale }`, nouvelle erreur
+`FINISH_NOT_ALLOWED`, module pur `src/finale.js`. Détail dans son README
+(« Fin de soirée »). L'essentiel :
+- hôte = `session.hostId`, la règle unique d'`electHost`, sans exception
+  ajoutée : un hôte réélu peut terminer (sinon une soirée dont l'hôte est parti
+  ne finirait jamais) ;
+- au salon seulement (`lobby` / `debrief`) ; jamais pendant un tirage, un
+  lancement ou une partie ;
+- le podium est calculé UNE fois sur `scores` (rangs de compétition, ex æquo
+  au même rang), avec les joueurs PARTIS qui avaient marqué (nom + avatar
+  gardés à leur départ dans `session.departed`, `present: false`) ;
+- les sockets sont détachés et fermés (4002) : plus rien ne démarre ; un
+  `join` reçoit `SESSION_CLOSED` — jamais de reprise — avec le podium si l'on
+  en faisait partie ; au bout de 10 min, `SESSION_NOT_FOUND` ;
+- double clic / double message : une seule clôture, la même finale.
+
+**Page (/games/)** — `game-hub.js` (`?v=3` sur /games/) : `finish()`,
+événement `finale`, `readFinale`, et `e.finale` / `err.finale` sur un
+refus `SESSION_CLOSED` (reprise au rechargement, reconnexion). Ajouts
+seulement : les pages de jeux, qui chargent aussi ce fichier, n'en utilisent
+rien. `hub-recap.js` : `fromFinale()` reprend le podium TEL QUEL (aucun
+retri). Le podium réutilise `#hub-recap` en mode « finale » : la
+**révélation** (« La soirée est terminée » ~1,1 s, puis le 3e, le 2e, le 1er —
+par RANG, des ex æquo ensemble, un rang absent sauté — puis le reste) est une
+mise en scène locale : tout est déjà dans le DOM. Mouvement réduit : tout
+d'emblée. Puis « Retour à l'accueil ». Confirmation = `<dialog>` natif (focus
+piégé, Échap) avec un `.panel` DEDANS — `.panel` sur le `<dialog>` casserait
+son positionnement.
+
+Tests : `game-hub-server/test-finale.js` (34, vraies connexions) ;
+`tests/hub-finale.mjs` (trois navigateurs contre un vrai Hub, 33 — 31 en
+mouvement réduit). ⚠️ Dans ce dernier, attendre ~300 ms après le passage
+390 → 1280 px avant de cliquer : sans cette pause, un clic s'est perdu 2 fois
+sur 5 en mouvement réduit (plus aucun échec sur 5 exécutions depuis).
 
 ## Handoff et présence : l'état des sept jeux
 

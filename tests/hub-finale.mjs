@@ -1,23 +1,24 @@
-// Débrief de soirée du Game Hub : le module pur (games/hub-recap.js), puis la
-// vraie page /games/ contre un VRAI game-hub-server local.
+// Fin de soirée du Game Hub : l'HÔTE termine, TOUT LE MONDE voit le podium.
+// La vraie page /games/, trois navigateurs, contre un VRAI game-hub-server local.
 //
-//   node tests/hub-recap.mjs              module + navigateur
-//   node tests/hub-recap.mjs --reduced    même parcours en mouvement réduit
-//   node tests/hub-recap.mjs --shots <d>  captures du débrief (1280 et 390 px)
+//   node tests/hub-finale.mjs              révélation animée
+//   node tests/hub-finale.mjs --reduced    mouvement réduit : tout est là d'emblée
+//   node tests/hub-finale.mjs --shots <d>  captures du podium (1280 et 390 px)
 //
-// ⚠️ AUCUN JEU N'EST LANCÉ, ET AUCUN SCORE N'EST FABRIQUÉ CÔTÉ PAGE. Des
-// clients Node jouent le protocole du Hub tel que les pages de jeux le jouent
-// (tirage, continue, launched / entered avec la place, results, ended — comme
-// game-hub-server/test-scores.js) : c'est le VRAI Hub qui calcule le score et
-// l'historique. L'un de ces clients porte l'id du profil du navigateur ; il se
-// déconnecte, et la vraie page /games/ reprend la session — exactement le
-// retour au Hub après une partie. Puis le navigateur clique « Terminer ma
-// soirée » : le débrief est construit sur l'état que le Hub vient d'envoyer.
+// ⚠️ AUCUN JEU LANCÉ, AUCUN SCORE FABRIQUÉ CÔTÉ PAGE. Comme tests/hub-recap.mjs :
+// des clients Node jouent le protocole du Hub (tirage, launched / entered,
+// results, ended) avec l'id de profil de chaque navigateur, puis se
+// déconnectent ; les navigateurs reprennent la session — le vrai retour au Hub.
+// Le podium affiché doit être EXACTEMENT celui que le Hub a figé (`finale`).
 //
-// Scénarios : 3 joueurs / 1 partie ; 3 joueurs / 3 parties avec ex æquo et un
-// joueur parti en route ; solo ; aucune partie (comportement d'avant) ; le
-// débrief n'apparaît jamais tant que la session est active ; une nouvelle
-// session le range et repart de zéro. Mise en page à 1280 et 390 px.
+// Scénarios :
+//   1. trois joueurs + un quatrième parti avant la fin ; ex æquo en tête ;
+//      seul l'hôte a « Terminer la soirée » ; Annuler ne fait rien ; confirmer
+//      (deux fois, exprès) → une seule fin, le même podium chez les trois ;
+//      la révélation 3e → 1er (ou tout de suite en mouvement réduit) ;
+//      390 px lisible ; « Retour à l'accueil » ;
+//   2. un joueur absent pendant la fin revient : pas de reprise, le podium ;
+//   3. l'hôte seul, sans aucune partie : un podium d'une ligne, sans historique.
 import { spawn, execFileSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
@@ -158,56 +159,6 @@ async function joueur(cdp, nom) {
 }
 
 
-// ═══════════════════════════════════════════════ 1. le module pur, sans réseau
-const require = createRequire(import.meta.url);
-const HubRecap = require(path.join(ROOT, 'games', 'hub-recap.js'));
-const INFO = { passeur: { emoji: '🏐', title: 'Le Passeur' }, precision: { emoji: '🎯', title: 'Précision' }, morpion: { emoji: '❌', title: 'Morpion' } };
-const info = (id) => INFO[id] || { emoji: '🎮', title: id };
-const P = (id, name, connected = true) => ({ id, name, avatar: { kind: 'emoji', emoji: '🦊' }, connected });
-const G = (n, gameId, rows) => ({ n, drawId: 'd' + n, gameId, at: n, players: rows.length, results: rows.map(([playerId, name, rank, points]) => ({ playerId, name, rank, gamePoints: 0, points })) });
-const S = (players, scores, games) => ({ code: 'ABCDE', players, scores, history: { played: games.map((g) => g.gameId), games } });
-
-console.log('Débrief de soirée — module pur\n');
-t('aucune partie classée → pas de débrief (null), pas de faux historique', HubRecap.build(S([P('a', 'Ana')], {}, []), 'a', info) === null);
-{
-  const s = S([P('a', 'Ana'), P('b', 'Bob'), P('c', 'Cam')], { a: 20, b: 30, c: 10 }, [G(1, 'passeur', [['b', 'Bob', 1, 30], ['a', 'Ana', 2, 20], ['c', 'Cam', 3, 10]])]);
-  const r = HubRecap.build(s, 'a', info);
-  t('1 partie : classement du Hub, meilleurs d\'abord (Bob 30, Ana 20, Cam 10)', same(r.ranking.map((l) => [l.name, l.pts, l.rank]), [['Bob', 30, 1], ['Ana', 20, 2], ['Cam', 10, 3]]));
-  t('1 partie : « toi » repéré, une ligne d\'historique', r.ranking.find((l) => l.me).id === 'a' && r.games.length === 1);
-  t('1 partie : vainqueur Bob, ta place 2 (🥈), ton gain +20', same(r.games[0].winners.map((w) => w.name), ['Bob']) && same(r.games[0].me, { rank: 2, points: 20 }) && HubRecap.place(2) === '🥈');
-  t('1 partie : chiffres — 1 partie, dernier jeu Le Passeur, dernier gain +20', r.facts.count === 1 && r.facts.last.title === 'Le Passeur' && r.facts.lastGain === 20);
-  t('1 partie : pas solo', r.solo === false);
-}
-{
-  // Trois parties ; ex æquo dans la 2e ; Cam part après la 2e (garde ses points).
-  const games = [
-    G(1, 'passeur', [['a', 'Ana', 1, 30], ['b', 'Bob', 2, 20], ['c', 'Cam', 3, 10]]),
-    G(2, 'precision', [['b', 'Bob', 1, 30], ['c', 'Cam', 1, 30], ['a', 'Ana', 3, 10]]),
-    G(3, 'morpion', [['a', 'Ana', 1, 20], ['b', 'Bob', 2, 10]]),
-  ];
-  const s = S([P('a', 'Ana'), P('b', 'Bob')], { a: 60, b: 60, c: 40 }, games);
-  const r = HubRecap.build(s, 'b', info);
-  t('plusieurs parties : cumul du Hub, ex æquo au MÊME rang (60, 60, 40 → 1, 1, 3)', same(r.ranking.map((l) => [l.name, l.pts, l.rank]), [['Ana', 60, 1], ['Bob', 60, 1], ['Cam', 40, 3]]));
-  t('plusieurs parties : à égalité, l\'ordre d\'arrivée — aucun départage inventé', r.ranking[0].rank === r.ranking[1].rank);
-  t('joueur parti en route : il reste au classement avec ses points, marqué parti', r.ranking[2].gone === true && r.ranking[2].name === 'Cam');
-  t('historique : dans l\'ordre chronologique, sans doublon', same(r.games.map((g) => g.n), [1, 2, 3]) && same(r.games.map((g) => g.gameId), ['passeur', 'precision', 'morpion']));
-  t('historique : ex æquo de la partie 2 → deux vainqueurs (Bob, Cam)', same(r.games[1].winners.map((w) => w.name), ['Bob', 'Cam']));
-  t('historique : ta place et ton gain par partie (2 +20, 1 +30, 2 +10)', same(r.games.map((g) => g.me && [g.me.rank, g.me.points]), [[2, 20], [1, 30], [2, 10]]));
-  t('chiffres : 3 parties, dernier jeu Morpion, dernier gain +10', r.facts.count === 3 && r.facts.last.gameId === 'morpion' && r.facts.lastGain === 10);
-  const r2 = HubRecap.build(s, 'c', info);
-  t('pas classé dans la dernière partie → dernier gain « — » (null), pas 0', r2.facts.lastGain === null && r2.games[2].me === null);
-}
-{
-  const s = S([P('a', 'Ana')], { a: 10 }, [G(1, 'precision', [['a', 'Ana', 1, 10]])]);
-  const r = HubRecap.build(s, 'a', info);
-  t('solo : une ligne, rang 1, 10 pts, marqué solo', r.solo === true && same(r.ranking.map((l) => [l.name, l.pts, l.rank]), [['Ana', 10, 1]]) && r.othersOnline === false);
-}
-{
-  const s = S([P('a', 'Ana'), P('b', 'Bob')], { a: 0, b: 0 }, []);
-  t('ranking() seul (panneau Score) : joueurs de la session, 0 pour tous, ex æquo 1 / 1', same(HubRecap.ranking(s).map((l) => l.rank), [1, 1]));
-  t('ranking() seul : n\'ajoute PAS les joueurs partis', HubRecap.ranking(S([P('a', 'Ana')], { a: 5, z: 9 }, [])).length === 1);
-}
-t('place() : 🥇 🥈 🥉 puis « 4e »', same([1, 2, 3, 4].map(HubRecap.place), ['🥇', '🥈', '🥉', '4e']));
 
 // ═══════════════════════════════════════════ 2. la vraie page, le vrai Hub
 const WS = createRequire(path.join(ROOT, '..', 'game-hub-server', 'package.json'))('ws');
@@ -315,115 +266,166 @@ const GEOM = `(() => {
   return { deborde, chev, coupe, scrollX: document.documentElement.scrollWidth > innerWidth + 1 };
 })()`;
 
-const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hubrecap-'));
+
+const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hubfinale-'));
 const edge = spawn(EDGE, ['--headless=new', '--disable-gpu', `--remote-debugging-port=${CDP_PORT}`, `--user-data-dir=${dir}`, '--no-first-run',
   '--disable-features=BackForwardCache', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', 'about:blank'], { stdio: 'ignore' });
 let cdp = null;
 
+const finaleVue = `!document.getElementById('hub-recap').hidden && document.getElementById('hub-recap').classList.contains('is-final')`;
+const toutMontre = `!document.getElementById('hub-recap').classList.contains('is-revealing')`;
+// L'état visible d'une ligne du podium : montrée ou encore retenue par la révélation.
+const VISIBLES = `[...document.querySelectorAll('#recap-ranking .recap-row')].map((li) => [li.dataset.player, getComputedStyle(li).opacity === '1'])`;
+const trames = (J, type) => J.recus.filter((f) => f.g === 'hub' && f.d.type === type).map((f) => f.d);
+
 try {
   cdp = await cdpBrowser();
-  const W = await joueur(cdp, 'W');
+  const [A, B, C] = [await joueur(cdp, 'A'), await joueur(cdp, 'B'), await joueur(cdp, 'C')];
+  console.log(`Fin de soirée — trois navigateurs, vrai Hub (${REDUCED ? 'mouvement RÉDUIT' : 'révélation animée'})\n`);
 
-  // ═══ A. 3 joueurs, 1 partie
-  console.log('\nDébrief de soirée — navigateur, vrai Hub\n');
-  {
-    const w = await entre('Wen', 'p_recapw1');
-    const code = w.last().code;
-    const b = await entre('Bob', 'p_recapb1', code), c = await entre('Cam', 'p_recapc1', code);
-    const deb = await partie(w, [b, c], 'passeur', { Wen: 2, Bob: 1, Cam: 3 });
-    await w.fermer();
-    await reprend(W, 'p_recapw1', 'Wen', code);
-    t('A — après la partie, retour au salon : PAS de débrief (la session est active)', !(await W.eval(recapVu)));
-    t('A — le départ dit « Quitter la session » (terminer la soirée pour tous, c\'est l\'hôte, ailleurs)', (await W.eval(`document.getElementById('hub-leave').textContent`)) === 'Quitter la session');
-    await W.click('#hub-leave');
-    await W.until(recapVu, 5000, 'débrief A');
-    const v = await W.eval(LIRE);
-    t('A — « Ton récap de soirée » (pas « Soirée terminée » : la session continue), code de la session', /Ton récap/.test(v.titre) && !/terminée/i.test(v.titre) && v.code === code);
-    t('A — classement = scores du Hub (Bob 30, Wen 20, Cam 10), 🥇🥈🥉, avatars', same(v.rang.map((l) => [l.id, l.pts, l.rank, l.medaille]), [['p_recapb1', 30, 1, '🥇'], ['p_recapw1', 20, 2, '🥈'], ['p_recapc1', 10, 3, '🥉']])
-      && v.rang.every((l) => l.av) && same(v.rang.map((l) => [l.id, l.pts]), Object.entries(deb.scores).sort((x, y) => y[1] - x[1])), JSON.stringify(v.rang));
-    t('A — sa ligne en évidence, le premier mis en avant', v.rang.find((l) => l.moi).id === 'p_recapw1' && v.rang[0].top && !v.rang[1].top);
-    t('A — chiffres : 1 partie, Le Passeur, +20 pts', v.count === '1' && /Passeur/.test(v.last) && v.gain === '+20 pts', `${v.count} | ${v.last} | ${v.gain}`);
-    t('A — historique : une ligne, vainqueur Bob, ta place 🥈, +20', v.jeux.length === 1 && /Bob/.test(v.jeux[0].win) && v.jeux[0].winVu && v.jeux[0].me === '🥈' && v.jeux[0].pts === '+20', JSON.stringify(v.jeux));
-    t('A — l\'entrée reste juste dessous (créer / rejoindre), le salon est rangé', v.entree && !v.salon);
-    for (const [w_, h_] of [[1280, 900], [390, 780]]) {
-      await W.size(w_, h_); await sleep(200);
-      const g = await W.eval(GEOM);
-      t(`A — ${w_} px : rien ne déborde du panneau, rien ne se chevauche, pas de défilement horizontal`, !g.deborde.length && !g.chev.length && !g.coupe.length && !g.scrollX, JSON.stringify(g));
-      if (SHOTS) await W.shot(`recap-A-${w_}`, '#hub-recap');
-    }
-    await W.size(1280, 900);
-    for (const k of [b, c]) k.ws.terminate();
+  // ═══ 1. trois joueurs, un quatrième parti, ex æquo en tête
+  const ids = { A: 'p_fina', B: 'p_finb', C: 'p_finc', D: 'p_find' };
+  const a = await entre('Ana', ids.A);
+  const code = a.last().code;
+  const b = await entre('Bob', ids.B, code), c = await entre('Cam', ids.C, code), d = await entre('Dan', ids.D, code);
+  // 4 classés : Ana 1, Bob 1 (ex æquo), Cam 3, Dan 4 → 40 / 40 / 20 / 10.
+  const deb = await partie(a, [b, c, d], 'passeur', { Ana: 1, Bob: 1, Cam: 3, Dan: 4 });
+  t('préparation : le Hub a compté 40 / 40 / 20 / 10', same(deb.scores, { [ids.A]: 40, [ids.B]: 40, [ids.C]: 20, [ids.D]: 10 }), JSON.stringify(deb.scores));
+  d.send({ action: 'leave' });                               // Dan quitte : lui seul
+  await a.until((s) => s.players.length === 3, 5000);
+  for (const k of [a, b, c]) await k.fermer();
+  await reprend(A, ids.A, 'Ana', code);
+  await reprend(B, ids.B, 'Bob', code);
+  await reprend(C, ids.C, 'Cam', code);
+  t('les trois reviennent au salon, Ana hôte', (await A.eval(`document.querySelector('#hub-players .hub-card.is-me .hub-tag.host') !== null`)));
+
+  const finishVu = `(() => { const b = document.getElementById('hub-finish'); return !b.hidden && !!b.offsetParent; })()`;
+  t('seul l\'hôte voit « 🏁 Terminer la soirée »', (await A.eval(finishVu)) && !(await B.eval(finishVu)) && !(await C.eval(finishVu)));
+  t('… et tout le monde garde « Quitter la session »', (await Promise.all([A, B, C].map((J) => J.eval(`document.getElementById('hub-leave').textContent`)))).every((x) => x === 'Quitter la session'));
+  t('le bouton de fin est distinct du départ (bouton plein, pas fantôme)', await A.eval(`!document.getElementById('hub-finish').classList.contains('ghost') && document.getElementById('hub-leave').classList.contains('ghost')`));
+
+  // Annuler : rien ne part.
+  const env0 = A.envoyes.length;
+  await A.click('#hub-finish');
+  await A.until(`document.getElementById('finish-dialog').open`, 3000, 'confirmation');
+  t('la confirmation s\'ouvre, avec son texte', /podium final/.test(await A.eval(`document.getElementById('finish-text').textContent`)));
+  await A.click('#finish-cancel');
+  await sleep(300);
+  t('Annuler : la confirmation se ferme, aucun `finish` envoyé, la soirée continue', !(await A.eval(`document.getElementById('finish-dialog').open`))
+    && !A.envoyes.slice(env0).some((f) => f.d.action === 'finish') && !(await B.eval(finaleVue)));
+
+  // Confirmer — et renvoyer exprès une seconde fois (double clic / double message).
+  const marques = [A, B, C].map((J) => J.recus.length);
+  await A.click('#hub-finish');
+  await A.until(`document.getElementById('finish-dialog').open`, 3000, 'confirmation 2');
+  await A.click('#finish-confirm');
+  await A.eval(`document.getElementById('finish-confirm').click(); true`);
+  for (const J of [A, B, C]) await J.until(finaleVue, 8000, `podium chez ${J.nom}`);
+  const envoisFin = A.envoyes.filter((f) => f.g === 'hub' && f.d.action === 'finish').length;
+  t('confirmer : `finish` envoyé (une fois, ou deux au double clic — jamais plus)', envoisFin >= 1 && envoisFin <= 2, `${envoisFin} envoi(s)`);
+  const finales = [A, B, C].map((J, i) => J.recus.slice(marques[i]).filter((f) => f.g === 'hub' && f.d.type === 'finale').map((f) => f.d.finale));
+  t('les trois reçoivent la finale, et la même', finales.every((l) => l.length >= 1) && finales.flat().every((f) => same(f, finales[0][0])));
+  const F = finales[0][0];
+  t('une seule fin côté serveur : toutes les copies ont la même heure de clôture', finales.flat().every((f) => f.at === F.at));
+
+  // La révélation.
+  if (REDUCED) {
+    t('mouvement réduit : pas de révélation retenue, tout est visible tout de suite', (await A.eval(toutMontre)) && (await A.eval(VISIBLES)).every(([, v]) => v));
+  } else {
+    const t0 = await C.eval(VISIBLES);
+    t('révélation : au début, « La soirée est terminée » seul — aucune ligne encore montrée', (await C.eval(`document.getElementById('hub-recap').classList.contains('is-revealing')`)) && t0.every(([, v]) => !v), JSON.stringify(t0));
+    // Le 3e (Cam) avant les 1ers (Ana, Bob, ex æquo : ensemble).
+    await C.until(`(() => { const l = ${VISIBLES}; return l.find((x) => x[0] === ${JSON.stringify(ids.C)})[1]; })()`, 4000, '3e révélé');
+    const t1 = Object.fromEntries(await C.eval(VISIBLES));
+    t('révélation : le 3e (Cam) paraît AVANT les premiers', t1[ids.C] && !t1[ids.A] && !t1[ids.B], JSON.stringify(t1));
+    await C.until(`(() => { const l = ${VISIBLES}; return l.find((x) => x[0] === ${JSON.stringify(ids.A)})[1]; })()`, 4000, '1ers révélés');
+    const t2 = Object.fromEntries(await C.eval(VISIBLES));
+    t('révélation : les deux premiers (ex æquo) paraissent ENSEMBLE', t2[ids.A] && t2[ids.B], JSON.stringify(t2));
   }
+  // (la classe retirée, la transition d'opacité finit en 0,45 s : on attend l'état, on ne le suppose pas)
+  const tousVisibles = `${toutMontre} && ${VISIBLES}.every((x) => x[1])`;
+  const finis = await Promise.all([A, B, C].map((J) => J.until(tousVisibles, 8000, `fin de révélation chez ${J.nom}`).then(() => true, () => false)));
+  t('au bout de la révélation : tout est visible chez les trois', finis.every(Boolean), JSON.stringify(finis));
 
-  // ═══ B. 3 joueurs, 3 parties, ex æquo, un joueur parti en route
-  {
-    const w = await entre('Wen', 'p_recapw2');
-    const code = w.last().code;
-    const b = await entre('Bob', 'p_recapb2', code), c = await entre('Cam', 'p_recapc2', code);
-    await partie(w, [b, c], 'passeur', { Wen: 1, Bob: 2, Cam: 3 });            // 30 / 20 / 10
-    await partie(w, [b, c], 'precision', { Wen: 3, Bob: 1, Cam: 1 });          // ex æquo : 10 / 30 / 30
-    c.send({ action: 'leave' });                                              // Cam part (garde ses 40)
-    await w.until((s) => s.players.length === 2, 5000);
-    const deb = await partie(w, [b], 'morpion', { Wen: 1, Bob: 1 });            // nul : 20 / 20
-    t('B — le Hub : Wen 60, Bob 70, Cam 40 (score tenu par le Hub)', same(deb.scores, { p_recapw2: 60, p_recapb2: 70, p_recapc2: 40 }), JSON.stringify(deb.scores));
-    await w.fermer();
-    await reprend(W, 'p_recapw2', 'Wen', code);
-    t('B — de retour au salon : pas de débrief tant qu\'on ne part pas', !(await W.eval(recapVu)));
-    await W.click('#hub-leave');
-    await W.until(recapVu, 5000, 'débrief B');
-    const v = await W.eval(LIRE);
-    t('B — cumul : Bob 70, Wen 60, Cam 40 (parti, gardé avec ses points)', same(v.rang.map((l) => [l.id, l.pts, l.rank]), [['p_recapb2', 70, 1], ['p_recapw2', 60, 2], ['p_recapc2', 40, 3]]) && v.rang[2].parti, JSON.stringify(v.rang));
-    t('B — 3 parties, dernier jeu Morpion, dernier gain +20', v.count === '3' && /Morpion/.test(v.last) && v.gain === '+20 pts', `${v.count} | ${v.last} | ${v.gain}`);
-    t('B — historique chronologique, sans doublon (1, 2, 3)', same(v.jeux.map((j) => [j.n, j.game]), [[1, 'passeur'], [2, 'precision'], [3, 'morpion']]), JSON.stringify(v.jeux.map((j) => j.game)));
-    t('B — ex æquo de la partie 2 : deux vainqueurs (Bob, Cam), ta place 🥉 +10', /Bob/.test(v.jeux[1].win) && /Cam/.test(v.jeux[1].win) && v.jeux[1].me === '🥉' && v.jeux[1].pts === '+10', v.jeux[1].win);
-    t('B — nul du Morpion : deux vainqueurs, dont toi, 🥇 +20', /Wen \(toi\)/.test(v.jeux[2].win) && /Bob/.test(v.jeux[2].win) && v.jeux[2].me === '🥇' && v.jeux[2].pts === '+20', v.jeux[2].win);
-    for (const [w_, h_] of [[1280, 900], [390, 780]]) {
-      await W.size(w_, h_); await sleep(200);
-      const g = await W.eval(GEOM);
-      t(`B — ${w_} px : rien ne déborde, rien ne se chevauche`, !g.deborde.length && !g.chev.length && !g.coupe.length && !g.scrollX, JSON.stringify(g));
-      if (SHOTS) await W.shot(`recap-B-${w_}`, '#hub-recap');
-    }
-    await W.size(1280, 900);
+  const vues = await Promise.all([A, B, C].map((J) => J.eval(LIRE)));
+  t('« 🏆 Soirée terminée », code de la session, chez les trois', vues.every((v) => /Soirée terminée/.test(v.titre) && v.code === code));
+  t('podium = la finale du Hub, identique chez les trois : 🥇 Ana 40, 🥇 Bob 40, 🥉 Cam 20, 4. Dan 10',
+    vues.every((v) => same(v.rang.map((l) => [l.id, l.pts, l.rank, l.medaille]), [[ids.A, 40, 1, '🥇'], [ids.B, 40, 1, '🥇'], [ids.C, 20, 3, '🥉'], [ids.D, 10, 4, '4.']]))
+    && same(vues[0].rang.map((l) => [l.id, l.pts, l.rank]), F.ranking.map((l) => [l.playerId, l.points, l.rank])), JSON.stringify(vues[0].rang.map((l) => [l.id, l.pts, l.medaille])));
+  t('Dan, parti avant la fin : au podium avec ses points, marqué « parti »', vues.every((v) => v.rang[3].parti && v.rang[3].av));
+  t('chacun voit SA ligne en évidence', vues.every((v, i) => v.rang.find((l) => l.moi).id === [ids.A, ids.B, ids.C][i]));
+  t('le total des parties et l\'historique suivent le podium', vues.every((v) => v.count === '1' && v.jeux.length === 1 && v.jeux[0].game === 'passeur'));
+  t('la phrase dit qui a terminé', /^Tu as terminé/.test(await A.eval(`document.getElementById('recap-sub').textContent`)) && /Ana a terminé/.test(await B.eval(`document.getElementById('recap-sub').textContent`)));
+  t('lecteurs d\'écran : les vainqueurs à égalité sont annoncés', /à égalité : Ana, Bob/.test(await B.eval(`document.getElementById('recap-live').textContent`)));
+  t('le salon est rangé, l\'accueil caché derrière le podium', (await Promise.all([A, B, C].map((J) => J.eval(`document.getElementById('lobby').hidden && document.getElementById('entry').hidden`)))).every(Boolean));
+  t('plus de session à reprendre dans ces onglets', (await Promise.all([A, B, C].map((J) => J.eval(`sessionStorage.getItem('mathys_hub_session')`)))).every((x) => x === null));
+  t('aucun refus du Hub côté hôte pendant la fin', trames(A, 'error').length === 0, JSON.stringify(trames(A, 'error')));
 
-    // Une nouvelle session depuis l'entrée juste dessous : le débrief se range, tout repart de zéro.
-    await W.click('#hub-create');
-    await W.until(`!document.getElementById('lobby').hidden && document.getElementById('hub-code').textContent.trim() !== ${JSON.stringify(code)} && document.getElementById('hub-code').textContent.trim().length === 5`, 10000, 'nouvelle session');
-    t('nouvelle session : le débrief est rangé, score à zéro, bouton « Quitter la session » inchangé', !(await W.eval(recapVu))
-      && (await W.eval(`[...document.querySelectorAll('#hub-score-list .hub-score-row')].every((li) => li.dataset.points === '0')`))
-      && (await W.eval(`document.getElementById('hub-leave').textContent`)) === 'Quitter la session');
-    t('… et l\'ancienne session garde ses scores (vue de Bob)', same(b.last().scores, { p_recapw2: 60, p_recapb2: 70, p_recapc2: 40 }));
-    await W.click('#hub-leave');
-    await W.until(`!document.getElementById('entry').hidden`, 5000, 'entrée');
-    t('E — aucune partie jouée : départ comme avant (entrée, pas de débrief)', !(await W.eval(recapVu)) && /quitté la session/.test(await W.eval(`document.getElementById('hub-state').textContent`)));
-    b.ws.terminate();
+  for (const [w_, h_] of [[1280, 900], [390, 780]]) {
+    await B.size(w_, h_); await sleep(250);
+    const g = await B.eval(GEOM);
+    t(`${w_} px : podium lisible — rien ne déborde, rien ne se chevauche, pas de défilement horizontal`, !g.deborde.length && !g.chev.length && !g.coupe.length && !g.scrollX, JSON.stringify(g));
+    if (SHOTS) await B.shot(`finale-${w_}`, '#hub-recap');
   }
+  await B.size(1280, 900);
+  // ⚠️ Laisser la mise en page se refaire après le passage mobile → bureau :
+  // cliqué dans la foulée, le clic se perdait par intermittence (2 fois sur 5).
+  await sleep(300);
 
-  // ═══ C. solo
-  {
-    const w = await entre('Wen', 'p_recapw3');
-    const code = w.last().code;
-    await partie(w, [], 'precision', { Wen: 1 });
-    await w.fermer();
-    await reprend(W, 'p_recapw3', 'Wen', code);
-    await W.click('#hub-leave');
-    await W.until(recapVu, 5000, 'débrief solo');
-    const v = await W.eval(LIRE);
-    t('solo — une ligne : toi, 🥇, 10 pts', same(v.rang.map((l) => [l.id, l.pts, l.medaille, l.moi]), [['p_recapw3', 10, '🥇', true]]), JSON.stringify(v.rang));
-    t('solo — pas de colonne « vainqueur » (ce serait toi), ta place 🥇 +10', v.jeux.length === 1 && !v.jeux[0].winVu && v.jeux[0].me === '🥇' && v.jeux[0].pts === '+10');
-    t('solo — pas de phrase « la session continue pour les autres »', !/continue pour les autres/.test(await W.eval(`document.getElementById('recap-sub').textContent`)));
-    await W.size(390, 780); await sleep(200);
-    const g = await W.eval(GEOM);
-    t('solo — 390 px : rien ne déborde', !g.deborde.length && !g.chev.length && !g.coupe.length && !g.scrollX, JSON.stringify(g));
-    if (SHOTS) await W.shot('recap-solo-390', '#hub-recap');
-    await W.size(1280, 900);
-  }
-
-  // ═══ D. un rechargement après le départ : pas de débrief recréé
-  await W.goto(PAGE);
+  // « Retour à l'accueil »
+  await B.click('#recap-home');
+  await B.until(`!document.getElementById('entry').hidden && document.getElementById('hub-recap').hidden`, 3000, 'accueil');
+  t('« Retour à l\'accueil » : hors session, l\'accueil, sans podium', /soirée est terminée/i.test(await B.eval(`document.getElementById('hub-state').textContent`)));
+  await B.goto(PAGE);
   await sleep(500);
-  t('rechargement après le départ : ni session reprise, ni débrief recréé', !(await W.eval(recapVu)) && !(await W.eval(`!document.getElementById('lobby').hidden`)));
+  t('recharger ensuite : ni reprise, ni podium recréé', (await B.eval(`!document.getElementById('entry').hidden && document.getElementById('hub-recap').hidden && document.getElementById('lobby').hidden`)));
 
-  t('aucune erreur JS', W.erreurs.length === 0, W.erreurs.slice(0, 3).join(' | '));
+  // ═══ 2. absent pendant la fin : il revient, pas de reprise, le podium
+  {
+    const x = await entre('Xia', 'p_finx');
+    const code2 = x.last().code;
+    const y = await entre('Yan', 'p_finy', code2);
+    await partie(x, [y], 'passeur', { Xia: 2, Yan: 1 });   // 10 / 20
+    await x.fermer(); await y.fermer();
+    await reprend(A, 'p_finx', 'Xia', code2);                // A = Xia, hôte
+    await reprend(C, 'p_finy', 'Yan', code2);                // C = Yan
+    await C.eval(`location.href = 'about:blank'; true`);     // Yan quitte l'onglet (absent, en grâce)
+    await A.until(`[...document.querySelectorAll('#hub-players .hub-card.is-away')].length === 1`, 8000, 'Yan absent');
+    await A.click('#hub-finish');
+    await A.until(`document.getElementById('finish-dialog').open`, 3000, 'confirmation');
+    await A.click('#finish-confirm');
+    await A.until(finaleVue, 8000, 'podium chez Xia');
+    await C.goto(PAGE);                                       // Yan revient : sa session est toujours notée dans l'onglet
+    await C.until(finaleVue, 10000, 'podium chez Yan qui revient');
+    const v = await C.eval(LIRE);
+    t('absent pendant la fin, il revient : PAS de reprise, le podium final (🥇 Yan 20, 🥈 Xia 10)', same(v.rang.map((l) => [l.id, l.pts, l.medaille]), [['p_finy', 20, '🥇'], ['p_finx', 10, '🥈']])
+      && (await C.eval(`document.getElementById('lobby').hidden`)), JSON.stringify(v.rang));
+    const refus = C.recus.filter((f) => f.g === 'hub' && f.d.type === 'error').pop();
+    t('… c\'est le refus SESSION_CLOSED du Hub qui porte ce podium', !!refus && refus.d.code === 'SESSION_CLOSED' && !!refus.d.finale);
+  }
+
+  // ═══ 3. l'hôte seul, sans aucune partie
+  {
+    await A.goto(PAGE);
+    await A.eval(`localStorage.setItem('mathys_game_profile', ${JSON.stringify(JSON.stringify({ v: 1, id: 'p_finsolo', name: 'Solo', avatar: { kind: 'emoji', emoji: '🦊' } }))}); true`);
+    await A.goto(PAGE);
+    await A.click('#hub-create');
+    await A.until(`!document.getElementById('lobby').hidden && !document.getElementById('hub-finish').hidden`, 10000, 'salon solo');
+    await A.click('#hub-finish');
+    await A.until(`document.getElementById('finish-dialog').open`, 3000, 'confirmation solo');
+    await A.click('#finish-confirm');
+    await A.until(`${finaleVue} && ${toutMontre}`, 8000, 'podium solo');
+    const v = await A.eval(LIRE);
+    t('solo, sans partie : une ligne (toi, 0 pt), « Aucune partie classée », pas de faux historique', v.rang.length === 1 && v.rang[0].moi && v.rang[0].pts === 0
+      && v.count === '0' && v.last === '—' && v.jeux.length === 0 && (await A.eval(`!document.getElementById('recap-empty').hidden && document.getElementById('recap-games').hidden`)), JSON.stringify(v));
+    await A.size(390, 780); await sleep(250);
+    const g = await A.eval(GEOM);
+    t('solo, 390 px : rien ne déborde', !g.deborde.length && !g.coupe.length && !g.scrollX, JSON.stringify(g));
+    if (SHOTS) await A.shot('finale-solo-390', '#hub-recap');
+  }
+
+  const errs = [A, B, C].flatMap((J) => J.erreurs.map((e) => `[${J.nom}] ${e}`));
+  t('aucune erreur JS', errs.length === 0, errs.slice(0, 3).join(' | '));
 } catch (e) {
   t('EXCEPTION', false, e.stack || e.message);
 } finally {

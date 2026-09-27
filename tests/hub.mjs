@@ -100,7 +100,8 @@ const CODES = ['BAD_JSON', 'TOO_BIG', 'UNKNOWN_ACTION', 'BAD_PLAYER', 'BAD_CODE'
   'SESSION_CLOSED', 'ALREADY_IN_SESSION', 'NOT_IN_SESSION', 'REPLACED',
   'NOT_HOST', 'DRAW_IN_PROGRESS', 'NOT_DRAWN', 'NO_ELIGIBLE_GAME', 'MANIFEST_UNAVAILABLE', 'DRAW_FAILED', 'BAD_PREFS', 'BAD_CAPS', 'BAD_CONSTRAINTS',
   'NOT_LAUNCHING', 'LAUNCH_MISMATCH', 'LAUNCH_CONSUMED', 'LAUNCH_EXPIRED', 'BAD_ROOM_CODE', 'WRONG_ROOM',
-  'BAD_RESULTS', 'GAME_MISMATCH', 'RESULTS_ALREADY'];
+  'BAD_RESULTS', 'GAME_MISMATCH', 'RESULTS_ALREADY',
+  'FINISH_NOT_ALLOWED'];
 // La liste est relue dans protocol.js du serveur : un code ajouté là-bas sans
 // phrase ici ferait échouer ce test.
 const cote = fs.readFileSync(path.join(ROOT, '..', 'game-hub-server', 'src', 'protocol.js'), 'utf8');

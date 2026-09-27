@@ -39,6 +39,32 @@
     const jeux = (session && session.history && session.history.games) || [];
     if (!jeux.length) return null;
     const classement = ranking(session, { departed: true }).map((l) => Object.assign(l, { me: l.id === you }));
+    return assemble(session.code, classement, jeux, you, info, {
+      solo: classement.length === 1 && jeux.every((g) => g.players <= 1),
+      // D'autres joueurs encore connectés : la soirée continue sans toi.
+      othersOnline: session.players.some((p) => p.id !== you && p.connected),
+    });
+  }
+
+  // La FINALE : le podium figé par le Hub quand l'hôte a terminé la soirée
+  // (game-hub-server, finale.js). Même forme que build(), mais le classement
+  // est repris TEL QUEL — rangs compris : rien n'est retrié ni recompté ici.
+  // Contrairement à build(), une soirée terminée sans partie a quand même son
+  // écran (tout le monde à 0) : la fin a été décidée par l'hôte.
+  function fromFinale(finale, you, info) {
+    const classement = finale.ranking.map((l) => ({ id: l.playerId, name: l.name, avatar: l.avatar, pts: l.points, rank: l.rank,
+      gone: !l.present, me: l.playerId === you }));
+    const jeux = finale.games || [];
+    const r = assemble(finale.code, classement, jeux, you, info, {
+      solo: classement.length === 1,
+      othersOnline: false,
+    });
+    r.by = finale.by;
+    r.byName = (finale.ranking.find((l) => l.playerId === finale.by) || {}).name || null;
+    return r;
+  }
+
+  function assemble(code, classement, jeux, you, info, extra) {
     const parties = jeux.map((g) => {
       const moi = g.results.find((r) => r.playerId === you) || null;
       const i = info(g.gameId);
@@ -54,20 +80,19 @@
         me: moi ? { rank: moi.rank, points: moi.points } : null,
       };
     });
-    const derniere = parties[parties.length - 1];
+    const derniere = parties[parties.length - 1] || null;
     return {
-      code: session.code,
+      code,
       ranking: classement,
       games: parties,
       // Seul d'un bout à l'autre : pas de colonne « vainqueur » (ce serait lui).
-      solo: classement.length === 1 && jeux.every((g) => g.players <= 1),
+      solo: extra.solo,
       facts: {
         count: parties.length,
-        last: { gameId: derniere.gameId, emoji: derniere.emoji, title: derniere.title },
-        lastGain: derniere.me ? derniere.me.points : null,
+        last: derniere ? { gameId: derniere.gameId, emoji: derniere.emoji, title: derniere.title } : null,
+        lastGain: derniere && derniere.me ? derniere.me.points : null,
       },
-      // D'autres joueurs encore connectés : la soirée continue sans toi.
-      othersOnline: session.players.some((p) => p.id !== you && p.connected),
+      othersOnline: extra.othersOnline,
     };
   }
 
@@ -75,5 +100,5 @@
   const MEDAILLES = ['🥇', '🥈', '🥉'];
   const place = (rank) => (rank >= 1 && rank <= 3 ? MEDAILLES[rank - 1] : rank + 'e');
 
-  return { ranking, build, place, MEDAILLES };
+  return { ranking, build, fromFinale, place, MEDAILLES };
 });
