@@ -1665,10 +1665,9 @@ là où Render se réveille vraiment —, pas le tirage.
 ## Score de soirée (2026-09-26, pilote : Le Passeur)
 
 Le Hub tient maintenant un **score cumulé par session**, affiché en haut à
-droite du salon. Contrat validé en production le 2026-09-26. **Six jeux rendent
-leur classement : Le Passeur, Imitation, Demi-Cercle, le Ban, Précision et
-Qui Ment ?** ; Morpion se lance comme avant et ne rapporte rien (branché à la
-demande).
+droite du salon. Contrat validé en production le 2026-09-26. **Les sept jeux en
+ligne rendent leur classement** : Le Passeur, Imitation, Demi-Cercle, le Ban,
+Précision, Qui Ment ? et Morpion (Puissance 4, local, n'est pas concerné).
 
 **Imitation** (2026-09-26) : aucun changement d'`imitation-server` — son
 `phase: end` porte déjà `podium: [{ id, name, avatar, score }]`. Son id de
@@ -1737,6 +1736,20 @@ donc le second `end` n'envoie plus rien au Hub. Test :
 l'ex æquo 1 / 1 / 3 n'est pas espéré mais **construit** — le test choisit les
 votes et la dernière chance manche par manche (`gagnable`, recherche
 exhaustive : en 3 manches c'est toujours possible, pour une paire quelconque).
+
+**Morpion** (2026-09-27) : `morpion-server` inchangé, et toujours AUCUNE
+identité vers lui. ⚠️ **Le Morpion n'a pas de score de partie** : le serveur
+ne rend que `winner` ('X' | 'O' | 'draw') à `status: 'over'`. `net.js` en
+DÉRIVE le classement, sans rien inventer : **victoire = rangs 1 / 2, égalité
+= 1 / 1 (ex æquo)**, et `points: 0` pour les deux — c'est ce que le Hub garde
+en `gamePoints`. À deux, le Hub donne rang 1 → 20, rang 2 → 10 : victoire
+**20 / 10**, égalité **20 / 20**. La place est `state.you` ('X' ou 'O') :
+`roomReady(code, state.you)`, jamais l'id du Hub. Un **abandon** (l'adversaire
+part, le serveur ferme la room sans état `over`) ne fabrique AUCUN classement :
+seulement `ended()`, comme avant. Test : `tests/hub-score-morpion.mjs`
+(victoire X, victoire O, égalité, abandon, dans une même session).
+⚠️ morpion-server n'a pas de `node_modules` sur Pc-Perso : les tests le
+lancent avec le `ws` de game-hub-server par `NODE_PATH`.
 
 Deux autorités, qui ne se mélangent pas : **le jeu** reste maître de SA partie,
 **le Hub** (`game-hub-server/src/scores.js`, module pur) est maître de la

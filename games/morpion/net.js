@@ -56,6 +56,7 @@ const play = (index) => NET.send({ action: 'play', index });
 // ⚠️ Sans billet, `lien` vaut null et la page marche exactement comme avant.
 let viaHub = false;            // le join en cours vient du Hub
 let codeDeclare = null;        // le code déjà annoncé au Hub (une seule fois)
+let placeDeclaree = null;      // SA place annoncée au Hub : 'X' ou 'O'
 let demarre = false;           // `started` déjà envoyé
 const lien = window.HubHandoff ? HubHandoff.start({
   gameId: 'morpion',
@@ -65,11 +66,37 @@ const lien = window.HubHandoff ? HubHandoff.start({
 // À chaque état reçu : ce que le Hub doit savoir. Le Morpion se joue à deux,
 // donc la room passe à `playing` à l'instant où l'invité y entre — c'est
 // l'hôte qui le déclare au Hub (`started` n'est pris en compte que de lui).
+// Avec le code, SA place : `state.you` ('X' ou 'O'), l'identifiant de joueur du
+// Morpion — jamais l'id du Hub. C'est elle qui relie le classement final à son
+// joueur du Hub (score de soirée). Ré-annoncée seulement si elle change DANS la
+// room du lancement : une room recréée à la main ne regarde plus le Hub.
 function relais() {
   if (!lien) return;
-  if (!codeDeclare) { codeDeclare = state.code; viaHub = false; lien.roomReady(state.code); }
+  if (!codeDeclare || (state.code === codeDeclare && placeDeclaree !== state.you)) {
+    codeDeclare = codeDeclare || state.code; placeDeclaree = state.you; viaHub = false;
+    lien.roomReady(state.code, state.you);
+  }
   if (state.status === 'playing' && !demarre) { demarre = true; lien.started(); }
-  if (state.status === 'over') finie();
+  if (state.status === 'over') {
+    // Score de soirée : le Morpion n'a PAS de score de partie, seulement un
+    // vainqueur. Le classement en découle — victoire 1 / 2, égalité 1 / 1
+    // (ex æquo) —, points du jeu à 0. Le Hub en fait des points de soirée
+    // (à deux : rang 1 → 20, rang 2 → 10). Toujours AVANT ended(). Seul
+    // l'hôte du lancement l'envoie, une fois (hub-handoff.js filtre).
+    // (garde : un hub-handoff.js resté en cache n'a pas encore results)
+    if (lien.results && ['X', 'O', 'draw'].includes(state.winner)) lien.results(classement(state.winner));
+    finie();
+  }
+}
+
+// 'X' | 'O' | 'draw' → [{ gamePlayerId, rank, points: 0 }]. Un abandon n'a pas
+// de vainqueur (le serveur ferme la room, sans état `over`) : jamais appelé.
+function classement(winner) {
+  return ['X', 'O'].map((m) => ({
+    gamePlayerId: m,
+    rank: winner === 'draw' || winner === m ? 1 : 2,
+    points: 0,
+  }));
 }
 
 function finie() {
