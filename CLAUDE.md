@@ -1751,6 +1751,31 @@ seulement `ended()`, comme avant. Test : `tests/hub-score-morpion.mjs`
 ⚠️ morpion-server n'a pas de `node_modules` sur Pc-Perso : les tests le
 lancent avec le `ws` de game-hub-server par `NODE_PATH`.
 
+### Le contrat commun, référence (état au 2026-09-27)
+
+    roomReady(code, gamePlayerId)   chacun SA place, jamais l'id du Hub
+    results([{ gamePlayerId, rank, points }])   hôte du lancement, une fois
+    ended()                          toujours APRÈS results
+
+`rank` = rang de compétition calculé sur le score DU SERVEUR (ex æquo = même
+rang : 13, 13, 5 → 1, 1, 3), jamais sur l'index. Le Hub seul convertit :
+**`10 × (classés − rang + 1)`**. « Une fois » est garanti deux fois :
+`hub-handoff.js` (`rapporte` / `fini`, et `ended()` consomme le billet) puis
+le Hub (`RESULTS_ALREADY`). Une partie incomplète (abandon, room perdue)
+n'envoie jamais `results`. Après `ended`, la session survit au retour de
+tout le groupe pendant la grâce (`d679eab`). Garde-fou statique :
+`node tests/hub-score-contract.mjs` (sans navigateur ni serveur).
+
+| Jeu | place (`gamePlayerId`) | ré-annonce | classement → `results` | particularité |
+|---|---|---|---|---|
+| Le Passeur | `you.id` | à chaque `you` (1 par connexion = 1 id) | `rangs(ranking)`, trié d'abord | pilote ; de 3 à 12 manches, d'où le rang |
+| Imitation | `room.you` | `placeDeclaree` | `rangs(podium)` | |
+| Demi-Cercle | `room.you` | `placeDeclaree` | `rangs(podium)` | |
+| Le Ban | `room.you` | `placeDeclaree` | `rangs(podium)` | points négatifs possibles |
+| Précision | `room.you` | `placeDeclaree` | `rangs(podium)` | jouable seul (1 → 10 pts) |
+| Qui Ment ? | `you.id` | `placeDeclaree` | `rangs(ranking)` (sans avg/title) | « Rejouer » ne recompte rien |
+| Morpion | `state.you` ('X'/'O') | `placeDeclaree`, même room | `classement(winner)`, `points: 0` | victoire 1/2, nul 1/1 ; abandon → `ended` seul |
+
 Deux autorités, qui ne se mélangent pas : **le jeu** reste maître de SA partie,
 **le Hub** (`game-hub-server/src/scores.js`, module pur) est maître de la
 soirée. La page ne calcule aucun point.
@@ -1813,11 +1838,14 @@ Sans billet, `lien` vaut `null` et la page marche exactement comme hors Hub.
 Avec billet, le module appelle le `join` de la page — son chemin NORMAL (créer
 sans code, rejoindre avec) — et la page le prévient :
 
-- `roomReady(code)` à la première room obtenue, **une seule fois** (garde
-  `codeDeclare` : un retour au salon après une coupure renvoie le même code) ;
+- `roomReady(code, place)` à la première room obtenue, avec SA place de jeu
+  (score de soirée) ; ré-annoncé seulement quand la place change (reconnexion
+  au salon = nouvel id), jamais pour un simple retour au salon (même code) ;
 - `started()` par l'hôte à la première vraie phase de jeu ;
-- `ended()` à la fin, et un lien **« ↩ Retour au Game Hub »** (`#to-hub`,
-  jamais la classe `.back`, réservée au retour portfolio) ;
+- `results(rangs)` PUIS `ended()` à la fin d'une partie complète, et un lien
+  **« ↩ Retour au Game Hub »** (`#to-hub`, jamais la classe `.back`, réservée
+  au retour portfolio). Détail du contrat : « Score de soirée », tableau de
+  référence ;
 - `failed('JOIN' | 'UNREACHABLE', détail)` si l'entrée lancée par le Hub
   échoue (`viaHub` et pas encore dans une room). Pour l'hôte déjà au stade
   `join`, `failed` devient `cancel()` : sa room est perdue pour tout le groupe,
