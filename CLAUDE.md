@@ -1824,6 +1824,43 @@ soirée. La page ne calcule aucun point.
   `tests/hub-score.mjs` (40 : trois navigateurs, deux vraies parties, mise en
   page 1280 → 390 px).
 
+## Débrief de soirée (2026-09-27)
+
+⚠️ **Le Hub n'a pas d'état « soirée terminée ».** `debrief` revient après
+CHAQUE partie et la session reste active (on retire). La seule fin réelle,
+pour un joueur, c'est de partir. Le débrief final s'affiche donc **au clic sur
+« Quitter » quand au moins une partie a été classée** — le bouton dit alors
+« Terminer ma soirée » (même action : `leave`). Aucune partie → départ comme
+avant. Rien n'a changé côté serveur ni dans le cycle de vie de la session.
+
+- `games/hub-recap.js` : module PUR (page + Node). `ranking()` = la règle de
+  rang du panneau Score, qui l'utilise aussi (plus deux copies à tenir) ;
+  `build(session, you, info)` = le débrief, ou `null` sans partie classée. Il
+  ne calcule AUCUN point : scores et historique sont ceux du Hub
+  (`session.scores`, `history.games`). Les joueurs partis en route restent
+  au classement avec leurs points (nom relu dans l'historique, marqués
+  « parti ») ; le panneau Score, lui, ne montre toujours que la session.
+- `#hub-recap` est construit sur le DERNIER état reçu, juste avant le `leave`,
+  et posé **au-dessus de l'entrée** : « Créer une session » / « Rejoindre »
+  restent juste dessous, sans nouveau bouton. Une nouvelle session le range.
+  Pas de persistance : un rechargement ne le recrée pas (voulu : il ne
+  refabrique rien).
+- Contenu : classement (médailles, avatars `GameAvatar`, ex æquo au même
+  rang, le premier mis en avant), trois chiffres (parties jouées = parties
+  CLASSÉES, dernier jeu, ton dernier gain), puis l'historique chronologique
+  (vainqueurs de chaque partie, ta place, ton gain). Solo : pas de colonne
+  « vainqueur ».
+- ⚠️ `scrollIntoView({ behavior: 'instant' })`, pas `'auto'` : `'auto'` suit le
+  `scroll-behavior: smooth` de tf2.css, le défilement restait animé et avalait
+  le clic suivant (« Créer une session »). Trouvé par `tests/hub-score.mjs`.
+- ⚠️ Au téléphone, les colonnes de l'historique sont posées EXPLICITEMENT : en
+  solo, la colonne masquée poussait le nom du jeu dans la dernière colonne
+  (« PRÉC… »). Vu à la capture ; `tests/hub-recap.mjs` mesure maintenant le
+  texte qui déborde de sa cellule, pas seulement les boîtes.
+- Test : `tests/hub-recap.mjs` (module pur + vraie page contre un vrai
+  game-hub-server, aucun jeu lancé : des clients Node jouent le protocole,
+  l'un porte l'id du profil du navigateur, qui reprend la session).
+
 ## Handoff et présence : l'état des sept jeux
 
 Les sept jeux en ligne (Morpion, Imitation, Demi-Cercle, Ban, Précision, Le

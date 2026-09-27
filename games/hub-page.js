@@ -36,7 +36,9 @@
   };
 
   // Le score de la soirée est un panneau à part : il n'existe qu'avec le salon.
-  const show = (id) => { $('entry').hidden = id !== 'entry'; $('lobby').hidden = id !== 'lobby'; $('hub-score').hidden = id !== 'lobby'; };
+  // Le débrief de soirée (#hub-recap) ne s'affiche qu'en sortant d'une session,
+  // AU-DESSUS de l'entrée (voir leave) : tout autre écran le range.
+  const show = (id) => { $('entry').hidden = id !== 'entry'; $('lobby').hidden = id !== 'lobby'; $('hub-score').hidden = id !== 'lobby'; $('hub-recap').hidden = true; };
   const say = (t) => { $('hub-state').textContent = t || ''; };
   const warn = (t) => { $('hub-msg').textContent = t ? '> ' + t : ''; };
 
@@ -227,18 +229,16 @@
   // Une ligne par joueur de la session (0 tant qu'il n'a rien marqué), les
   // meilleurs d'abord. Au-delà de 6, on garde les 5 premiers + TOI si tu es
   // plus bas : le bloc reste compact, et chacun y trouve toujours sa ligne.
-  const MEDAILLES = ['🥇', '🥈', '🥉'];
+  const MEDAILLES = HubRecap.MEDAILLES;
   const SCORE_MAX = 6;
   function renderScore(session, you) {
-    const sc = session.scores || {};
     const jeux = session.history.games || [];
     const derniere = jeux[jeux.length - 1] || null;
     const gain = {};
     if (derniere) derniere.results.forEach((r) => { gain[r.playerId] = r.points; });
-    const lignes = session.players.map((p, i) => ({ p, i, pts: sc[p.id] || 0 }))
-      .sort((a, b) => b.pts - a.pts || a.i - b.i);
-    // Rang « de compétition » : 50, 40, 40, 10 → 1, 2, 2, 4.
-    lignes.forEach((l) => { l.rank = 1 + lignes.filter((x) => x.pts > l.pts).length; });
+    // Rang « de compétition » (50, 40, 40, 10 → 1, 2, 2, 4) : la même règle que
+    // le débrief de soirée, dans hub-recap.js. `p` = le joueur, pour la suite.
+    const lignes = HubRecap.ranking(session).map((l) => Object.assign(l, { p: session.players.find((x) => x.id === l.id) }));
     const personne = lignes.every((l) => l.pts === 0);
 
     let vues = lignes;
@@ -604,6 +604,9 @@
       return;
     }
     btn.textContent = session.history.played.length ? '🎲 Tirage suivant' : '🎲 Tirer un jeu';
+    // Même action (leave) : une fois qu'une partie a compté, quitter, c'est
+    // finir sa soirée — et le débrief s'affiche.
+    $('hub-leave').textContent = (session.history.games || []).length ? 'Terminer ma soirée' : 'Quitter la session';
     btn.disabled = pool.catalog !== 'ready' || !pool.eligible.length;
     if (session.state === 'drawing') {
       $('hub-wait').textContent = isHost ? 'Tirage en cours.' : `${hostName} a lancé le tirage.`;
@@ -650,6 +653,9 @@
   });
 
   $('hub-leave').addEventListener('click', () => {
+    // Le débrief est construit sur le DERNIER état reçu du Hub, avant de le
+    // lâcher. Rien n'est redemandé au serveur, et le départ reste un leave.
+    const recap = current ? HubRecap.build(current.session, current.you, info) : null;
     hub.leave();
     store.clear();
     current = null;
@@ -658,7 +664,75 @@
     warn('');
     say('Tu as quitté la session.');
     renderMe();
+    if (recap) showRecap(recap);
   });
+
+  // ------------------------------------------------------ débrief de soirée
+  // Affiché en quittant une session où au moins une partie a été classée, au-
+  // dessus de l'écran d'entrée : la suite (créer, rejoindre) est juste dessous.
+  // Tout vient de HubRecap.build(), donc du Hub ; rien n'est recalculé ici.
+  const el = (tagName, cls, text) => {
+    const n = document.createElement(tagName);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  };
+  function showRecap(r) {
+    $('recap-code').textContent = r.code;
+    $('recap-sub').textContent = r.othersOnline
+      ? 'Classement au moment de ton départ — la session continue pour les autres.'
+      : `${r.facts.count} partie${r.facts.count > 1 ? 's' : ''} au compteur. Merci d'avoir joué !`;
+
+    const personne = r.ranking.every((l) => l.pts === 0);
+    $('recap-ranking').replaceChildren(...r.ranking.map((l) => {
+      const li = el('li', 'recap-row' + (l.me ? ' is-me' : '') + (l.rank === 1 && !personne ? ' is-top' : ''));
+      li.dataset.player = l.id;
+      li.dataset.rank = String(l.rank);
+      li.dataset.points = String(l.pts);
+      const medaille = !personne && l.pts > 0 && l.rank <= 3;
+      const rang = el('span', 'recap-rank' + (medaille ? '' : ' is-num'), medaille ? MEDAILLES[l.rank - 1] : l.rank + '.');
+      rang.setAttribute('aria-hidden', 'true');
+      const av = GameAvatar.node(l.avatar, undefined, l.rank === 1 && !personne ? 'lg' : 'md');
+      av.setAttribute('aria-hidden', 'true');
+      const nom = el('span', 'recap-name', l.name);
+      if (l.me) nom.appendChild(el('small', 'hub-tag me', 'toi'));
+      if (l.gone) nom.appendChild(el('small', 'hub-tag away', 'parti'));
+      const pts = el('span', 'recap-pts', String(l.pts));
+      pts.appendChild(el('small', null, 'pts'));
+      li.setAttribute('aria-label', `${l.rank === 1 ? '1er' : l.rank + 'e'} : ${l.name}${l.me ? ' (toi)' : ''}, ${l.pts} point${l.pts > 1 ? 's' : ''}`);
+      li.append(rang, av, nom, pts);
+      return li;
+    }));
+
+    const f = r.facts;
+    $('recap-count').textContent = String(f.count);
+    $('recap-last').textContent = `${f.last.emoji} ${f.last.title}`;
+    $('recap-gain').textContent = f.lastGain == null ? '—' : '+' + f.lastGain + ' pts';
+
+    $('hub-recap').classList.toggle('is-solo', r.solo);
+    $('recap-games').replaceChildren(...r.games.map((g) => {
+      const li = el('li', 'recap-game');
+      li.dataset.game = g.gameId;
+      li.dataset.n = String(g.n);
+      const jeu = el('span', 'recap-game-title');
+      jeu.append(el('span', 'recap-game-n', g.n + '.'), el('span', 'recap-game-emoji', g.emoji), el('span', null, g.title));
+      jeu.querySelector('.recap-game-emoji').setAttribute('aria-hidden', 'true');
+      const gagne = el('span', 'recap-game-win', g.winners.length ? '🏆 ' + g.winners.map((w) => w.name + (w.me ? ' (toi)' : '')).join(', ') : 'personne de classé');
+      const toi = el('span', 'recap-game-me', g.me ? HubRecap.place(g.me.rank) : '—');
+      toi.title = g.me ? 'ta place' : 'pas classé';
+      const pts = el('span', 'recap-game-pts', g.me ? '+' + g.me.points : '');
+      li.append(jeu, gagne, toi, pts);
+      return li;
+    }));
+
+    $('hub-recap').hidden = false;
+    // Un changement d'écran, pas un déplacement dans la page : saut immédiat.
+    // (Animé, le défilement continuait sous le doigt de qui cliquait déjà
+    // « Créer une session » juste dessous — mesuré par tests/hub-score.mjs.)
+    // ⚠️ 'instant' et pas 'auto' : 'auto' suit le `scroll-behavior: smooth` de
+    // tf2.css, donc reste animé.
+    $('hub-recap').scrollIntoView({ block: 'start', behavior: 'instant' });
+  }
 
   // Copier le code : exactement celui reçu du serveur.
   $('hub-code').addEventListener('click', async () => {
