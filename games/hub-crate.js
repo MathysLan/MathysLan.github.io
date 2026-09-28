@@ -43,6 +43,15 @@
     return out;
   }
 
+  // Un seul jeu possible : il n'y a RIEN à tirer. Pas de bande qui fait défiler
+  // trente fois le même jeu pour simuler un suspense qui n'existe pas — la
+  // caisse s'ouvre sur lui, tout de suite. Le résultat reste celui du serveur :
+  // on ne regarde que la liste qu'il a envoyée avec le tirage.
+  function single(eligible, winnerId) {
+    var ids = (eligible || []).filter(function (id, i, a) { return typeof id === 'string' && a.indexOf(id) === i; });
+    return ids.length === 0 || (ids.length === 1 && ids[0] === winnerId);
+  }
+
   // Une vignette : emoji + nom. `info(id)` rend { emoji, title, accent }.
   function cellNode(id, info) {
     var g = info(id);
@@ -62,14 +71,28 @@
 
   // Fait défiler la bande jusqu'au gagnant. Rend une promesse tenue à l'arrêt.
   // opts : { eligible, winnerId, info, reduced }.
+  // Un seul jeu possible : une seule vignette, posée, aucune transition (la
+  // page masque alors la bande, voir #hub-draw.is-single).
   function spin(reel, opts) {
     var strip = reel.querySelector('.reel-strip');
+    reel.classList.remove('is-spinning', 'is-done', 'is-single');
+    if (single(opts.eligible, opts.winnerId)) {
+      strip.style.transition = 'none';
+      strip.style.transform = 'translateX(0px)';
+      var seule = cellNode(opts.winnerId, opts.info);
+      seule.classList.add('is-win');
+      strip.replaceChildren(seule);
+      reel.classList.add('is-single', 'is-done');
+      return Promise.resolve();
+    }
     var suite = cells(opts.eligible, opts.winnerId);
     strip.replaceChildren.apply(strip, suite.map(function (id) { return cellNode(id, opts.info); }));
     strip.style.transition = 'none';
     strip.style.transform = 'translateX(0px)';
 
     var cible = strip.children[WIN_AT];
+    // La vignette gagnante : c'est elle que la page met en avant à l'arrêt.
+    cible.classList.add('is-win');
     // Centre du gagnant sous le repère, à ±30 % d'une vignette près : la bande
     // ne s'arrête pas pile au milieu, comme une vraie roue — mais toujours
     // DANS la vignette gagnante.
@@ -109,8 +132,8 @@
     strip.style.transition = 'none';
     strip.style.transform = 'translateX(0px)';
     strip.replaceChildren();
-    reel.classList.remove('is-spinning', 'is-done');
+    reel.classList.remove('is-spinning', 'is-done', 'is-single');
   }
 
-  window.HubCrate = { CELLS: CELLS, WIN_AT: WIN_AT, DUREE_MS: DUREE_MS, cells: cells, spin: spin, reset: reset };
+  window.HubCrate = { CELLS: CELLS, WIN_AT: WIN_AT, DUREE_MS: DUREE_MS, cells: cells, single: single, spin: spin, reset: reset };
 })();

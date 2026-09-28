@@ -181,6 +181,8 @@
   // « de Le Passeur » → « du Passeur », « à Le Passeur » → « au Passeur ».
   const de = (t) => (/^Le /.test(t) ? 'du ' + t.slice(3) : /^Les /.test(t) ? 'des ' + t.slice(4) : 'de ' + t);
   const au = (t) => (/^Le /.test(t) ? 'au ' + t.slice(3) : /^Les /.test(t) ? 'aux ' + t.slice(4) : 'à ' + t);
+  // Termine une phrase par un point, sauf si le titre porte déjà sa ponctuation (« Qui Ment ? »).
+  const point = (t) => (/[?!.…]$/.test(t) ? t : t + '.');
   const range = (r, unit) => (!r ? '—' : (r.min === r.max ? String(r.min) : `${r.min}–${r.max}`) + (unit ? ' ' + unit : ''));
 
   // ⚠️ Plus d'écran « Ce que tu apportes » : micro et avertissement sont acquis
@@ -580,18 +582,30 @@
   }
 
   // Le serveur a tiré : on déroule la bande jusqu'à SON jeu, puis on révèle.
+  // Un seul jeu possible (HubCrate.single) : pas de bande, pas de faux
+  // suspense — la caisse s'ouvre directement sur lui. Le jeu reste celui que
+  // le serveur a tiré ; seule la mise en scène change.
+  let revele = null;           // id du tirage qui vient d'être révélé ICI (arrivée animée une fois)
   function animate(d) {
     const stage = $('hub-draw');
+    const seul = HubCrate.single(d.eligible, d.gameId);
     animating = d.id;
     amene(d);
-    stage.classList.remove('is-pending');
+    // ⚠️ Un seul jeu : la fiche arrive TOUT DE SUITE, alors que le défilement
+    // doux lancé pendant « pending » court encore. « Continuer » bougerait sous
+    // le doigt et le clic tomberait à côté (le piège de showRecap, attrapé par
+    // handoff-play.mjs) : un saut immédiat interrompt ce défilement.
+    if (seul) $('hub-draw').scrollIntoView({ block: 'start', behavior: 'instant' });
+    stage.classList.remove('is-pending', 'is-revealed');
     stage.classList.add('is-open');
+    stage.classList.toggle('is-single', seul);
     $('hub-result').hidden = true;
-    $('hub-draw-status').textContent = 'La caisse s\'ouvre…';
+    $('hub-draw-status').textContent = seul ? 'Un seul jeu possible pour ce groupe : pas de tirage à faire.' : 'La caisse s\'ouvre…';
     reelFor = d.id;
     HubCrate.spin($('hub-reel'), { eligible: d.eligible, winnerId: d.gameId, info, reduced: reduced() }).then(() => {
       seen.set(d.id);
       animating = null;
+      revele = d.id;
       if (current) render(current.session, current.you);
       const c = $('hub-continue');
       if (!c.hidden && !$('hub-result').hidden) c.focus();
@@ -600,8 +614,13 @@
 
   function showResult(session, you, d) {
     const stage = $('hub-draw');
+    const seul = HubCrate.single(d.eligible, d.gameId);
     stage.classList.remove('is-pending');
-    stage.classList.add('is-open');
+    stage.classList.add('is-open', 'is-revealed');
+    stage.classList.toggle('is-single', seul);
+    // Pendant le lancement, la fiche se resserre : le bloc « Ouvrir /
+    // Rejoindre » juste dessous devient l'information principale.
+    stage.classList.toggle('is-launching', session.state === 'launching' || session.state === 'inGame');
     // Rechargement : la bande n'a pas été déroulée ici, on la pose à l'arrivée.
     if (reelFor !== d.id) {
       HubCrate.spin($('hub-reel'), { eligible: d.eligible, winnerId: d.gameId, info, reduced: true });
@@ -613,17 +632,27 @@
     $('result-tag').textContent = g.tagline;
     $('result-players').textContent = g.hub ? range(g.hub.players) : '—';
     $('result-minutes').textContent = g.hub ? range(g.hub.minutes, 'min') : '—';
-    $('hub-result').hidden = false;
-    $('hub-result').dataset.game = d.gameId;
-    $('hub-draw-status').textContent = `Jeu choisi : ${g.title}.`;
+    $('result-kicker').textContent = seul ? '🎯 Seul jeu possible ce soir' : '🎯 Jeu tiré';
+    const res = $('hub-result');
+    res.hidden = false;
+    res.dataset.game = d.gameId;
+    // L'arrivée (courte, jamais bloquante) : seulement juste après la caisse,
+    // pas au rechargement ni aux rendus suivants.
+    res.classList.remove('is-new');
+    if (revele === d.id) { revele = null; void res.offsetWidth; res.classList.add('is-new'); }
+    // Dit une fois pour les lecteurs d'écran ; à l'écran, le titre suffit
+    // (la ligne est masquée visuellement une fois le jeu révélé).
+    const dit = point(seul ? `Seul jeu possible : ${g.title}` : `Jeu tiré : ${g.title}`);
+    if ($('hub-draw-status').textContent !== dit) $('hub-draw-status').textContent = dit;
 
     const isHost = session.hostId === you;
     const host = session.players.find((p) => p.host);
     const drawn = d.status === 'drawn';
     const lancable = !!(g.hub && g.hub.handoff);
     $('hub-continue').hidden = !(drawn && isHost);
-    $('hub-continue').textContent = lancable ? `Continuer — lancer ${g.title}` : 'Continuer';
-    $('hub-continue-wait').textContent = drawn && !isHost ? `En attente de ${host ? host.name : 'l\'hôte'} pour continuer.` : '';
+    $('hub-continue').textContent = lancable ? `▶ Continuer — lancer ${g.title}` : 'Continuer';
+    $('hub-continue-wait').textContent = drawn && !isHost
+      ? point(`⏳ En attente de ${host ? host.name : 'l\'hôte'} pour ${lancable ? 'lancer ' + g.title : 'continuer'}`) : '';
     // Après « continuer » : le bloc de lancement prend le relais pour un jeu
     // lançable ; sinon (ou une fois la partie finie) on le dit ici.
     const l = session.launch;
@@ -640,6 +669,15 @@
   // Hub avec le même player.id, qui déclare la room (hub-handoff.js).
   let compte = 0;
   let montreLancement = null;
+  // « À toi » : le titre de l'onglet le dit aussi (utile quand on a quitté
+  // l'onglet des yeux pendant que l'hôte créait la partie). Rendu tel quel dès
+  // qu'il n'y a plus rien à faire.
+  const TITRE_PAGE = document.title;
+  const onglet = (action) => {
+    const t = action ? `▶ ${action} · Game Hub` : TITRE_PAGE;
+    if (document.title !== t) document.title = t;
+  };
+  let focusLancement = null;   // « tirage:étape » pour lequel le focus a déjà été amené
   function renderLaunch(session, you) {
     const l = session.launch;
     const g = l ? info(l.gameId) : null;
@@ -654,7 +692,7 @@
     const actif = l && ['create', 'join', 'playing'].includes(l.stage) && ['launching', 'inGame'].includes(session.state);
     box.hidden = !actif;
     clearInterval(compte);
-    if (!actif) return;
+    if (!actif) { box.classList.remove('is-your-turn'); onglet(null); return; }
 
     const hote = l.hostId === you;
     const hostName = nameOf(session, l.hostId);
@@ -664,21 +702,28 @@
       titre = hote ? `À toi de créer la partie : ${g.title}` : `${hostName} crée la partie ${g.title}…`;
       texte = hote ? 'Ouvre le jeu : la partie se crée toute seule, et ton groupe reçoit son code.'
         : 'Le bouton pour rejoindre apparaît dès que la partie existe.';
-      if (hote) bouton = `Ouvrir ${g.title}`;
+      if (hote) bouton = `▶ Ouvrir ${g.title}`;
     } else if (l.stage === 'join') {
       titre = `${g.title} est prêt — code ${l.roomCode}`;
       if (dedans) { texte = 'Tu es dans la partie.'; bouton = `Revenir ${au(g.title)}`; }
       else if (l.failed[you]) { texte = `Tu n'as pas pu entrer : ${l.failed[you]}.`; bouton = 'Réessayer'; }
-      else { texte = 'Clique pour rejoindre la partie de ton groupe.'; bouton = `Rejoindre ${g.title}`; }
+      else { texte = 'À toi : clique pour rejoindre la partie de ton groupe.'; bouton = `▶ Rejoindre ${g.title}`; }
     } else {
       titre = `Partie ${de(g.title)} en cours — code ${l.roomCode}`;
       if (dedans) { bouton = `Revenir ${au(g.title)}`; }
       else texte = l.missed.includes(you) ? 'La partie a commencé sans toi. Tu joueras au prochain tirage.' : '';
     }
-    $('launch-title').textContent = titre;
+    // #launch-title est role="status" : on ne le réécrit que s'il change, pour
+    // qu'un rendu identique (chaque état du Hub) ne soit pas ré-annoncé.
+    if ($('launch-title').textContent !== titre) $('launch-title').textContent = titre;
     const go = $('launch-go');
     go.hidden = !bouton;
-    if (bouton) go.textContent = bouton;
+    if (bouton && go.textContent !== bouton) go.textContent = bouton;
+    // L'action attendue DE CE JOUEUR (ouvrir, rejoindre, réessayer) — pas
+    // « Revenir », qui n'est qu'un raccourci.
+    const aToi = !!bouton && !dedans && (l.stage === 'create' || l.stage === 'join');
+    box.classList.toggle('is-your-turn', aToi);
+    onglet(aToi ? bouton.replace(/^▶ /, '') : null);
     $('launch-end').hidden = !((hote || isHost) && l.stage !== 'create');
     $('launch-cancel').hidden = !((hote || isHost) && (l.stage === 'create' || l.stage === 'join'));
 
@@ -712,6 +757,25 @@
     if (l.stage === 'join' && !dedans && montreLancement !== l.drawId) {
       montreLancement = l.drawId;
       box.scrollIntoView({ block: 'center', behavior: reduced() ? 'auto' : 'smooth' });
+    }
+    // Le focus rejoint le bouton qui attend CE joueur — une fois par étape, et
+    // seulement s'il n'était nulle part (ou sur « Continuer », qui vient de
+    // disparaître) : on ne l'arrache jamais à quelqu'un qui fait autre chose.
+    const cle = l.drawId + ':' + l.stage;
+    if (aToi && focusLancement !== cle) {
+      focusLancement = cle;
+      const a = document.activeElement;
+      if (!a || a === document.body || a === $('hub-continue') || a.closest('[hidden]')) {
+        // Un tour plus tard : au premier rendu d'une reprise, le salon est encore caché.
+        setTimeout(() => {
+          if (go.hidden || box.hidden || $('lobby').hidden) return;
+          const r = go.getBoundingClientRect();
+          // Hors de l'écran (l'hôte, au téléphone) : saut immédiat, pas animé —
+          // un défilement doux avale le clic qui suit (voir showRecap).
+          if (r.top < 0 || r.bottom > innerHeight) go.scrollIntoView({ block: 'center', behavior: 'instant' });
+          go.focus({ preventScroll: true });
+        }, 0);
+      }
     }
   }
 
@@ -763,7 +827,11 @@
     $('hub-finish').disabled = false;
     btn.disabled = pool.catalog !== 'ready' || !pool.eligible.length;
     if (session.state === 'drawing') {
-      $('hub-wait').textContent = isHost ? 'Tirage en cours.' : `${hostName} a lancé le tirage.`;
+      // Une fois le jeu révélé, l'encart ne dit plus « tirage en cours » : la
+      // suite est dans la fiche du jeu, juste en dessous.
+      const tire = session.draw && session.draw.status === 'drawn';
+      $('hub-wait').textContent = tire ? (isHost ? 'Jeu tiré : la suite est juste en dessous.' : `${hostName} a tiré le jeu de la soirée.`)
+        : isHost ? 'Tirage en cours.' : `${hostName} a lancé le tirage.`;
     } else if (isHost) {
       $('hub-wait').textContent = pool.eligible.length ? 'Tu es l\'hôte : c\'est toi qui tires.' : 'Tu es l\'hôte. Aucun jeu n\'est possible pour l\'instant.';
     } else {

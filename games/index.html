@@ -249,22 +249,50 @@
   .reel-line { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; transform: translateX(-50%); background: #f2a15f; z-index: 2; opacity: .8; }
   .reel.is-done .reel-line { opacity: 0; }
   #hub-draw-status { margin: .8rem 0 0; font-size: .85rem; color: var(--ink-2); }
+  /* Un seul jeu possible : rien à tirer, donc pas de bande (hub-crate.js,
+     single) — la fiche du jeu suit directement la caisse ouverte. */
+  #hub-draw.is-single .reel { display: none; }
+  /* Jeu révélé : c'est le TITRE qui porte l'information. La bande s'efface
+     derrière la vignette gagnante, et la ligne d'état (« Jeu tiré : … », comme
+     le titre) ne sert plus qu'aux lecteurs d'écran. */
+  .reel.is-done .reel-cell { transition: opacity .3s; }
+  #hub-draw.is-revealed .reel.is-done .reel-cell:not(.is-win) { opacity: .28; }
+  .reel.is-done .reel-cell.is-win { box-shadow: inset 0 0 0 2px #f2a15f; }
+  .reel.is-done .reel-cell.is-win .reel-name { color: var(--ink); }
+  #hub-draw.is-revealed #hub-draw-status { position: absolute; width: 1px; height: 1px; margin: 0; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap; }
 
 
   /* Le résultat. */
   #hub-result { margin-top: 1rem; }
   .result-kicker { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; letter-spacing: .25em; text-transform: uppercase;
     font-size: .9rem; color: #f2a15f; margin: 0; }
-  .result-emoji { font-size: 4.2rem; line-height: 1.1; margin: .4rem 0 0; }
-  .result-title { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: clamp(1.8rem, 7vw, 2.6rem); line-height: 1.05;
-    margin: .2rem 0 0; color: var(--ink); letter-spacing: .03em; }
-  .result-tag { margin: .35rem 0 0; color: var(--ink-2); font-size: .95rem; }
-  .result-facts { display: flex; justify-content: center; gap: 1.6rem; margin: .9rem 0 0; padding: 0; }
+  /* Hiérarchie : le NOM d'abord (le plus gros), l'emoji en appui, puis la
+     suite (bouton ou attente) ; accroche et fourchettes en retrait. */
+  .result-emoji { font-size: 2.2rem; line-height: 1.1; margin: .35rem 0 0; }
+  .result-title { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: clamp(2.3rem, 9.5vw, 3.1rem); line-height: 1.05;
+    margin: .15rem 0 0; color: var(--ink); letter-spacing: .03em; text-transform: uppercase; overflow-wrap: anywhere; }
+  .result-tag { margin: .35rem 0 0; color: var(--ink-2); font-size: .92rem; }
+  .result-facts { display: flex; justify-content: center; gap: 1.6rem; margin: .7rem 0 0; padding: 0; }
   .result-facts div { text-align: center; }
   .result-facts dt { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
-  .result-facts dd { margin: .1rem 0 0; font-size: 1.05rem; color: var(--ink); }
-  .result-actions { margin-top: 1rem; display: flex; flex-direction: column; align-items: center; gap: .5rem; }
-  #hub-continue { min-width: 12rem; }
+  .result-facts dd { margin: .1rem 0 0; font-size: .95rem; color: var(--ink-2); }
+  .result-actions { margin-top: 1.1rem; display: flex; flex-direction: column; align-items: center; gap: .5rem; }
+  #hub-continue { min-width: 16rem; font-size: 1.2rem; padding-block: .85rem; }
+  #hub-continue-wait { font-size: .95rem; color: var(--ink); }
+  #hub-continue-wait:empty { display: none; }
+  /* L'arrivée, une fois, juste après la caisse (jamais au rechargement) :
+     courte, et la fiche est lisible et cliquable dès la première image. */
+  #hub-result.is-new { animation: round-in .35s ease-out both; }
+  #hub-result.is-new .result-title { animation: result-pop .5s .05s ease-out both; }
+  @keyframes result-pop { 0% { transform: scale(.9); } 60% { transform: scale(1.04); } 100% { transform: none; } }
+  /* Pendant le lancement, la fiche se resserre sous le bloc « Ouvrir /
+     Rejoindre », qui devient l'information principale. */
+  #hub-draw.is-launching .crate, #hub-draw.is-launching .reel, #hub-draw.is-launching .result-tag,
+  #hub-draw.is-launching .result-facts { display: none; }
+  #hub-draw.is-launching .crate-plate { margin-bottom: .5rem; }
+  #hub-draw.is-launching .result-emoji { font-size: 1.8rem; }
+  #hub-draw.is-launching .result-title { font-size: clamp(1.6rem, 6.5vw, 2.2rem); }
   #hub-ready { margin: .6rem 0 0; font-size: .85rem; color: #8cbb96; }
   #hub-history { margin: .7rem 0 0; font-size: .78rem; color: var(--ink-3); }
   #hub-history:empty { display: none; }
@@ -325,6 +353,12 @@
   #launch-text { margin: .35rem 0 0; }
   .launch-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .6rem; margin-top: .9rem; }
   #launch-go { min-width: 14rem; font-size: 1.1rem; }
+  /* « À toi » : ce joueur a une action à faire (ouvrir, rejoindre). Un encart
+     à l'accent Mann Co. et deux pulsations du bouton — pas plus. */
+  #hub-launch.is-your-turn { padding: 1rem .9rem 1.1rem; border-top: 0; background: rgba(207, 106, 50, .12);
+    box-shadow: inset 0 0 0 2px #cf6a32; }
+  #hub-launch.is-your-turn #launch-go { font-size: 1.2rem; padding-block: .85rem; animation: launch-call 1.1s ease-in-out 2; }
+  @keyframes launch-call { 50% { filter: brightness(1.25); } }
   #launch-list { list-style: none; padding: 0; margin: 1rem 0 0; display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem .9rem; }
   #launch-list li { display: flex; align-items: center; gap: .45rem; font-size: .85rem; color: var(--ink-2); }
   .launch-tag { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: .64rem; letter-spacing: .08em; text-transform: uppercase;
@@ -432,7 +466,8 @@
     #hub-recap.is-final .recap-row.is-top { animation: none; }
     #hub-draw.is-pending .crate { animation: none; }
     #hub-round.is-new, #hub-round.is-new #round-me { animation: none; }
-    .crate-lid, .crate-glow { transition: none; }
+    #hub-result.is-new, #hub-result.is-new .result-title, #hub-launch.is-your-turn #launch-go { animation: none; }
+    .crate-lid, .crate-glow, .reel.is-done .reel-cell { transition: none; }
   }
 
   @media (max-width: 560px) {
@@ -450,6 +485,7 @@
     .hub-foot-actions { flex-direction: column; }
     .finish-actions button { width: 100%; }
     .reel { height: 84px; }
+    #hub-continue { width: 100%; min-width: 0; }
     .reel-cell { flex-basis: 92px; }
     /* Téléphone : le vainqueur passe sous le nom du jeu, place et gain à droite. */
     .recap-game { grid-template-columns: minmax(0, 1fr) 2.4rem 3rem; }
@@ -589,7 +625,7 @@
         <div class="reel" id="hub-reel" aria-hidden="true"><ul class="reel-strip"></ul><span class="reel-line"></span></div>
         <p id="hub-draw-status" role="status"></p>
         <div id="hub-result" hidden>
-          <p class="result-kicker">🎉 Jeu choisi</p>
+          <p class="result-kicker" id="result-kicker">🎯 Jeu tiré</p>
           <p class="result-emoji" id="result-emoji"></p>
           <h2 class="result-title" id="result-title"></h2>
           <p class="result-tag" id="result-tag"></p>
@@ -604,9 +640,12 @@
           </div>
         </div>
         <!-- LE LANCEMENT (handoff) : créer la partie, la rejoindre, qui est là.
-             Chaque joueur clique lui-même — aucune navigation sans geste. -->
+             Chaque joueur clique lui-même — aucune navigation sans geste :
+             c'est voulu (voir renderLaunch dans hub-page.js). Le titre est
+             annoncé à chaque changement d'étape ; le compte à rebours, dans
+             #launch-text, ne l'est pas (il changerait chaque seconde). -->
         <div id="hub-launch" hidden>
-          <p class="launch-title" id="launch-title"></p>
+          <p class="launch-title" id="launch-title" role="status"></p>
           <p class="hub-note" id="launch-text"></p>
           <div class="launch-actions">
             <button type="button" id="launch-go"></button>
@@ -695,8 +734,8 @@
   <script src="shared/game-avatar.js"></script>
   <script src="shared/game-hub.js?v=4"></script>
   <script src="shared/hub-handoff.js?v=4"></script>
-  <script src="hub-crate.js"></script>
+  <script src="hub-crate.js?v=2"></script>
   <script src="hub-recap.js?v=3"></script>
-  <script src="hub-page.js?v=9"></script>
+  <script src="hub-page.js?v=10"></script>
 </body>
 </html>

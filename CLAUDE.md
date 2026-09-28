@@ -592,6 +592,18 @@ le build échoue. ⚠️ Il écrit vraiment dans le fichier puis restaure dans u
 - Page : ❤️ / 🚫 par jeu, durée max (hôte), raison de chaque exclusion, chances,
   caisse amenée à l'écran chez tous au début d'un tirage (au téléphone elle
   tournait 900 px plus haut), historique de la soirée.
+- **Révélation** (lot C, 2026-09-28) : le NOM du jeu est le plus gros texte de
+  la fiche (`#result-kicker` « 🎯 Jeu tiré »), la bande s'efface derrière la
+  vignette gagnante (`.reel-cell.is-win`), `#hub-draw-status` passe en texte
+  pour lecteurs d'écran seulement (`#hub-draw.is-revealed`). Focus sur
+  `#hub-continue` chez l'hôte ; chez l'invité, « ⏳ En attente de <hôte> pour
+  lancer <jeu> ». `point()` évite « Qui Ment ?. ».
+- ⚠️ **Un seul jeu possible = pas de bande** (`HubCrate.single(draw.eligible,
+  draw.gameId)`) : `#hub-draw.is-single`, révélation directe, zéro faux
+  suspense. Plusieurs jeux : bande et hasard de décor inchangés. Dans ce cas
+  la fiche arrive PENDANT le défilement doux lancé à `pending` : `animate()` le
+  coupe d'un saut `instant`, sinon le clic sur « Continuer » tombe à côté
+  (attrapé par `handoff-play.mjs`). Ne pas retirer ce saut.
 
 ## Handoff et présence : l'état des sept jeux
 
@@ -610,6 +622,19 @@ besoin. Aucun serveur de jeu ne connaît le Hub.
    (`entered`) ;
 4. tout le monde est entré → `inGame` (« tout le groupe est dans la room », pas
    « la manche a commencé ») ; `ended` → `debrief`.
+
+⚠️ **Deux clics chez l'hôte (« ▶ Continuer — lancer X » puis « ▶ Ouvrir X »),
+et c'est un choix** (lot C) : naviguer tout seul à la réception de l'état
+`launching` demanderait une garde contre un nouveau départ au rechargement ou au
+retour arrière, et changerait le parcours que les 7 suites `handoff-*.mjs`
+jouent. Le gain d'un clic ne vaut pas ce risque. À la place : le focus passe
+tout seul sur `#launch-go` (une fois par étape, seulement s'il était sur
+`<body>` ou sur « Continuer » qui vient de disparaître ; saut `instant` s'il est
+hors écran), `#hub-launch.is-your-turn` (encart + deux pulsations, coupées en
+mouvement réduit), titre d'onglet « ▶ Ouvrir / Rejoindre X · Game Hub » tant
+que l'action attend CE joueur, `#launch-title` en `role="status"` (réécrit
+seulement s'il change ; le compte à rebours de `#launch-text` n'est PAS annoncé).
+Pendant le lancement, la fiche du jeu se resserre (`#hub-draw.is-launching`).
 
 ⚠️ **Aucun jeton secret, et c'est un choix** : l'autorité vient du SOCKET (seul
 l'hôte DU LANCEMENT peut déclarer un code), le lancement est lié au tirage

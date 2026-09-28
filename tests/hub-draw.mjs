@@ -180,6 +180,13 @@ async function joueur(cdp, nom) {
     for (const type of ['rawKeyDown', 'keyUp']) await S('Input.dispatchKeyEvent', { type, key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 });
     await sleep(40);
   };
+  // Une vraie touche Entrée (keyDown AVEC text : c'est ce qui active un
+  // <button> ; sans text, seul un écouteur keydown la verrait).
+  J.enter = async () => {
+    await S('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r' });
+    await S('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+    await sleep(60);
+  };
   // Attend la FIN d'un défilement (doux ou non) : scrollY inchangé pendant 6
   // images d'affilée, mesuré dans la page par requestAnimationFrame. Rend
   // { fini, y } — pas d'attente fixe, qui serait trop courte ou trop longue.
@@ -238,6 +245,27 @@ const PLAQUE = `(() => { const st = document.getElementById('hub-draw'); if (st.
   const p = st.querySelector('.crate-plate').getBoundingClientRect(), l = st.querySelector('.crate-lid').getBoundingClientRect();
   return { ouvert: st.classList.contains('is-open'), ecart: Math.round(l.top - p.bottom), ok: l.top >= p.bottom - 0.5 }; })()`;
 const DECALAGE = `(() => { const s = document.querySelector('#hub-reel .reel-strip'); return s ? new DOMMatrix(getComputedStyle(s).transform).m41 : 0; })()`;
+// La RÉVÉLATION telle qu'on la lit (lot C) : un seul jeu ou non, la bande, la
+// vignette gagnante, le titre plus gros que TOUT le reste de la fiche (emoji
+// compris), la ligne d'état réservée aux lecteurs d'écran, le focus, et ce qui
+// est à l'écran (titre, bouton de l'hôte ou attente de l'invité).
+const REVELE = `(() => { const st = document.getElementById('hub-draw'), res = document.getElementById('hub-result'), reel = document.getElementById('hub-reel');
+  const px = (e) => parseFloat(getComputedStyle(e).fontSize);
+  const status = document.getElementById('hub-draw-status'), sr = status.getBoundingClientRect();
+  const win = document.querySelector('#hub-reel .reel-cell.is-win');
+  const cont = document.getElementById('hub-continue'), cr = cont.getBoundingClientRect();
+  const wait = document.getElementById('hub-continue-wait'), wr = wait.getBoundingClientRect();
+  const tr = document.getElementById('result-title').getBoundingClientRect();
+  const autres = [...res.querySelectorAll('.result-kicker, .result-emoji, .result-tag, .result-facts dt, .result-facts dd, #hub-continue-wait')];
+  return { single: st.classList.contains('is-single'), revealed: st.classList.contains('is-revealed'),
+    reelVue: reel.checkVisibility(), cellules: reel.querySelectorAll('.reel-cell').length, gagnante: win ? win.dataset.game : null,
+    kicker: document.getElementById('result-kicker').textContent, statut: status.textContent, statutCache: sr.width <= 1 && sr.height <= 1,
+    titre: px(document.getElementById('result-title')), autres: Math.max(...autres.map(px)),
+    focus: document.activeElement ? document.activeElement.id : null,
+    cont: !cont.hidden, contTxt: cont.textContent, contVu: !cont.hidden && cr.top >= 0 && cr.bottom <= innerHeight && cr.left >= 0 && cr.right <= innerWidth,
+    attente: wait.textContent, attenteVue: !!wait.textContent && wr.top >= 0 && wr.bottom <= innerHeight,
+    titreVu: tr.top >= 0 && tr.bottom <= innerHeight && tr.left >= 0 && tr.right <= innerWidth,
+    over: document.documentElement.scrollWidth - innerWidth }; })()`;
 
 // --- orchestration ---------------------------------------------------------
 const sante = await fakeHealth(HEALTH_PORT);
@@ -472,6 +500,35 @@ try {
     t(`${J.nom} : la PP de A est toujours la bonne pendant le tirage`, img);
   }
   t('aucun « [obj » / « undefined » à l\'écran', r1.every((v) => !/\[obj|undefined|NaN/.test(v.texte)));
+
+  // Lot C — la révélation, cas PLUSIEURS jeux : la bande reste (vrai tirage),
+  // et à l'arrêt on lit d'abord « LE JEU TIRÉ ».
+  {
+    const [ra, rb] = [await A.eval(REVELE), await B.eval(REVELE)];
+    t('plusieurs jeux : la bande est là (vrai tirage), pas le mode « un seul jeu »', !ra.single && ra.reelVue && ra.cellules > 20, JSON.stringify({ single: ra.single, n: ra.cellules }));
+    t('plusieurs jeux : la vignette mise en avant est celle du serveur (et celle sous le repère)', ra.gagnante === g1 && rb.gagnante === g1 && sous[0] === g1, `${ra.gagnante} / ${g1}`);
+    t('révélation : « 🎯 Jeu tiré », le NOM plus gros que tout le reste de la fiche', /Jeu tiré/.test(ra.kicker) && ra.titre > ra.autres, `${ra.titre} px > ${ra.autres} px`);
+    t('révélation : la ligne d\'état dit « Jeu tiré : … » aux lecteurs d\'écran, sans doubler le titre à l\'écran',
+      ra.statut === `Jeu tiré : ${TITRE[g1]}` + (/[?!.]$/.test(TITRE[g1]) ? '' : '.') && ra.statutCache, ra.statut);
+    t('hôte : le focus est sur « ▶ Continuer — lancer … » dès la révélation', ra.focus === 'hub-continue' && /^▶ Continuer — lancer /.test(ra.contTxt), `${ra.focus} / ${ra.contTxt}`);
+    t('invité : « ⏳ En attente de Alice pour … », à la place du bouton', !rb.cont && /^⏳ En attente de Alice pour /.test(rb.attente), rb.attente);
+    const encart = await B.eval(`document.getElementById('hub-wait').textContent`);
+    t('invité : l\'encart du haut ne dit plus « a lancé le tirage » une fois le jeu révélé', encart === 'Alice a tiré le jeu de la soirée.', encart);
+    t('aucune double ponctuation (« Qui Ment ?. »)', r1.every((v) => !/[?!]\./.test(v.texte)) && !/[?!]\./.test(rb.attente + rb.statut));
+  }
+  // Aux quatre largeurs, chez l'hôte ET chez l'invité : le nom et la suite à
+  // l'écran, rien qui déborde.
+  for (const [w, h] of [[390, 780], [768, 1024], [1100, 1000], [1280, 900]]) {
+    for (const [J, role] of [[A, 'hôte'], [B, 'invité']]) {
+      await J.size(w, h); await sleep(200);
+      await J.eval(`document.getElementById('hub-result').scrollIntoView({ block: 'center', behavior: 'instant' }); true`);
+      const v = await J.eval(REVELE);
+      t(`${w} px, ${role} : nom du jeu et ${role === 'hôte' ? 'bouton' : 'attente'} à l'écran, sans débordement`,
+        v.over <= 0 && v.titreVu && (role === 'hôte' ? v.contVu : v.attenteVue), JSON.stringify({ over: v.over, titre: v.titreVu, cont: v.contVu, att: v.attenteVue }));
+      await J.shot(`2-revelation-${role === 'hôte' ? 'A' : 'B'}-${w}`);
+    }
+  }
+  await A.size(1100, 1000); await B.size(1100, 1000); await sleep(150);
   await A.shot('2-revelation-A'); await C.shot('2-revelation-C');
 
   // C recharge pendant la révélation : même tirage, rien de relancé.
@@ -636,12 +693,35 @@ try {
         statut: document.getElementById('hub-draw-status').textContent,
         msg: document.getElementById('hub-lobby-msg').textContent,
         vu: !document.getElementById('hub-result').hidden,
-        jeu: document.getElementById('hub-result').dataset.game }))()`));
+        jeu: document.getElementById('hub-result').dataset.game, dec: ${DECALAGE},
+        bande: document.getElementById('hub-reel').checkVisibility() }))()`));
       if (vus[vus.length - 1].vu) break;
-      await sleep(200);
+      await sleep(100);
     }
     const fin = vus[vus.length - 1];
+    const msRevele = Date.now() - t0;
     t('1 joueur : la caisse révèle Passeur', fin.vu && fin.jeu === 'passeur', JSON.stringify(fin));
+
+    // Lot C — UN SEUL JEU POSSIBLE : révélation directe. Pas de bande qui
+    // fait défiler trente fois le même jeu, pas de suspense simulé ; le
+    // résultat est celui du serveur (vérifié juste au-dessus dans les trames).
+    const rs = await E.eval(REVELE);
+    t('un seul jeu : pas de faux défilement (bande jamais affichée, jamais déplacée)',
+      vus.every((v) => !v.bande && Math.round(v.dec) === 0) && rs.single && !rs.reelVue && rs.cellules === 1,
+      JSON.stringify({ single: rs.single, bande: rs.reelVue, n: rs.cellules, dec: [...new Set(vus.map((v) => Math.round(v.dec)))] }));
+    t('un seul jeu : révélé tout de suite (pas les ~3,4 s de la bande)', msRevele < 1500, `${msRevele} ms`);
+    t('un seul jeu : « 🎯 Seul jeu possible ce soir », et l\'état le dit aussi', /Seul jeu possible/.test(rs.kicker) && rs.statut === 'Seul jeu possible : Le Passeur.', `${rs.kicker} / ${rs.statut}`);
+    t('un seul jeu : le nom domine la fiche, le focus est sur « Continuer »', rs.titre > rs.autres && rs.focus === 'hub-continue', `${rs.titre} > ${rs.autres}, focus ${rs.focus}`);
+    for (const [w, h] of [[390, 780], [768, 1024], [1100, 1000], [1280, 900]]) {
+      await E.size(w, h); await sleep(200);
+      await E.eval(`document.getElementById('hub-draw').scrollIntoView({ block: 'start', behavior: 'instant' }); true`);
+      const v = await E.eval(REVELE);
+      const pl = await E.eval(PLAQUE);
+      t(`un seul jeu, ${w} px : caisse ouverte, nom et « Continuer » à l'écran, sans débordement`,
+        v.over <= 0 && v.titreVu && v.contVu && pl && pl.ouvert && pl.ok, JSON.stringify({ over: v.over, titre: v.titreVu, cont: v.contVu, pl }));
+      await E.shot(`7-un-seul-jeu-${w}`);
+    }
+    await E.size(1100, 1000); await sleep(150);
     t('1 joueur : la caisse s\'ouvre sans attente de serveur', Date.now() - t0 < 20000, `${Date.now() - t0} ms`);
     // ⚠️ Le bloc « Réveil du serveur… » a été retiré : plus rien ne pose
     // `waking`, puisque le tirage ne consulte plus aucun /health. S'il
@@ -654,10 +734,12 @@ try {
     t('1 joueur : aucune erreur JS', E.erreurs.length === 0, E.erreurs.join(' | '));
     await E.shot('7-serveur-endormi');
 
-    // Et « continuer » rend la main au Hub, prêt pour le lancement.
-    await E.click('#hub-continue');
-    await E.until(`document.getElementById('hub-draw-btn') && !document.getElementById('hub-draw-btn').disabled`, 8000, 'retour au salon');
-    t('1 joueur : « continuer » ramène au Hub, prêt à relancer', true);
+    // Et « continuer » rend la main au Hub, prêt pour le lancement — AU
+    // CLAVIER : le focus est déjà sur le bouton, une vraie touche Entrée suffit.
+    await E.eval(`document.getElementById('hub-continue').focus({ preventScroll: true }); true`);
+    await E.enter();
+    await E.until(`document.getElementById('hub-draw-btn') && !document.getElementById('hub-draw-btn').disabled && document.getElementById('hub-continue').hidden`, 8000, 'retour au salon');
+    t('1 joueur : « continuer » à la touche Entrée ramène au Hub, prêt à relancer', true);
   }
 
   const errs = [A, B, C].flatMap((J) => J.erreurs.map((e) => `[${J.nom}] ${e}`));

@@ -317,6 +317,20 @@ CLAUDE.md, « Game Hub : le salon et le retour de partie »).
 | `hub-score-morpion.mjs` | carte Résultat à chaque partie (sans points de partie) ; **aucune carte après l'abandon**, « Tirer » à sa place | 52 | — |
 | `hub-score-precision.mjs` | solo : une ligne, sans rang, « Partie terminée · +10 pts », « Tirage suivant » dans la carte | 41 | — |
 
+## Lot C — tirage → lancement (2026-09-28) : ce que chaque suite garde
+
+Front seulement (CLAUDE.md, « Le tirage » et « Handoff et présence »). Le
+parcours à deux clics de l'hôte est CONSERVÉ : les sept suites `handoff-*.mjs`
+le rejouent tel quel et passent (Morpion 58, Imitation 34, Demi-Cercle 68,
+Ban 76, Précision 79, Qui Ment ? 61, Le Passeur 47 ; Morpion avec
+`NODE_PATH` = `node_modules` de game-hub-server).
+
+| Suite | Ce qui a été ajouté | Normal | Réduit |
+|---|---|---|---|
+| `hub-draw.mjs` | **plusieurs jeux** : bande présente, vignette gagnante = jeu du serveur, « 🎯 Jeu tiré », nom plus gros que tout le reste de la fiche, état réservé aux lecteurs d'écran, focus sur « ▶ Continuer — lancer … », attente de l'invité, encart du haut à jour, pas de « ?. » ; hôte et invité à 390 / 768 / 1100 / 1280 px. **Un seul jeu** : bande jamais affichée ni déplacée, révélé en moins de 1,5 s, « Seul jeu possible ce soir », les 4 largeurs, puis « Continuer » à la **vraie touche Entrée** | 114 | 112 |
+| `hub-play.mjs` | du tirage au lancement à deux : libellés, focus qui passe tout seul sur « ▶ Ouvrir … », encart « à toi » et titre d'onglet chez l'hôte seulement, `role=status`, fiche resserrée, 4 largeurs, puis annulation → salon comme avant, onglet rendu | 67 | — |
+| `handoff-play.mjs` | un seul jeu (pas de bande) chez les trois ; focus et onglet « ▶ Ouvrir Le Passeur » ; invité : onglet « ▶ Rejoindre Le Passeur », encart « à toi », titre annoncé ; onglet rendu au retour. A attrapé la course du défilement doux (voir CLAUDE.md) | 47 | 47 |
+
 ## Livraison fiable results → ended (2026-09-28) : `hub-report.mjs`, `hub-report-play.mjs`
 
 Le défaut (CLAUDE.md, « Livraison fiable du classement ») : un `send()` sur un

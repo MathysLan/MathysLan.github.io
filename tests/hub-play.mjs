@@ -284,6 +284,47 @@ try {
   const hint = await A.eval(`document.getElementById('hub-code-hint').textContent`);
   t('copier : le presse-papiers contient exactement le code', copie === code || (copie === null && /copié/.test(hint)), `${copie} / ${hint}`);
 
+  // ═══ 3b. Lot C — du tirage au lancement, chez l'hôte ET chez l'invité.
+  // Le cycle n'est PAS modifié : tirage → « Continuer » → lancement (étape
+  // create) → annulation par l'hôte → retour au salon, comme avant. On ne
+  // navigue vers aucun jeu ici (handoff-play.mjs le fait) : on lit le Hub.
+  {
+    const TITRE0 = await B.eval('document.title');
+    await A.click('#hub-draw-btn');
+    for (const J of [A, B]) await J.until(`!document.getElementById('hub-result').hidden && !!document.getElementById('hub-result').dataset.game`, 15000, `révélation ${J.nom}`);
+    const jeu = await A.eval(`document.getElementById('result-title').textContent`);
+    const rv = await A.eval(`({ focus: document.activeElement && document.activeElement.id, cont: document.getElementById('hub-continue').textContent })`);
+    const rvB = await B.eval(`({ cont: !document.getElementById('hub-continue').hidden, att: document.getElementById('hub-continue-wait').textContent })`);
+    t('révélation, hôte : « ▶ Continuer — lancer <jeu> », et le focus dessus', rv.focus === 'hub-continue' && rv.cont === `▶ Continuer — lancer ${jeu}`, JSON.stringify(rv));
+    t('révélation, invité : pas de bouton, « ⏳ En attente de Alice pour lancer <jeu> »', !rvB.cont && rvB.att.startsWith(`⏳ En attente de Alice pour lancer ${jeu}`), rvB.att);
+    await A.click('#hub-continue');
+    for (const J of [A, B]) await J.until(`!document.getElementById('hub-launch').hidden`, 8000, `lancement ${J.nom}`);
+    await sleep(150);
+    const LANCE = `(() => { const go = document.getElementById('launch-go'), box = document.getElementById('hub-launch'), r = go.getBoundingClientRect();
+      return { go: !go.hidden, txt: go.textContent, focus: document.activeElement && document.activeElement.id, tour: box.classList.contains('is-your-turn'),
+        titre: document.title, role: document.getElementById('launch-title').getAttribute('role'), lt: document.getElementById('launch-title').textContent,
+        serre: document.getElementById('hub-draw').classList.contains('is-launching'), vu: !go.hidden && r.top >= 0 && r.bottom <= innerHeight,
+        over: document.documentElement.scrollWidth - innerWidth }; })()`;
+    const la = await A.eval(LANCE), lb = await B.eval(LANCE);
+    t('lancement, hôte : « ▶ Ouvrir <jeu> », le focus y est passé tout seul, encart « à toi »', la.go && la.txt === `▶ Ouvrir ${jeu}` && la.focus === 'launch-go' && la.tour, JSON.stringify(la));
+    t('lancement, hôte : l\'onglet dit l\'action (« ▶ Ouvrir … · Game Hub »)', la.titre === `▶ Ouvrir ${jeu} · Game Hub`, la.titre);
+    t('lancement, invité : aucun bouton, pas d\'encart « à toi », onglet inchangé, « Alice crée la partie… »',
+      !lb.go && !lb.tour && lb.titre === TITRE0 && /Alice crée la partie/.test(lb.lt), JSON.stringify(lb));
+    t('lancement : titre d\'étape annoncé (role=status), fiche du jeu resserrée chez les deux', la.role === 'status' && la.serre && lb.serre);
+    for (const [w, h] of [[390, 780], [768, 1024], [1100, 1000], [1280, 900]]) {
+      await A.size(w, h); await B.size(w, h); await sleep(200);
+      await A.eval(`document.getElementById('launch-go').scrollIntoView({ block: 'center', behavior: 'instant' }); true`);
+      const m = await A.eval(LANCE), mb = await B.eval(LANCE);
+      t(`${w} px : « Ouvrir » à l'écran chez l'hôte, aucun débordement chez les deux`, m.vu && m.over <= 0 && mb.over <= 0, JSON.stringify({ vu: m.vu, over: m.over, overB: mb.over }));
+      await A.shot(`2c-lancement-hote-${w}`); await B.shot(`2c-lancement-invite-${w}`);
+    }
+    await A.size(1100, 1000); await B.size(1100, 1000); await sleep(150);
+    await A.click('#launch-cancel');
+    for (const J of [A, B]) await J.until(`document.getElementById('hub-launch').hidden && !document.getElementById('hub-failed').hidden`, 8000, `retour au salon ${J.nom}`);
+    const fin = await A.eval(`({ titre: document.title, tirer: !document.getElementById('hub-draw-btn').hidden })`);
+    t('annulation : retour au salon comme avant (raison affichée, « Tirer » chez l\'hôte), onglet rendu', fin.tirer && fin.titre === TITRE0, JSON.stringify(fin));
+  }
+
   // ═══ 4. B recharge : il reprend SA place (même player.id, pas de doublon)
   await B.reload();
   await B.until(`!document.getElementById('lobby').hidden && document.querySelectorAll('#hub-players .hub-card').length === 2`, 15000, 'reprise de B');

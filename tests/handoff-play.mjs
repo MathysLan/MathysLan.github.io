@@ -242,6 +242,9 @@ try {
   const d = await A.attendsTrame((m) => m.session && m.session.draw && m.session.draw.status === 'drawn', 15000, 'tirage');
   for (const J of [A, B, C]) await J.until(`document.getElementById('hub-result').dataset.game === 'passeur' && !document.getElementById('hub-result').hidden`, 15000, `révélation ${J.nom}`);
   t('tirage serveur : Le Passeur, révélé chez les trois', d.session.draw.gameId === 'passeur');
+  // Lot C : Le Passeur est le SEUL jeu possible — révélation directe, sans bande.
+  const seul = await Promise.all([A, B, C].map((J) => J.eval(`({ s: document.getElementById('hub-draw').classList.contains('is-single'), bande: document.getElementById('hub-reel').checkVisibility(), k: document.getElementById('result-kicker').textContent })`)));
+  t('un seul jeu possible : pas de bande, « Seul jeu possible ce soir », chez les trois', seul.every((x) => x.s && !x.bande && /Seul jeu possible/.test(x.k)), JSON.stringify(seul));
   const mesures = [];
   for (const [w, h] of [[390, 780], [768, 1024], [1920, 1080]]) {
     await C.size(w, h); await sleep(200);
@@ -259,6 +262,9 @@ try {
   const lA = await A.eval(`({ t: document.getElementById('launch-title').textContent, b: document.getElementById('launch-go').textContent })`);
   const lB = await B.eval(`({ t: document.getElementById('launch-title').textContent, go: !document.getElementById('launch-go').hidden, liste: document.getElementById('launch-list').innerText })`);
   t('host : « À toi de créer la partie » + bouton « Ouvrir Le Passeur »', /À toi de créer/.test(lA.t) && /Ouvrir Le Passeur/.test(lA.b));
+  const tourA = await A.eval(`({ f: document.activeElement && document.activeElement.id, titre: document.title, tour: document.getElementById('hub-launch').classList.contains('is-your-turn') })`);
+  t('host : le focus passe sur « ▶ Ouvrir Le Passeur », le titre d’onglet le dit', tourA.f === 'launch-go' && tourA.titre === '▶ Ouvrir Le Passeur · Game Hub' && tourA.tour, JSON.stringify(tourA));
+  t('guest : le titre d’onglet ne réclame rien tant que la partie n’existe pas', !/^▶/.test(await B.eval('document.title')));
   t('guest : « Alice crée la partie… », aucun bouton (un invité ne crée JAMAIS de room)', /Alice crée la partie/.test(lB.t) && !lB.go);
   t('attente : chacun voit qui est attendu', /attendu/i.test(lB.liste) && /Alice/.test(lB.liste));
   for (const [w, h] of [[390, 780], [768, 1024], [1920, 1080]]) {
@@ -284,6 +290,8 @@ try {
 
   // ═══ 4. B RECHARGE /games/ pendant le lancement
   await B.until(`/Rejoindre Le Passeur/.test(document.getElementById('launch-go').textContent) && !document.getElementById('launch-go').hidden`, 10000, 'bouton Rejoindre chez B');
+  const tourB = await B.eval(`({ titre: document.title, tour: document.getElementById('hub-launch').classList.contains('is-your-turn'), txt: document.getElementById('launch-text').textContent, role: document.getElementById('launch-title').getAttribute('role') })`);
+  t('guest, code arrivé : « ▶ Rejoindre Le Passeur » dans le titre d’onglet, encart « à toi », titre annoncé', tourB.titre === '▶ Rejoindre Le Passeur · Game Hub' && tourB.tour && /^À toi/.test(tourB.txt) && tourB.role === 'status', JSON.stringify(tourB));
   const avant = B.hub();
   await B.reload();
   await B.until(`!document.getElementById('lobby').hidden && /Rejoindre Le Passeur/.test(document.getElementById('launch-go').textContent)`, 15000, 'B après rechargement');
@@ -297,7 +305,8 @@ try {
     await B.size(w, h); await sleep(200);
     const m = await B.eval(MISE(['launch-go', 'launch-title']));
     t(`${w}×${h} : bouton « Rejoindre » visible, sans débordement`, m.over <= 0 && m.vis['launch-go'], JSON.stringify(m));
-    if (w === 390) await B.shot('4-rejoindre-390');
+    await B.eval(`document.getElementById('launch-go').scrollIntoView({ block: 'center', behavior: 'instant' }); true`);
+    await B.shot(`4-rejoindre-${w}`);
   }
   await B.size(1100, 1000);
 
@@ -370,6 +379,7 @@ try {
   await B.until(`location.pathname === '/games/' && !document.getElementById('lobby').hidden && !document.getElementById('hub-ready').hidden`, 15000, 'retour Hub B');
   const retour = await B.eval(`({ ready: document.getElementById('hub-ready').textContent, n: document.querySelectorAll('#hub-players .hub-card').length, id: GameProfile.load().id })`);
   t('retour au Hub : même session, même joueur, « partie terminée »', /terminée/.test(retour.ready) && retour.id === idB && B.hub().code === code, retour.ready);
+  t('retour au Hub : le titre d’onglet ne réclame plus rien', !/^▶/.test(await B.eval('document.title')));
   await B.shot('8-retour-hub');
 
   // ═══ 8. erreur réelle : le serveur du Passeur tombe, l'hôte ouvre le jeu
