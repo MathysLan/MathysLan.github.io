@@ -1986,6 +1986,59 @@ fixe, et rien n'est changé dans le produit.
 **Dernier passage** : voir le tableau de `tests/README.md` (suites du Hub,
 normal et mouvement réduit).
 
+## Livraison fiable du classement : results → ended (2026-09-28)
+
+**Le défaut** (mesuré, reproduit contre le vrai Hub) : `send()` dans
+`game-hub.js` jetait en silence tout message parti sur un socket Hub fermé ou
+en CONNECTING, alors que `hub-handoff.js` tenait déjà le classement pour
+rapporté (`rapporte = true`) et que `ended()` effaçait le billet. Rien n'était
+rejoué à la reconnexion. Conséquences : partie **non comptée**, ou Hub
+**bloqué en `inGame` / `playing`** (un `ended` perdu : aucune minuterie ne sort
+de `playing`, `abort` y est refusé ; seul le bouton « Partie terminée » de
+`/games/` débloquait). Il suffisait que le socket Hub de l'hôte tombe pendant
+que celui du jeu tenait, au moment de la fin.
+
+**Le mécanisme** (`hub-handoff.js`, « livraison de results → ended ») :
+
+- `results()` / `ended()` ne font plus d'envoi direct : ils **notent** l'intention
+  dans le `sessionStorage`, UNE entrée par partie, clé
+  `mathys_hub_report:<session>:<drawId>` (`{ results, ended, sent, at }`), puis
+  tentent la livraison. Leur valeur de retour et le contrat des pages ne
+  changent pas (`results()` = « pris en charge », pas « reçu »).
+- **Confirmation par l'état du Hub, jamais par l'envoi** : `results` est
+  confirmé par `launch.scored === true` (ou le refus `RESULTS_ALREADY`) ;
+  `ended` ne part qu'APRÈS cette confirmation (ou sans classement : abandon du
+  Morpion) et il est confirmé par `launch.stage === 'ended'`. Alors seulement
+  l'entrée est effacée.
+- **Reconnexion** : la livraison est relancée à CHAQUE état reçu, dont le
+  `joined` d'une reprise — aucune minuterie, aucun intervalle. `game-hub.js`
+  expose `connection` (+1 à chaque socket) et `send()` rend `false` si le socket
+  n'est pas ouvert (et `true` n'est PAS un accusé de réception).
+- **Survit à la navigation** : `/games/` branche le même mécanisme sur son
+  propre client (`HubHandoff.attach(hub)` dans `hub-page.js`). Une fin de
+  partie coupée du Hub est livrée par la page du jeu si le Hub revient, sinon
+  par `/games/` au retour, rechargement compris.
+- **Doublons et boucles** : une intention part au plus UNE fois par connexion,
+  et 5 fois en tout. Le Hub reste l'arbitre (`RESULTS_ALREADY`, `ended` de trop
+  ignoré). Refus définitifs (`BAD_RESULTS`, `GAME_MISMATCH`, `NOT_HOST`,
+  `LAUNCH_MISMATCH`, `NOT_LAUNCHING`) → intention abandonnée (le `ended`, lui,
+  part quand même). En étape `create` / `join`, `results` attend (le Hub le
+  refuserait encore).
+- **Jamais rejoué ailleurs** : une entrée d'une autre session, d'un autre
+  tirage, d'un lancement échoué ou de plus de 3 h est effacée **sans rien
+  envoyer**.
+
+Rien n'a changé côté serveurs (ni le Hub, ni les sept jeux), ni dans le
+contrat `roomReady` / `results` / `ended`, les rangs, la formule du score ou
+l'autorité de l'hôte. `game-hub.js` et `hub-handoff.js` sont passés en `?v=4`
+sur les **huit** pages (même version partout, vérifié par `hub-report.mjs`),
+`hub-page.js` en `?v=9`.
+
+Tests : `tests/hub-report.mjs` (59, vrai Hub, pages simulées en `vm`) et
+`tests/hub-report-play.mjs` (19, deux navigateurs, Morpion ; `--prod` = vrai
+Hub + vrai `morpion-server`, 19/19 le 2026-09-28). Les deux échouent sur le
+code d'avant. Détail et pièges : `tests/README.md`.
+
 ## Handoff et présence : l'état des sept jeux
 
 Les sept jeux en ligne (Morpion, Imitation, Demi-Cercle, Ban, Précision, Le
@@ -2007,7 +2060,9 @@ sans code, rejoindre avec) — et la page le prévient :
 - `results(rangs)` PUIS `ended()` à la fin d'une partie complète, et un lien
   **« ↩ Retour au Game Hub »** (`#to-hub`, jamais la classe `.back`, réservée
   au retour portfolio). Détail du contrat : « Score de soirée », tableau de
-  référence ;
+  référence. Les deux sont LIVRÉS jusqu'à confirmation par l'état du Hub, même
+  à travers une coupure ou un retour à `/games/` : « Livraison fiable du
+  classement » ;
 - `failed('JOIN' | 'UNREACHABLE', détail)` si l'entrée lancée par le Hub
   échoue (`viaHub` et pas encore dans une room). Pour l'hôte déjà au stade
   `join`, `failed` devient `cancel()` : sa room est perdue pour tout le groupe,

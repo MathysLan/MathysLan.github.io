@@ -75,6 +75,152 @@
     return { el: el, say: function (t) { txt.textContent = t; } };
   }
 
+  // ------------------------------------------- livraison de results → ended
+  // Le classement final et la fin de partie ne partent PAS en direct : un
+  // send() sur un socket fermé ou en cours de reconnexion était jeté en
+  // silence, alors que la page tenait le classement pour rapporté. Partie non
+  // comptée, ou Hub bloqué en inGame / playing (ended perdu, aucune minuterie
+  // n'en sort). D'où une ATTENTE, et une livraison pilotée par l'état du Hub :
+  //
+  //   noter (sessionStorage) → envoyer si le socket est ouvert → CONFIRMER par
+  //   l'état reçu → effacer
+  //
+  //   - results est confirmé par `launch.scored === true` (ou RESULTS_ALREADY) ;
+  //   - ended ne part qu'APRÈS cette confirmation (ou s'il n'y a pas de
+  //     classement : abandon du Morpion), et il est confirmé par
+  //     `launch.stage === 'ended'` ;
+  //   - l'envoi n'est jamais une preuve : rien n'est effacé sur un send().
+  //
+  // UNE entrée par partie : clé `mathys_hub_report:<session>:<drawId>`. Elle
+  // survit à la reconnexion ET à la navigation dans l'onglet (jeu → /games/ →
+  // rechargement) : /games/ branche le même mécanisme sur son propre client
+  // (`attach`, dans hub-page.js). Ce qui la relance, c'est chaque état reçu —
+  // dont le `joined` d'une reconnexion : aucune minuterie, aucun intervalle.
+  //
+  // Pas de boucle : une intention part au plus UNE fois par connexion (il faut
+  // un nouveau socket pour la renvoyer), et MAX_ENVOIS fois en tout. Le Hub
+  // reste l'arbitre : il refuse un second classement (RESULTS_ALREADY) et
+  // ignore un ended de trop. Une entrée qui ne peut plus servir — autre
+  // session, autre tirage, lancement échoué, plus de 3 h — est effacée sans
+  // rien envoyer : un vieux classement ne s'applique jamais à une autre partie.
+  var REPORT = 'mathys_hub_report:';
+  var MAX_ENVOIS = 5;
+  // Refus qui ne changeront pas en réessayant : on abandonne l'intention.
+  var DEFINITIFS = ['BAD_RESULTS', 'GAME_MISMATCH', 'NOT_HOST', 'LAUNCH_MISMATCH', 'NOT_LAUNCHING'];
+  // Sans sessionStorage (navigation privée stricte) : en mémoire, pour cette
+  // page seulement — mieux que rien, et rien ne casse.
+  var sansStockage = {};
+
+  function reportKey(session, drawId) { return REPORT + session + ':' + drawId; }
+  function readReport(key) {
+    var s = store(), raw = null;
+    try { raw = s ? s.getItem(key) : null; } catch (_) {}
+    if (raw == null) raw = sansStockage[key] || null;
+    var p;
+    try { p = JSON.parse(raw); } catch (_) { return null; }
+    if (!p || p.v !== 1 || typeof p.session !== 'string' || typeof p.drawId !== 'string' || typeof p.gameId !== 'string') return null;
+    if (reportKey(p.session, p.drawId) !== key) return null;
+    if (p.results !== null && !Array.isArray(p.results)) return null;
+    var sent = p.sent || {};
+    return { v: 1, session: p.session, drawId: p.drawId, gameId: p.gameId, results: p.results, ended: p.ended === true,
+      sent: { results: +sent.results || 0, ended: +sent.ended || 0 }, at: typeof p.at === 'number' ? p.at : 0 };
+  }
+  function saveReport(p) {
+    var key = reportKey(p.session, p.drawId), s = store();
+    try { if (s) { s.setItem(key, JSON.stringify(p)); delete sansStockage[key]; return; } } catch (_) {}
+    sansStockage[key] = JSON.stringify(p);
+  }
+  function dropReport(key) {
+    var s = store();
+    try { if (s) s.removeItem(key); } catch (_) {}
+    delete sansStockage[key];
+  }
+  function reportKeys() {
+    var s = store(), out = Object.keys(sansStockage);
+    try {
+      if (s) for (var i = 0; i < s.length; i++) { var k = s.key(i); if (k && k.indexOf(REPORT) === 0 && out.indexOf(k) < 0) out.push(k); }
+    } catch (_) {}
+    return out;
+  }
+  // Ajoute une intention à l'entrée de CE lancement (la crée au besoin).
+  function noteReport(t, patch) {
+    var p = readReport(reportKey(t.session, t.drawId)) || { v: 1, session: t.session, drawId: t.drawId, gameId: t.gameId,
+      results: null, ended: false, sent: { results: 0, ended: 0 }, at: Date.now() };
+    if (patch.results) p.results = patch.results;
+    if (patch.ended) p.ended = true;
+    saveReport(p);
+  }
+
+  // Branche la livraison sur un client du Hub (GameHub.createClient) : celui de
+  // la page du jeu (start, plus bas) ou celui de /games/ (hub-page.js). Rend
+  // { pump } pour relancer après avoir noté une intention.
+  function attach(hub) {
+    if (!hub || typeof hub.on !== 'function') return null;
+    var last = null;          // dernier état de session reçu
+    var parti = {};           // clé + '/' + op → connexion sur laquelle c'est parti (mémoire de CETTE page)
+    var enVol = null;         // { key, op } : le dernier envoi, pour lui attribuer un refus
+
+    function envoyer(key, p, op) {
+      var marque = key + '/' + op;
+      var conn = hub.connection == null ? 0 : hub.connection;      // (game-hub.js d'avant : une seule « connexion »)
+      if (parti[marque] === conn) return;                          // déjà parti sur ce socket : on attend l'état
+      if (p.sent[op] >= MAX_ENVOIS) return abandonner(key, p, op);
+      var envoye = op === 'results' ? hub.results(p.drawId, p.gameId, p.results) : hub.ended(p.drawId);
+      if (envoye === false) return;                                  // socket pas ouvert : la reprise relancera
+      parti[marque] = conn;
+      p.sent[op]++;
+      saveReport(p);
+      enVol = { key: key, op: op };
+    }
+    function abandonner(key, p, op) {
+      if (enVol && enVol.key === key && enVol.op === op) enVol = null;
+      if (op === 'results') { p.results = null; saveReport(p); pump(); }
+      else dropReport(key);
+    }
+
+    function pump() {
+      var s = last;
+      if (!s) return;
+      reportKeys().forEach(function (key) {
+        var p = readReport(key);
+        if (!p || p.session !== s.code || Date.now() - p.at > MAX_AGE_MS) return dropReport(key);
+        var l = s.launch;
+        if (!l || l.drawId !== p.drawId || l.stage === 'failed') return dropReport(key);
+        if (p.results) {
+          if (l.scored) {                                          // confirmé
+            if (enVol && enVol.key === key && enVol.op === 'results') enVol = null;
+            p.results = null;
+            saveReport(p);
+          } else if (l.stage === 'playing' || l.stage === 'ended') {
+            return envoyer(key, p, 'results');                     // ended attendra la confirmation
+          } else {
+            return;                                                // create / join : le Hub refuserait, on attend
+          }
+        }
+        if (!p.ended || l.stage === 'ended') {                     // rien à finir, ou fin confirmée
+          if (enVol && enVol.key === key) enVol = null;
+          return dropReport(key);
+        }
+        envoyer(key, p, 'ended');
+      });
+    }
+
+    hub.on('session', function (x) { last = x && x.session; pump(); });
+    hub.on('error', function (e) {
+      if (!enVol || !e) return;
+      var key = enVol.key, op = enVol.op, p = readReport(key);
+      if (!p) { enVol = null; return; }
+      if (op === 'results' && e.code === 'RESULTS_ALREADY') {     // déjà compté : c'est une confirmation
+        enVol = null;
+        p.results = null;
+        saveReport(p);
+        return pump();
+      }
+      if (DEFINITIFS.indexOf(e.code) >= 0) abandonner(key, p, op);
+    });
+    return { pump: pump };
+  }
+
   // ------------------------------------------------------------ démarrage
   // opts : { gameId, join(code | null), onUpdate(info) }
   // Rend null sans billet (la page reste autonome), sinon un petit objet que
@@ -136,6 +282,7 @@
       if (opts.onUpdate) opts.onUpdate(info());
     });
     hub.on('ended', function () { b.say('Game Hub · connexion au Hub terminée — la partie continue ici.'); });
+    var livraison = attach(hub);
 
     b.say('Game Hub · session ' + t.session + ' · connexion…');
     hub.join(t.session, GameHub.playerFrom(profil)).catch(function (e) {
@@ -162,15 +309,18 @@
       },
       // Le classement FINAL de la partie, tel que le serveur du jeu l'a envoyé :
       // [{ gamePlayerId, rank, points }]. Seul l'hôte du lancement le rapporte,
-      // une seule fois, et AVANT `ended()` (même socket, donc même ordre). Le Hub
-      // valide tout et le convertit en points de soirée — cette page ne calcule
-      // aucun score de soirée.
+      // une seule fois, et AVANT `ended()`. Le Hub valide tout et le convertit en
+      // points de soirée — cette page ne calcule aucun score de soirée.
+      // ⚠️ Noté puis LIVRÉ (voir « livraison de results → ended ») : il est
+      // gardé jusqu'à ce que le Hub montre `scored`, reconnexion et retour à
+      // /games/ compris. `true` = pris en charge, pas « reçu par le Hub ».
       results: function (rows) {
         if (rapporte || fini) return false;
         var l = session && session.launch;
         if (!l || l.drawId !== t.drawId || l.hostId !== t.playerId) return false;
         rapporte = true;
-        hub.results(t.drawId, t.gameId, rows);
+        noteReport(t, { results: rows });
+        livraison.pump();
         return true;
       },
       // L'hôte a démarré la partie (première manche).
@@ -178,12 +328,14 @@
         var l = session && session.launch;
         if (l && l.hostId === t.playerId && l.stage === 'join') hub.started(t.drawId);
       },
-      // La partie est finie : retour au Hub possible, billet consommé.
+      // La partie est finie : retour au Hub possible, billet consommé. L'intention
+      // de fin est gardée comme le classement : elle part après la confirmation
+      // de celui-ci, et jusqu'à ce que le Hub montre le lancement `ended`.
       ended: function () {
         if (fini) return;
         fini = true;
         var l = session && session.launch;
-        if (l && l.hostId === t.playerId) hub.ended(t.drawId);
+        if (l && l.hostId === t.playerId) { noteReport(t, { ended: true }); livraison.pump(); }
         clear();
       },
       // Création ou entrée impossible (serveur injoignable, code refusé…).
@@ -219,5 +371,6 @@
     return api;
   }
 
-  return { KEY: KEY, MAX_AGE_MS: MAX_AGE_MS, readTicket: readTicket, write: write, read: read, clear: clear, start: start };
+  return { KEY: KEY, MAX_AGE_MS: MAX_AGE_MS, REPORT: REPORT, readTicket: readTicket, write: write, read: read, clear: clear,
+    start: start, attach: attach };
 });

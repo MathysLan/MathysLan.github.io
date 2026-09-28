@@ -24,6 +24,10 @@
   const RESUME = 'mathys_hub_session';
   const HUB_URL = GameHub.hubUrl(location.search);
   const hub = GameHub.createClient({ url: HUB_URL });
+  // Un classement ou une fin de partie que la page du jeu n'a pas pu livrer
+  // (socket Hub coupé au mauvais moment) est gardé dans l'onglet : c'est ce
+  // client-ci qui le livre au retour (voir « livraison » dans hub-handoff.js).
+  HubHandoff.attach(hub);
 
   // Un profil jamais enregistré reçoit ici son id, une fois pour toutes (voir
   // load() dans game-profile.js) : c'est lui qui permet de se reconnecter.

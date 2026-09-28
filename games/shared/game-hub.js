@@ -360,6 +360,7 @@
     var ws = null, status = 'idle', you = null, session = null, player = null, code = null;
     var pending = null;           // { resolve, reject } de create/join en cours
     var retry = 0, retryTimer = null, closedByUs = false;
+    var connexion = 0;            // n° du socket en service (+1 à chaque (re)connexion)
     var handlers = {};
 
     function emit(ev, data) { (handlers[ev] || []).forEach(function (fn) { try { fn(data); } catch (_) {} }); }
@@ -385,11 +386,20 @@
 
     function wire(sock) {
       ws = sock;
+      connexion++;
       sock.onmessage = function (ev) { onMessage(parseMessage(ev.data)); };
       sock.onclose = function (ev) { onClose(sock, ev); };
     }
 
-    function send(obj) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj)); }
+    // Rend false si le socket n'est pas OUVERT (fermé, ou reconnexion en cours) :
+    // le message n'est alors PAS parti. ⚠️ true ne vaut pas accusé de réception :
+    // seul l'état renvoyé par le Hub prouve qu'il a traité le message (voir la
+    // livraison de results / ended dans hub-handoff.js).
+    function send(obj) {
+      if (!ws || ws.readyState !== 1) return false;
+      ws.send(JSON.stringify(obj));
+      return true;
+    }
 
     function onMessage(m) {
       if (!m) return;
@@ -523,13 +533,17 @@
       confirm: function () { send(continueMsg()); },
       launched: function (drawId, roomCode, gamePlayerId) { send(launchedMsg(drawId, roomCode, gamePlayerId)); },
       entered: function (drawId, roomCode, gamePlayerId) { send(enteredMsg(drawId, roomCode, gamePlayerId)); },
-      results: function (drawId, gameId, results) { send(resultsMsg(drawId, gameId, results)); },
+      // results / ended rendent ce que rend send() : parti ou non (jamais « reçu »).
+      results: function (drawId, gameId, results) { return send(resultsMsg(drawId, gameId, results)); },
       started: function (drawId) { send(startedMsg(drawId)); },
-      ended: function (drawId) { send(endedMsg(drawId)); },
+      ended: function (drawId) { return send(endedMsg(drawId)); },
       abort: function (drawId, reason, detail) { send(abortMsg(drawId, reason, detail)); },
       // Fin de soirée (hôte). Rend false si le message n'a pas pu partir.
       finish: function () { if (!ws || ws.readyState !== 1) return false; send(finishMsg()); return true; },
       get status() { return status; },
+      // Change à chaque (re)connexion : de quoi n'envoyer une intention qu'UNE
+      // fois par socket (hub-handoff.js), sans minuterie.
+      get connection() { return connexion; },
       get session() { return session; },
       get you() { return you; },
       get code() { return code; },
