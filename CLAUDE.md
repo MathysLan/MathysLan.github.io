@@ -1,7 +1,13 @@
 # Portfolio Mathys Langiny — notes d'architecture (à lire en premier)
 
-Ce fichier existe pour qu'une **nouvelle conversation reparte avec le bon
-contexte**. Si tu débarques : lis-le en entier avant de toucher quoi que ce soit.
+Ce fichier décrit **l'état actuel** et **les règles** du projet, pour qu'une
+nouvelle conversation reparte avec le bon contexte. Lis-le en entier avant de
+toucher quoi que ce soit.
+
+L'**historique** (lots, dates, commits, bugs corrigés, diagnostics, chiffres de
+tests d'époque) est dans **`docs/journal.md`**. Quand une règle ci-dessous
+vient d'un incident, le récit est là-bas. En fin de lot : la règle ici, le récit
+dans le journal.
 
 ## Le principe de base : front statique + serveurs séparés
 
@@ -10,1013 +16,493 @@ contexte**. Si tu débarques : lis-le en entier avant de toucher quoi que ce soi
   sur **GitHub Pages**, servi tel quel. Aucun framework. Pas de logique de jeu
   ici. Un seul script de génération, `tools/build.mjs` (Node, zéro dépendance) :
   pré-rendu du contenu de `data/*.js` dans `index.html`, compilation Tailwind
-  via `npx`, sitemap. Voir « Stabilisation » plus bas.
+  via `npx`, sitemap, manifest des jeux.
 - **Chaque jeu multijoueur a son PROPRE serveur** Node.js (WebSocket, lib `ws`),
-  déployé **à part sur Render**. Le front et le back ne vivent PAS dans le même
-  repo : ce repo ne contient que le **front**. Les serveurs sont livrés/déployés
-  séparément.
+  déployé **à part sur Render**, dans son propre dépôt. Ce repo ne contient que
+  le **front**.
 - **Règle d'or : le serveur est la seule autorité.** Le front envoie des
   *intentions* (« je place mon curseur à 42 », « voici mon indice ») ; le serveur
   valide TOUTES les règles et calcule TOUS les scores. Le front ne calcule jamais
   un score ni ne décide d'une phase. Modèle « zéro confiance » : par ex. la cible
   du Demi-Cercle n'est envoyée qu'au Guide, jamais aux devineurs avant les
-  résultats ; les curseurs live ne partent qu'au Guide (pas entre devineurs, pour
-  éviter la triche).
+  résultats ; les curseurs live ne partent qu'au Guide.
 - Protocole : messages **JSON** sur un seul WebSocket. Machine à états par phase,
-  progression **pilotée par le MJ/host** (plus de timers de gameplay dans les
-  versions récentes).
+  progression **pilotée par le MJ/host**.
+- Le **Game Hub** (`/games/` + `game-hub-server`) orchestre une soirée entre
+  amis : salon, tirage, lancement du jeu, score de soirée. Il ne parle JAMAIS à
+  un serveur de jeu : ce sont les navigateurs qui relaient.
 
 ## Les jeux
 
 | Jeu | Front | Serveur | Notes |
 |-----|-------|---------|-------|
-| **Demi-Cercle** | `games/demicercle/` | `demicercle-server` (Render) | Cadran SVG, un Guide donne un indice, les autres placent un curseur 0–100. Mode `auto` (thèmes catalogue) ou `custom` (le Guide invente thème + extrémités, mais PAS la cible). |
-| **Imitation** | `games/imitation/` | serveur dédié (Render) | Enregistrement voix (MediaRecorder + Web Audio), vidéos de référence sur **Cloudflare R2** (CORS requis). Double waveform référence (ambre) + voix (violet) pour juger la synchro. |
-| **Le Jeu du Ban** | `games/ban/` | `ban-server` (Render) | Une vidéo (CDN R2) cache un mot interdit à `fatal` (secondes). Chacun son tour, on stoppe au plus tard sans dépasser. Serveur : `setTimeout` pour le rythme + filet anti-blocage, temps recoupé à l'horloge serveur (anti-triche), ordre de passage aléatoire par vidéo. `fatal` jamais envoyé avant `results`. **Catalogue = `games/ban/videos.json` DANS CE REPO** (`{id, fatal, startAt}`) : le serveur le fetch depuis Pages à chaque partie (cache 10 s), donc Mathys édite le JSON + push, aucun redeploy Render. Contrepartie assumée : `fatal` public. |
-| **Précision** | `games/precision/` | `precision-server` (Render) | Party game inspiré de dialed.gg : 4 épreuves (shape/color/sound/time). TOUT LE MONDE joue en même temps. Le serveur génère la cible, tient les timers de phase (`memorize`→`play`, durées selon la difficulté Facile→Impossible) et calcule la précision 0–100 %. Moteur pur `engine-precision.js` (barèmes + scoring : teinte circulaire, symétrie du triangle, cents pour le son). Cible envoyée en `memorize` seulement ; `time` recoupé à l'horloge serveur. |
-| **Puissance 4** | `js/connect4.js` (`launchConnect4`) | aucun (100 % navigateur) | Canvas, bot heuristique gagner > bloquer > centre. Lancé par le carousel, INSERT COIN, Ctrl+K, Konami. |
-| **Morpion** | `games/morpion/` | `morpion-server` (Render) | Duel strict (X/O). Le serveur ne reçoit AUCUNE identité (ni pseudo, ni avatar) et ferme la room dès qu'un joueur part. `net.js` est toute l'appli ; `?server=` accepté comme ailleurs. |
-| **Le Passeur** | `games/passeur/` | `passeur-server` (Render) | Une situation de volley, cinq passes, cinq secondes. Points = pertinence × vitesse. Barèmes et `why` envoyés seulement au `results` ; temps recoupé à l'horloge serveur. Catalogue = `situations.js` côté serveur. |
-| **Qui Ment ?** | `games/quiment/` | `qui-ment-server` (Render) | Jeu de bluff. Tout le monde a le même mot sauf l'intrus, qui n'a que la catégorie. 2 tours d'indices en aveugle, vote, révélation, dernière chance. Le mot ne part JAMAIS en diffusion. Catalogue = `mots.js` côté serveur. |
+| **Demi-Cercle** | `games/demicercle/` | `demicercle-server` | Cadran SVG, un Guide donne un indice, les autres placent un curseur 0–100. Mode `auto` (thèmes catalogue) ou `custom` (le Guide invente thème + extrémités, mais PAS la cible). |
+| **Imitation** | `games/imitation/` | `imitation-server` | Enregistrement voix (MediaRecorder + Web Audio), vidéos de référence sur **Cloudflare R2** (CORS requis). Double waveform référence (ambre) + voix (violet). |
+| **Le Jeu du Ban** | `games/ban/` | `ban-server` | Une vidéo (R2) cache un mot interdit à `fatal` (secondes). Chacun son tour, on stoppe au plus tard sans dépasser. Temps recoupé à l'horloge serveur, ordre de passage aléatoire, `fatal` jamais envoyé avant `results`. **Catalogue = `games/ban/videos.json` DANS CE REPO** (`{id, fatal, startAt}`) : le serveur le relit sur Pages à chaque partie (cache 10 s), donc Mathys édite le JSON + push, aucun redeploy. Contrepartie assumée : `fatal` public. Vidéo = `<id>.mp4` à la racine du bucket ; `?server=` et `?cdn=` pour le local. |
+| **Précision** | `games/precision/` | `precision-server` | Inspiré de dialed.gg : 4 épreuves (shape/color/sound/time), tout le monde en même temps. Le serveur génère la cible, tient les timers de phase (`memorize`→`play`) et calcule la précision 0–100 % (`engine-precision.js`). Cible envoyée en `memorize` seulement. Jouable seul. |
+| **Morpion** | `games/morpion/` | `morpion-server` | Duel strict (X/O). Le serveur ne reçoit AUCUNE identité et ferme la room dès qu'un joueur part. `net.js` est toute l'appli. |
+| **Le Passeur** | `games/passeur/` | `passeur-server` | Une situation de volley, cinq passes, cinq secondes. Points = pertinence × vitesse. Barèmes et `why` seulement au `results`. Catalogue `situations.js` + règles `rules.js` côté serveur. |
+| **Qui Ment ?** | `games/quiment/` | `qui-ment-server` | Bluff : même mot pour tous sauf l'intrus (qui n'a que la catégorie). 2 tours d'indices en aveugle, vote, révélation, dernière chance. Le mot ne part JAMAIS en diffusion (joueur par joueur, `word: null` pour l'intrus) ; les indices sont ramassés en silence puis révélés d'un bloc ; la liste des mots de la catégorie ne part qu'à l'intrus démasqué. Le test WebSocket du serveur relit **tout le fil** chez l'intrus (seul moyen d'attraper une fuite par un message de progression). Catalogue `mots.js`. |
+| **Puissance 4** | `js/connect4.js` (`launchConnect4`) | aucun | 100 % navigateur, canvas, bot gagner > bloquer > centre. Lancé par le carousel, INSERT COIN, Ctrl+K, Konami. |
 
-Le **carousel des jeux** (`js/carousel.js`) est un coverflow 3D ; le drag ne
-démarre qu'après un seuil de 6 px pour que le lien « Jouer » reste cliquable.
+- Dépôts serveurs sur le poste de Mathys : `C:\perso\<nom>` (les sept
+  ci-dessus + `game-hub-server`). Chacun a ses tests (`npm test`, `test*.js`) :
+  un client `ws` qui joue une partie complète et vérifie les règles.
+- URL de production utiles : Hub `wss://game-hub-server-qqdk.onrender.com`,
+  Ban `wss://ban-server-68h9.onrender.com`, Précision
+  `wss://precision-server.onrender.com`, Passeur
+  `wss://passeur-server.onrender.com` (les autres : dans le `net.js` / `app.js`
+  de chaque jeu, recoupés par `tests/manifest.mjs`), bucket R2
+  `pub-427c946793104d1f8e39fbf6d5584ba9.r2.dev`. Toute page de jeu accepte
+  `?server=ws://localhost:PORT` ; `/games/` accepte `?hub=`.
+- ⚠️ **Plan gratuit Render** : une instance endormie met ~30 s à répondre. Les
+  clients le disent (« réveil Render ~30 s ? réessaie ») : un premier échec
+  n'est pas une panne.
+- Le **carousel** (`js/carousel.js`) est un coverflow 3D ; le drag ne démarre
+  qu'après 6 px pour que « Jouer » reste cliquable.
+- Les sept jeux en ligne se lancent aussi depuis le Game Hub et partagent le
+  même transport (`games/shared/game-net.js`) et la même présence : voir
+  « Handoff et présence : l'état des sept jeux ».
 
-Les **sept jeux en ligne** se lancent aussi depuis le **Game Hub** (`/games/`,
-handoff), et parlent tous à leur serveur par le même transport,
-`games/shared/game-net.js`, avec la **présence** des joueurs. Voir
-« Handoff et présence : l'état des sept jeux » en fin de fichier. Puissance 4
-(local) n'est pas concerné.
+## Environnement de dev et façon de travailler
 
-## Contraintes de l'environnement de dev (IMPORTANT)
+### Le poste de Mathys (Windows, Claude Code en local)
 
-- **Poste Windows de Mathys** (Claude Code en local) : `git push` fonctionne.
-  **Pas de Node ni de Python installés** : pour exécuter `tools/build.mjs` ou
-  une conversion d'images, télécharger le zip Node officiel dans le scratchpad
-  (vérifier le SHA-256), rien sur le système. Navigateur de test : Edge
-  headless (`msedge --headless=new`). Sous PowerShell la sortie de
-  `--dump-dom` est vide : passer par l'outil Bash.
-- Les notes ci-dessous (proxy, Playwright sous /opt, zip) concernent
-  l'environnement **cloud** Linux utilisé pour les serveurs.
+- `git push` fonctionne. **Pas de `gh`** : créer un dépôt GitHub se fait à la
+  main par Mathys.
+- **Pas de Node ni de Python installés** : pour `tools/build.mjs` et les tests
+  `.mjs`, télécharger le zip Node officiel dans le scratchpad (vérifier le
+  SHA-256), rien sur le système.
+- Navigateur de test : **Edge headless** (`msedge --headless=new`), piloté par
+  le protocole DevTools pour tout ce qui est réseau ou clavier.
+  - Sous PowerShell, `--dump-dom` ne rend rien (stdout d'un exe graphique) :
+    passer par l'outil Bash. Donner un `--user-data-dir` à part.
+  - Edge headless n'ouvre pas de fenêtre sous ~500 px : tester 390 px dans une
+    iframe. `--screenshot` capture depuis le haut : masquer les autres sections
+    plutôt que scroller.
+  - ⚠️ **Jeu en réseau : PAS de `--virtual-time-budget`** (il avance minuteries
+    et `Date.now()`, toute attente expire avant la réponse du WebSocket). Temps
+    réel par DevTools, comme `tests/keyboard.mjs`.
+  - En temps virtuel, les animations CSS restent figées à 0 ms
+    (`el.getAnimations().forEach(a => a.finish())` puis ~1,5 s) et le SMIL a
+    déjà FINI (capture = état final).
+  - `edge.kill()` ne tue que le parent : `taskkill /T` + port de debug au
+    hasard, sinon des dizaines de msedge fantômes.
+  - Frappes par CDP : Tab et Entrée en `rawKeyDown` **sans** `text` (avec
+    `text: 'Enter'` le handler ne voit rien). Prouver un anneau de focus exige
+    de vraies frappes Tab (`tests/keyboard.mjs`) : `:focus-visible` ne s'allume
+    pas sur un `el.focus()` programmé.
+- `morpion-server` n'a pas de `node_modules` sur le poste : les tests lui
+  prêtent le `ws` de `game-hub-server` par `NODE_PATH` (rien n'est écrit dans
+  son dépôt).
+- Environnement **cloud** Linux (parfois utilisé pour les serveurs) : le proxy
+  bloque le réseau externe (pas de Render ni R2), `git push` y renvoie 403 (ne
+  pas retenter) → commit local + livraison en zip ; Playwright sous
+  `/opt/pw-browsers/`, playwright global sous
+  `/opt/node22/lib/node_modules/playwright`.
 
-- **Le proxy sortant bloque le réseau externe** (HTTP 000/403). On ne peut donc
-  PAS joindre les serveurs Render ni R2 depuis l'environnement. Pour tester :
-  toujours lancer les serveurs **en local** et tester le front contre eux via
-  **Playwright headless Chromium** (`?server=ws://localhost:PORT` sur les pages de
-  jeu ; le binaire est sous `/opt/pw-browsers/`, playwright global sous
-  `/opt/node22/lib/node_modules/playwright`).
-- **`git push` renvoie 403** (politique du proxy, pas une erreur réseau — ne pas
-  retenter). La livraison se fait donc en **zip** : on commit en local pour
-  l'historique, mais on remet les fichiers modifiés (front) + le serveur en zip,
-  et Mathys les applique/déploie à la main.
-- Les serveurs ont chacun un `test.js` (et parfois `test-custom.js`) : un client
-  `ws` qui joue une partie complète et vérifie les règles. On les lance en local
-  contre le serveur avant toute livraison.
-
-## Conventions
+### Conventions
 
 - **Tout en français**, ton direct et pragmatique (la voix de Mathys, « zéro
-  usine à gaz »). Commentaires de code en français aussi.
-- Mathys est spécialiste **Data / Admin BDD**. Pas de sur-ingénierie.
-- Front : pas de dépendance lourde, pas de framework, pas de logique de jeu.
-- Les commits sont signés ; si le hook local râle après un commit, re-signer la
-  pointe avec `git commit --amend --no-edit --reset-author` (faux positif local).
+  usine à gaz »). Commentaires de code en français.
+- Mathys est spécialiste **Data / Admin BDD**. Pas de sur-ingénierie. Front :
+  pas de dépendance lourde, pas de framework, pas de logique de jeu.
+- Commits signés ; si le hook local râle après un commit, re-signer la pointe
+  avec `git commit --amend --no-edit --reset-author` (faux positif local).
+- **Aucun asset Valve** (images, sons, voix) : tout est refait en CSS/SVG. Les
+  polices TF2 viennent du tf2-ui-kit de GingerBunny (propriété de Valve, d'où
+  « Not affiliated with Valve Corporation » en pied de page).
+- Les textes écrits à la place de Mathys (objectifs, stats, « ma part ») lui
+  sont soumis avant publication.
+- Ordre de livraison quand un contrat change : **serveurs d'abord, front
+  ensuite** (un front neuf devant un serveur en retard dégrade au mieux).
+- Tout nouveau cache : relever le `?v=` du fichier partagé sur **toutes** les
+  pages qui le chargent.
 
-## État au dernier passage (2026-07)
+### Politique de tests
 
-- Demi-Cercle : ajout du mode « le Guide invente » (thème + extrémités, cible
-  toujours tirée par le serveur) + légende couleur→joueur chez le Guide pendant
-  le vote. Serveur : `onTheme`, `mode` par room, thèmes élargis à ~28 axes.
-- Imitation : le bouton « réécouter ma prise » relance maintenant AUSSI la vidéo
-  (muette) pour vérifier la synchro, avec le double waveform.
-- **Le Jeu du Ban** (nouveau) : back `ban-server` livré à part (moteur pur
-  `engine-ban.js` + `server.js` avec `setTimeout`/filet, `videos.js` = catalogue
-  `{id, fatal, startAt?}`, catalogue surchargeable par `VIDEOS_JSON`). Front
-  `games/ban/` branché sur `wss://ban-server-68h9.onrender.com` + bucket R2
-  `pub-427c946793104d1f8e39fbf6d5584ba9.r2.dev`. Convention : fichier nommé
-  `<id>.mp4` à la racine du bucket. `?server=` et `?cdn=` pour tester en local.
-  Testé : moteur 26/26, ws e2e 16/16, front e2e 12/12.
-- **Interface Team Fortress 2 / Source** (le jeu préféré de Mathys) : le site
-  n'a plus un *accent* TF2, il EST une interface VGUI. Le thème violet/verre
-  précédent a disparu. Trois principes tiennent tout :
-  1. un panneau = aplat dégradé + biseau (lumière haut-gauche, ombre
-     bas-droite) + bordure nette ; 2. des coins coupés en diagonale, jamais
-     d'arrondi ; 3. une hiérarchie par la **qualité d'objet**, pas par la
-     taille du texte.
-  **Deux feuilles, et l'ordre compte** : `css/tf2.css` = le socle (polices,
+- **Ciblée par défaut** : les tests du jeu ou de la fonctionnalité touchés,
+  `node tools/build.mjs --check`, et au plus 1-2 suites directement
+  dépendantes. Régression large seulement si un composant commun change
+  (`game-net.js`, `hub-handoff.js`, `game-hub.js`, `presence.js`, protocole du
+  Hub). Avant un test long : dire pourquoi, ce qu'il couvre, combien de temps.
+- **Un bug se prouve avant de se corriger** : un test qui échoue sur l'ancien
+  code (contre-épreuve : remettre les fichiers d'avant, ou le serveur d'avant
+  extrait de git), puis vert grâce au correctif seulement.
+- Tester des **comportements**, pas des présences : plusieurs défauts n'étaient
+  visibles qu'à la géométrie, au clic réel ou à l'image (voir le journal).
+- Production : seulement par les options `--prod` / `--hub wss://…` des suites
+  qui le prévoient.
+- `tests/README.md` dit quoi lancer et comment ; `tests/front.html` et
+  `tests/games.html` se lancent DEUX fois (dont `--force-prefers-reduced-motion`).
+
+## Front du portfolio : l'interface TF2 / Mann Co.
+
+Le site n'a pas un accent TF2, il EST une interface VGUI. Trois principes :
+1. un panneau = aplat dégradé + biseau (lumière haut-gauche, ombre bas-droite)
+   + bordure nette ; 2. des coins coupés en diagonale, jamais d'arrondi ; 3. une
+   hiérarchie par la **qualité d'objet**, pas par la taille du texte.
+
+- **Deux feuilles, et l'ordre compte** : `css/tf2.css` = le socle (polices,
   palette, primitives `.panel` / `.item` / `.tf-btn` / `.tf-tag` / `.attr-list`
-  / `.q-badge`) ; `css/style.css` = les composants du portfolio, construits
-  dessus. Le socle ne connaît rien du site, ne pas y mettre de composant.
-  **Polices** : `TF2 Build` (titres, capitales) et `TF2 Secondary` (corps), en
-  `@font-face` depuis `assets/fonts/`. Elles viennent du tf2-ui-kit de
-  GingerBunny et restent la propriété de Valve — d'où le « Not affiliated with
-  Valve Corporation » en pied de page. Elles couvrent tous les accents
-  français (vérifié dans la cmap) mais pas `« » → ✦ ★`, qui tombent sur le
-  fallback (Anton / Inter) glyphe par glyphe : c'est voulu, pas un bug.
-  **Mapping** : nav = écran de sélection de classe (pictogramme + nom + liseré
-  d'équipe) ; projets = fiches d'objet (vignette, bordure de rareté, stack en
-  attributs d'arme, étiquette de nom en bas) ; contact = guichet Mann Co. (le
-  formulaire compose un `mailto:`, aucun service tiers) ; footer = bandeau de
-  bas d'écran. Le killfeed, les sections RED/BLU et les numéros de classe du
-  carousel sont conservés du passage précédent.
-  ⚠️ Deux pièges, tous deux documentés dans `tf2.css` :
-  - **`clip-path` rogne aussi les ombres portées et les outlines.** D'où :
-    biseau en `box-shadow` *inset*, lueur de rareté en `filter: drop-shadow()`,
-    focus clavier en anneau inset. Une `box-shadow` extérieure sur un élément
-    découpé ne s'affichera jamais.
-  - **Teinte ≠ encre.** Les couleurs officielles de TF2 sont calibrées pour le
-    gris moyen du jeu ; posées telles quelles sur le brun (ou le papier), la
-    moitié passe sous 4.5:1. `--red` / `--q-*` servent aux barres, bordures et
-    fonds ; `--red-ink` / `--qi-*` au texte, avec un jeu de valeurs par thème.
-    Ne pas « simplifier » en réunifiant les deux. Même logique pour
-    `--on-orange` (du blanc sur l'orange Mann Co. plafonne à 3,4:1).
-  Thèmes : **Mann Co.** (brun carton, défaut) et **Blueprint** (papier calque
-  + grille bleue) — le bouton soleil/lune bascule entre les deux.
-- **Front / identité visuelle** : le halo de chaque section suit maintenant le
-  curseur (« poursuite de scène », amorti à 55 %, `--hx`/`--hy` posés par
-  `main.js`, désactivé au doigt et en `prefers-reduced-motion`) ; la nav allume
-  la section en cours de lecture ; grain de pellicule fixe sur toute la page ;
-  focus clavier visible partout (le carousel avait un `outline:none` alors
-  qu'il est tabbable et se pilote aux flèches). Testé via CDP : 10/10.
-- **Outils de contrôle du front** (nouveaux) : `styleguide.html` montre les
-  primitives côte à côte dans les deux thèmes ; `tests/front.html` pilote le
-  vrai `index.html` dans une iframe et vérifie ce qui casse en silence quand on
-  touche au style (rendu des cartes, lightbox, Ctrl+K, FR/EN, thème, guichet,
-  anneau de focus). Les deux sont en `Disallow` dans `robots.txt`. Voir
-  `tests/README.md` pour les lancer. Dernier passage : front 20/20, et un
-  auditeur de contraste jetable (377 nœuds) a validé **0 échec WCAG AA** dans
-  les deux thèmes.
-  ⚠️ En headless, Edge n'ouvre pas de fenêtre sous ~500 px : pour tester le
-  mobile à 390 px il faut passer par une iframe, pas par `--window-size`. Et
-  `--screenshot` capture toujours depuis le haut du document, donc pour cadrer
-  une section on masque les autres plutôt que de scroller.
-  Astuce : sous Windows, `msedge --dump-dom` ne rend rien depuis PowerShell
-  (stdout d'un exe GUI) ; passer par l'outil Bash, où la sortie arrive bien.
-- **Pousser le thème TF2, section par section** (liste de Mathys, dans l'ordre) :
-  1 ConTracker (parcours en contrats dépliables) ✅ ; 2 sac à dos (projets en
-  cases + fiche d'objet en modale, `js/itemmodal.js`) ✅ ; 3 CTA tous sur
-  `.tf-btn` ✅ ; 4 compétences en « stats d'arme » ✅ : infobulle d'objet
-  (primitive `.item-desc`) à droite du nom dans le hero, sous les CTA en
-  dessous de 1180 px, texte dans `i18n.js` (`skills.*`) ; 5 textures de fond
-  ✅ : taches + fibres générées en `feTurbulence` (token `--tex-stains`),
-  posées sur `.section-halo::after`. ⚠️ Le filtre SVG doit avoir une région =
-  la tuile (`filterUnits='userSpaceOnUse'`), sinon coutures tous les 720 px.
-  En Blueprint la tache assombrit le papier : `--ink-3` / `--orange-ink` y ont
-  été foncés pour tenir 4.5:1 sur la tache la plus sombre. Puis polish : 6
-  réticule ✅ : ( • ) en SVG, token `--cursor-cross` (un par thème, un SVG en
-  data: ne voit pas les variables CSS), UNIQUEMENT sur `.tf-btn`, `.bp-cell` et
-  le carousel (main fermée pendant le glissement) — choix de Mathys, pas sur
-  tout le site ; 7 easter egg ✅ : masque du Spy dans le bandeau du footer →
-  un Spy BLU (SVG maison dans `index.html`) traverse en crabe, s'arrête au
-  milieu et « déterre » le projet abandonné de Mathys (cache-cache sur
-  téléphone, zone qui se referme, même idée que Gotcha), en `.item-desc`.
-  Enchaînement sur `animationend` dans `js/easter.js`. ⚠️ En headless à temps
-  virtuel les animations CSS restent figées à 0 ms : pour tester la vraie
-  chaîne, avancer avec `el.getAnimations().forEach(a => a.finish())` et
-  laisser ~1,5 s avant de lire l'état ; 8 barre « SIGNAL SÉCURISÉ ✓ » du
-  guichet ✅ : à l'envoi, `#cf-capture` se remplit à la couleur d'équipe
-  (`--capture-ms`, 1,1 s) PUIS le mailto: s'ouvre — délai court car un
-  navigateur n'ouvre un mailto: que peu après le clic. ⚠️ Un vrai mailto:
-  bloque Edge headless : `main.js` émet l'événement annulable `guichet:send`
-  juste avant, que `tests/front.html` annule. Le masque du Spy a été redessiné
-  (bandeau d'yeux, sans cigarette) ; Mathys a proposé un SVG de fan du logo de
-  classe : refusé comme source, gardé comme référence de proportions. Le 9 (icônes de
-  nav) était déjà fait. Règle : aucun asset Valve (images, sons, voix), tout
-  est refait en CSS/SVG. Mis de côté sauf demande : switch RED/BLU, sons du
-  jeu, vidéo « Meet the Team ». Les textes écrits à la place de Mathys
-  (objectifs, stats) lui sont soumis avant publication.
-- **Stabilisation / professionnalisation (2026-09-16)**, sans toucher à
-  l'identité. Ce qui a changé et qu'il ne faut pas casser :
-  - **Accessibilité** : menu mobile (`inert` fermé, aria-expanded, Échap,
-    focus), lightbox (visibility quand fermée, piège à focus, focus rendu),
-    palette (combobox/listbox), carousel (role region, points nommés, bouton
-    pause, rotation coupée hors écran), killfeed `aria-hidden`, `aria-label`
-    traduits via `data-i18n-aria`. Échap : la fenêtre du dessus fait
-    `preventDefault`, celles du dessous ignorent une touche déjà traitée.
-    La croix de la fiche écoute `click` (au mousedown elle ne marchait pas au
-    clavier).
-  - **Mouvement réduit** respecté aussi en JS : `prefersReducedMotion()` et
-    `scrollBehavior()` (main.js), lus au moment de l'animation.
-  - **Sans JS** : classe `js` posée dans le `<head>` ; `.js .reveal` seul est
-    caché ; `.js-only` / `.nojs-only` ; carousel en grille ; compteurs avec
-    leur vraie valeur dans le HTML (l'animation n'est qu'une couche).
-  - **Pré-rendu** : `js/templates.js` = balisage partagé navigateur/build.
-    Contenu entre `<!-- build:… -->` dans index.html = GÉNÉRÉ. Après toute
-    modif de `data/`, `templates.js` ou d'une classe Tailwind : `node
-    tools/build.mjs`. CI `.github/workflows/generated-files.yml` = `--check`.
-  - **Tailwind 3.4.17 compilé**, placé APRÈS style.css (c'est là que le CDN
-    injectait ses styles). Équivalence vérifiée : géométrie identique des 1031
-    éléments à 1280/390 px, deux thèmes.
-  - **SEO** : canonical, Open Graph, Twitter, JSON-LD Person (faits affichés
-    seulement), `assets/og-image.png` généré depuis `tools/og-image.html`,
-    robots.txt ne bloque plus `/data/`, sitemap généré depuis data/games.js,
-    `games/ban/calibrate.html` en noindex.
-  - **Perf** : images en WebP (vignettes 480 px dans `assets/projects/thumbs/`),
-    polices WOFF2 préchargées, thème posé dans le `<head>` (plus de flash),
-    un seul écouteur de scroll (rAF), terminal en pause hors écran.
-  - **Contenu** : `data/projects.js` a des champs `goal` / `role` / `result`
-    / `team` ; `data/games.js` a `code` / `arch` (bouton Architecture →
-    même modale que les projets). `role` (ma part) est rempli pour les 8
-    projets avec les mots de Mathys : ne rien y ajouter sans lui. ⚠️ Le dépôt
-    des radars n'est PAS lié tant que Mathys n'a pas retiré l'IP interne et les
-    identifiants de son README (même si le service est hors ligne) ; ils
-    resteraient aussi dans l'historique git du dépôt.
-  - **Tests** : `tests/front.html` (bureau + téléphone + sans JS) à lancer
-    DEUX fois, dont une avec `--force-prefers-reduced-motion`.
-- **Précision** (nouveau) : back `precision-server` livré à part
-  (`engine-precision.js` pur + `server.js` avec les setTimeout de phase), front
-  `games/precision/` sur `wss://precision-server.onrender.com`. Le MJ choisit
-  difficulté / manches / épreuve. Testé : moteur 60/60, ws e2e 23/23, front
-  e2e 59/59.
+  / `.q-badge` / `.item-desc`) ; `css/style.css` = les composants du portfolio.
+  Le socle ne connaît rien du site. `css/tailwind.css` (compilé, 3.4.17) est
+  placé APRÈS `style.css`.
+- **Polices, toutes locales** (`assets/fonts/`, WOFF2 préchargées) : `TF2 Build`
+  (titres), `TF2 Secondary` (corps), JetBrains Mono (terminal du hero, jeux) et
+  Space Grotesk (jeux), ces deux-là en fichier variable 400→700. Aucune
+  ressource Google, sur aucune page. Les polices TF2 couvrent les accents
+  français mais pas `« » → ✦ ★` : repli système glyphe par glyphe, voulu.
+- **Mapping** : nav = écran de sélection de classe ; parcours = ConTracker
+  (contrats dépliables) ; projets = sac à dos + fiche d'objet en modale
+  (`js/itemmodal.js`) ; compétences = infobulle d'objet (`.item-desc`) à droite
+  du nom dans le hero (sous les CTA en dessous de 1180 px, texte dans `i18n.js`,
+  `skills.*`) ; contact = guichet Mann Co. ; footer = bandeau de bas d'écran.
+  Killfeed, sections RED/BLU et numéros de classe du carousel conservés.
+- **Thèmes** : Mann Co. (brun carton, défaut) et Blueprint (papier calque +
+  grille bleue), bouton soleil/lune ; posé dans le `<head>` (pas de flash).
+- Détails vivants : halo de section qui suit le curseur (`--hx`/`--hy` posés
+  par `main.js`, amorti 55 %, coupé au doigt et en mouvement réduit) ; nav qui
+  allume la section lue ; grain de pellicule ; textures (taches + fibres en
+  `feTurbulence`, token `--tex-stains`, sur `.section-halo::after`) ; réticule
+  ( • ) (token `--cursor-cross`, un par thème) UNIQUEMENT sur `.tf-btn`,
+  `.bp-cell` et le carousel — choix de Mathys, pas sur tout le site.
+- **Easter egg** : masque du Spy dans le bandeau du footer → un Spy BLU (SVG
+  maison dans `index.html`) traverse en crabe et « déterre » le projet abandonné
+  de Mathys, en `.item-desc`. Enchaînement sur `animationend` dans
+  `js/easter.js`.
+- **Guichet** : le formulaire compose un `mailto:` (aucun service tiers) ; à
+  l'envoi, `#cf-capture` se remplit (« SIGNAL SÉCURISÉ ✓ », `--capture-ms`
+  1,1 s) PUIS le mailto: s'ouvre (délai court : un navigateur n'ouvre un
+  mailto: que peu après le clic). `main.js` émet l'événement annulable
+  `guichet:send` juste avant, que `tests/front.html` annule (un vrai mailto:
+  bloque Edge headless).
+- **Hub de la section Jeux** (`js/gamehub.js`) : carte « Game Hub · Joue avec
+  tes amis » (`#hub-link`, lien `games/`, marche sans JS), commande dans la
+  palette Ctrl+K, et la caisse **solo** « Je joue à quoi ? » (tirage local, sans
+  session, qui renvoie au Game Hub). Tirage par `playable()` : `status ===
+  'live'` ET (`href` ou `action`).
 
-## Passe de finition (2026-09-17)
+### Ce qu'il ne faut pas casser
 
-Rien de l'identité n'a bougé : TF2/Mann Co., sac à dos, ConTracker, killfeed,
-réticule, easter eggs, carousel, FR/EN et les deux thèmes sont intacts.
+- **Accessibilité** : menu mobile (`inert` fermé, aria-expanded, Échap, focus),
+  lightbox (visibility quand fermée, piège à focus, focus rendu), palette
+  (combobox/listbox), carousel (role region, points nommés, bouton pause,
+  rotation coupée hors écran, `focusin` ramène au centre), killfeed
+  `aria-hidden`, `aria-label` traduits via `data-i18n-aria`. Échap : la fenêtre
+  du dessus fait `preventDefault`, celles du dessous ignorent une touche déjà
+  traitée. La croix de la fiche écoute `click`.
+- **Mouvement réduit** aussi en JS : `prefersReducedMotion()` et
+  `scrollBehavior()` (`main.js`), lus au moment de l'animation.
+- **Sans JS** : classe `js` posée dans le `<head>` ; seul `.js .reveal` est
+  caché ; `.js-only` / `.nojs-only` ; carousel en grille ; compteurs avec leur
+  vraie valeur dans le HTML. Au téléphone, un `<details class="nojs-nav">` donne
+  les 6 sections — posé **hors du `<header>`** (le `clip-path` de `#navbar nav`
+  le rognerait).
+- **Pré-rendu** : `js/templates.js` = balisage partagé navigateur/build. Le
+  contenu entre `<!-- build:… -->` dans `index.html` est GÉNÉRÉ. Après toute
+  modif de `data/`, `templates.js` ou d'une classe Tailwind :
+  `node tools/build.mjs`. CI : `.github/workflows/generated-files.yml` lance
+  `--check` (qui vérifie aussi la liste des `<loc>` du sitemap, pas les
+  `<lastmod>`, qui dépendent du commit ; la date d'une page de jeu dépend aussi
+  de `games/shared`).
+- **SEO** : canonical, Open Graph, Twitter, JSON-LD Person (faits affichés
+  seulement), `assets/og-image.png` généré depuis `tools/og-image.html`, sitemap
+  généré depuis `data/games.js`, `games/ban/calibrate.html` en noindex,
+  `styleguide.html` et les pages de tests en `Disallow`. **`/data/` reste
+  autorisé** dans `robots.txt` (sans `data/*.js`, le script casse ; raisonnement
+  dans le fichier).
+- **Perf** : images WebP (vignettes 480 px dans `assets/projects/thumbs/`), un
+  seul écouteur de scroll (rAF), terminal en pause hors écran. AVIF : décidé
+  non (voir journal).
+- **Contenu** : `data/projects.js` (`goal` / `role` / `result` / `team`) et
+  `data/games.js` (`code` / `arch` → bouton Architecture, même modale). `role`
+  est écrit avec les mots de Mathys : ne rien y ajouter sans lui. ⚠️ Le dépôt
+  des radars n'est PAS lié tant que Mathys n'a pas retiré l'IP interne et les
+  identifiants de son README (ils resteraient aussi dans son historique git).
+- **Favicon** `assets/favicon.svg` (plaque Mann Co. + ML en traits) sur toutes
+  les pages.
 
-- **Zéro police externe.** Anton et Inter ne servaient que de repli à TF2
-  Build / TF2 Secondary ; mesuré glyphe par glyphe, ils ne changeaient le rendu
-  que de 7 signes de ponctuation (`« » ‹ › · … ↓`), qu'Arial Narrow et
-  system-ui dessinent aussi bien → supprimés. JetBrains Mono sert vraiment (le
-  terminal du hero, les 5 jeux) et **Space Grotesk** aussi (3 jeux) : les deux
-  sont maintenant dans `assets/fonts/`, en fichier **variable 400→700**
-  (31 + 22 Ko, sous-ensemble latin, SIL OFL 1.1). Plus aucun `preconnect`, plus
-  aucune feuille bloquante venue de Google, sur AUCUNE page (`index`, les 5
-  jeux, `404`, `styleguide`, `upload`, `calibrate`).
-- **Favicon** : `assets/favicon.svg`, la plaque Mann Co. + monogramme ML,
-  dessinée en traits (une favicon SVG ne peut compter sur aucune police).
-  Déclarée sur toutes les pages — c'est le lien visuel le plus direct entre le
-  portfolio et les jeux dans la barre d'onglets.
+### Pièges du front
+
+- ⚠️ **`clip-path` rogne aussi les ombres portées et les outlines.** Biseau en
+  `box-shadow` *inset*, lueur de rareté en `filter: drop-shadow()`, focus en
+  anneau inset. Une `box-shadow` extérieure sur un élément découpé ne
+  s'affichera jamais. (Documenté dans `tf2.css`.)
+- ⚠️ **Teinte ≠ encre.** Les couleurs TF2 sont calibrées pour le gris du jeu ;
+  sur le brun ou le papier, la moitié passe sous 4.5:1. `--red` / `--q-*` pour
+  barres, bordures et fonds ; `--red-ink` / `--qi-*` pour le texte, un jeu par
+  thème. Ne pas réunifier. Même logique pour `--on-orange`. En Blueprint,
+  `--ink-3` / `--orange-ink` sont foncés pour tenir 4.5:1 sur la tache la plus
+  sombre.
+- ⚠️ Le filtre SVG des textures doit avoir une région = la tuile
+  (`filterUnits='userSpaceOnUse'`), sinon coutures tous les 720 px. Un SVG en
+  `data:` ne voit pas les variables CSS (d'où un réticule par thème).
 - ⚠️⚠️ **GitHub Pages passe le dépôt par Jekyll, qui IGNORE tout fichier ou
-  dossier dont le nom commence par `_`.** Il n'est jamais publié, et la page
-  qui le référence prend un 404 — invisible en local, puisque le fichier
-  existe sur le disque. Le socle commun s'est d'abord appelé `games/_shared/`
-  et les cinq jeux sont partis en production **sans socle du tout** : code de
-  room redevenu un gros bouton plein (le `button { background: … }` de chaque
-  page reprenait la main), plus d'anneau de focus, plus de mouvement réduit,
-  polices en repli. Tout était vert en local. D'où deux choses : le dossier
-  s'appelle `games/shared/`, et `tools/build.mjs` refuse maintenant au build
-  tout `href`/`src` local dont un segment commence par `_` (`checkPagesPaths`).
-  Ne pas « ranger » un dossier en le préfixant d'un tiret bas.
-- **Socle commun des jeux : `games/shared/game-ui.css`, UN fichier.** Pas un
-  système de design — le strict minimum pour que les 5 jeux se comportent
-  pareil là où ça se remarque, sans toucher à leur DA (chaque page garde son
-  `<style>` et peut tout surcharger). Il contient : les deux `@font-face`, un
-  anneau de **focus clavier** doré (celui du portfolio, seul emprunt visuel),
-  `prefers-reduced-motion` (aucun jeu ne le respectait), cibles tactiles 44 px
-  en `pointer: coarse`, convention `disabled`, `.g-copy` (le code de room
-  devient un vrai `<button>`), `.g-error` / `.g-status`, et `.back`.
-  ⚠️ Les règles de focus s'écrivent `:where(…):focus-visible` = spécificité
-  (0,1,0), ce qui bat le `input { outline: none }` (0,0,1) de chaque page
-  **quel que soit l'ordre des feuilles**. Ne pas « simplifier » en enlevant le
-  `:where()`. ⚠️ Les jetons sont préfixés `--g-` : `precision` définit déjà
-  `--bg`, `--ink`, `--accent`…
-  ⚠️ **`.g-copy` est écrit en DEUX règles, et c'est délibéré.** Le code de room
-  est un `<button>` : le `button { background: …; padding: …; border-radius: }`
-  générique de chaque jeu lui remettrait l'apparence d'un bouton d'action. Le
-  « chrome » est donc déshabillé avec la classe **doublée** — `.g-copy.g-copy`,
-  spécificité (0,2,0) — ce qui bat ce `button {}` (0,0,1) et un futur
-  `.card button` (0,1,1) sans un seul `!important` ; tandis que la mise en page
-  (display, font, color, text-align) reste à `.g-copy` seul (0,1,0), pour que
-  le `#room-code { … }` (1,0,0) de chaque jeu garde la main sur la taille, la
-  graisse, la couleur et l'interlettrage. Ne pas fusionner les deux règles.
-  `tests/games.html` compare le code de room au bouton d'action principal des
-  cinq jeux : c'est ce test qui rattrape la fusion.
-- **Morpion** : accepte enfin `?server=` comme les quatre autres, même phrase
-  d'erreur réseau, ses 9 cases ont un `aria-label` (« ligne 2, colonne 3 —
-  vide ») — elles s'annonçaient « bouton » neuf fois de suite — et son code de
-  room se copie au clic comme partout ailleurs. Nuance : il vit dans une rangée
-  de méta, donc son `#room-code` repasse `.g-copy` en `display: inline`.
-- **Presse-papiers** : les 4 jeux avalaient l'échec de copie du code en silence
-  (`catch` vide) ; ils le disent maintenant, comme le guichet du portfolio.
-- **Sans JS sur téléphone** : un `<details>` dans `index.html` (classe
-  `.nojs-nav`) donne accès aux 6 sections. Zéro script. ⚠️ Il est posé **hors
-  du `<header>`** : `#navbar nav` est découpé au `clip-path`, qui aurait rogné
-  le panneau dépliant.
-- **Contraste, mesuré et corrigé** (auditeur jetable qui compose les couches
-  alpha, lit les fonds peints en `::before` et applique l'`opacity` des
-  ancêtres) : gris `#6f6c80` → `#8b87a0` dans 4 jeux (3,59 → 5,30:1), blanc sur
-  violet `#8b5cf6` → `#7c3aed` (4,23 → 5,70:1), blanc sur rouge `#ef4444` →
-  `#dc2626` (3,76 → 4,84:1), `#4a4a52` → `#8a8a94` dans precision (2,24 →
-  5,74:1), `--qi-collectors` `#e87070` → `#ee8080` (4,14 → 4,76:1), billet
-  Bigflo `opacity-80` → `-90` (4,11 → 5,18:1 en Blueprint). Le `#stop-btn`
-  rouge vif du Ban est conservé : gros et gras, c'est du « grand texte » WCAG
-  (3:1 exigé, 3,76 mesuré).
-  ⚠️ **Deux pièges pour qui refera cet audit** : un auditeur qui lit seulement
-  `background-color` se trompe partout sur le portfolio (le dégradé d'un
-  panneau est dans `::before`, à cause du `clip-path`) ; et dans une iframe
-  hors écran l'IntersectionObserver ne se déclenche pas, donc tout `.reveal`
-  est à `opacity: 0` et sort à 1,00:1. Il faut couper les transitions, forcer
-  `.is-visible`, puis mesurer.
-- **Compromis gardés volontairement** : les cartes latérales du carousel
-  descendent à `opacity: .08` (c'est le coverflow) et sortent donc sous 4.5:1
-  dans l'audit — ce n'est pas un défaut, et le `focusin` du carousel ramène au
-  centre toute carte qu'on atteint au clavier. Les boutons `disabled` du Ban
-  aussi : WCAG exempte les composants inactifs.
-- **Sitemap** : `--check` vérifie désormais la **liste des `<loc>`** (un jeu
-  ajouté à `data/games.js` sans rebuild fait échouer la CI) mais toujours pas
-  les `<lastmod>`, qui dépendent du commit lui-même. Chaque page de jeu dépend
-  aussi de `games/shared` pour sa date.
-- **`/data/` reste autorisé** dans robots.txt. Mesuré : sans `data/*.js`, le
-  texte pré-rendu survit mais `PROJECTS is not defined` casse le script (plus
-  de palette Ctrl+K). Le raisonnement complet est dans `robots.txt`.
-- **AVIF : non.** Mesuré : 225 Ko de vignettes WebP au total, ~20-30 % de gain
-  théorique, contre un encodeur à installer, du `<picture>` partout et 45
-  fichiers de plus. Le rapport ne vaut pas le coup.
-- **Tests** : trois suites, `tests/README.md` explique quoi lancer. Nouveau :
-  `tests/games.html` (socle commun des 5 jeux) et `tests/keyboard.mjs`, qui
-  pilote Edge par le protocole DevTools pour envoyer de **vraies frappes Tab**
-  — le seul moyen de prouver qu'un anneau de focus apparaît, `:focus-visible`
-  ne s'allumant pas sur un `el.focus()` programmé.
-
-## Deux nouveaux jeux + hub (2026-09-18)
-
-Rien de l'identité n'a bougé. Ce qui est arrivé :
-
-- **Le Passeur** (`games/passeur/`) et **Qui Ment ?** (`games/quiment/`), deux
-  vrais jeux multijoueurs, chacun avec **son dépôt serveur à part** :
-  `C:\perso\passeur-server` et `C:\perso\qui-ment-server` sur le poste de
-  Mathys. Les deux sont déployés sur Render depuis le 2026-09-18 (voir « Mise
-  en ligne » plus bas). ⚠️ Pas de `gh` sur la machine : toute opération GitHub
-  sur ces deux dépôts (créer, pousser) est faite à la main par Mathys.
-- Contrairement aux cinq premiers jeux, ces deux-là **portent la DA du
-  portfolio** : `css/tf2.css` + `games/shared/game-ui.css`, panneaux Mann Co.,
-  polices TF2. Leur `<style>` de page ne contient que ce qui leur est propre.
-  ⚠️ Les deux redéfinissent `.tf-btn:disabled` en `opacity: .45; cursor:
-  default`. C'est **volontaire** : le `cursor: progress` de tf2.css veut dire
-  « envoi en cours » (c'est le guichet), alors que sur une page de jeu
-  désactivé veut dire « pas encore possible ». Même spécificité, l'ordre des
-  feuilles suffit — ne pas « corriger » en touchant tf2.css.
-- **Le secret, côté serveur, dans les deux cas.** Le Passeur : `scores` et
-  `why` n'arrivent qu'au message `results`. Qui Ment ? : le mot ne part jamais
-  en diffusion (joueur par joueur, `word: null` pour l'intrus), les indices
-  sont ramassés en silence puis révélés d'un bloc, et la liste des mots de la
-  catégorie ne part qu'à l'intrus démasqué. Le test WebSocket de
-  `qui-ment-server` relit **tout ce qui est passé sur le fil** et cherche le
-  mot dans l'historique de l'intrus : c'est le seul niveau qui attrape une
-  fuite par un message de progression.
-- **Hub de jeux** (`js/gamehub.js`), posé SUR l'existant sans le modifier :
-  « Je joue à quoi ? » (caisse Mann Co. qui tire un jeu au sort) et « Trouver
-  une partie » (**faux** matchmaking, annoncé en toutes lettres dans l'écran).
-  Les deux passent par `playable()` — `status === 'live'` ET (`href` ou
-  `action`) — donc ni l'un ni l'autre ne peut proposer un jeu non lançable.
-  Pour brancher un vrai matchmaking un jour : **`buildMatch()` est le seul
-  point à remplacer**, l'interface ne bouge pas.
-- **`tests/front.html` ne compte plus les jeux en dur.** Les nombres viennent
-  de `data/games.js`, lu par `w.eval('GAMES')`. ⚠️ `w.GAMES` vaut toujours
-  `undefined` : `GAMES` est un `const` au premier niveau d'un script classique,
-  donc global mais pas une propriété de `window` (même piège que dans
-  `gamehub.js`).
-- ⚠️ **Tester un jeu en réseau : PAS de `--virtual-time-budget`.** Il avance
-  les minuteries *et* `Date.now()` instantanément, donc toute attente expire
-  avant qu'un WebSocket ait eu le temps de répondre — les tests échouent par
-  intermittence pour une raison qui n'a rien à voir. Il faut piloter Edge par
-  le protocole DevTools, en temps réel, comme `tests/keyboard.mjs`.
-- Backstage : le poste de volley passe de **central à passeur** (FR + EN), pour
-  coller au jeu.
-
-### Mise en ligne (faite le 2026-09-18)
-
-Mathys a déployé les deux serveurs sur Render, puis les deux jeux sont passés
-en ligne : `href` + `status: 'live'` dans `data/games.js`, `noindex` retiré des
-deux pages, rebuild. Ils apparaissent donc dans le carousel avec un bouton
-« Jouer », dans le tirage de la caisse Mann Co. et dans le sitemap (8 `<loc>`).
-
-Vérifié **contre la production**, pas seulement en local : un fumigène qui joue
-vraiment une manche sur chaque serveur Render (le health check HTTP ne prouve
-que le process, pas le WebSocket). Il confirme aussi les deux règles qui
-comptent — la manche du Passeur ne contient pas le barème, et le mot de Qui
-Ment ? n'apparaît nulle part chez l'intrus.
-
-⚠️ Reste la contrainte du plan gratuit Render : l'instance s'endort, donc le
-premier joueur attend ~30 s le temps du réveil. Les deux clients le disent dans
-leur message d'erreur (« réveil Render ~30 s ? réessaie ») — ne pas prendre ce
-premier échec pour une panne.
-
-Dernier passage vert : front 195/194, jeux 146/146 (deux modes), clavier 8/8,
-`passeur-server` 28 + 24, `qui-ment-server` 52 + 57, une partie complète de Qui
-Ment ? jouée par trois clients dans un navigateur 42/42, et 10/10 en production.
-
-## Le Passeur : le terrain SVG (2026-09-18, après playtest)
-
-Le jeu était juste techniquement mais trop abstrait : on choisissait parmi cinq
-boutons de texte. Le choix se fait maintenant **sur un terrain**.
-
-- **`games/passeur/court.js`** dessine le terrain à partir de la `scene` que le
-  serveur envoie avec la manche. Il ne connaît **aucune situation** : il sait
-  dessiner une réception, un bloc, quatre attaquants et un passeur. Ajouter une
-  situation côté serveur ne demande donc rien ici.
-- **`scene` vit dans `situations.js`, côté serveur** (réception, origine, état
-  du passeur, bloc, état de chaque attaquant). Ce n'est pas un secret : c'est ce
-  que `ctx`/`detail` disaient déjà en prose. Les deux suites de tests vérifient
-  qu'aucune note ne s'y glisse — c'est exactement le champ où un barème finit
-  par arriver « juste pour l'affichage ».
-  ⚠️ Ajouter un état demande de toucher **aux deux dépôts** (la valeur côté
-  serveur, son dessin dans `court.js`). C'est voulu : un état que le client ne
-  sait pas dessiner ne doit pas pouvoir exister. `test-engine.mjs` refuse toute
-  valeur inconnue, parce qu'une faute de frappe sortirait un terrain muet chez
-  le joueur **sans aucune erreur JS**.
-- **Repli** : si la manche arrive sans `scene` (serveur pas encore redéployé),
-  `court.js` dessine un terrain neutre et le jeu reste entièrement jouable.
-  Vérifié contre la production : 34/34 avec l'ancien serveur en ligne.
-- **Les cinq zones** sont de vrais éléments interactifs du SVG (`role="button"`,
-  `tabindex`, `aria-pressed`, `aria-label` qui annonce le raccourci). Les
-  touches 1 à 5 marchent toujours, mais **elles suivent maintenant l'ordre
-  spatial** — gauche, courte, deuxième main, droite, arrière — et le chiffre est
-  écrit dans chaque zone. L'ordre de `PASSES` dans `situations.js` a été aligné
-  dessus (rien n'en dépendait : tout se fait par `id`).
-  ⚠️ L'anneau de focus est **dessiné dans le SVG** (`.z-focus`), pas un
-  `outline` : un `outline` sur un `<g>` n'est pas rendu pareil partout, et c'est
-  la seule indication pour qui joue au clavier. Ne pas « simplifier ».
-  ⚠️ Aucun état ne repose sur la seule couleur : bloc en retard = pointillés,
-  attaquant au sol = croix, zone choisie = trait épais + coche + `aria-pressed`.
-- **`.court-wrap` porte le même rapport que le viewBox (100 × 78)**, ce qui
-  permet de raisonner en unités du viewBox partout. Changer l'un sans l'autre
-  décale tout.
-- **Écran de résultats** : le même terrain, figé, avec ma zone (cadre pointillé
-  + coche) et la zone recommandée (cadre plein) — deux formes, pas deux
-  couleurs — plus le détail du score. Le serveur envoie maintenant `speed` et
-  `ms` en plus de `relevance`, pour pouvoir écrire « pertinence 100/100 ·
-  vitesse 92 % » au lieu d'un nombre sorti de nulle part.
-- **Champ pseudo** (Le Passeur et Qui Ment ?) : il faisait 50 px pour un bouton
-  à 40, et débordait de 33 px du panneau. Deux causes, aucune arbitraire — ces
-  deux pages ne posaient pas `box-sizing: border-box` (le portfolio le reçoit de
-  Tailwind, pas les pages de jeux), et `font: inherit` ramène aussi le
-  `line-height: 1.5` du corps alors que `.tf-btn` est en `normal`. Les cinq
-  autres jeux posaient déjà `border-box` : ils n'ont pas été touchés.
-  `tests/games.html` compare désormais la hauteur du champ à celle du bouton
-  d'action, pour les sept jeux.
-- **Tests** : `tests/games.html` pilote `Court.render()` **directement** avec une
-  scène fabriquée — vrai rendu, vrai clic, vraie touche, sans serveur. 179
-  vérifications (146 avant). Un harnais jetable a joué en plus une partie
-  complète contre un serveur local ET contre la production, 34/34 dans les deux
-  modes de mouvement.
-  ⚠️ Rappel qui a resservi : pour tout test réseau, **pas de
-  `--virtual-time-budget`**, il fait expirer les attentes avant la réponse du
-  WebSocket. Passer par le protocole DevTools, en temps réel.
-
-## Le Passeur : le terrain passe en fausse 3D (2026-09-18, soir)
-
-Le terrain existait mais ressemblait à des cartes posées sur un fond. Il
-ressemble maintenant à un terrain de volley vu en légère perspective. **Rien
-d'autre n'a bougé** : le contrat `scene`, l'API de `court.js`, `app.js`, le
-moteur, le barème et le serveur sont identiques.
-
-**Three.js a été écarté**, et c'est le bon choix : ~600 Ko pour une scène qui
-ne bouge pas, sur un client de 500 lignes sans dépendance. Tout l'effet tient
-dans une projection de six lignes.
-
-Trois idées, et il n'y en a pas d'autres :
-
-1. **Une projection à un point de fuite.** Le terrain est décrit en coordonnées
-   de monde (`wx` de −1 à +1) ; la profondeur, c'est l'ordonnée écran. `hw(y)`
-   rétrécit linéairement avec la profondeur, donc le terrain est un trapèze.
-2. **L'échelle se propage.** `sc(y) = hw(y)/NEAR_HW` sert à TOUT : les
-   silhouettes sont posées en `translate(...) scale(sc(y))`, et le ballon, les
-   numéros de zone et les libellés en héritent. C'est ça qui fait la
-   profondeur, pas les ombres.
-3. **L'ordre de tracé EST l'ordre de profondeur** : sol → bloc → filet → zones
-   → nos joueurs → ballon → trajectoires. ⚠️ Ne pas réordonner `paint()` sans y
-   penser : un contreur repasserait devant la bande du filet.
-
-Détails qui ont leur raison d'être :
-
-- Le filet est à **profondeur constante**, donc c'est un vrai rectangle à
-  l'écran : maillage en `<pattern>`, bande blanche, poteaux avec une face
-  sombre pour le volume. Aucune déformation à gérer.
-- Les silhouettes sont **huit poses** (`idle`, `run`, `set`, `block`, `attack`,
-  `receive`, `tired`, `down`) définies une fois dans un repère local, pieds en
-  (0,0). L'état d'un attaquant choisit sa pose — un joueur au sol est *couché*,
-  pas barré d'une croix.
-- **Trajectoires** : au survol et au focus d'une zone, une courbe passeur →
-  attaquant. C'est elle qui transforme « quatre cases » en « quatre passes
-  possibles ». Aux résultats, les deux trajectoires (ton choix + le meilleur)
-  sont tracées ensemble.
-- ⚠️ **La perspective écrase les cibles tactiles.** C'est LE risque de la
-  fausse 3D, et il est mesuré : `tests/games.html` vérifie les **cinq** zones à
-  390 px, pas une seule. « 2e main » a été élargie aux dépens de ses voisines,
-  et la zone arrière rallongée (elle était tombée à 40 px). Ne pas rééquilibrer
-  les largeurs à l'œil — le test est là pour ça.
-- Les bruns du sol (`#7a4a24` / `#573720`) ne sont **pas** des tokens TF2 :
-  c'est un sol de gymnase. Le thème Mann Co. reste sur le panneau, les boutons
-  et la typo autour. C'est voulu — le terrain doit être un terrain.
-- Accessibilité inchangée : zones en `role="button"` + `tabindex` +
-  `aria-pressed` + `aria-label` qui annonce la touche, anneau de focus dessiné
-  dans le SVG, description textuelle générée des mêmes données, touches 1 à 5.
-
-**Tests** : jeux 181/181 (deux modes), e2e navigateur 34/34 (deux modes),
-clavier 8/8, `passeur-server` 34 + 29. Le rendu a été jugé à l'image à chaque
-étape : trois collisions de libellés que les tests DOM ne pouvaient pas voir
-(numéro 5 masqué, « TOI » derrière le ballon, réceptionneur sur le libellé de
-la zone arrière) n'ont été trouvées que comme ça.
-
-## Le Passeur devient une vraie situation de volley (2026-09-18, nuit)
-
-Deux changements de fond, et ils sont liés : **le volley est désormais correct**,
-et **on regarde avant de jouer**.
-
-### Les règles, et où elles vivent
-
-Référence : **FIVB Official Volleyball Rules 2025-2028**. Elles sont dans
-**`rules.js` (passeur-server)**, module pur, testé par `test-rules.mjs`.
-⚠️ Le client n'en connaît AUCUNE — il reçoit une scène déjà résolue. Ne jamais
-remettre une règle de volley dans `court.js`.
-
-| Règle | Ce que le jeu en fait |
-|---|---|
-| **7.4** positions | P4 P3 P2 = ligne avant, P5 P6 P1 = ligne arrière. Une rotation légale est obtenue en TOURNANT la rotation de base, jamais saisie à la main |
-| **7.5** faute de position | seule la formation au service doit être légale |
-| **7.6** après le service | tout le monde se déplace. Le réceptionneur-attaquant attaque en poste 4 même s'il a tourné en P3, et **le passeur arrière monte au filet** |
-| **13.2.2** attaque arrière | un arrière peut attaquer, mais au-dessus du filet il doit prendre son appel **derrière la ligne des 3 m** |
-| **14.1.1 / 14.6.2** bloc | seuls les avants peuvent contrer → jamais plus de 3 contreurs |
-
-⚠️ **Ne JAMAIS écrire « il est arrière donc il ne peut pas aller devant ».**
-C'est faux (7.6), et un test est là pour l'empêcher de revenir. La ligne des
-3 m est une ligne de référence, pas un mur.
-
-**La conséquence de jeu la plus importante** : quand le passeur est arrière, il
-n'a **pas de deuxième main** (13.2.2). L'option reste visible sur le terrain,
-marquée `×` / « interdit », avec la raison dans son `aria-label` — et le serveur
-la refuse. 6 des 12 situations ont un passeur avant, 6 un passeur arrière.
-
-### Le modèle de situation
-
-Une situation ne décrit plus un dessin, elle décrit du volley : `rotation` (0-5),
-`serve`, `reception`, `block { count, start, target, late }`, `attackers`,
-`introMs`. **Tout le reste est déduit** : qui joue quelle distribution, qui est
-avant, ce qui est légal. On ne peut donc plus écrire une situation illégale sans
-que `npm test` le dise.
-
-⚠️ Deux pièges déjà rencontrés, tous deux couverts par des tests :
-- le réceptionneur par défaut est le **réceptionneur-attaquant arrière**, pas
-  « le joueur de P6 » — qui selon la rotation peut être le passeur ;
-- une option **interdite** ne doit pas être notée 50 ou plus dans `scores`,
-  sinon le barème vante une action que l'arbitre sifflerait.
-
-### Les deux temps d'une manche
-
-C'est le **serveur** qui tient les deux, pas le client :
-
-1. `round` → la mise en situation (`introMs`, 2,2 à 3,0 s selon la situation).
-   Service, réception, le passeur qui monte, le bloc qui se replace. Aucun
-   chrono ne tourne, les zones sont en retrait et **ne se jouent pas**.
-2. `go` → « À TOI ». Les zones s'activent, les 5 secondes partent.
-
-⚠️ Le chrono ne démarre PAS à la fin de l'animation locale : celui dont l'onglet
-a ramé jouerait plus longtemps. Mesuré à 3 joueurs dans un navigateur : **0 ms
-d'écart** sur l'ouverture de la fenêtre.
-
-Le serveur refuse une réponse envoyée pendant la phase `intro`.
-
-### L'animation
-
-Du **SMIL** (`animateMotion`, `animateTransform`, `set`), pas de boucle JS. Le
-gros avantage : le rendu de l'état FINAL est le même code que celui de
-l'animation (`animate: false`), donc **le mouvement réduit n'a pas de branche à
-part** — on dessine l'arrivée, tout est lisible.
-⚠️ Un joueur qui bouge est enveloppé dans un `<g class="mv">` qui ne fait qu'une
-translation ; le groupe intérieur garde l'échelle de profondeur. Ne pas fusionner
-les deux, il faudrait tout recalculer.
-⚠️ Pour capturer une animation SMIL à un instant précis :
-`svg.pauseAnimations()` puis `svg.setCurrentTime(t)`. Sous
-`--virtual-time-budget`, le SMIL a déjà FINI — une capture montre l'état final,
-pas le début.
-
-### Ce que l'image a attrapé et que les tests ne pouvaient pas voir
-
-Les classes d'équipe (`sil-us` / `sil-them` / `sil-set`) avaient disparu en
-réécrivant `paint()` : toutes les silhouettes tombaient en **noir**, et aucun
-test ne s'en plaignait. Idem pour trois collisions d'étiquettes (« zone avant »
-sur un joueur, « TOI » à l'autre bout du terrain au départ, le « 5 » derrière
-le réceptionneur). Se fier aux captures reste indispensable.
-
-**Tests** : `rules.js` 43, moteur 35, WebSocket 37, jeux 194/194 (deux modes),
-e2e navigateur **à trois joueurs** 46/46 (deux modes), clavier 8/8.
-
-## Le Passeur : la boucle de jeu (2026-09-18, tard)
-
-Le terrain était réussi mais la manche ne se lisait pas. Diagnostic mesuré
-avant de toucher au code, et **une cause dominait les autres**.
-
-### ⚠️⚠️ LE PIÈGE SMIL — c'est lui qui cassait tout
-
-En SMIL, **`begin` se compte sur la timeline du DOCUMENT**, pas depuis
-l'insertion de l'élément. Quand une manche démarre, la page vit déjà depuis un
-moment (accueil, salon, manches précédentes) : tous les `begin` sont donc
-**déjà passés**, et chaque animation est figée sur son état final à la
-milliseconde où on l'insère.
-
-Mesuré : manche 1 (document neuf) → le décalage évolue 0 → 7,3 → 17,7 → 20,7.
-Manche 2 (document vieux de 4 s) → **déjà 20,7 à +60 ms**, et plus rien.
-Autrement dit : le service, la réception, le passeur qui monte et le bloc qui
-se replace **ne jouaient jamais**. C'est ce qui expliquait à la fois « je ne
-vois pas les bloqueurs bouger » et « je ne comprends pas la séquence ».
-
-Correctif : `svg.setCurrentTime(0)` après chaque rendu animé. C'est la seule
-animation de ce SVG, il n'y a rien d'autre à préserver.
-**`tests/games.html` vérifie maintenant que la timeline repart de zéro** —
-sans ce test la régression est invisible, tout étant présent dans le DOM.
-
-### Les trois autres causes, mesurées aussi
-
-- **Le bloc ne bougeait pas** : 9 situations sur 12 ont `start === target`,
-  donc `mover()` ne créait aucune animation. Les contreurs partent maintenant
-  TOUJOURS en retrait du filet (`BLOCK_WAIT_Y`) pour venir s'y coller
-  (`BLOCK_READY_Y`) : le pas vers le filet se voit toujours, l'écart latéral
-  porte l'information. Ils partent en léger décalage l'un de l'autre, et un
-  bloc « en retard » part plus tard ET met plus longtemps — il est encore en
-  train de fermer quand il faut décider.
-- **Le chrono était invisible** : 19,2 px de haut, 45 px au-dessus du terrain,
-  soit **0,43 %** de la surface qu'on regarde. Il est maintenant **sur le
-  terrain**, en haut à droite, à ~31 px (`clamp(1.9rem, 7.5vw, 3rem)`), et il
-  chauffe (`warn` / `hot`). Mêmes identifiants qu'avant (`#timer-num`,
-  `#timer-fill`), seuls le placement et la taille changent.
-- **Les cinq choix étaient abstraits** : seuls le numéro et un sous-titre de
-  jargon en 3,1 px étaient dessinés — `ZONES[].label` n'était **jamais
-  affiché**. Chaque zone porte maintenant son NOM en grand (`lines`, 1 ou
-  2 lignes) et le raccourci clavier devient une pastille discrète.
-  ⚠️ La taille du nom (`fs = 10 * s`) est calibrée pour le **téléphone** : à
-  390 px le terrain ne fait que ~316 px, soit 1,58 px par unité de viewBox, et
-  un nom à 4,6 unités sortait à **6 px**. La largeur des zones laissait
-  pourtant trois fois la place. Ne pas la réduire sans remesurer à 390 px.
-
-### La règle de la deuxième main, reprise proprement
-
-« Passeur arrière = 2e main interdite » était un raccourci. `rules.js` décrit
-maintenant l'**action** de chaque option (`ACTION`) — hauteur du ballon au
-contact, et d'où part l'attaquant — et `attackFault()` applique 13.2.2 dessus :
-un arrière ne peut pas conclure **au-dessus du filet depuis la zone avant**. Il
-peut donc conclure avec un appel derrière la ligne, et il peut jouer le ballon
-**sous** le niveau du filet en zone avant. Ce que le jeu représente pour la 2e
-main, c'est le ballon poussé par-dessus le filet : d'où le refus. Si on ajoute
-un jour une poussette basse, il suffit de la déclarer `ball: 'below-net'`.
-Quatre tests couvrent les quatre combinaisons.
-
-### Tests de COMPORTEMENT, pas de présence
-
-Le e2e échantillonne les positions réelles à l'écran pendant la mise en
-situation : ballon **140 px** parcourus, passeur **69 px**, bloc **20 px** ; et
-en mouvement réduit **0 / 0 / 0** avec l'état final déjà en place. Le compte à
-rebours est observé 5 → 4 → 3. Le chrono est mesuré en taille et vérifié comme
-étant DANS les bornes du terrain.
-
-**Dernier passage** : `rules.js` 50, moteur 35, WebSocket 37, jeux 200/198
-(deux modes), e2e navigateur à trois joueurs 56/54 (deux modes), clavier 8/8,
-front 195, fichiers générés OK.
-
-## Le Passeur : jouabilité réelle (2026-09-18, très tard)
-
-Quatre causes trouvées **dans le code** (pas des hypothèses), dont une extérieure.
-
-### 1. ⚠️⚠️ LE SERVEUR DÉPLOYÉ ÉTAIT DEUX VERSIONS EN RETARD
-
-Mesuré contre `wss://passeur-server.onrender.com` : le message `round` ne
-contenait ni `scene`, ni `introMs`, et **`go` n'arrivait jamais**. Conséquences
-en cascade, qui expliquaient à elles seules presque tous les symptômes :
-
-- pas de `go` → `court.arm()` jamais appelé → **aucune zone cliquable** ;
-- pas de `go` → `startTimer()` jamais appelé → **chrono figé sur 5,0** ;
-- pas de `scene` → terrain de repli → **5 joueurs** et **bloc immobile**.
-
-**Le correctif n'est pas « redéployer »** : un client ne doit pas devenir
-injouable parce que le serveur a une version de retard. `app.js` a maintenant un
-filet — si `introMs` est absent, la fenêtre de décision s'ouvre tout de suite
-(l'ancien serveur l'avait déjà ouverte) ; si `introMs` est là mais que `go`
-tarde, on arme quand même après `introMs + 700 ms`. Le serveur reste l'arbitre :
-il mesure le temps à son horloge et refuse ce qui arrive trop tôt.
-**Vérifié : `tests/passeur-play.mjs` passe 49/49 contre la production périmée.**
-
-### 2. Les couches décoratives interceptaient le clic
-
-Les joueurs, le ballon et les trajectoires sont dessinés **après** les zones
-(c'est voulu : un joueur se tient SUR sa zone). Sans `pointer-events: none`,
-ce sont eux qui recevaient le clic. Mesuré avec `elementFromPoint` au centre de
-chaque zone : l'**ombre au sol du réceptionneur** bloquait tout le centre de la
-zone arrière. Cliquer sur un attaquant — le geste le plus naturel du jeu — ne
-faisait rien.
-⚠️ Ne pas retirer le bloc `pointer-events: none` des couches `.c-*`.
-
-### 3. Les cinq choix n'étaient pas nommés → corrigé au passage précédent
-
-### 4. Le bloc avançait tout droit, et souvent pas du tout
-
-Deux causes cumulées : 9 situations sur 12 ont `start === target` (donc aucun
-déplacement), et le mouvement était une interpolation directe. Les contreurs
-suivent maintenant un **chemin en L** (`moverL`, `animateMotion`) : pas vers le
-filet, puis glissement latéral. Et quand la scène ne demande pas de départ
-particulier, ils partent de leur position d'**avant-lecture** (`blockXs('base')`),
-ce qui garantit un trajet dans tous les cas.
-
-### Six joueurs par équipe (FIVB 7.3)
-
-Il en manquait un chez nous : cinq rôles portent une option, le sixième — le
-central de la ligne arrière — n'en porte aucune. Il se **déduit** de `lineup`
-moins les porteurs d'options : aucun changement de protocole. Les six adverses
-(trois au filet, trois en défense) sont du **décor** dessiné côté client, parce
-que le serveur n'a rien à en dire — ce qui compte, le nombre de contreurs et
-leur cible, vient bien de lui. Tout ce qui n'est pas un choix est en `.c-extra`
-(opacité .42).
-⚠️ Notre 6e joueur est placé près de sa ligne de touche, PAS sur sa position de
-rotation : posé là, il tombait pile sur le libellé de la zone arrière.
-
-### Le test qui manquait
-
-`tests/passeur-play.mjs` (nouveau) joue quatre manches avec de **vraies
-entrées** par le protocole DevTools, aux coordonnées réelles, et lit la passe
-que **le serveur** a enregistrée. `games.html` ne pouvait pas attraper ces bugs :
-il appelle `dispatchEvent` sur le `<g>` d'une zone, ce qui contourne le test de
-survol.
-
-Deux pièges de plomberie, documentés dans `tests/README.md` :
-- `text: 'Enter'` fait passer l'événement pour une saisie de texte et le
-  handler ne voit rien → `rawKeyDown` sans `text` (même piège que Tab) ;
-- `edge.kill()` ne tue que le parent : après quelques exécutions, **49 processus
-  msedge fantômes** saturaient la machine et le test échouait au second
-  passage. Il faut `taskkill /T` et un port de debug tiré au hasard.
-
-**Dernier passage** : partie réelle 49/49 (local et **production périmée**, deux
-modes de mouvement), jeux 206/201, front 195/194, clavier 8/8, `rules.js` 50,
-moteur 35, WebSocket 37, fichiers générés OK.
-
-## Harmonisation visuelle des 7 jeux (2026-09-19)
-
-Les cinq premiers jeux avaient leur propre DA (fond indigo, police mono,
-boutons violets arrondis) ; Le Passeur et Qui Ment ? portaient celle du
-portfolio. Les sept partagent maintenant le même **chrome**, chacun gardant son
-**gameplay** et son **accent**.
-
-### Le principe : chrome commun, gameplay propre
-
-`games/shared/game-ui.css` ne portait que du COMPORTEMENT (focus, tactile,
-mouvement réduit, messages). Il porte maintenant aussi l'HABILLAGE commun :
-fond, titres, panneaux, boutons, champs, salon, code de salle, retour.
-
-**On n'a pas créé un second système de design** : le vocabulaire vient de
-`css/tf2.css`, que les 7 pages de jeux chargent désormais (32 Ko, polices déjà
-auto-hébergées, aucune ressource externe). tf2.css ne touche globalement que
-`html` et `body` — son emprise est contenue.
-
-Et **il n'y avait presque rien à réécrire dans le balisage** : les 7 pages
-partageaient déjà les mêmes identifiants (`#name-input`, `#code-input`, `#host`,
-`#join`, `#start`, `#room-code`, `#code-hint`, `#error`, `#players`,
-`#avatar-row`) et les mêmes classes (`.join-row`, `.or`, `.sub`, `.avatar-pick`,
-`.back`). Le socle habille ces sélecteurs une fois. Seul le panneau a demandé
-une classe : `class="panel g-screen"`.
-
-⚠️ **LA RÈGLE QUI REND ÇA SÛR** : le socle est chargé AVANT le `<style>` de
-chaque jeu et ne cible que des éléments (0,0,1) ou des classes (0,1,0). Tout ce
-qu'un jeu déclare ensuite gagne. C'est ce qui permet aux boutons de GAMEPLAY —
-`.cell` du morpion, `.rate` de l'imitation, `.fab` de precision, `#stop-btn` du
-ban — de garder leur apparence sans toucher à leur balisage.
-
-Chaque jeu choisit **un** jeton : `--g-accent` (+ `--g-accent-ink`).
-Morpion violet, Demi-Cercle violet, Imitation violet, Ban rouge, Precision son
-lavande, Passeur et Qui Ment ? l'orange Mann Co.
-
-### Trois pièges rencontrés, tous les trois invisibles à l'œil nu
-
-1. ⚠️ **`:where()` a une spécificité NULLE.** Mon `button { … }` commun (0,0,1)
-   écrasait donc `:where(.avatar-pick)`, et les avatars se retrouvaient avec le
-   fond plein et les coins coupés d'un bouton d'action. `.avatar-pick` et
-   `.ghost` s'écrivent en classe NUE (0,1,0). Ne pas les remettre en `:where()`.
-2. ⚠️ **Precision redéfinissait `--bg`, `--ink`, `--line` et `--card`** — les
-   noms mêmes des jetons de tf2.css. Le fond commun ne passait pas et les
-   règles partagées résolvaient sur sa palette. Ces quatre-là ne servaient plus
-   qu'au chrome retiré (zéro usage restant) : supprimés, et son trait propre
-   renommé `--p-line`. **Ne jamais redéfinir un nom de jeton de tf2.css dans un
-   jeu** — c'est l'avertissement qui était déjà en tête de game-ui.css.
-3. ⚠️ **Le commentaire de chaque page contient les mots « dans le `<style>`
-   ci-dessous ».** Un script d'édition qui ancre sur `<style>` injecte donc son
-   CSS DANS LE COMMENTAIRE : rien ne s'applique, et rien ne le signale. Ancrer
-   sur `\n<style>\n`.
-
-### Ce qui reste volontairement différent
-
-Grille et ✕/◯ du Morpion, cadran du Demi-Cercle, double waveform de
-l'Imitation, vidéo et `#stop-btn` du Ban (gros et rouge vif : c'est du « grand
-texte » WCAG, 3:1 exigé), les 4 épreuves de Precision, terrain 2.5D du Passeur,
-carte de rôle de Qui Ment ?. Le Mann Co. est le langage de l'INTERFACE, pas
-celui du terrain.
-
-Deux différences assumées en plus :
-- le code de salle du Morpion reste **en ligne et à la taille du texte** : il
-  vit dans une rangée de méta, pas en bloc. C'est la surcharge que `.g-copy`
-  laisse passer par construction ;
-- Le Passeur et Qui Ment ? gardent des copies locales de quelques règles que le
-  socle porte aussi (champs, avatars, code de salle). Elles sont identiques —
-  c'est d'elles que le socle a été tiré — donc aucune divergence visuelle. Je ne
-  les ai pas retirées pour ne pas risquer une régression sur les deux jeux qui
-  venaient d'être validés.
-
-### Le test qui garde tout ça
-
-`tests/games.html` compare désormais **les 7 jeux entre eux** : même hauteur de
-bouton, même hauteur de champ, un seul fond, une seule famille de titre, le
-panneau commun partout. Avant : boutons de 40 à 48 px, champs de 40 à 50, trois
-familles de titre, deux fonds, panneaux dans 3 jeux sur 7. Après : **40 / 40
-partout**. C'est ce test qui rattrapera une modification du fichier partagé qui
-re-diverge un jeu ayant des styles locaux.
-
-**Dernier passage** : jeux 213/208 (deux modes), front 195, clavier 8/8 sur les
-8 pages, partie réelle du Passeur 49/49, fichiers générés OK.
-
-
-## Précision : la zone de jeu redevenue grande, et encastrée (2026-09-18)
-
-L'harmonisation avait écrasé le plateau de Précision en **bande horizontale de
-45 px de haut**. Trois causes, toutes de la migration de la veille :
-
-1. La section est passée de `class="card play-card"` à
-   `class="panel g-screen play-card"`, ce qui a rendu le sélecteur
-   **`.card.play-card` orphelin** — donc plus d'`aspect-ratio: 5/6`.
-   ⚠️ **C'est LE piège à retenir** : toutes les épreuves de Précision vivent en
-   `position: absolute; inset: 0`. Elles ne participent donc pas à la hauteur
-   de la section, qui retombe sur son seul rembourrage. Mesuré : 560×672 avant,
-   **560×45** après, ratio 12,5:1. Rien ne manquait dans le DOM, tous les
-   éléments répondaient présents — un test d'existence n'aurait rien vu.
-   Quand on renomme la classe d'un élément, **relire les sélecteurs composés**
-   qui la mentionnaient.
-2. `:where(.g-screen) { padding: 1.4rem 1.2rem }` du socle s'appliquait au
-   plateau. Ce sont ces 45 px. Le bon côté du `:where()` : spécificité nulle,
-   donc `.play-card { padding: 0 }` le bat **sans un seul `!important`**.
-3. L'ancienne `.card` portait aussi `overflow: hidden` et un fond noir, perdus
-   au passage : le plateau débordait des coins coupés et la surface de jeu était
-   **brune** (le dégradé Mann Co. du panneau) au lieu d'être noire.
-
-Corrigé, avec un écart : le plateau est maintenant **plus grand qu'avant** —
-`main:has(.play-card:not([hidden]))` l'élargit à 640 px sur grand écran, mais
-plafonné par `calc((100svh - 3.6rem) * 5/6)`, donc **c'est la largeur qui cède,
-jamais le ratio**. 1280×900 → 640×768 (+31 % d'aire) ; 1280×720 → 552×662 ;
-390×780 → 358×430. Sans `:has()`, on retombe sur les 560×672 d'avant.
-
-### Deux pièges CSS, notés pour la prochaine fois
-
-- ⚠️ **`background` sur un `.panel` ne se voit pas.** `.panel::before` de
-  tf2.css peint son dégradé à `z-index: -1` sous `isolation: isolate`, donc
-  **au-dessus** du fond de l'élément. Pour donner au plateau son noir
-  d'instrument il faut redéfinir **`.play-card::before`** — même spécificité
-  (0,1,0), notre feuille passe après tf2.css.
-- ⚠️ **Le décor ne doit jamais intercepter le gameplay.** Le boîtier est un seul
-  `<div id="bezel" aria-hidden="true">` en `pointer-events: none`, à
-  **z-index 4** : au-dessus des épreuves, sous le HUD (5), le bouton rond (6) et
-  la barre de temps (7). Vérifié par `elementFromPoint` sur 9 points, bords
-  compris — c'est là que vivent les graduations.
-  Et **les barres de teinte de l'épreuve COULEUR sont remontées à z-index 5** :
-  collées au flanc gauche, elles passaient sous la gouttière du boîtier, qui
-  assombrissait le bord de la barre H. On ne juge pas une couleur sur un bord
-  teinté. Idem pour `#reveal-view` (le classement est de la lecture, pas une
-  surface de mesure).
-
-### Ce que le boîtier dessine
-
-Précision n'est pas un terrain de sport : c'est un **appareil de mesure**, et
-c'est ce qui la distingue du Passeur. Biseau en `box-shadow` inset (lumière en
-haut, ombre en bas), vignette d'encastrement, gouttière, graduations de règle à
-deux pas sur les quatre bords, équerres de visée dans l'accent violet, liseré
-interne, plaque gravée verticale « CAL. 00—100 » en TF2 Build. **Aucune image,
-aucun fichier** : des dégradés répétés et des ombres. Tout est **local à
-`games/precision/`** — `tests/games.html` vérifie que le socle commun ne
-contient aucune règle de plateau.
-
-**Compromis assumé** : l'aperçu de l'épreuve COULEUR garde la vignette sur ses
-bords (seules les barres sont remontées). Elle se juge sur sa masse centrale,
-et remonter l'aperçu ferait disparaître le cadre pendant cette épreuve.
-
-### Au passage
-
-**Morpion avait perdu son panneau** dans la même migration : sa section de jeu
-portait encore `class="card"`, classe orpheline elle aussi — plus de fond, plus
-de bordure, plus de coins coupés. `tests/games.html` vérifie désormais pour les
-7 jeux que l'écran de jeu est bien un `.panel`.
-
-**Dernier passage** : jeux **239/234** (deux modes), front **195/194** (deux
-modes), clavier 8/8 sur les 8 pages, fichiers générés OK. Les 7 tests de
-géométrie du plateau **échouent bien sur l'état d'avant** (640×45, ratio 14,3) —
-vérifié en remettant la bande.
-
-
-## Passe de layout sur les 7 lobbys (2026-09-18)
-
-Audit à la règle des 7 jeux, accueil et salon, à 1280 et 390 px : chevauchements
-de boîtes, labels séparés de leur liste, débordements. **Deux pannes réelles**,
-et cinq jeux sortis propres — je n'ai pas touché à ce qui ne cassait pas.
-
-### ⚠️⚠️ `* { margin: 0 }` bat `:where()` — la troisième fois que ce piège mord
-
-`:where(#avatar-row) { … margin-bottom: 1rem }` du socle a une spécificité
-**nulle**. Or cinq des sept pages ouvrent leur `<style>` par
-`* { margin: 0; box-sizing: border-box }` — **spécificité nulle elle aussi**, et
-leur feuille est chargée APRÈS le socle. C'est donc l'étoile qui gagnait.
-
-Résultat mesuré : **0 px** entre la dernière rangée d'avatars et « Créer une
-partie » sur ban, demicercle, imitation et precision — contre 21 px sur passeur
-et quiment, les deux seuls à déclarer leur propre `#avatar-row` (1,0,0). Quand
-les avatars passent sur deux ou trois lignes, le bouton se lit comme la suite de
-la grille d'icônes.
-
-Correctif : la marge sort du `:where()` et s'écrit `#avatar-row { margin-bottom:
-1.25rem }` — un ID (1,0,0) passe devant l'étoile, et un jeu garde le dernier mot
-avec son propre `#avatar-row` déclaré plus loin. Écart après : 20-21 px partout.
-
-**La règle à retenir** : dans game-ui.css, `:where()` convient pour ce qu'un jeu
-doit pouvoir surcharger facilement, mais **jamais pour une propriété qu'un reset
-universel remet à zéro**. Marges et rembourrages en font partie.
-
-### Demi-Cercle : un `flex-wrap` qui cassait entre un label et sa liste
-
-`#host-config` était un `display: flex; flex-wrap: wrap` de **cinq éléments
-indépendants** (manches, liste, thèmes, liste, bouton). Rien n'y tenait un label
-avec sa liste : dès que la première ligne était pleine, « thèmes : » y restait
-pendant que son select passait à la ligne suivante, **à côté du bouton de
-lancement**. Mesuré aux DEUX largeurs — ce n'était pas un problème de téléphone
-mais de méthode.
-
-Correctif local : une grille `grid-template-columns: auto minmax(0, 1fr)`, qui
-soude chaque paire, plus `#start { grid-column: 1 / -1 }` pour que « Lancer la
-partie » ait sa propre ligne. Les listes sont plafonnées à `15rem` : sans ça un
-select de 360 px affichait « 3 ».
-
-**Les autres jeux gardent leur flex, volontairement.** Mesurés : une seule paire
-label+liste, trop étroite pour se scinder (116 px dans un conteneur de 320). Sur
-bureau ils tiennent sur une ligne — c'est la présentation compacte voulue, pas
-un défaut. Ne pas les passer en grille « par cohérence » : ça leur ajouterait une
-rangée pour rien.
-
-### Un mot sur les faux positifs
-
-Deux pistes ont été écartées après mesure, et c'est aussi bien de le noter :
-
-- ⚠️ **Comparer les bords hauts de deux éléments d'une même ligne de flex ne
-  prouve rien.** Un label de 18 px et un select de 40 px centrés ensemble ont
-  22 px d'écart de `top` alors qu'ils sont parfaitement alignés. Mon premier
-  détecteur criait « label séparé » sur les 6 jeux. **Comparer les centres.**
-- Les scores non alignés à droite dans les salons : artefact de mon harnais de
-  capture, qui ajoutait un `<span class="pts">` que le vrai `app.js` ne produit
-  jamais. Aucun jeu n'affiche de score dans son salon.
-
-Au passage : l'icône 🎙 de la note micro d'imitation tombait seule sur sa ligne
-→ espace insécable.
-
-### Les tests
-
-`tests/games.html` mesure désormais, **pour les 7 jeux et aux deux largeurs** :
-aucun chevauchement de boîtes dans l'accueil et le salon (comparaison deux à
-deux de tous les éléments de texte et de contrôle), l'écart avatars→bouton avec
-le nombre de lignes d'avatars, chaque label sur la ligne de sa liste, « Lancer »
-qui ne recouvre aucune liste, et rien qui sorte du panneau à 390 px.
-**Vérifié : 10 de ces tests échouent sur l'état d'avant**, avec les bons
-libellés (« 0px, 2 ligne(s) », « thèmes : »).
-
-**Dernier passage** : jeux **308/303** (deux modes), front 195/194 (deux modes),
-clavier 8/8, fichiers générés OK. Precision et Le Passeur n'ont pas été touchés
-et leurs tests de plateau et de terrain passent tous.
-
-
-## Game Hub, phase 1 : le manifest des jeux (2026-09-18)
-
-Première brique du futur **Mathys Game Hub** (`/games/`, orchestrateur de
-session). Le design review complet est hors dépôt ; ce qui compte ici est que
-**seule la phase 1 est faite** : le catalogue machine. Aucun serveur de hub,
-aucune room, aucun handoff, aucun randomizer.
-
-### Ce qui existe maintenant
-
-- **`data/games.js` reste la source de vérité**, avec un bloc `hub` par jeu
-  jouable (8 sur 9 — « La suite » n'en a pas, et ne doit pas en avoir).
-- **`data/games.manifest.json` est GÉNÉRÉ** par `tools/build.mjs`, comme le
-  sitemap. Ne jamais l'éditer à la main. C'est le fichier que le Hub ira
-  chercher sur GitHub Pages, exactement comme `ban-server` va déjà chercher
-  `games/ban/videos.json`.
-
-### Les trois règles du schéma, et pourquoi elles sont dans le CODE
-
-Elles sont validées par `tools/build.mjs` et testées par `tests/manifest.mjs`.
-Écrites seulement en commentaire, elles auraient dérivé en trois mois.
-
-1. ⚠️ **SCHÉMA FERMÉ.** Toute clé hors de `CLES` fait échouer le build. C'est
-   ce qui empêche un identifiant de **contenu** (situation, vidéo, thème)
-   d'entrer un jour dans le manifest : le Hub transporte l'historique de
-   contenu, il ne l'interprète ni ne le fabrique. Le serveur du jeu reste seul
-   maître de ce qu'il a consommé.
-2. ⚠️ **`minutes` = `{ min, max }` au réglage par défaut du MJ, et le filtre
-   de durée compare le `max`.** Un « ≤ 10 min » écarte donc un jeu dont le max
-   est 12 : rien d'implicite, au prix d'un filtre conservateur. Le MJ peut
-   allonger une fois dans la partie — le Hub ne surveille pas les réglages d'un
-   jeu.
-3. ⚠️ **Le Hub ne teste JAMAIS une capacité.** Il ne déclenchera aucune
-   demande de permission micro ou caméra : c'est le jeu qui demande et qui
-   vérifie, à l'entrée. Ne pas « améliorer » le Hub en lui faisant appeler
-   `getUserMedia`.
-   ⚠️ Depuis le 2026-09-20, **`mic` et `consent` sont acquis d'office** : un
-   nouveau joueur naît avec `caps: { mic: true, consent: true }`
-   (`game-hub-server/src/session.js`), et plus personne ne déclare rien. Voir
-   « Les capacités sont acquises d'office » en fin de fichier.
-
-Vocabulaires fermés aussi pour `needs` (`mic`, `cam`, `consent`) et
-`categories` : `needs: ['micro']` créerait un filtre que rien ne satisfait, en
-silence — le genre de panne qu'on ne découvre qu'en soirée.
-
-### Les bornes de joueurs, vérifiées
+  dossier commençant par `_`** : jamais publié, 404 en production, invisible en
+  local. `tools/build.mjs` refuse tout `href`/`src` local dont un segment
+  commence par `_` (`checkPagesPaths`). Ne jamais « ranger » un dossier avec un
+  tiret bas.
+- **Audit de contraste** : le dégradé d'un panneau est dans `::before` (à cause
+  du `clip-path`), pas dans `background-color` ; dans une iframe hors écran
+  l'IntersectionObserver ne se déclenche pas (tout `.reveal` à `opacity: 0`) :
+  couper les transitions, forcer `.is-visible`, puis mesurer. Compromis gardés :
+  cartes latérales du carousel à `opacity: .08` (coverflow), boutons `disabled`
+  du Ban (WCAG exempte l'inactif), `#stop-btn` rouge vif (grand texte, 3:1).
+- `GAMES` / `PROJECTS` sont des `const` de premier niveau : globaux mais pas
+  propriétés de `window` (`w.GAMES` vaut `undefined` ; lire par
+  `w.eval('GAMES')`). `tests/front.html` lit les nombres de jeux dans
+  `data/games.js`, jamais en dur.
+
+## Pages de jeux : le socle commun
+
+Les sept pages de jeux chargent **`css/tf2.css` puis
+`games/shared/game-ui.css`, puis leur propre `<style>`**. Chrome commun
+(fond, titres, panneaux, boutons, champs, salon, code de salle, retour),
+gameplay et accent propres.
+
+- ⚠️ **LA RÈGLE QUI REND ÇA SÛR** : le socle ne cible que des éléments (0,0,1)
+  ou des classes (0,1,0), et il est chargé AVANT le `<style>` du jeu : tout ce
+  qu'un jeu déclare ensuite gagne. C'est ce qui garde l'apparence des boutons de
+  gameplay (`.cell` du Morpion, `.rate` d'Imitation, `.fab` de Précision,
+  `#stop-btn` du Ban). Panneau commun : `class="panel g-screen"`. Le socle
+  habille les identifiants communs aux pages (`#name-input`, `#code-input`,
+  `#host`, `#join`, `#start`, `#room-code`, `#code-hint`, `#error`, `#players`,
+  `#avatar-row`) et classes (`.join-row`, `.or`, `.sub`, `.avatar-pick`,
+  `.back`) : les garder quand on touche au balisage d'un jeu.
+- Un jeton d'accent par jeu : `--g-accent` (+ `--g-accent-ink`). Morpion,
+  Demi-Cercle et Imitation violet, Ban rouge, Précision lavande, Passeur et Qui
+  Ment ? orange Mann Co.
+- Le socle porte aussi le comportement : focus clavier doré, mouvement réduit,
+  cibles tactiles 44 px en `pointer: coarse`, convention `disabled`, `.g-copy`
+  (le code de room est un vrai `<button>` qui se copie ; un échec de copie est
+  dit), `.g-error` / `.g-status`, `.back` (retour portfolio).
+- Reste volontairement propre à chaque jeu : grille ✕/◯, cadran, double
+  waveform, vidéo et `#stop-btn`, épreuves de Précision, terrain 2.5D du
+  Passeur, carte de rôle de Qui Ment ?. Le Mann Co. est le langage de
+  l'INTERFACE, pas du terrain. Le code de room du Morpion reste en ligne (rangée
+  de méta : `display: inline`). Passeur et Qui Ment ? gardent des copies locales
+  identiques de quelques règles du socle (non retirées pour ne rien risquer).
+
+### Pièges de spécificité (tous déjà mordus)
+
+- ⚠️ **`:where()` a une spécificité NULLE.** Les règles de focus s'écrivent
+  `:where(…):focus-visible` (0,1,0) et battent `input { outline: none }` quel
+  que soit l'ordre — ne pas retirer le `:where()`. Mais `.avatar-pick` et
+  `.ghost` s'écrivent en classe NUE (sinon `button {}` les écrase).
+- ⚠️ **`* { margin: 0 }` bat `:where()`** : cinq pages ouvrent leur `<style>`
+  par ce reset, chargé après le socle. Jamais de marge ni de rembourrage en
+  `:where()` dans `game-ui.css` ; d'où `#avatar-row { margin-bottom: 1.25rem }`
+  en ID.
+- ⚠️ **`.g-copy` est écrit en DEUX règles, délibérément** : le chrome déshabillé
+  par `.g-copy.g-copy` (0,2,0, bat `button {}` et `.card button` sans
+  `!important`), la mise en page à `.g-copy` seul (0,1,0) pour que le
+  `#room-code` de chaque jeu garde la main. Ne pas fusionner ;
+  `tests/games.html` le rattrape.
+- ⚠️ **Ne jamais redéfinir un nom de jeton de `tf2.css` dans un jeu** (`--bg`,
+  `--ink`, `--line`, `--card`…) ; les jetons du socle sont préfixés `--g-`,
+  ceux propres à un jeu aussi (Précision : `--p-line`).
+- ⚠️ Chaque page contient les mots « dans le `<style>` ci-dessous » dans un
+  commentaire : un script d'édition doit ancrer sur `\n<style>\n`, sinon il
+  injecte son CSS dans le commentaire.
+- ⚠️ Quand on renomme la classe d'un élément, **relire les sélecteurs composés**
+  qui la mentionnaient (un `.card.play-card` orphelin a écrasé le plateau de
+  Précision ; un `class="card"` orphelin a fait perdre son panneau au Morpion).
+- Passeur et Qui Ment ? redéfinissent `.tf-btn:disabled` en `opacity: .45;
+  cursor: default` : volontaire (le `cursor: progress` de tf2.css veut dire
+  « envoi en cours »). Ne pas toucher tf2.css.
+- Les pages de jeux ne reçoivent pas `box-sizing: border-box` de Tailwind, et
+  `font: inherit` ramène un `line-height: 1.5` : c'est ce qui faisait déborder
+  les champs. Un champ masqué en `width: 1px` garde son rembourrage : il faut
+  aussi `padding: 0; border: 0; min-height: 0`.
+- ⚠️ **Anneau de focus rogné** : le socle le dessine en `outline`, que le
+  `clip-path` des boutons génériques rogne. Corrigé sur `/games/` (box-shadow
+  inset) et bon sur `.tf-btn` ; **défaut encore ouvert** dans les jeux au
+  `button` générique (vu sur Imitation), et `keyboard.mjs` ne le voit pas (il
+  compte le biseau comme un anneau).
+
+### Mises en page propres à un jeu
+
+- **Précision** : le plateau est un **appareil de mesure**. Toutes les épreuves
+  sont en `position: absolute; inset: 0` et ne donnent aucune hauteur : c'est
+  `.play-card` qui porte `aspect-ratio: 5/6`, `padding: 0` (bat le `:where()` du
+  socle), `overflow: hidden`, et son noir via **`.play-card::before`** (un
+  `background` sur un `.panel` ne se voit pas, le `::before` de tf2.css peint
+  au-dessus). `main:has(.play-card:not([hidden]))` l'élargit à 640 px, plafonné
+  par `calc((100svh - 3.6rem) * 5/6)` : c'est la largeur qui cède, jamais le
+  ratio. Le boîtier `#bezel` (`aria-hidden`, `pointer-events: none`) est à
+  z-index 4 : au-dessus des épreuves, sous le HUD (5), le bouton rond (6) et la
+  barre de temps (7) ; les barres de teinte de COULEUR et `#reveal-view` sont
+  remontées à 5 (on ne juge pas une couleur sur un bord teinté). Le boîtier ne
+  dessine qu'avec des dégradés et des ombres, aucune image : biseau inset,
+  vignette, gouttière, graduations, équerres dans l'accent, plaque « CAL.
+  00—100 » en TF2 Build. Compromis : l'aperçu de COULEUR garde la vignette sur
+  ses bords. Tout est local à `games/precision/` (`tests/games.html` vérifie que
+  le socle n'a aucune règle de plateau).
+- **Demi-Cercle** : `#host-config` est une grille `auto minmax(0, 1fr)` (chaque
+  label soudé à sa liste, listes plafonnées à 15rem, `#start` sur sa ligne). Les
+  autres jeux gardent leur flex (une seule paire, trop étroite pour se scinder) :
+  ne pas les passer en grille « par cohérence ».
+- Mesurer un alignement : comparer les **centres**, pas les bords hauts.
+
+### Profil et avatars
+
+- **Profil local** (`games/shared/game-profile.js`, clé `localStorage`
+  `mathys_game_profile`) : `{ v: 1, id, name, avatar: { kind: 'emoji' |
+  'image', emoji, src? } }`. `id` est local et ne prouve rien ; il est écrit dès
+  la première lecture (`GameProfile.load()`), sinon la reconnexion au Hub est
+  impossible. `sanitize()` est le seul point d'entrée (profil illisible → neuf,
+  sans exception ; une migration de `v` se branchera là).
+- Bornes, prises dans les serveurs : `name` 16 caractères ; `emoji` **4 unités
+  UTF-16 max** (un emoji à ZWJ serait coupé) ; `src` = data-URL **webp ou png**
+  produite par notre canvas, **≤ 12 Ko décodés** (SVG refusé : il peut porter
+  du script). L'emoji est TOUJOURS présent : c'est le repli.
+- Dans les six jeux à identité : `GameProfile.startEmoji(AVATARS)` (garde
+  l'emoji du profil s'il est dans les douze du jeu, sinon un choix stable dérivé
+  de l'id, jamais réécrit) ; le module branche lui-même préremplissage et
+  enregistrement (`change` + capture sur `#host` / `#join`).
+- **La PP voyage en jeu** : `GameProfile.joinAvatar(emoji)` → `join` →
+  `avatar.js` (le **même fichier** dans les six serveurs : `cleanAvatar()`,
+  signature vérifiée, image jamais décodée ni réencodée, tout refus garde
+  l'emoji ; tests `test-avatar.js` et `test-avatar-ws.js`) → listes de joueurs
+  → `games/shared/game-avatar.js`. Côté profil, `okImage()` compte les octets
+  DÉCODÉS, comme le serveur. Un ancien client qui envoie une chaîne reste
+  accepté, un ancien serveur qui renvoie une chaîne reste affiché.
+  ⚠️ **La donnée du réseau ne passe jamais par innerHTML** : `GameAvatar.slot()`
+  pose un emplacement vide dans le gabarit, et **tout `slot()` doit être suivi
+  d'un `fill()`** sur le même conteneur. Un emoji venu du réseau n'est accepté
+  que s'il en a l'air (aucun ASCII imprimable) — sinon l'emoji par défaut.
+- Tailles : `sm` 32 px, `md` 48, `lg` 68 (44 / 60 sous 480 px) ; photo et emoji
+  dans la même boîte (`.g-av-e`) ; carré à coins coupés, liseré = le FOND vu à
+  travers 2 px (le `clip-path` rognerait une `border`), couleur via
+  `--g-av-ring`. Rangée `.g-player` / `.g-player-name` / `.g-player-score` ;
+  `:where(ul):has(> .g-player)` retire le retrait des `<ul>`. Sans taille, le
+  rendu en ligne (`.g-av-img`, 1,5em) reste pour les phrases. Par jeu : photo au
+  bout de l'aiguille du Demi-Cercle (`<image>` SVG), scoreboards d'Imitation et
+  du Demi-Cercle à 240 px, avatars du Ban dans « tour de … » et l'ordre de
+  passage, révélation de Précision à 36 px sous 480 px, votes de Qui Ment ? en
+  cartes joueur.
+- ⚠️ **Morpion : l'exception structurelle.** `morpion-server` ne reçoit ni
+  pseudo ni avatar, la page n'a ni `#name-input` ni `#avatar-row`, et on ne lui
+  envoie jamais d'identité (`tests/handoff-morpion.mjs` relit chaque trame).
+  `game-profile.js` y est chargé quand même, pour le seul `player.id` du Hub.
+
+## Le Passeur : le terrain
+
+- **`games/passeur/court.js` ne connaît aucune situation** : il dessine la
+  `scene` envoyée par le serveur (réception, bloc, attaquants, passeur…). La
+  `scene` vit dans `situations.js` côté serveur ; ce n'est pas un secret, mais
+  aucun barème ne doit s'y glisser (les deux suites le vérifient).
+  ⚠️ Ajouter un état demande de toucher **aux deux dépôts** (valeur serveur +
+  dessin client) ; `test-engine.mjs` refuse toute valeur inconnue (une faute de
+  frappe donnerait un terrain muet sans erreur JS). Sans `scene`, terrain
+  neutre, jeu jouable.
+- **Les règles de volley sont côté serveur** (`rules.js`, FIVB 2025-2028,
+  `test-rules.mjs`) ; le client n'en connaît AUCUNE. Rotations obtenues en
+  tournant la rotation de base (7.4), seule la formation au service doit être
+  légale (7.5), tout le monde se déplace après le service (7.6), un arrière
+  attaque au-dessus du filet seulement depuis derrière les 3 m (13.2.2), seuls
+  les avants contrent (14.1.1 / 14.6.2).
+  ⚠️ **Ne JAMAIS écrire « il est arrière donc il ne peut pas aller devant »**
+  (faux, 7.6 ; un test l'empêche). Passeur arrière = pas de 2e main (ballon
+  poussé au-dessus du filet depuis la zone avant, via `ACTION` /
+  `attackFault()` ; une poussette basse se déclarerait `ball: 'below-net'`).
+  Une option interdite reste visible (`×`, raison dans l'`aria-label`), le
+  serveur la refuse, et elle n'est jamais notée 50 ou plus. Le réceptionneur par
+  défaut est le réceptionneur-attaquant arrière.
+- **Deux temps tenus par le serveur** : `round` (mise en situation, `introMs`
+  2,2–3,0 s, zones inactives, le serveur refuse une réponse) puis `go` (5 s). Le
+  chrono ne démarre pas à la fin de l'animation locale (un onglet qui rame
+  jouerait plus longtemps). Filet client : sans `introMs`, on arme tout de suite ;
+  si `go` tarde, on arme après `introMs + 700 ms` (le serveur reste l'arbitre).
+- **Fausse 3D** : projection à un point de fuite (`hw(y)`), échelle propagée
+  `sc(y) = hw(y)/NEAR_HW` à tout ; **l'ordre de tracé EST la profondeur** : sol →
+  bloc → filet → zones → nos joueurs → ballon → trajectoires (ne pas
+  réordonner `paint()`). Filet à profondeur constante. Huit poses de silhouette.
+  (`idle`, `run`, `set`, `block`, `attack`, `receive`, `tired`, `down`),
+  définies une fois pieds en (0,0) ; l'état d'un attaquant choisit sa pose (au
+  sol = couché). Classes d'équipe `sil-us` / `sil-them` / `sil-set` : sans
+  elles, tout tombe en noir sans qu'aucun test DOM ne se plaigne. Trajectoire
+  passeur → attaquant au survol / focus. `.court-wrap` a le ratio
+  du viewBox (100 × 78) : changer l'un sans l'autre décale tout. Sol de gymnase
+  (`#7a4a24` / `#573720`), pas des tokens TF2.
+- **Animation en SMIL** (`animateMotion`, `animateTransform`, `set`), pas de
+  boucle JS ; l'état final = le même rendu avec `animate: false`
+  (donc pas de branche « mouvement réduit »). Un joueur qui bouge est dans un
+  `<g class="mv">` qui ne fait que translater (ne pas fusionner avec le groupe
+  d'échelle). ⚠️⚠️ **En SMIL, `begin` se compte sur la timeline du DOCUMENT** :
+  sans `svg.setCurrentTime(0)` après chaque rendu animé, toutes les animations
+  sont déjà finies à l'insertion (`tests/games.html` le vérifie). Capture à un
+  instant : `svg.pauseAnimations()` + `svg.setCurrentTime(t)`.
+- Le bloc part toujours en retrait (`BLOCK_WAIT_Y` → `BLOCK_READY_Y`), en chemin
+  en L (`moverL`), depuis `blockXs('base')` si la scène ne dit rien ; un bloc en
+  retard part plus tard et met plus longtemps.
+- **Zones** : vrais boutons du SVG (`role="button"`, `tabindex`,
+  `aria-pressed`, `aria-label` avec la touche), touches 1 à 5 dans l'ordre
+  spatial (gauche, courte, 2e main, droite, arrière), nom en grand (`fs = 10 *
+  s`, calibré pour 390 px), anneau de focus **dessiné dans le SVG**
+  (`.z-focus`). Aucun état par la seule couleur. ⚠️ La perspective écrase les
+  cibles tactiles : `tests/games.html` mesure les cinq zones à 390 px, ne pas
+  rééquilibrer à l'œil.
+- ⚠️ **Les couches décoratives `.c-*` sont en `pointer-events: none`** : joueurs,
+  ballon et trajectoires sont tracés après les zones et intercepteraient le
+  clic (vérifié par `elementFromPoint` au centre de chaque zone). Six joueurs
+  par équipe (FIVB 7.3) : notre 6e — le central arrière, sans option — se
+  déduit de `lineup` moins les porteurs d'options, et il est placé près de sa
+  ligne de touche (pas sur sa position de rotation, où il masquait le libellé
+  de la zone arrière) ; les six adverses sont du décor, `.c-extra`. L'ordre de
+  `PASSES` (`situations.js`) suit l'ordre spatial des touches ; tout se fait
+  par `id`.
+  `tests/games.html` pilote `Court.render()` par `dispatchEvent`, ce qui
+  contourne le test de survol : les vrais clics sont dans
+  `tests/passeur-play.mjs`, qui lit la passe enregistrée par le serveur.
+- Chrono SUR le terrain (`#timer-num`, `#timer-fill`, ~31 px, `warn` / `hot`).
+  Résultats : le terrain figé, ma zone (cadre pointillé + coche) et la
+  recommandée (cadre plein), « pertinence 100/100 · vitesse 92 % » à partir de
+  `relevance`, `speed` et `ms` envoyés par le serveur.
+
+## Game Hub — architecture actuelle
+
+| Côté | Fichier | Rôle |
+|---|---|---|
+| page | `games/index.html` | l'entrée `/games/` (Mann Co.), `noindex` |
+| page | `games/hub-page.js` | colle profil ↔ client ↔ affichage ; aucun WebSocket en direct |
+| page | `games/hub-crate.js` | la caisse : met en scène un tirage DÉJÀ décidé |
+| page | `games/hub-recap.js` | module pur (page + Node) : classement, débrief, finale, dernier résultat |
+| partagé | `games/shared/game-hub.js` | LE client du Hub (navigateur ET Node) : connexion, reprise, erreurs |
+| partagé | `games/shared/hub-handoff.js` | billet, handoff côté page de jeu, livraison results → ended |
+| partagé | `games/shared/game-net.js` | transport des jeux + présence (`GameNet.create`, `surPerte`) |
+| serveur | `game-hub-server/src/` | `hub.js`, `session.js`, `engine.js`, `catalog.js`, `health.js`, `launch.js`, `scores.js`, `finale.js`, `protocol.js`, `serialize.js` |
+
+Configuration : une seule constante `PROD` dans `game-hub.js` ; `?hub=` la
+remplace. Protocole relu dans `game-hub-server/src` : `create` / `join` /
+`leave` → `created` / `joined` / `session` / `error { code, message }`. Les
+codes d'erreur sont ceux du serveur (`SESSION_NOT_FOUND`, `SESSION_FULL`,
+`SESSION_CLOSED`, `BAD_CODE`, `BAD_PLAYER`, `REPLACED`…), traduits par
+`errorText()` ; un code **inconnu** est affiché avec son code (jamais noyé dans
+une phrase générique). Une session compte au plus 12 joueurs (le
+`MAX_PLAYERS` de `precision-server`, le plus permissif).
+
+### Le manifest des jeux
+
+- **`data/games.js` est la source de vérité** (bloc `hub` par jeu jouable, 8 sur
+  9 — « La suite » n'en a pas). **`data/games.manifest.json` est GÉNÉRÉ** par
+  `tools/build.mjs` ; le Hub le relit sur GitHub Pages (cache 5 min) : ajouter
+  un jeu au portfolio l'ajoute au tirage sans redéployer le Hub.
+- ⚠️ **Schéma FERMÉ** (clés `CLES`, vocabulaires fermés `needs` = `mic` /
+  `cam` / `consent`, `categories`) : aucun identifiant de contenu n'entre dans
+  le manifest, et une faute de frappe fait échouer le build au lieu de créer un
+  filtre que rien ne satisfait.
+- `minutes` = `{ min, max }` au réglage par défaut ; le filtre de durée compare
+  le `max`. `content` / `replay` à `false` = « non supporté OU pas vérifié »
+  (`replay` est à `true` pour Le Passeur et Qui Ment ?). Le Hub transporte
+  l'historique de contenu sans l'interpréter ; limite connue : les serveurs
+  rappellent `E.deal()` à chaque `start`, donc « rejouer » efface
+  l'anti-répétition de contenu.
+  `handoff: true` pour les sept jeux en ligne (Puissance 4 : `false`) ; le test
+  vérifie que la page charge vraiment `hub-handoff.js`.
+- ⚠️ **Le Hub ne teste JAMAIS une capacité** (aucun `getUserMedia`) : c'est le
+  jeu qui demande le micro à l'entrée.
 
 | Jeu | min | max | Source |
 |-----|-----|-----|--------|
@@ -1029,1015 +515,83 @@ silence — le genre de panne qu'on ne découvre qu'en soirée.
 | Qui Ment ? | **3** | 8 | `E.MIN_PLAYERS` — sous 3 le vote n'a aucun sens |
 | Puissance 4 | 1 | 1 | local, sans serveur |
 
-`content` et `replay` valent `false` partout sauf `replay` sur passeur et
-quiment, où `action: 'lobby'` est vérifiée dans le serveur. **`false` veut
-dire « non supporté OU pas encore vérifié »** : dans les deux cas le Hub s'en
-passe. Ces drapeaux passeront à `true` jeu par jeu, plus tard.
+`tests/manifest.mjs` compare l'URL `wss://` annoncée à celle du `net.js` du jeu,
+vérifie le dialecte (`join: 'v1'` envoie `name` et `avatar`, `'anon'` —
+Morpion — aucun) et **casse volontairement `data/games.js`** pour vérifier que
+le build échoue. ⚠️ Il écrit vraiment dans le fichier puis restaure dans un
+`finally` : après une interruption, regarder `git diff data/games.js`.
 
-### Le test qui compte
+### Cycle de vie d'une session
 
-`tests/manifest.mjs` (`node tests/manifest.mjs`, 71 vérifications) ne se
-contente pas de relire le JSON :
+États (`session.js`) : `lobby` → `drawing` → `launching` → `inGame` →
+`debrief` (→ tirage suivant…) ; `finished` (soirée terminée par l'hôte) ;
+`closed`.
 
-- il compare l'URL `wss://` annoncée à celle que le `net.js` du jeu utilise
-  **vraiment** — un copier-coller raté enverrait le Hub réveiller un serveur
-  pendant que le joueur en contacte un autre, et tout aurait l'air normal des
-  deux côtés ;
-- il vérifie le dialecte : un jeu `join: 'v1'` doit bien envoyer `name` et
-  `avatar`, un `'anon'` (Morpion) ne doit en envoyer aucun ;
-- il **casse volontairement `data/games.js`** six fois et vérifie que le build
-  échoue à chaque fois. ⚠️ Ces cas écrivent vraiment dans le fichier avant de
-  le restaurer dans un `finally` : si le test est interrompu, regarder
-  `git diff data/games.js` avant de commiter.
+- **Reprise = rejouer `join` avec le MÊME player.id** : le serveur rend sa place
+  au joueur, sans doublon. Le code de session est gardé en `sessionStorage`
+  (`mathys_hub_session`, par onglet) : un rechargement reprend.
+- **`REPLACED` → jamais de reconnexion automatique** (deux onglets du même
+  profil s'éjecteraient en boucle).
+- **Heartbeat** : ping natif toutes les 20 s (`HEARTBEAT_MS`, `src/hub.js`),
+  `terminate()` au tour suivant sans réponse (détection 20 à 40 s), même chemin
+  que `onClose` ; le navigateur répond seul (`test-presence.js` simule un
+  téléphone muet avec `autoPong: false`). Grâce : `GRACE_MS` (60 s). En production,
+  une fermeture initiée par le client n'est vue qu'après ~10 s (proxy Render).
 
-### Décisions déjà prises pour la suite (ne pas les rouvrir sans raison)
-
-Pilote **Le Passeur** ; navigation **même onglet** (donc un `resumeToken` sera
-nécessaire dès le serveur de hub) ; photo de profil **au Hub seulement**, emoji
-conservé dans les jeux ; ~~pré-réveil Render **au moment du tirage**~~
-(abandonné le 2026-09-20 : on ne réveille plus rien avant de tirer) ; public
-**entre amis** ; `/games/` **remplacera** le faux randomizer de `js/gamehub.js`.
-
-⚠️ Deux limites de l'existant, mesurées, qui commanderont les phases tardives :
-les serveurs tronquent l'avatar à 4 caractères (`slice(0, 4)`), donc une image
-ne peut pas les atteindre ; et `E.deal()` est rappelé à chaque `start`, donc
-« rejouer » efface l'anti-répétition de contenu.
-
-**Dernier passage** : manifest 71/71, jeux 308, front 195, fichiers générés OK.
-
-
-## Game Hub, phase 2 : le profil local (2026-09-18)
-
-Deuxième brique du Game Hub : **une identité commune au portfolio**, pseudo +
-avatar, retenue d'un jeu à l'autre. Toujours aucun serveur de hub, aucune room,
-aucun handoff, aucun randomizer.
-
-    localStorage  →  games/shared/game-profile.js  →  pages de jeux
-
-Et rien de plus. Le module n'ouvre aucun socket et ne connaît ni serveur, ni
-règle, ni score.
-
-### Le contrat
-
-```js
-{ v: 1, id: 'p_7f3a91c2', name: 'Mathys',
-  avatar: { kind: 'emoji' | 'image', emoji: '🦊', src?: 'data:image/webp;…' } }
-```
-
-Clé `localStorage` : **`mathys_game_profile`**. `id` est LOCAL — aucun serveur
-ne le reçoit, et il ne prouve rien : le jour où le Hub existera, l'autorité
-viendra du socket, comme dans les sept jeux aujourd'hui.
-
-**L'emoji est toujours présent, même en mode image.** C'est lui le repli, et
-c'est lui qui voyage.
-
-### Trois bornes, toutes prises dans les vrais serveurs
-
-- `name` : 16 caractères — c'est le `slice(0, 16)` des six serveurs.
-- ⚠️ `emoji` : **4 unités UTF-16 maximum**. Les serveurs font
-  `String(avatar || '🙂').slice(0, 4)`, et ce `slice` compte des unités UTF-16,
-  pas des emojis. Les douze icônes actuelles en font 2 ou 3, donc tout passe —
-  mais un emoji à ZWJ (👨‍👩‍👧 = 8 unités) serait coupé en plein milieu et
-  arriverait cassé chez les autres joueurs. Le module le refuse ici plutôt que
-  de laisser le serveur trancher.
-- `src` : 12 Ko, et uniquement une data-URL **webp ou png** produite par notre
-  canvas. SVG refusé par construction (il peut porter du script, et un canvas
-  n'en écrit jamais).
-
-Un profil illisible, une version inconnue, un champ du mauvais type : on repart
-sur un profil neuf **sans jamais lever d'exception**. `sanitize()` est le seul
-point d'entrée, et c'est là que viendra se brancher une migration le jour où
-`v` changera.
-
-### ⚠️ L'image ne part PAS en jeu, et c'est voulu
-
-`slice(0, 4)` : une URL n'y tient pas, une image encore moins. La photo reste
-donc **locale** (elle servira au futur Hub) et c'est l'emoji qui voyage.
-L'interface le dit au joueur : « gardée pour toi — en jeu, c'est ton icône qui
-s'affiche ». Ne pas « corriger » ça sans étendre d'abord les six serveurs.
-
-### ⚠️ Morpion : l'exception, et elle est structurelle
-
-`morpion-server/src/server.js` lit `onJoin(ws, msg.code)` : **ni pseudo, ni
-avatar**. Sa page n'a d'ailleurs ni `#name-input` ni `#avatar-row`, et on ne
-lui envoie jamais une identité qu'il ne sait pas recevoir.
-⚠️ `game-profile.js` y est **chargé quand même**, pour une seule raison : le
-handoff du Game Hub (`hub-handoff.js`) a besoin de l'identifiant local pour se
-présenter au HUB avec le même player.id. Il n'y remplit rien et n'ajoute
-aucune interface. `tests/profile.mjs` vérifie qu'aucun champ d'identité
-n'apparaît, `tests/handoff-morpion.mjs` relit chaque trame envoyée à
-morpion-server : jamais de `name` ni d'`avatar`.
-
-### Ce qui a changé dans les six autres jeux
-
-**Une seule ligne par jeu.** `AVATARS[Math.floor(Math.random() * …)]` devient
-`GameProfile.startEmoji(AVATARS)`. Tout le reste — préremplissage du pseudo,
-enregistrement au clic sur un avatar, choix de photo — est branché par le
-module lui-même, par délégation sur `#avatar-row` et `#name-input`, sans
-toucher au balisage. Les écouteurs du jeu continuent de fonctionner à côté.
-
-`startEmoji(liste)` : garde l'emoji du profil s'il figure dans les douze de ce
-jeu ; sinon en choisit un **de façon stable** (dérivé de l'id local), et **ne
-réécrit jamais** le choix du joueur. Les six jeux ne proposent pas les mêmes
-douze icônes : un tirage au sort changerait d'avatar à chaque rechargement.
-
-Le pseudo est enregistré à l'événement `change` (sortie du champ), pas à chaque
-frappe, plus un filet en phase de capture sur `#host` et `#join`.
-
-### Deux pièges rencontrés, et notés
-
-- ⚠️ **`width: 1px` ne suffit pas à masquer un champ.** Le `input {}` générique
-  du socle pose 8/12,8 px de rembourrage, et en `box-sizing: border-box` une
-  largeur de 1px ne peut pas descendre sous rembourrage + bordure : le champ
-  fichier occupait encore **30 × 20 px**, invisible mais bien présent dans la
-  mise en page. Il faut `padding: 0; border: 0; min-height: 0`. C'est
-  `tests/games.html` qui l'a vu, en comparant les boîtes deux à deux.
-- ⚠️ **`tests/keyboard.mjs` passe de 14 à 18 tabulations** : sans ça le nouveau
-  bouton « ajouter une photo » n'était jamais atteint, et sa couverture aurait
-  baissé en silence.
-
-`games/shared/game-ui.css` est passé en `?v=3` sur les **sept** pages : la
-feuille a changé, le cache devait sauter.
-
-### Tests
-
-`node tests/profile.mjs` : **41 vérifications unitaires + 31 d'intégration**,
-sur un vrai serveur HTTP local (voir tests/README.md pour le pourquoi).
-
-**Dernier passage** : profil 41 + 31, jeux 308/303, front 195/194, clavier 8/8
-(18 tabulations), manifest 71, partie réelle du Passeur 49/49 contre un serveur
-local, fichiers générés OK.
-
-## La photo de profil voyage en jeu (2026-09-19)
-
-La PP choisie dans le profil local s'affiche maintenant **chez les autres
-joueurs**, dans les six jeux qui reçoivent une identité. Morpion reste hors du
-coup (son serveur ne reçoit pas d'identité) ; game-hub-server n'a pas bougé.
-⚠️ Ça **remplace** la décision n°3 du design review du Hub (« image au Hub
-seulement ») : c'est Mathys qui l'a demandé, la data-URL dans le `join` plutôt
-qu'une `avatarUrl` servie par le Hub.
-
-    GameProfile.joinAvatar(emoji) → join → avatar.js (serveur) → état joueur
-    → toutes les listes de joueurs → GameAvatar (client) → <img> ou emoji
-
-### Le contrat, le même dans les deux sens
-
-```js
-{ kind: 'emoji', emoji: '🦊' }
-{ kind: 'image', emoji: '🦊', src: 'data:image/webp;base64,…' }
-```
-
-L'emoji voyage **toujours** : c'est le repli. Un ancien client qui envoie une
-chaîne reste accepté (`{ kind: 'emoji' }`), un ancien serveur qui renvoie une
-chaîne reste affiché.
-
-### Serveurs : `avatar.js`, le même fichier dans les six dépôts
-
-Le `String(avatar).slice(0, 4)` a disparu. `cleanAvatar()` n'accepte qu'une
-data-URL **webp ou png**, **≤ 12 Ko décodés**, base64 canonique, signature du
-fichier vérifiée ; tout le reste (SVG, gif/jpeg, trop lourd, `kind` inconnu,
-structure) écarte l'image et garde l'emoji — le joueur n'est jamais bloqué.
-Seuls `kind`/`emoji`/`src` sont recopiés ; l'image n'est ni décodée ni
-réencodée. Aucun changement de protocole ailleurs : `avatar` passe juste
-de chaîne à objet, là où il passait déjà.
-
-### Client : `games/shared/game-avatar.js`
-
-⚠️ **La donnée du réseau ne passe jamais par innerHTML.** Les jeux assemblent
-leurs listes en gabarits ; `GameAvatar.slot(avatar)` y pose un emplacement VIDE
-et `GameAvatar.fill(conteneur)`, juste après l'innerHTML, le remplace par un
-nœud créé à la main (`<img>` ou texte). **Tout `slot()` doit être suivi d'un
-`fill()`** sur le même conteneur, sinon la case reste vide. Une image qui ne se
-décode pas redevient l'emoji sur place (`error`), sans toucher au profil.
-Le Demi-Cercle pose la photo au bout de l'aiguille en `<image>` SVG.
-Style : `.g-av-img` dans game-ui.css (1,5em, jamais plus que les 96 px de la
-source) — d'où un `?v=` relevé sur `game-ui.css` dans les pages de jeux.
-
-⚠️ **Borne alignée** : le profil bornait la data-URL à 24 Ko de TEXTE (~18 Ko
-d'image) alors que la limite annoncée était 12 Ko. Une photo entre 12 et 18 Ko
-serait passée côté client puis refusée par le serveur. `okImage()` compte
-maintenant les octets décodés, comme le serveur.
-
-### Tests
-
-- chaque serveur : `test-avatar.js` (42, sur de vraies images dans
-  `test-fixtures/`) et `test-avatar-ws.js` (25 à 30, sur le fil). Vérifié : ils
-  échouent en masse contre les serveurs d'avant (22 à 26 KO chacun) ;
-- `tests/avatar-play.mjs` : les six jeux joués pour de vrai à trois joueurs
-  dans trois contextes isolés, PP posée par le vrai champ fichier, trames
-  WebSocket ET DOM lus (153 vérifications). Voir tests/README.md.
-
-⚠️ Défauts **préexistants** vus en passant, non corrigés (hors tâche) :
-- Demi-Cercle : après `end`, le `room` qui suit faisait `show('lobby')` sans
-  garde → podium masqué. **Corrigé depuis** (`inEndScreen` dans `app.js`) ;
-- `tests/manifest.mjs` : la mutation « jeu live sans bloc hub » est une regex
-  en `
-` — sur un poste en `core.autocrlf=true` (CRLF) elle ne s'applique pas
-  et le test échoue (déjà le cas sur HEAD) ;
-- `tests/passeur-play.mjs --reduced` échoue au premier clic sur ce poste, déjà
-  avec le front ET le serveur de HEAD ; le mode normal passe (49/49).
-- les harnais WebSocket de 4 serveurs avaient une course dans `open()`
-  (abonnement à `open` après coup) : corrigée, une ligne par fichier.
-
-### ⚠️ Le « [obj » vu à la main — et pourquoi les tests ne l'avaient pas vu
-
-Mathys a testé le front neuf contre la **production** (la page de jeu vise
-Render quand il n'y a pas de `?server=`), alors que les serveurs n'étaient pas
-encore poussés. L'ancien serveur a fait `String(avatar).slice(0, 4)` sur
-l'objet → **« [obj »**, diffusé à tout le monde (même l'emoji de B, qui voyage
-aussi en objet). Le client a pris cette chaîne pour « l'emoji d'un ancien
-serveur » et l'a affichée dans `span.g-av`. Tous les tests tournaient contre
-les serveurs LOCAUX déjà modifiés : la combinaison front neuf + serveur
-d'avant n'était jamais jouée.
-
-Correctif, côté client seulement (contrat et serveurs inchangés) :
-`game-avatar.js` n'accepte plus comme emoji venu du réseau qu'une chaîne qui
-en a l'air (un pictogramme, aucun ASCII imprimable) ; sinon, l'emoji par
-défaut du jeu. Et `tests/avatar-play.mjs` rejoue désormais les six salons
-contre la version du serveur **d'avant avatar.js**, extraite de git — vérifié :
-ce test échoue sur `"[obj"` avec l'ancien rendu. Chaque écran vérifié scanne
-aussi le texte visible à la recherche de « [obj ».
-
-Les six serveurs ont été poussés sur `main` le 2026-09-19 (à la demande de
-Mathys) et Render les a redéployés : une sonde WebSocket sur chacun renvoie
-la PP à l'identique. Pour la suite : **serveurs d'abord, front ensuite** — un
-front neuf devant un serveur en retard affiche maintenant l'emoji par défaut,
-plus jamais « [obj », mais la photo n'apparaît qu'une fois le serveur à jour.
-
-## Des PP qui se voient (2026-09-19, finition)
-
-Les vraies PP passaient mais faisaient ~20×15 px : un glyphe. Elles sont
-devenues un bloc d'identité, dans les six jeux, sans nouveau protocole.
-
-- **Une hiérarchie, pas des pixels semés** : `GameAvatar.slot(av, repli, taille)`
-  / `node(…, taille)` avec `sm` 32 px (compact : légendes, pastilles, indices),
-  `md` 48 px (salons, scores, résultats, votes), `lg` 68 px (podium,
-  « c'est à qui ? »). Sous 480 px : 44 / 60. Sans taille, l'ancien rendu en
-  ligne reste disponible pour les phrases.
-- **Même boîte pour la photo et l'emoji** : l'emoji est posé dans `.g-av-e`,
-  même géométrie que l'`<img>` → aucun décalage de mise en page entre les deux.
-- **Forme** : carré à coins coupés (la silhouette de tout « objet » Mann Co.),
-  pas un cercle. Liseré = accent du jeu, ou couleur du joueur via
-  `--g-av-ring` (Demi-Cercle et Ban : la couleur de l'aiguille / du trait).
-  ⚠️ `clip-path` rogne bordures et ombres : le liseré est le FOND du bloc vu à
-  travers 2 px de rembourrage. Ne pas « simplifier » en `border`.
-- **`.g-player` / `.g-player-name` / `.g-player-score`** (game-ui.css) : la
-  rangée avatar · pseudo (2 lignes max) · score. Pas de couleur imposée — chaque
-  jeu garde la sienne. `:where(ul):has(> .g-player)` retire le retrait de 40 px
-  des `<ul>`, qui décalait déjà toutes les listes sans qu'on le voie.
-- Adaptations propres à un jeu : scoreboard d'Imitation et du Demi-Cercle
-  élargi (170 → 240 px) ; photo au bout de l'aiguille du cadran 18 → 26 unités ;
-  Ban : avatar dans le titre « tour de … », les pastilles d'ordre de passage et
-  le classement du round (le serveur les envoyait déjà) ; Précision : liste de
-  révélation à 36 px sous 480 px (plateau à ratio fixe) ; Qui Ment ? : boutons
-  de vote en cartes joueur, verdict de l'intrus en grand.
-- Tests : `tests/avatar-play.mjs` vérifie maintenant aussi la géométrie
-  (carré, taille de la hiérarchie, même boîte photo/emoji) et l'absence de
-  débordement à chaque écran ; `--shots <dossier>` capture chaque écran vérifié.
-  Le bouton « Créer » de Qui Ment ? à 390×780 : inchangé (bas à 727 px, comme HEAD).
-
-## Game Hub, phase 3 : /games/ connecté au Hub, le vrai salon (2026-09-19)
-
-`/games/` n'existait pas (404). C'est maintenant l'entrée du Game Hub :
-profil → **Créer une session** ou **CODE + Rejoindre** → **salon** (code,
-joueurs, hôte). Cette phase s'arrêtait là ; le tirage (caisse, randomizer) et
-le lancement des jeux (handoff) sont venus ensuite — sections suivantes.
-
-| Fichier | Rôle |
+| Événement | Effet |
 |---|---|
-| `games/index.html` | la page (Mann Co., mise en page propre au Hub), `noindex` pour l'instant |
-| `games/hub-page.js` | la colle profil ↔ client ↔ affichage ; aucun WebSocket ici |
-| `games/shared/game-hub.js` | LE client du Hub : connexion, create/join/leave, reprise, erreurs. Navigateur ET Node |
+| coupure réseau / socket fermé | joueur **absent**, gardé 60 s (grâce), peut revenir avec le même id |
+| `leave` volontaire | joueur **retiré tout de suite**, hôte réélu, diffusion |
+| plus aucun joueur **connecté** | session supprimée **immédiatement**, absents compris — sauf pendant `launching` / `inGame` (`HANDOFF_STATES`) et au retour d'une partie finie (`S.backFromGame(s)` : `debrief` d'un lancement `ended`), où les grâces individuelles suffisent |
 
-**Configuration** : une seule constante, `PROD` dans game-hub.js
-(`wss://game-hub-server-qqdk.onrender.com`). `?hub=ws://localhost:8100` dans
-l'URL de la page la remplace (tests, dev). Rien d'autre à régler.
+- **Hôte** (`electHost`) : pendant `launching` / `inGame` et au retour
+  (`debrief` d'un lancement fini), l'hôte du lancement garde la main tant qu'il
+  est dans la session, absent compris.
+- `session.departed` garde nom + avatar de qui est parti (pour le podium) ;
+  `session.scores` et `history.games` meurent avec la session.
+- **`finished`** : plus aucune action ni reprise ; un `join` reçoit
+  `SESSION_CLOSED` (avec le podium si l'on en faisait partie) ; effacée au bout
+  de 10 min (`FINALE_KEEP_MS`), puis `SESSION_NOT_FOUND`.
 
-**Le protocole a été relu dans `game-hub-server/src`, pas deviné** : `create`
-/ `join` / `leave` → `created` / `joined` / `session` / `error{code,message}`.
-Les codes d'erreur sont CEUX du serveur (`SESSION_NOT_FOUND`, `SESSION_FULL`,
-`BAD_CODE`, `BAD_PLAYER`, `REPLACED`…), traduits en phrases par
-`errorText()` ; aucune erreur brute n'atteint l'écran.
+### Le tirage
 
-⚠️ **Trois règles du client, toutes testées** :
-- **Reprise = rejouer `join` avec le MÊME player.id.** Le serveur rend sa place
-  au joueur (pas de doublon). Un rechargement de page la reprend aussi (code
-  de session en `sessionStorage`, par onglet).
-- **`REPLACED` → jamais de reconnexion automatique.** Deux onglets du même
-  profil s'éjecteraient sinon en boucle. L'onglet remplacé revient à l'entrée.
-- **Profil neuf → id écrit dès la première lecture** (`GameProfile.load()`).
-  Avant, chaque lecture d'un profil jamais enregistré tirait un nouvel id :
-  la reconnexion était impossible. Un profil d'une AUTRE version n'est pas
-  écrasé. C'est le seul changement de game-profile.js, et
-  `tests/profile.html` l'a noté : l'ancienne assertion « rien n'est écrit tant
-  qu'on ne sauvegarde pas » décrivait précisément ce défaut.
-
-Comportements RÉELS du serveur à connaître (non modifiés) :
-- un `leave` ne ferme la session que si elle est vide ; un joueur **absent**
-  la garde vivante jusqu'au bout de sa grâce de **60 s** ;
-- **en production**, une fermeture initiée par le client n'est vue qu'au bout
-  de **~10 s** (proxy Render, mesuré) ; un onglet fermé est vu tout de suite.
-  Pas de ping côté serveur : une vraie coupure réseau (sans trame de
-  fermeture) peut être vue encore plus tard — à traiter avec le handoff.
-
-Tests : `node tests/hub.mjs` (unitaires + protocole contre le vrai serveur,
-50 local / 49 production) et `node tests/hub-play.mjs` (deux navigateurs isolés :
-A crée → B rejoint → avatars et hôte → B recharge et reprend sa place → A
-ferme → l'hôte passe à B → 12 joueurs aux 3 tailles → B quitte → la session
-disparaît du serveur ; 40/40 en local ET contre la production).
-
-
-## Game Hub : stabilisation (2026-09-19)
-
-Serveur `game-hub-server` seulement (+ ses tests et ceux du portfolio). Aucun
-changement de protocole, aucun changement du front `/games/`, aucun serveur de
-jeu touché. **Pas encore déployé** : Mathys s'en charge sur Render.
-
-- **Heartbeat** : ping/pong NATIF de WebSocket, un ping toutes les **20 s**
-  (`HEARTBEAT_MS` dans `src/hub.js`). Une connexion qui n'a pas répondu au tour
-  précédent est `terminate()`e au suivant → détection en 20 à 40 s. Le
-  navigateur répond lui-même (aucun code côté page), et la coupure passe par le
-  MÊME `onClose` qu'une fermeture ordinaire : absent, grâce, reprise possible.
-- **Trois sorties, trois comportements** :
-  | Événement | Effet |
-  |---|---|
-  | coupure réseau / socket fermé | joueur **absent**, gardé 60 s, peut revenir avec le même id |
-  | `leave` volontaire | joueur **retiré tout de suite**, hôte réélu, diffusion |
-  | plus aucun joueur **connecté** (leave ou coupure) | session supprimée **immédiatement**, absents compris |
-  Avant : un `leave` laissait vivre la session 60 s tant qu'un absent y restait.
-- Tests : `game-hub-server/test-presence.js` (23, vraies connexions, client
-  `autoPong: false` pour simuler un téléphone en mode avion) ; `tests/hub.mjs`
-  attend maintenant la suppression immédiate au dernier `leave` ;
-  `tests/hub-play.mjs` joue séparément la coupure de socket (A ferme sa page →
-  absent → revient pendant la grâce, même id) et le départ volontaire (A clique
-  « Quitter » → disparaît chez B en ~100 ms → B clique → `/health` à 0 session).
-- ⚠️ Tant que le serveur n'est pas redéployé, la production garde l'ancien
-  comportement (pas de heartbeat, session gardée 60 s après le dernier leave).
-  Le client n'en dépend pas : aucun changement côté front n'est nécessaire.
-
-## Game Hub : le randomizer (2026-09-19)
-
-Le Hub tire maintenant le jeu de la soirée. **Le serveur décide, la page met en
-scène.** Aucun serveur de jeu touché, aucun score de soirée, aucune base. (Le
-lancement du jeu tiré — le handoff — est décrit dans la section suivante.)
-
-    LOBBY → 🎲 (hôte) → le Hub filtre, pondère, tire → caisse → révélation
-          → CONTINUER (debrief) → 🎲 tirage suivant → …   (même session, history.played grandit)
-
-⚠️ Le schéma ci-dessus est à jour, mais les détails de SANTÉ écrits dans cette
-section ont été corrigés depuis : voir « Le tirage ne dépend plus du /health »
-en fin de fichier. En deux mots : rien n'est réveillé avant le tirage.
-
-### Côté serveur (game-hub-server)
-
-- **`src/engine.js`, module pur** : FILTRER (nombre de joueurs, mode local,
-  capacités de TOUS — acquises d'office depuis le 2026-09-20, donc sans effet
-  en pratique —, veto d'UN seul, durée max vs `minutes.max`)
-  → PONDÉRER (`(1 + 0,5 × ❤️) × récence`, récence 0,15 / 0,4 / 0,7 selon
-  l'ancienneté) → TIRER (hasard crypto). Toutes les raisons d'exclusion sont
-  rendues, nominatives, dans `session.pool.why`.
-- **Le catalogue n'est pas recopié** : `src/catalog.js` relit
-  `data/games.manifest.json` sur GitHub Pages (cache 5 min), comme ban-server
-  relit `videos.json`. Ajouter un jeu au portfolio l'ajoute au tirage sans
-  redéployer le Hub.
-- **Santé** : un GET sur l'URL `health` du manifest (`src/health.js`),
-  **jamais** de WebSocket vers un jeu.
-  ⚠️⚠️ **Plus aucun /health n'est consulté pendant un tirage**, et aucun
-  pré-réveil n'a lieu à la création de session (corrigé le 2026-09-20, voir la
-  section de fin de fichier). `pool.health` n'est plus qu'une **information**,
-  souvent `unknown`.
-- **Concurrence** : l'état passe à `drawing` AVANT le moindre `await` → un
-  second `draw` reçoit `DRAW_IN_PROGRESS`. Seul l'hôte tire (`hostId` relu
-  côté serveur). `draw` ne porte AUCUN champ.
-- Aucun jeu possible : `NO_ELIGIBLE_GAME` + `why`, **pas de repli**.
-  ⚠️ Ce code veut dire **une seule chose** : aucun jeu ne passe les RÈGLES
-  (joueurs, besoins, veto, durée). Jamais « un serveur ne répond pas ».
-
-### Côté portfolio
-
-- **Entrée visible** : une carte « Game Hub · Joue avec tes amis » dans
-  l'en-tête de la section Jeux (`#hub-link`, lien `games/`, marche sans JS),
-  plus une commande dans la palette Ctrl+K. Les liens directs vers les 7 jeux
-  restent.
-- **Le faux matchmaking (« Trouver une partie ») est retiré** : il affichait un
-  « match trouvé » sans aucun serveur, donc prétendait trouver un groupe. La
-  caisse **solo** « Je joue à quoi ? » reste (tirage sur la page, sans session),
-  marquée « tirage solo, sans session », et renvoie au Game Hub.
-- `/games/` : ❤️ / 🚫 par jeu, durée max (hôte), la raison de chaque exclusion,
-  les chances, la caisse (`games/hub-crate.js`), le résultat, et l'historique de
-  la soirée. `noindex` conservé.
-  ⚠️ Le bloc « ce que tu apportes » (micro, avertissement) a été **retiré** le
-  2026-09-20 : ces capacités sont désormais acquises d'office. Ne pas le
-  remettre — voir la section de fin de fichier.
-  ⚠️ La caisse ne choisit rien : sa bande est tirée dans `draw.eligible` et
-  s'arrête sur `draw.gameId`, tous deux venus du serveur.
-  ⚠️ Au début d'un tirage, la page amène la caisse à l'écran (chez tous) : au
-  téléphone, l'hôte cliquait « Tirer » en bas de la liste et la bande tournait
-  900 px plus haut. Le test `390 px : la bande est à l'écran` échoue sans ça.
-- ⚠️ **Anneau de focus rogné** : le socle le dessine en `outline`, mais les
-  boutons des pages de jeux sont découpés au `clip-path`, qui rogne l'outline.
-  Mesuré à la vraie touche Tab : invisible. Corrigé **sur la page du Hub
-  seulement** (box-shadow inset). ⚠️ **Le même défaut existe dans les jeux qui
-  utilisent le `button` générique** (vu sur Imitation ; Le Passeur, en
-  `.tf-btn`, est bon) — non corrigé, hors périmètre, et `keyboard.mjs` ne le
-  voit pas (il compte le biseau comme un anneau).
-
-### Tests
-
-Serveur : `test-engine.js` 65, `test-draw.js` 57, `test-e2e.js` 26 (+ session
-41, protocole 37, présence 23). Portfolio : `tests/hub.mjs` 77,
-`tests/hub-draw.mjs` 66 (64 en mouvement réduit), `tests/hub-play.mjs` 45.
-Les tests locaux du Hub utilisent `tests/hub-fixture.mjs` : le vrai manifest,
-les `/health` simulés — aucun serveur Render réveillé.
-
-## Handoff : le Hub lance vraiment Le Passeur (2026-09-19)
-
-`/games/` → tirage → **vraie room du Passeur, tout le monde dedans, partie
-jouée**. `passeur-server` n'a **pas** été modifié, ni aucun autre serveur de
-jeu. Le Passeur a été le pilote ; les **sept** jeux en ligne sont branchés
-depuis, sur le même principe (voir la fin du fichier).
-
-    lobby → drawing → [continuer] → launching (create → join) → inGame → debrief
-
-### Le principe : le Hub ne parle jamais au serveur du jeu
-
-Ce sont les NAVIGATEURS qui parlent au jeu ; le Hub relaie et arbitre.
-
-1. l'hôte confirme le tirage → `launching`, stage `create` ;
-2. il clique « Ouvrir Le Passeur » → même onglet → la page du jeu **crée la
-   room par son chemin normal** (`enter()` sans code) et déclare le code au
-   Hub (`launched`) → stage `join` ;
-3. chaque invité voit « Rejoindre », clique, entre par le chemin normal
-   (`enter(code)`) et le déclare (`entered`) ;
-4. tout le monde est entré → `inGame` ; la partie se joue ; `ended` → `debrief`.
-
-⚠️ **Aucun jeton secret, et c'est un choix.** L'autorité vient du SOCKET (seul
-l'hôte DU LANCEMENT peut déclarer un code), le lancement est lié au tirage
-(`drawId`), borné (90 s / 120 s) et à usage unique. Un jeton n'ajouterait rien.
-
-### Ce qui a été ajouté, et où
-
-- **`games/shared/hub-handoff.js`** (nouveau, partagé) : lit le BILLET écrit par
-  `/games/` (sessionStorage : hub, session, playerId, drawId, gameId, rôle),
-  rouvre le Hub avec le **même player.id**, appelle le `join()` que la page du
-  jeu lui donne, déclare la room, affiche un bandeau (qui est là, qui est
-  attendu, retour au Hub). **Sans billet, il ne fait rien** : Le Passeur ouvert
-  directement marche comme avant.
-- **`games/passeur/app.js`** : ~50 lignes. Aucun second système de création :
-  le handoff appelle `enter()`. Nouveauté visible : « Lancer la partie » est
-  bloqué tant que le groupe n'est pas dans la room (sinon un invité en retard
-  se fait refuser par `passeur-server` : « partie déjà commencée »), avec
-  « Lancer sans attendre » pour l'hôte.
-- **`data/games.js` + `tools/build.mjs`** : clé `handoff` (schéma fermé, testée).
-  Les sept jeux en ligne sont à `true` ; Puissance 4 (local) à `false`. Un jeu
-  qui ne l'a pas : `continuer` revient au Hub comme avant.
-  ⚠️ `tests/manifest.mjs` vérifie que `handoff: true`
-  correspond à une page qui charge vraiment `hub-handoff.js`.
-- **Hub** : `src/launch.js` (module pur) + handlers `launched` / `entered` /
-  `started` / `ended` / `abort` dans `hub.js`.
-
-### Trois pièges rencontrés, tous les trois trouvés par un test
-
-1. ⚠️ **L'hôte qui navigue perd l'hôte.** Aller au jeu ferme son socket du Hub →
-   `electHost` donnait la main à un invité, et l'hôte revenait sans pouvoir
-   lancer. Règle ajoutée : pendant `launching`/`inGame` — **et au retour**
-   (`debrief` d'un lancement fini) — l'hôte du lancement garde la main tant
-   qu'il est dans la session (absent compris). Il ne la perd qu'en partant.
-2. ⚠️ **Une session sans personne de connecté ne doit pas se fermer** pendant un
-   lancement : tout le groupe navigue en même temps (et en solo, l'hôte est
-   seul). Les grâces individuelles suffisent.
-3. ⚠️ **`inGame` ne veut pas dire « la manche a commencé »** : c'est « tout le
-   groupe est dans la room ». Le bandeau disait « partie en cours » au salon du
-   jeu ; il dit maintenant qui est dans la partie.
-
-### ⚠️⚠️ DÉFAUT DE PRODUCTION TROUVÉ : le réveil ≠ la panne
-
-> **Dépassé le 2026-09-20.** Le correctif décrit ici (réessayer pendant 40 s au
-> lieu de trancher tout de suite) rendait le tirage plus tolérant, mais il le
-> laissait dépendre du /health — donc lent, et faillible. La santé a fini par
-> sortir complètement du tirage. Gardé pour le diagnostic qu'il contient.
-
-Mesuré contre la production pendant cette phase : le Hub déployé voyait les
-**sept** serveurs de jeu « down » en moins d'une seconde, donc le tirage ne
-trouvait **aucun jeu** (`NO_ELIGIBLE_GAME`), alors que les mêmes URL de santé
-répondaient 200 en 12 à 22 s depuis un poste (le réveil Render). Corrigé dans
-`src/health.js` : dans la fenêtre de 40 s, un non-2xx ou une erreur réseau
-n'est plus un verdict — on réessaie toutes les 2,5 s ; seules une connexion
-refusée et un nom inconnu tranchent tout de suite, et la raison du dernier
-échec part dans les journaux Render (`[santé] passeur injoignable après 40 s : …`).
-Une fois les serveurs réveillés à la main, la production tirait en 0,7 s.
-
-### Tests
-
-Serveur : `test-launch.js` 43 (pur), `test-handoff.js` 42 (vraies connexions :
-rôles, codes, concurrence, délais, échecs, annulation, changement d'hôte),
-`test-draw.js` 57 (dont le réveil d'un serveur). Portfolio :
-`tests/handoff.mjs` 22 — **le vrai Hub + le vrai `passeur-server`**, room
-réelle, trois joueurs dedans, une manche notée ; `tests/handoff-play.mjs` 42 —
-**trois navigateurs**, du portfolio jusqu'au classement final et au retour au
-Hub, plus le cas « serveur du jeu injoignable ».
-⚠️ `tests/passeur-play.mjs` (Le Passeur hors Hub) reste **instable au premier
-clic sur ce poste** : mesuré 4 échecs sur 4 avec les fichiers de HEAD contre 1
-sur 4 avec ceux-ci — c'est le harnais, pas le jeu.
-
-## Les capacités sont acquises d'office (2026-09-20)
-
-L'écran **« Ce que tu apportes »** de `/games/` n'existe plus, et avec lui les
-deux interrupteurs « 🎤 J'ai un micro » et « ⚠️ J'accepte les jeux à
-avertissement », leurs états « déclaré / non déclaré » et les pastilles 🎤 / ⚠️
-sur les cartes joueur.
-
-**Un nouveau joueur naît avec `caps: { mic: true, consent: true }`** — une seule
-ligne, dans `game-hub-server/src/session.js`. C'est le seul changement de
-comportement ; le reste n'est que du retrait.
-
-⚠️ **Ce qui n'a PAS changé, et qu'il ne faut pas confondre** :
-- le **manifest** garde ses besoins : Imitation reste `needs: ['mic']`, le Ban
-  reste `needs: ['consent']`. Ne pas les retirer ;
-- la **règle `NEEDS` d'`engine.js` est intacte** : un joueur dont une capacité
-  vaut explicitement `false` écarte encore le jeu, nominativement. L'action
-  `caps` reste au protocole, et `reasonText` garde ses libellés côté client.
-  C'est le filet si un besoin redevient un jour un vrai filtre — il s'affichera
-  dans la raison du jeu, sans interface à refaire. Un test le vérifie
-  (`test-engine.js`, « la règle NEEDS tient toujours »).
-
-**Pourquoi** : le Hub n'a jamais testé ces capacités — c'est le jeu qui demande
-le micro à l'entrée, et l'avertissement est affiché sur sa page. Un défaut à
-`false` sans écran pour le lever aurait rendu Imitation et le Ban **impossibles
-pour tout le monde, pour toujours**.
-
-**Conséquence sur les listes** : Imitation et le Ban ne sont plus écartés que
-par leur minimum de 2 joueurs. À 3 joueurs on passe de 3 à **5 jeux possibles**
-(`imitation, demicercle, ban, passeur, quiment`). Plusieurs tests listaient ces
-ensembles en dur et ont dû suivre — si un test parle d'éligibilité, il connaît
-ces bornes.
-
-⚠️⚠️ **`cam` n'est PAS dans le défaut**, parce qu'aucun jeu ne le demande
-aujourd'hui. Le jour où un jeu déclarera `needs: ['cam']`, il sera impossible
-pour tout le monde **en silence** : il n'y a plus aucune interface pour déclarer
-quoi que ce soit. L'ajouter dans `session.js` ce jour-là. C'est noté en
-commentaire à l'endroit exact.
-
-**Dernier passage** : `game-hub-server` `npm test` 378/378 (deux fois), dont
-moteur 68 et `test-draw` 64 (trois fois, le tirage étant aléatoire) ;
-`tests/hub.mjs` 82, `tests/hub-draw.mjs` 79 et 77 en mouvement réduit,
-`tests/handoff-play.mjs` 42, `tests/handoff.mjs` 22, `tests/hub-play.mjs` 45,
-fichiers générés OK. Vérifié nommément : à 1 joueur, Imitation et le Ban sont
-bloqués par « il faut 2 joueurs » et par **rien d'autre**.
-
-## Le tirage ne dépend plus du /health (2026-09-20)
-
-Un serveur de jeu endormi ne doit pas coûter un tirage. Sur le plan gratuit de
-Render un serveur au repos met ~30 s à répondre : le Hub prenait ce silence pour
-une panne, écartait le jeu, et pouvait finir par ne **rien** trouver à proposer
-à un groupe dont tous les jeux étaient parfaitement jouables. Mesuré en
-production : les sept serveurs vus « down » en moins d'une seconde.
-
-### Le flux réel, aujourd'hui
-
-    catalogue (data/games.manifest.json, relu sur Pages, cache 5 min)
-      → FILTRER   nombre de joueurs, mode local, besoins, veto, durée max
+    catalogue (manifest relu sur Pages, cache 5 min)
+      → FILTRER   nombre de joueurs, mode local, besoins, veto d'UN seul, durée max
       → PONDÉRER  (1 + 0,5 × ❤️) × récence (0,15 / 0,4 / 0,7 selon l'ancienneté)
-      → TIRER     hasard crypto, tout de suite                    ◄── ~90 ms
+      → TIRER     hasard crypto, tout de suite (~90 ms)
       → révélation (la caisse met en scène un résultat DÉJÀ décidé)
-      → CONTINUER → handoff → la page du jeu s'ouvre et se connecte à SON
-        serveur : c'est ce moment-là qui le réveille, et personne d'autre
+      → CONTINUER → handoff : la page du jeu se connecte à SON serveur,
+        c'est ce moment-là qui le réveille
 
-**Aucun `/health` n'est appelé dans ce chemin.** Ni au clic sur 🎲, ni à la
-création de la session (le pré-réveil des sept serveurs a disparu aussi). Le
-`onDraw` de `src/hub.js` ne contient plus un seul `await health…` — les deux
-occurrences de « health » qui y restent sont des commentaires.
-
-### Ce que la santé est encore
-
-- `pool.health` voyage dans l'état de session, pour **informer** : c'est le
-  dernier état connu d'un serveur, et il vaut le plus souvent `unknown`
-  puisqu'on n'interroge plus personne à l'avance. Il n'entre **ni dans le
-  filtre, ni dans les poids, ni dans le tirage**.
-- `src/health.js` reste appelable pour le diagnostic (`check`, `one`, `status`,
-  `snapshot`, `markDown`), et reste un simple GET — jamais un WebSocket vers un
-  jeu.
-- Une seule décision s'appuie encore dessus, et c'est au **LANCEMENT**, pas au
-  tirage : si un joueur vient de signaler le serveur injoignable (`abort` avec
-  `UNREACHABLE` → `markDown`), le lancement suivant échoue tout de suite en
-  `SERVER_DOWN` plutôt que d'envoyer le groupe dans le vide. C'est une
-  information fraîche, donnée par un humain, pas une sonde.
-
-### Les erreurs, et ce qu'elles veulent dire
-
-- **`NO_ELIGIBLE_GAME`** : aucun jeu ne passe les RÈGLES. C'est le seul refus
-  possible d'un tirage, et il ne parle jamais d'un serveur.
-- **`NO_SERVER_AVAILABLE` a été supprimé** du protocole : plus personne ne peut
-  l'émettre. Ne pas le réintroduire — ce serait remettre la santé dans le
-  tirage.
-- ⚠️ Côté client, un code d'erreur **inconnu** n'est plus noyé dans « Le Hub a
-  refusé la demande. » : le code est affiché, avec le message du serveur s'il y
-  en a un. Sans ça, un serveur plus récent que la page ressemblait à un refus
-  banal et n'était pas diagnosticable.
-
-### ⚠️ Ce qu'il ne faut pas « réparer »
-
-Le bloc **« Réveil du serveur… »** (`#hub-waking`, `wakingText`, `showWake`) a
-existé quelques heures entre les deux corrections, puis a été retiré : plus rien
-ne pose `waking`, et les champs `waking` / `tried` sont sortis de l'état public.
-Si l'on veut un jour montrer un réveil, sa place est **l'étape de lancement** —
-là où Render se réveille vraiment —, pas le tirage.
-
-### Les tests qui gardent la règle
-
-- `game-hub-server/test-candidat.js` remplace le vérificateur de santé par un
-  faux qui **compte les appels** : c'est le compteur qui prouve la règle, pas le
-  résultat. Trois serveurs morts → un jeu est tiré quand même, en moins de
-  500 ms, sans un seul appel. Si un `await health…` revient dans `onDraw`, c'est
-  ce fichier qui le dira.
-- `tests/hub.mjs` : un tirage complet contre le vrai Hub n'interroge aucun
-  serveur de jeu.
-- `tests/hub-draw.mjs`, section « 1 joueur » : le `/health` du Passeur est
-  bloqué sur 503 — un serveur aussi mort que possible, et c'est la tête qu'a un
-  serveur Render endormi. Mesuré en vrai navigateur : **Passeur seul éligible
-  est tiré en ~90 ms**, 0 appel `/health` avant la révélation, la caisse
-  l'ouvre, aucun message d'erreur.
-
-**Dernier passage** : `game-hub-server` `npm test` 378/378 ; `tests/hub.mjs` 82,
-`tests/hub-draw.mjs` 79 (77 en mouvement réduit), `tests/handoff-play.mjs` 42,
-`tests/handoff.mjs` 22, `tests/hub-play.mjs` 45, fichiers générés OK.
-
-## Score de soirée (2026-09-26, pilote : Le Passeur)
-
-Le Hub tient maintenant un **score cumulé par session**, affiché en haut à
-droite du salon. Contrat validé en production le 2026-09-26. **Les sept jeux en
-ligne rendent leur classement** : Le Passeur, Imitation, Demi-Cercle, le Ban,
-Précision, Qui Ment ? et Morpion (Puissance 4, local, n'est pas concerné).
-
-**Imitation** (2026-09-26) : aucun changement d'`imitation-server` — son
-`phase: end` porte déjà `podium: [{ id, name, avatar, score }]`. Son id de
-joueur arrive dans `room.you` (pas de message `you`). `room` arrive à chaque
-changement du salon : l'annonce au Hub est gardée, mais **ré-émise quand `you`
-change** (reconnexion au salon = nouvel id ; sans ça, la place déclarée serait
-l'ancienne et le joueur ne marquerait rien). Helper `rangs()` dans
-`games/imitation/app.js`. Test : `tests/hub-score-imitation.mjs`.
-
-**Demi-Cercle** (2026-09-26) : même raccord qu'Imitation, trait pour trait —
-`demicercle-server` inchangé, `podium` dans `phase: end`, place = `room.you`
-ré-annoncée quand elle change, `rangs()` dans `games/demicercle/app.js`. Test :
-`tests/hub-score-demicercle.mjs` (partie jouée à la souris sur le cadran, ex
-æquo 13 / 13 / 5 construit en visant la cible que seul le Guide reçoit).
-⚠️ Ce lot a révélé un défaut de `hub-handoff.js` : `failed()` remettait
-`joint = false`, donc un retardataire refusé « partie en cours » était re-joint
-à la diffusion SUIVANTE du Hub. Avant le score, c'était `ended` (billet
-périmé, aucun effet) ; maintenant c'est le classement, qui arrive encore en
-`playing` — et le retardataire entrait en douce dans la room revenue au salon.
-En `playing`, `failed()` ne rouvre plus d'essai (`?v=3` sur les 8 pages).
-
-**Le Jeu du Ban** (2026-09-26) : même raccord, `ban-server` inchangé. L'étape
-d'avertissement n'est pas touchée : le `join` du handoff attend toujours la
-case, et c'est le `room` obtenu ENSUITE qui déclare la place. Les points du Ban
-peuvent être négatifs (malus −1 quand le mot sort) : le Hub les accepte, seul
-le rang compte. Test : `tests/hub-score-ban.mjs` — ex æquo 0 / 0 / −1 (deux
-STOP immédiats, un mot lâché), choisi parce qu'il ne dépend d'aucun réglage au
-centième et se rejoue tel quel en production.
-
-**Précision** (2026-09-26) : même raccord, `precision-server` inchangé, son et
-lancement solo intacts. Jouable SEUL (MIN_PLAYERS = 1) : podium d'une ligne,
-rang 1, 10 points de soirée — aucun minimum ajouté. Test :
-`tests/hub-score-precision.mjs` (trio : trois manches de FRAPPE en Impossible
-au vrai clavier, la seule épreuve dont on force le score exact → 300 / 300 / 0 ;
-puis un scénario solo).
-✅ **Défaut de `game-hub-server` vu avec ce test — CORRIGÉ le 2026-09-27
-(`d679eab`, « fix: keep completed sessions during debrief grace »).** Ce
-n'est plus un défaut actuel ; l'historique reste utile :
-`onClose` (src/hub.js) ne protégeait une session VIDE que pendant `launching`
-/ `inGame`. Au `debrief` d'un lancement, elle était fermée tout de suite.
-Seul, le joueur quitte la page du jeu (son socket Hub se ferme) avant que
-`/games/` ne se reconnecte → « Ta session précédente n'existe plus », **score
-de soirée perdu**. Touchait aussi Le Passeur en solo, et un groupe revenant
-tout entier au même instant — alors que le Hub avait bien crédité les points.
-Correctif : `S.backFromGame(s)` (`debrief` + `launch` + `launch.stage ===
-'ended'`, la condition que `electHost` utilisait déjà) garde la session vide
-dans `onClose`, **sans** l'ajouter à `HANDOFF_STATES` et sans nouveau timer :
-ce sont les grâces individuelles (`GRACE_MS`, 60 s) qui la ferment si personne
-ne revient. Le joueur qui revient avec le même player.id retrouve la session,
-son score, `history.played` / `history.games` et le `debrief`. Inchangé :
-`lobby`, `drawing`, un `debrief` sans partie terminée et `leave` ferment
-toujours tout de suite. Tests : `game-hub-server/test-debrief.js` (31, dans
-`npm test`) ; côté portfolio, le scénario solo de
-`tests/hub-score-precision.mjs` va maintenant jusqu'au vrai retour au Hub
-(`#to-hub`) et un nouveau tirage — il échoue en `SESSION_NOT_FOUND` contre
-le Hub d'avant `d679eab` (vérifié). Production : sonde solo 4/4, trio 5/5.
-
-**Qui Ment ?** (2026-09-27) : même raccord, `qui-ment-server` inchangé. La
-place est l'`id` du message `you` (pas de `room.you` ici) : `roomReady(code,
-msg.id)`, ré-annoncée quand l'id change (garde `placeDeclaree`, comme
-Demi-Cercle). À `end`, `rangs(msg.ranking)` → `{ gamePlayerId, rank, points:
-score }` — ni `avg` ni `title` —, puis `results` AVANT `ended`. « Rejouer »
-(`end` → `lobby` → `start`) ne recompte rien : `ended()` a consommé le billet,
-donc le second `end` n'envoie plus rien au Hub. Test :
-`tests/hub-score-quiment.mjs`. ⚠️ L'intrus est tiré au hasard par le serveur :
-l'ex æquo 1 / 1 / 3 n'est pas espéré mais **construit** — le test choisit les
-votes et la dernière chance manche par manche (`gagnable`, recherche
-exhaustive : en 3 manches c'est toujours possible, pour une paire quelconque).
-
-**Morpion** (2026-09-27) : `morpion-server` inchangé, et toujours AUCUNE
-identité vers lui. ⚠️ **Le Morpion n'a pas de score de partie** : le serveur
-ne rend que `winner` ('X' | 'O' | 'draw') à `status: 'over'`. `net.js` en
-DÉRIVE le classement, sans rien inventer : **victoire = rangs 1 / 2, égalité
-= 1 / 1 (ex æquo)**, et `points: 0` pour les deux — c'est ce que le Hub garde
-en `gamePoints`. À deux, le Hub donne rang 1 → 20, rang 2 → 10 : victoire
-**20 / 10**, égalité **20 / 20**. La place est `state.you` ('X' ou 'O') :
-`roomReady(code, state.you)`, jamais l'id du Hub. Un **abandon** (l'adversaire
-part, le serveur ferme la room sans état `over`) ne fabrique AUCUN classement :
-seulement `ended()`, comme avant. Test : `tests/hub-score-morpion.mjs`
-(victoire X, victoire O, égalité, abandon, dans une même session).
-⚠️ morpion-server n'a pas de `node_modules` sur Pc-Perso : les tests le
-lancent avec le `ws` de game-hub-server par `NODE_PATH`.
-
-### Le contrat commun, référence (état au 2026-09-27)
-
-    roomReady(code, gamePlayerId)   chacun SA place, jamais l'id du Hub
-    results([{ gamePlayerId, rank, points }])   hôte du lancement, une fois
-    ended()                          toujours APRÈS results
-
-`rank` = rang de compétition calculé sur le score DU SERVEUR (ex æquo = même
-rang : 13, 13, 5 → 1, 1, 3), jamais sur l'index. Le Hub seul convertit :
-**`10 × (classés − rang + 1)`**. « Une fois » est garanti deux fois :
-`hub-handoff.js` (`rapporte` / `fini`, et `ended()` consomme le billet) puis
-le Hub (`RESULTS_ALREADY`). Une partie incomplète (abandon, room perdue)
-n'envoie jamais `results`. Après `ended`, la session survit au retour de
-tout le groupe pendant la grâce (`d679eab`). Garde-fou statique :
-`node tests/hub-score-contract.mjs` (sans navigateur ni serveur).
-
-| Jeu | place (`gamePlayerId`) | ré-annonce | classement → `results` | particularité |
-|---|---|---|---|---|
-| Le Passeur | `you.id` | à chaque `you` (1 par connexion = 1 id) | `rangs(ranking)`, trié d'abord | pilote ; de 3 à 12 manches, d'où le rang |
-| Imitation | `room.you` | `placeDeclaree` | `rangs(podium)` | |
-| Demi-Cercle | `room.you` | `placeDeclaree` | `rangs(podium)` | |
-| Le Ban | `room.you` | `placeDeclaree` | `rangs(podium)` | points négatifs possibles |
-| Précision | `room.you` | `placeDeclaree` | `rangs(podium)` | jouable seul (1 → 10 pts) |
-| Qui Ment ? | `you.id` | `placeDeclaree` | `rangs(ranking)` (sans avg/title) | « Rejouer » ne recompte rien |
-| Morpion | `state.you` ('X'/'O') | `placeDeclaree`, même room | `classement(winner)`, `points: 0` | victoire 1/2, nul 1/1 ; abandon → `ended` seul |
-
-Deux autorités, qui ne se mélangent pas : **le jeu** reste maître de SA partie,
-**le Hub** (`game-hub-server/src/scores.js`, module pur) est maître de la
-soirée. La page ne calcule aucun point.
-
-    entrée dans la room   → launched / entered { …, gamePlayerId }   chacun SA place
-    fin de partie (hôte)  → results { drawId, gameId, results: [{ gamePlayerId, rank, points }] }
-                          → ended                                   (même socket : même ordre)
-
-- **Pourquoi `gamePlayerId` et pas le player.id du Hub** : l'hôte ne connaît
-  pas l'identifiant de jeu des autres (celui du Passeur est un id aléatoire de
-  room). Chacun déclare donc le sien en entrant (`lien.roomReady(code, you.id)`),
-  et le Hub relie une ligne du classement à qui s'est assis là. Une place déjà
-  prise par un autre est refusée : l'hôte ne peut pas donner de points à
-  quelqu'un d'autre. Les places ne sortent jamais dans l'état public.
-- **Conversion, commune à tous les jeux** : `10 × (classés − rang + 1)` —
-  10 par joueur battu, +10 pour avoir joué ; à trois 30 / 20 / 10 ; ex æquo =
-  même rang. Le rang, pas les points du jeu : Le Passeur va de 3 à 12 manches
-  (une partie longue pèserait 4×), le Morpion n'a pas de points. Les points du
-  jeu restent dans `history.games[].results[].gamePoints`.
-- **Validations du Hub** : hôte du lancement (ou hôte actuel), bon `drawId`,
-  bon `gameId`, partie lancée, **une fois par lancement** (une revanche dans la
-  même room ne compte pas : `RESULTS_ALREADY`), forme du classement
-  (`BAD_RESULTS`). Nouveaux codes : `BAD_RESULTS`, `GAME_MISMATCH`,
-  `RESULTS_ALREADY` (phrases dans `game-hub.js`, listés dans `tests/hub.mjs`).
-- `session.scores` (playerId → points) + `session.history.games` : vides à la
-  création, survivent aux tirages et aux reconnexions, meurent avec la session.
-- ⚠️ **Limite assumée** : le serveur du jeu ne parle pas au Hub, le classement
-  passe par le navigateur de l'hôte. Même confiance que pour le code de room.
-- **Le Passeur** : à `end`, `app.js` calcule les rangs de compétition sur les
-  scores DU SERVEUR et appelle `lien.results()` puis `lien.ended()`.
-  `hub-handoff.js` n'envoie que depuis l'hôte du lancement, une seule fois.
-  Garde `if (lien.results)` : un `hub-handoff.js` resté en cache n'a pas la
-  méthode (d'où aussi les `?v=2` sur la page du Passeur et du Hub).
-- **UI** (`games/index.html`, `renderScore` dans `hub-page.js`) :
-  `#hub-score` est un **panneau à part** (`<aside class="panel">`), FRÈRE du
-  salon — le salon est découpé au `clip-path`, rien ne peut en sortir.
-  Depuis le lot A (2026-09-27), il est placé ENTRE `#lobby` et
-  `#hub-lobby-games` dans `main` ; `show()` montre les trois ensemble.
-  **≥ 1200 px** : `main:has(> #hub-score:not([hidden]))` devient une grille
-  (salon ~880 px + colonne de 270 px), le panneau est `sticky` sur
-  `grid-row: 2 / span 2` (le salon ET le panneau des jeux).
-  **< 1200 px** : dans le flux, pleine largeur, APRÈS les joueurs et l'action,
-  AVANT le catalogue. Sans partie classée : une ligne (voir « Game Hub : le
-  salon et le retour de partie »).
-  ⚠️ La règle du panneau porte le MÊME préfixe `:has()` que `> *` : ce
-  dernier contient un ID, un simple `main > #hub-score` perdait (colonne 1).
-  Pas de médaille tant que personne n'a marqué ; au-delà de 6 joueurs, les 5
-  premiers + ta ligne.
-- **Tests** : `game-hub-server/test-scores.js` (53 : module pur + protocole) ;
-  `tests/hub-score.mjs` (trois navigateurs, deux vraies parties, mise en
-  page 1280 → 390 px ; 40 à l'origine, 80 depuis les lots UX).
-
-## Débrief de soirée (2026-09-27)
-
-Le récap PERSONNEL : `debrief` revient après CHAQUE partie et la session reste
-active ; en QUITTANT une session où au moins une partie a été classée, le
-joueur voit « 📋 Ton récap de soirée » (`leave` inchangé, la session continue
-pour les autres). Aucune partie → départ comme avant. La vraie fin, pour tout
-le monde, c'est l'hôte qui la décide : voir « Fin de soirée » juste dessous.
-⚠️ Le bouton de départ a brièvement dit « Terminer ma soirée » : il dit de
-nouveau « Quitter la session » depuis que la fin de soirée existe.
-
-- `games/hub-recap.js` : module PUR (page + Node). `ranking()` = la règle de
-  rang du panneau Score, qui l'utilise aussi (plus deux copies à tenir) ;
-  `build(session, you, info)` = le débrief, ou `null` sans partie classée. Il
-  ne calcule AUCUN point : scores et historique sont ceux du Hub
-  (`session.scores`, `history.games`). Les joueurs partis en route restent
-  au classement avec leurs points (nom relu dans l'historique, marqués
-  « parti ») ; le panneau Score, lui, ne montre toujours que la session.
-- `#hub-recap` est construit sur le DERNIER état reçu, juste avant le `leave`,
-  et posé **au-dessus de l'entrée** : « Créer une session » / « Rejoindre »
-  restent juste dessous, sans nouveau bouton. Une nouvelle session le range.
-  Pas de persistance : un rechargement ne le recrée pas (voulu : il ne
-  refabrique rien).
-- Contenu : classement (médailles, avatars `GameAvatar`, ex æquo au même
-  rang, le premier mis en avant), trois chiffres (parties jouées = parties
-  CLASSÉES, dernier jeu, ton dernier gain), puis l'historique chronologique
-  (vainqueurs de chaque partie, ta place, ton gain). Solo : pas de colonne
-  « vainqueur ».
-- ⚠️ `scrollIntoView({ behavior: 'instant' })`, pas `'auto'` : `'auto'` suit le
-  `scroll-behavior: smooth` de tf2.css, le défilement restait animé et avalait
-  le clic suivant (« Créer une session »). Trouvé par `tests/hub-score.mjs`.
-- ⚠️ Au téléphone, les colonnes de l'historique sont posées EXPLICITEMENT : en
-  solo, la colonne masquée poussait le nom du jeu dans la dernière colonne
-  (« PRÉC… »). Vu à la capture ; `tests/hub-recap.mjs` mesure maintenant le
-  texte qui déborde de sa cellule, pas seulement les boîtes.
-- Test : `tests/hub-recap.mjs` (module pur + vraie page contre un vrai
-  game-hub-server, aucun jeu lancé : des clients Node jouent le protocole,
-  l'un porte l'id du profil du navigateur, qui reprend la session).
-
-## Fin de soirée : l'hôte termine, tout le monde voit le podium (2026-09-27)
-
-**Quitter ≠ terminer.** « Quitter la session » (`leave`, tout le monde) ne
-fait partir que soi : ses points restent, les autres continuent. « 🏁 Terminer
-la soirée » (`finish`, l'HÔTE seul, avec confirmation) termine la session pour
-TOUS et révèle le podium final.
-
-**Serveur (game-hub-server)** — nouvel état `finished`, nouvelle action
-`finish`, nouveau message `{ type: 'finale', finale }`, nouvelle erreur
-`FINISH_NOT_ALLOWED`, module pur `src/finale.js`. Détail dans son README
-(« Fin de soirée »). L'essentiel :
-- hôte = `session.hostId`, la règle unique d'`electHost`, sans exception
-  ajoutée : un hôte réélu peut terminer (sinon une soirée dont l'hôte est parti
-  ne finirait jamais) ;
-- au salon seulement (`lobby` / `debrief`) ; jamais pendant un tirage, un
-  lancement ou une partie ;
-- le podium est calculé UNE fois sur `scores` (rangs de compétition, ex æquo
-  au même rang), avec les joueurs PARTIS qui avaient marqué (nom + avatar
-  gardés à leur départ dans `session.departed`, `present: false`) ;
-- les sockets sont détachés et fermés (4002) : plus rien ne démarre ; un
-  `join` reçoit `SESSION_CLOSED` — jamais de reprise — avec le podium si l'on
-  en faisait partie ; au bout de 10 min, `SESSION_NOT_FOUND` ;
-- double clic / double message : une seule clôture, la même finale.
-
-**Page (/games/)** — `game-hub.js` (`?v=3` sur /games/) : `finish()`,
-événement `finale`, `readFinale`, et `e.finale` / `err.finale` sur un
-refus `SESSION_CLOSED` (reprise au rechargement, reconnexion). Ajouts
-seulement : les pages de jeux, qui chargent aussi ce fichier, n'en utilisent
-rien. `hub-recap.js` : `fromFinale()` reprend le podium TEL QUEL (aucun
-retri). Le podium réutilise `#hub-recap` en mode « finale » : la
-**révélation** (« La soirée est terminée » ~1,1 s, puis le 3e, le 2e, le 1er —
-par RANG, des ex æquo ensemble, un rang absent sauté — puis le reste) est une
-mise en scène locale : tout est déjà dans le DOM. Mouvement réduit : tout
-d'emblée. Puis « Retour à l'accueil ». Confirmation = `<dialog>` natif (focus
-piégé, Échap) avec un `.panel` DEDANS — `.panel` sur le `<dialog>` casserait
-son positionnement.
-
-Tests : `game-hub-server/test-finale.js` (34, vraies connexions) ;
-`tests/hub-finale.mjs` (trois navigateurs contre un vrai Hub, 33 — 31 en
-mouvement réduit). ⚠️ Dans ce dernier, attendre ~300 ms après le passage
-390 → 1280 px avant de cliquer : sans cette pause, un clic s'est perdu 2 fois
-sur 5 en mouvement réduit (plus aucun échec sur 5 exécutions depuis).
-
-## Game Hub : le salon et le retour de partie (2026-09-27, lots UX B et A)
-
-Deux lots issus d'un audit UX, **front seulement** (`games/index.html`,
-`games/hub-page.js`, `games/hub-recap.js`). Aucun serveur, aucun protocole,
-aucun calcul de score ni cycle de session n'a bougé ; aucun id existant n'a été
-renommé.
-
-### Lot B — le retour d'une partie (`5b1df70`)
-
-- **Carte `#hub-round` « 🏆 Résultat — <jeu> »**, au debrief d'une partie
-  CLASSÉE, à la place de la caisse (qui ne montrait plus que le tirage
-  d'avant). Données : `HubRecap.lastResult()` (pur, testé en Node) = la
-  dernière entrée de `history.games`, **à condition** que son `drawId` soit
-  celui du lancement terminé (`launch.stage === 'ended'`). ⚠️ C'est cette
-  condition qui empêche une fausse carte après un abandon du Morpion, un
-  lancement annulé ou un « Partie terminée » sans classement : ne pas la
-  relâcher en « la dernière partie de l'historique ».
-- Par joueur : avatar, nom, rang (ex æquo = même rang), points de partie
-  (masqués si tous à 0, le Morpion), `+X pts de soirée`. Phrase du joueur :
-  « Tu termines 2e · +20 pts », « 1er ex æquo », solo « Partie terminée ·
-  +10 pts » (pas de rang ni de médaille en solo). Le panneau Score met TON gain
-  en pastille (`.hub-score-delta.is-fresh`).
-- **« 🎲 Tirage suivant » dans la carte** : c'est le **même** `#hub-draw-btn`,
-  déplacé par `renderRound()` (même écouteur). Invités : « En attente de
-  <hôte> pour le tirage suivant. »
-- Arrivée (fondu + la phrase qui grossit) et **focus sur le titre**
-  (`tabindex="-1"`, `aria-describedby` = la phrase) **une fois par partie et
-  par onglet** : `sessionStorage` `mathys_hub_round`. Un rechargement ne rejoue
-  rien. ⚠️ Le focus part dans un `setTimeout(0)` : au retour du jeu, le premier
-  rendu a lieu AVANT `show('lobby')`, et un élément caché ne prend pas le
-  focus. Pas d'anneau sur ces titres (non tabulables, et `:focus-visible`
-  s'allume sur une page qu'on vient d'ouvrir). `showRecap` met aussi le focus
-  sur `#recap-title` (avant : il retombait sur `<body>`).
-- **Bug corrigé** : le couvercle ouvert de la caisse recouvrait « DE LA » de
-  la plaque (−11 px). Marge de `.crate-plate` 1.6rem → 2.9rem (+10 px, mesuré
-  de 390 à 1920 px dans `hub-draw.mjs`, qui échoue sur l'ancienne marge).
-
-### Lot A — la hiérarchie du salon (`b3a7446`)
-
-Ordre, bureau et téléphone : **joueurs → action → score → jeux possibles →
-indisponibles → Quitter / Terminer.**
-
-- Le salon = **trois blocs frères** dans `main` : `#lobby` (code, joueurs,
-  `#hub-act`, caisse, carte Résultat), `#hub-score`, `#hub-lobby-games`
-  (nouveau panneau : catalogue, puis `.hub-foot` avec Quitter et Terminer).
-  ⚠️ `show()` doit toujours basculer les trois, et la règle d'anneau de focus
-  (box-shadow inset, à cause du `clip-path`) liste `#hub-lobby-games button`.
-- **`#hub-act`**, juste sous les joueurs : `#hub-draw-btn` chez l'hôte ; chez
-  les invités, `#hub-wait` en encart (`.is-waiting`) « ⏳ En attente de <hôte>
-  — c'est l'hôte qui tire le jeu. ». Pendant le debrief d'une partie classée,
-  `#hub-act` se tait : la carte Résultat porte la suite.
-- **Score vide** : tant que `history.games` est vide, `#hub-score.is-empty`
-  (une ligne, « Aucune partie jouée — … »). Les lignes restent calculées dans
-  le DOM, masquées.
-- **Catalogue** : `#hub-games` est désormais un `<div>` qui contient TOUJOURS
-  les 8 fiches : `#hub-games-ok` (possibles, ordre du manifest) puis
-  `<details id="hub-out">` (« N jeux indisponibles ce soir — pourquoi ? (dont
-  N par ton veto) ») avec `#hub-games-out`. Les raisons et les boutons ❤️ / 🚫
-  y restent (c'est là qu'on lève son veto). Plus aucun jeu possible → le
-  `<details>` s'ouvre de lui-même, une fois.
-  ⚠️ Le contenu d'un `<details>` fermé est en `content-visibility: hidden` :
-  `offsetParent` reste non nul. Pour tester la visibilité, `checkVisibility()`.
-- **« 🏁 Terminer la soirée »** : secondaire (liseré rouge en `box-shadow`
-  inset, sans fond plein, pas `.ghost`), en bas du second panneau, loin de
-  « Tirer ». Confirmation inchangée.
-
-⚠️ **Piège de test rencontré** : un clic de harnais envoyé pendant un
-défilement DOUX (`scroll-behavior: smooth` de tf2.css — celui de la touche Tab
-qui amène le focus sur « Terminer », ou un `scrollTo(0, 0)` sans `behavior`)
-tombe à côté (tracé sur `#lobby`). La course est INTERMITTENTE (2 sur 2 un
-jour, 0 sur 6 le lendemain) : `hub-draw.mjs` attend la fin réelle du défilement
-(`J.scrollFini()` : `scrollY` stable 6 images d'affilée) au lieu d'un délai
-fixe, et rien n'est changé dans le produit.
-
-**Dernier passage** : voir le tableau de `tests/README.md` (suites du Hub,
-normal et mouvement réduit).
-
-## Livraison fiable du classement : results → ended (2026-09-28)
-
-**Le défaut** (mesuré, reproduit contre le vrai Hub) : `send()` dans
-`game-hub.js` jetait en silence tout message parti sur un socket Hub fermé ou
-en CONNECTING, alors que `hub-handoff.js` tenait déjà le classement pour
-rapporté (`rapporte = true`) et que `ended()` effaçait le billet. Rien n'était
-rejoué à la reconnexion. Conséquences : partie **non comptée**, ou Hub
-**bloqué en `inGame` / `playing`** (un `ended` perdu : aucune minuterie ne sort
-de `playing`, `abort` y est refusé ; seul le bouton « Partie terminée » de
-`/games/` débloquait). Il suffisait que le socket Hub de l'hôte tombe pendant
-que celui du jeu tenait, au moment de la fin.
-
-**Le mécanisme** (`hub-handoff.js`, « livraison de results → ended ») :
-
-- `results()` / `ended()` ne font plus d'envoi direct : ils **notent** l'intention
-  dans le `sessionStorage`, UNE entrée par partie, clé
-  `mathys_hub_report:<session>:<drawId>` (`{ results, ended, sent, at }`), puis
-  tentent la livraison. Leur valeur de retour et le contrat des pages ne
-  changent pas (`results()` = « pris en charge », pas « reçu »).
-- **Confirmation par l'état du Hub, jamais par l'envoi** : `results` est
-  confirmé par `launch.scored === true` (ou le refus `RESULTS_ALREADY`) ;
-  `ended` ne part qu'APRÈS cette confirmation (ou sans classement : abandon du
-  Morpion) et il est confirmé par `launch.stage === 'ended'`. Alors seulement
-  l'entrée est effacée.
-- **Reconnexion** : la livraison est relancée à CHAQUE état reçu, dont le
-  `joined` d'une reprise — aucune minuterie, aucun intervalle. `game-hub.js`
-  expose `connection` (+1 à chaque socket) et `send()` rend `false` si le socket
-  n'est pas ouvert (et `true` n'est PAS un accusé de réception).
-- **Survit à la navigation** : `/games/` branche le même mécanisme sur son
-  propre client (`HubHandoff.attach(hub)` dans `hub-page.js`). Une fin de
-  partie coupée du Hub est livrée par la page du jeu si le Hub revient, sinon
-  par `/games/` au retour, rechargement compris.
-- **Doublons et boucles** : une intention part au plus UNE fois par connexion,
-  et 5 fois en tout. Le Hub reste l'arbitre (`RESULTS_ALREADY`, `ended` de trop
-  ignoré). Refus définitifs (`BAD_RESULTS`, `GAME_MISMATCH`, `NOT_HOST`,
-  `LAUNCH_MISMATCH`, `NOT_LAUNCHING`) → intention abandonnée (le `ended`, lui,
-  part quand même). En étape `create` / `join`, `results` attend (le Hub le
-  refuserait encore).
-- **Jamais rejoué ailleurs** : une entrée d'une autre session, d'un autre
-  tirage, d'un lancement échoué ou de plus de 3 h est effacée **sans rien
-  envoyer**.
-
-Rien n'a changé côté serveurs (ni le Hub, ni les sept jeux), ni dans le
-contrat `roomReady` / `results` / `ended`, les rangs, la formule du score ou
-l'autorité de l'hôte. `game-hub.js` et `hub-handoff.js` sont passés en `?v=4`
-sur les **huit** pages (même version partout, vérifié par `hub-report.mjs`),
-`hub-page.js` en `?v=9`.
-
-Tests : `tests/hub-report.mjs` (59, vrai Hub, pages simulées en `vm`) et
-`tests/hub-report-play.mjs` (19, deux navigateurs, Morpion ; `--prod` = vrai
-Hub + vrai `morpion-server`, 19/19 le 2026-09-28). Les deux échouent sur le
-code d'avant. Détail et pièges : `tests/README.md`.
+- Moteur pur `src/engine.js` ; toutes les raisons d'exclusion rendues,
+  nominatives, dans `session.pool.why`. Seul l'hôte tire (`hostId` relu côté
+  serveur), `draw` ne porte AUCUN champ, l'état passe à `drawing` avant tout
+  `await` (second `draw` → `DRAW_IN_PROGRESS`).
+- ⚠️⚠️ **Aucun `/health` dans le tirage**, ni pré-réveil à la création. Un
+  serveur Render endormi ne coûte jamais un tirage. `pool.health` n'est qu'une
+  information (souvent `unknown`). La seule décision sur la santé est au
+  LANCEMENT : après un `abort` `UNREACHABLE` (`markDown`), le lancement suivant
+  échoue tout de suite en `SERVER_DOWN`. `src/health.js` reste un simple GET,
+  jamais un WebSocket vers un jeu. Garde-fou : `game-hub-server/test-candidat.js`
+  remplace la santé par un faux qui **compte les appels** — si un
+  `await health…` revient dans `onDraw`, c'est lui qui le dira.
+- **`NO_ELIGIBLE_GAME`** = aucun jeu ne passe les RÈGLES, jamais « un serveur ne
+  répond pas ». `NO_SERVER_AVAILABLE` a été supprimé : ne pas le réintroduire.
+  Si l'on veut un jour montrer un réveil, sa place est l'étape de lancement,
+  pas le tirage.
+- ⚠️ **La caisse ne choisit rien** : sa bande est tirée dans `draw.eligible` et
+  s'arrête sur `draw.gameId`, tous deux venus du serveur.
+- **Capacités acquises d'office** : un joueur naît avec `caps: { mic: true,
+  consent: true }` (`session.js`), aucun écran de déclaration — ne pas remettre
+  l'ancien bloc « Ce que tu apportes ». La règle `NEEDS`
+  d'`engine.js` reste (un `false` explicite écarterait le jeu, nominativement),
+  et les besoins restent au manifest (Imitation `mic`, Ban `consent`).
+  ⚠️⚠️ **`cam` n'est PAS dans le défaut** : le jour où un jeu déclare
+  `needs: ['cam']`, l'ajouter dans `session.js`, sinon ce jeu sera impossible
+  pour tout le monde, en silence.
+- Page : ❤️ / 🚫 par jeu, durée max (hôte), raison de chaque exclusion, chances,
+  caisse amenée à l'écran chez tous au début d'un tirage (au téléphone elle
+  tournait 900 px plus haut), historique de la soirée.
 
 ## Handoff et présence : l'état des sept jeux
 
@@ -2045,13 +599,32 @@ Les sept jeux en ligne (Morpion, Imitation, Demi-Cercle, Ban, Précision, Le
 Passeur, Qui Ment ?) ont le **même montage**. Puissance 4, local, n'en a pas
 besoin. Aucun serveur de jeu ne connaît le Hub.
 
+### Le principe : le Hub ne parle jamais au serveur du jeu
+
+    lobby → drawing → [continuer] → launching (create → join) → inGame → debrief
+
+1. l'hôte confirme le tirage → `launching`, stage `create` ;
+2. il clique « Ouvrir <jeu> » → même onglet → la page du jeu **crée la room par
+   son chemin normal** et déclare le code au Hub (`launched`) → stage `join` ;
+3. chaque invité clique « Rejoindre », entre par le chemin normal et le déclare
+   (`entered`) ;
+4. tout le monde est entré → `inGame` (« tout le groupe est dans la room », pas
+   « la manche a commencé ») ; `ended` → `debrief`.
+
+⚠️ **Aucun jeton secret, et c'est un choix** : l'autorité vient du SOCKET (seul
+l'hôte DU LANCEMENT peut déclarer un code), le lancement est lié au tirage
+(`drawId`), borné (90 s / 120 s) et à usage unique. Une session sans connectés
+n'est pas fermée pendant un lancement : tout le groupe navigue en même temps.
+
 ### Le handoff, page par page
 
 Chaque page charge `game-profile.js`, `game-net.js`, `game-hub.js` et
 `hub-handoff.js`, et appelle `HubHandoff.start({ gameId, join, onUpdate })`.
-Sans billet, `lien` vaut `null` et la page marche exactement comme hors Hub.
-Avec billet, le module appelle le `join` de la page — son chemin NORMAL (créer
-sans code, rejoindre avec) — et la page le prévient :
+Le **billet** (`sessionStorage` `mathys_hub_handoff`, jamais l'URL) est écrit
+par `/games/` juste avant la navigation. Sans billet, `lien` vaut `null` et la
+page marche exactement comme hors Hub. Avec billet, le module rouvre le Hub avec
+le même player.id, appelle le `join` de la page — son chemin NORMAL (créer sans
+code, rejoindre avec) —, affiche un bandeau, et la page le prévient :
 
 - `roomReady(code, place)` à la première room obtenue, avec SA place de jeu
   (score de soirée) ; ré-annoncé seulement quand la place change (reconnexion
@@ -2066,27 +639,25 @@ sans code, rejoindre avec) — et la page le prévient :
 - `failed('JOIN' | 'UNREACHABLE', détail)` si l'entrée lancée par le Hub
   échoue (`viaHub` et pas encore dans une room). Pour l'hôte déjà au stade
   `join`, `failed` devient `cancel()` : sa room est perdue pour tout le groupe,
-  le lancement est annulé (`CANCELLED`) au lieu de laisser le groupe devant une
-  room morte jusqu'à l'échéance.
+  le lancement est annulé (`CANCELLED`). En `playing`, `failed()` ne rouvre
+  plus d'essai (sinon un retardataire refusé entrait en douce dans la room
+  revenue au salon).
 
 Tant que des joueurs attendus manquent, « Lancer » est bloqué et nomme les
 absents, avec **« Lancer sans attendre »** (`#start-anyway`) — la règle propre
 à chaque jeu (3 joueurs pour Qui Ment ?…) s'applique en plus.
 
 Les écarts, voulus :
-- **Morpion** : aucune identité ne part vers `morpion-server` (voir « Morpion :
-  l'exception »). Pas de salon ni de « Lancer » : la room passe d'elle-même à
-  `playing` quand l'invité entre, c'est là que l'hôte envoie `started()`. Le
-  départ de l'adversaire (« room fermée ») vaut `ended()`. Écran de perte
-  propre au jeu (pas de `surPerte`), puisque la room n'existe plus.
-- **Qui Ment ?, « Rejouer »** : à la fin la room est en phase `end`, et
-  `qui-ment-server` n'accepte `start` QUE depuis le salon — ailleurs il
-  l'ignore **sans erreur**. « Rejouer » envoie donc `lobby` (MJ seulement), et
-  le `start` ne part qu'au retour du salon diffusé par le serveur. Ne pas
-  « simplifier » en renvoyant `start` directement : c'était le bug.
-- Une revanche jouée dans la même room (« Rejouer » de Qui Ment ?, du Passeur…)
-  **ne parle pas au Hub** : il reste en `debrief` sur le lancement terminé,
-  l'historique ne bouge pas, aucune session n'est créée.
+- **Morpion** : aucune identité ne part vers `morpion-server`. Pas de salon ni
+  de « Lancer » : la room passe d'elle-même à `playing` quand l'invité entre,
+  c'est là que l'hôte envoie `started()`. Le départ de l'adversaire (« room
+  fermée ») vaut `ended()`. Écran de perte propre au jeu (pas de `surPerte`).
+- **Qui Ment ?, « Rejouer »** : `qui-ment-server` n'accepte `start` QUE depuis
+  le salon (ailleurs il l'ignore **sans erreur**). « Rejouer » envoie donc
+  `lobby` (MJ seulement), et le `start` ne part qu'au retour du salon. Ne pas
+  « simplifier » en renvoyant `start` directement.
+- Une revanche jouée dans la même room **ne parle pas au Hub** : il reste en
+  `debrief` sur le lancement terminé, rien n'est recompté.
 
 ### La présence : qui est VRAIMENT là
 
@@ -2099,16 +670,15 @@ fantôme. D'où une présence **applicative**.
   puis toutes les 10 s ; le client répond `{ action: 'presence', n }`. Adhésion
   **volontaire** : un client qui n'a jamais répondu n'est jamais expulsé. Sans
   signe de vie depuis 30 s → `close(4000, 'absent')`, puis `terminate` 3 s plus
-  tard. Ping natif séparé (20 s) pour les coupures réseau franches. `hold()`
-  donne un sursis (Imitation, pendant l'envoi d'une prise audio). Le module ne
-  connaît aucune room : c'est le `close` habituel du serveur qui retire le
-  joueur. Le routeur appelle `presence.consume(ws, msg)` en premier.
+  tard. Ping natif séparé (20 s) pour les coupures franches. `hold()` donne un
+  sursis (Imitation, pendant l'envoi d'une prise audio). Le module ne connaît
+  aucune room. Le routeur appelle `presence.consume(ws, msg)` en premier.
 - **Client** : `games/shared/game-net.js` (`GameNet.create`), même API que
-  l'ancien `NET` de chaque jeu. Il répond aux pings (jamais de lui-même),
-  émet `lost` une fois par connexion perdue, ne reconnecte **jamais** tout
-  seul. Une nouvelle connexion présente la clé de l'ancienne (`remplace`) : le
-  serveur ferme l'ancienne AVANT d'acquitter, donc jamais de doublon dans la
-  room. `pagehide` ferme en 1000 (le navigateur refuse 1001).
+  l'ancien `NET` de chaque jeu. Il répond aux pings (jamais de lui-même), émet
+  `lost` une fois par connexion perdue, ne reconnecte **jamais** tout seul. Une
+  nouvelle connexion présente la clé de l'ancienne (`remplace`) : le serveur
+  ferme l'ancienne AVANT d'acquitter, donc jamais de doublon. `pagehide` ferme
+  en 1000 (le navigateur refuse 1001).
 - **Écran de perte** : `GameNet.surPerte(NET, …)` dans six jeux — au salon, un
   retour automatique par le join normal ; en pleine partie, « elle a continué
   sans toi ». Il exige `#lost`, `#lost-text`, `#lost-retry`, `#lost-hub`.
@@ -2117,4 +687,174 @@ fantôme. D'où une présence **applicative**.
 
 `tests/handoff*.mjs` (un par jeu, vrais Hub + vrai serveur), `game-net.mjs`,
 `presence-jeux.mjs`, `presence-precision.mjs`, `presence-morpion.mjs`,
-`quiment-replay.mjs`. Détail et options dans `tests/README.md`.
+`quiment-replay.mjs`, `hub-report*.mjs`. Détail et options dans
+`tests/README.md`.
+
+## Score de soirée
+
+Le Hub tient un **score cumulé par session**. Deux autorités qui ne se mélangent
+pas : **le jeu** reste maître de SA partie, **le Hub**
+(`game-hub-server/src/scores.js`, module pur) est maître de la soirée. La page
+ne calcule aucun point. Aucun serveur de jeu n'a été modifié pour ça.
+
+### Le contrat commun, référence
+
+    roomReady(code, gamePlayerId)   chacun SA place, jamais l'id du Hub
+    results([{ gamePlayerId, rank, points }])   hôte du lancement, une fois
+    ended()                          toujours APRÈS results
+
+    sur le fil : launched / entered { …, gamePlayerId }   chacun SA place
+                 results { drawId, gameId, results: [...] }  puis  ended
+
+- `rank` = rang de compétition calculé sur le score DU SERVEUR (ex æquo = même
+  rang : 13, 13, 5 → 1, 1, 3), jamais sur l'index.
+- **Conversion, seule et commune** : `10 × (classés − rang + 1)` — à trois
+  30 / 20 / 10. Le rang et pas les points du jeu : Le Passeur va de 3 à 12
+  manches, le Morpion n'a pas de points. Les points du jeu restent dans
+  `history.games[].results[].gamePoints`.
+- **Pourquoi `gamePlayerId`** : l'hôte ne connaît pas l'identifiant de jeu des
+  autres. Chacun déclare le sien en entrant ; une place déjà prise est refusée
+  (l'hôte ne peut pas donner de points à quelqu'un d'autre) ; une place inconnue
+  occupe son rang sans marquer. Les places ne sortent jamais dans l'état public.
+- **Validations du Hub** : hôte du lancement (ou hôte actuel), bon `drawId`,
+  bon `gameId`, partie lancée (`playing` ou `ended`), **une fois par lancement**
+  (`RESULTS_ALREADY`), forme (`BAD_RESULTS`), `GAME_MISMATCH`.
+- « Une fois » est garanti deux fois : `hub-handoff.js` (`rapporte` / `fini`,
+  `ended()` consomme le billet) puis le Hub. Une partie incomplète (abandon,
+  room perdue) n'envoie jamais `results`. Garde `if (lien.results)` dans chaque
+  jeu (un `hub-handoff.js` en cache peut ne pas avoir la méthode).
+- ⚠️ **Limite assumée** : le classement passe par le navigateur de l'hôte (le
+  serveur du jeu ne parle pas au Hub). Même confiance que pour le code de room ;
+  le jour où ça ne suffira plus, c'est le serveur du jeu qui devra signer.
+
+| Jeu | place (`gamePlayerId`) | ré-annonce | classement → `results` | particularité |
+|---|---|---|---|---|
+| Le Passeur | `you.id` | à chaque `you` (1 par connexion = 1 id) | `rangs(ranking)`, trié d'abord | pilote ; de 3 à 12 manches, d'où le rang |
+| Imitation | `room.you` | `placeDeclaree` | `rangs(podium)` | pas de message `you` |
+| Demi-Cercle | `room.you` | `placeDeclaree` | `rangs(podium)` | |
+| Le Ban | `room.you` | `placeDeclaree` | `rangs(podium)` | points négatifs possibles (seul le rang compte) ; la place est déclarée APRÈS l'avertissement |
+| Précision | `room.you` | `placeDeclaree` | `rangs(podium)` | jouable seul (1 → 10 pts) |
+| Qui Ment ? | `you.id` | `placeDeclaree` | `rangs(ranking)` (sans avg/title) | « Rejouer » ne recompte rien |
+| Morpion | `state.you` ('X'/'O') | `placeDeclaree`, même room | `classement(winner)`, `points: 0` | victoire 1/2 (20/10), nul 1/1 (20/20) ; abandon → `ended` seul |
+
+Garde-fou statique : `node tests/hub-score-contract.mjs` (sans navigateur ni
+serveur) ; les vraies parties : `tests/hub-score*.mjs`.
+
+- **UI** (`renderScore` dans `hub-page.js`) : `#hub-score` est un **panneau à
+  part** (`<aside class="panel">`), FRÈRE du salon (découpé au `clip-path`, rien
+  n'en sort), placé entre `#lobby` et `#hub-lobby-games`. **≥ 1200 px** : grille
+  (`main:has(> #hub-score:not([hidden]))`, salon ~880 px + colonne de 270 px),
+  panneau `sticky` sur `grid-row: 2 / span 2`. Ton dernier gain en pastille
+  (`.hub-score-delta.is-fresh`). **< 1200 px** : pleine largeur, après joueurs et action, avant le
+  catalogue. ⚠️ Sa règle porte le MÊME préfixe `:has()` que `> *` (qui contient
+  un ID) : un simple `main > #hub-score` perdait. Pas de médaille tant que
+  personne n'a marqué ; au-delà de 6 joueurs, les 5 premiers + ta ligne.
+
+## Livraison fiable du classement : results → ended
+
+⚠️ **Un `send()` n'est pas une livraison.** `send()` (`game-hub.js`) rend
+`false` si le socket Hub n'est pas ouvert, et `true` ne vaut pas accusé de
+réception. `results()` / `ended()` ne font donc pas d'envoi direct
+(`hub-handoff.js`, « livraison de results → ended ») :
+
+- ils **notent** l'intention dans le `sessionStorage`, UNE entrée par partie,
+  clé `mathys_hub_report:<session>:<drawId>` (`{ results, ended, sent, at }`),
+  puis tentent la livraison. Contrat des pages inchangé (`results()` = « pris en
+  charge », pas « reçu ») ;
+- **confirmation par l'état du Hub, jamais par l'envoi** : `results` est
+  confirmé par `launch.scored === true` (ou le refus `RESULTS_ALREADY`) ;
+  `ended` ne part qu'APRÈS (ou sans classement : abandon du Morpion) et il est
+  confirmé par `launch.stage === 'ended'`. Alors seulement l'entrée est effacée ;
+- **reconnexion** : relancée à CHAQUE état reçu, dont le `joined` d'une reprise
+  — aucune minuterie. `game-hub.js` expose `connection` (+1 à chaque socket) ;
+- **navigation** : `/games/` branche le même mécanisme sur son client
+  (`HubHandoff.attach(hub)` dans `hub-page.js`) : ce que la page du jeu n'a pas
+  pu livrer l'est au retour, rechargement compris ;
+- **doublons et boucles** : au plus UNE fois par connexion, 5 fois en tout.
+  Refus définitifs (`BAD_RESULTS`, `GAME_MISMATCH`, `NOT_HOST`,
+  `LAUNCH_MISMATCH`, `NOT_LAUNCHING`) → intention abandonnée (`ended` part
+  quand même). En `create` / `join`, `results` attend (le Hub le refuserait) ;
+- **jamais rejoué ailleurs** : une entrée d'une autre session, d'un autre
+  tirage, d'un lancement échoué ou de plus de 3 h est effacée sans rien envoyer.
+
+Sans cette livraison, un `ended` perdu laissait le Hub en `inGame` / `playing`
+(aucune minuterie n'en sort, `abort` y est refusé ; seul le bouton « Partie
+terminée » de `/games/` débloque). `started`, `launched`, `entered` passent
+encore par un envoi simple : leurs pertes sont rattrapées par les échéances du
+lancement (un `started` perdu → `playing` au bout de 120 s). Tests :
+`tests/hub-report.mjs`, `tests/hub-report-play.mjs` (`--prod`).
+
+## Débrief et fin de soirée
+
+**Quitter ≠ terminer.** « Quitter la session » (`leave`, tout le monde) ne fait
+partir que soi : ses points restent, les autres continuent. « 🏁 Terminer la
+soirée » (`finish`, l'HÔTE seul, confirmation) termine pour TOUS et révèle le
+podium final.
+
+- **Débrief personnel** : en quittant une session où au moins une partie a été
+  classée, « 📋 Ton récap de soirée » (`#hub-recap`, construit sur le DERNIER
+  état reçu, posé au-dessus de l'entrée, jamais recréé au rechargement). Aucune
+  partie → départ comme avant. `HubRecap.ranking()` est la règle de rang du
+  panneau Score aussi ; `build()` ne calcule aucun point. Les joueurs partis
+  restent au classement (« parti »).
+- **Fin de soirée** (serveur : `finish`, état `finished`, message `finale`,
+  erreur `FINISH_NOT_ALLOWED`, `src/finale.js`) : hôte = `session.hostId` (un
+  hôte réélu peut terminer) ; au salon seulement (`lobby` / `debrief`) ; podium
+  calculé UNE fois sur `scores`, joueurs partis compris (`present: false`) ;
+  sockets détachés et fermés (4002) ; double clic = une seule clôture, la même
+  finale.
+- **Page** : `fromFinale()` reprend le podium TEL QUEL. Révélation locale (« La
+  soirée est terminée », puis 3e, 2e, 1er par RANG, ex æquo ensemble, rang
+  absent sauté) ; mouvement réduit : tout d'emblée. Confirmation = `<dialog>`
+  natif avec un `.panel` DEDANS (`.panel` sur le `<dialog>` casserait son
+  positionnement).
+- ⚠️ `scrollIntoView({ behavior: 'instant' })`, pas `'auto'` (qui suit le
+  `scroll-behavior: smooth` de tf2.css et avale le clic suivant). Au téléphone,
+  les colonnes de l'historique du récap sont posées EXPLICITEMENT.
+
+## Game Hub : le salon et le retour de partie
+
+Ordre, bureau et téléphone : **joueurs → action → score → jeux possibles →
+indisponibles → Quitter / Terminer.**
+
+- Le salon = **trois blocs frères** dans `main` : `#lobby` (code, joueurs,
+  `#hub-act`, caisse, carte Résultat), `#hub-score`, `#hub-lobby-games`
+  (catalogue puis `.hub-foot` avec Quitter et Terminer). ⚠️ `show()` bascule
+  toujours les trois, et la règle d'anneau de focus (box-shadow inset) liste
+  `#hub-lobby-games button`.
+- **`#hub-act`**, sous les joueurs : `#hub-draw-btn` chez l'hôte ; chez les
+  invités, `#hub-wait` en encart (`.is-waiting`). Pendant le debrief d'une
+  partie classée, `#hub-act` se tait : la carte Résultat porte la suite.
+- **Carte `#hub-round` « 🏆 Résultat — <jeu> »** au debrief d'une partie
+  CLASSÉE, à la place de la caisse. Données : `HubRecap.lastResult()` = la
+  dernière entrée de `history.games` **à condition** que son `drawId` soit celui
+  du lancement terminé. ⚠️ Ne pas relâcher cette condition (sinon fausse carte
+  après un abandon du Morpion ou un lancement annulé). Points de partie masqués
+  si tous à 0 ; solo sans rang ni médaille. « 🎲 Tirage suivant » est le MÊME
+  `#hub-draw-btn`, déplacé par `renderRound()`. Arrivée + focus sur le titre
+  (`tabindex="-1"`, `aria-describedby` = la phrase du joueur) une fois par
+  partie et par onglet (`sessionStorage` `mathys_hub_round`), dans un
+  `setTimeout(0)` (au retour, le premier rendu précède `show('lobby')`). Pas
+  d'anneau sur ces titres. `showRecap` met de même le focus sur `#recap-title`.
+- **Score vide** : `#hub-score.is-empty`, une ligne ; les lignes restent
+  calculées, masquées.
+- **Catalogue** : `#hub-games` contient TOUJOURS les 8 fiches : `#hub-games-ok`
+  puis `<details id="hub-out">` (`#hub-games-out`) avec les raisons et les ❤️ /
+  🚫 (c'est là qu'on
+  lève son veto) ; ouvert d'office s'il n'y a plus aucun jeu possible.
+  ⚠️ Le contenu d'un `<details>` fermé est en `content-visibility: hidden` :
+  tester avec `checkVisibility()`, pas `offsetParent`.
+- **« 🏁 Terminer la soirée »** : secondaire (liseré rouge en box-shadow inset),
+  en bas du second panneau, loin de « Tirer ». `.crate-plate` a une marge de
+  2.9rem (le couvercle ouvert recouvrait la plaque).
+- ⚠️ Test : un clic envoyé pendant un défilement DOUX tombe à côté ;
+  `hub-draw.mjs` attend la fin réelle du défilement (`J.scrollFini()`).
+
+## Défauts connus, non corrigés
+
+- Anneau de focus rogné dans les jeux au `button` générique (voir « Pièges de
+  spécificité »).
+- `tests/manifest.mjs` : la mutation « jeu live sans bloc hub » est une regex en
+  `\n`, qui ne s'applique pas sur un poste en `core.autocrlf=true` (CRLF).
+- `tests/passeur-play.mjs --reduced` instable au premier clic sur ce poste
+  (harnais, pas le jeu ; le mode normal passe).

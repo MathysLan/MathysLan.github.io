@@ -1,0 +1,337 @@
+# Journal du projet — historique des lots
+
+Ce fichier garde l'**histoire** : ce qui a été fait, quand, pourquoi, les bugs
+trouvés en route et comment on les a diagnostiqués. Les **règles en vigueur**
+sont dans `CLAUDE.md` ; quand une règle vient d'un incident, c'est ici qu'on
+en trouve le récit.
+
+Format par lot : objectif · résultat · commits · décisions / diagnostics.
+Les compteurs de tests sont ceux du moment (les suites ont grandi depuis) ;
+`tests/README.md` tient les chiffres actuels. Commits du portfolio sauf mention
+`hub:` (dépôt `game-hub-server`).
+
+---
+
+## 2026-07 — Les premiers jeux
+
+`a97a6cc` → `261e135` (commits « Mise à jour » / « Add files via upload »).
+
+- **Demi-Cercle** : mode « le Guide invente » (thème + extrémités, cible
+  toujours tirée par le serveur) + légende couleur→joueur chez le Guide pendant
+  le vote. Serveur : `onTheme`, `mode` par room, ~28 axes.
+- **Imitation** : « réécouter ma prise » relance AUSSI la vidéo (muette) avec le
+  double waveform, pour juger la synchro.
+- **Le Jeu du Ban** : `ban-server` à part (moteur pur `engine-ban.js`,
+  `setTimeout` + filet, catalogue `{id, fatal, startAt?}` surchargeable par
+  `VIDEOS_JSON`), front sur `wss://ban-server-68h9.onrender.com` + bucket R2.
+  Tests : moteur 26/26, ws e2e 16/16, front e2e 12/12.
+- **Précision** : `precision-server` à part (`engine-precision.js` pur +
+  `setTimeout` de phase), front sur `wss://precision-server.onrender.com`. Le MJ
+  choisit difficulté / manches / épreuve. Tests : moteur 60/60, ws 23/23, front
+  59/59.
+- Livraison de l'époque (environnement cloud) : `git push` en 403, donc zip
+  remis à Mathys.
+
+## 2026-09-14 → 16 — Le portfolio devient une interface TF2
+
+`4cc3e66`, `1be449a`, `c7d46a1`, `9658658`, `1251ec3`, `573f1e0`, `5623940`,
+`5a41264`, `19c7aea`, `8e4aaac`, `cac5f3b`, `8ae699e`, `44a1c0d`.
+
+- Objectif : passer d'un *accent* TF2 à une vraie interface VGUI. Le thème
+  violet/verre précédent a disparu ; « poursuite de scène », nav allumée et
+  grain de pellicule datent du 14 (testé via CDP 10/10).
+- Liste de Mathys, faite dans l'ordre : 1 ConTracker ✅, 2 sac à dos + fiche
+  d'objet en modale ✅, 3 CTA sur `.tf-btn` ✅, 4 compétences en stats d'arme ✅,
+  5 textures de fond ✅, 6 réticule ✅, 7 easter egg du Spy ✅, 8 barre « SIGNAL
+  SÉCURISÉ ✓ » ✅ ; le 9 (icônes de nav) était déjà fait.
+- Décisions : réticule UNIQUEMENT sur `.tf-btn`, `.bp-cell` et le carousel
+  (choix de Mathys). Masque du Spy redessiné deux fois (bandeau d'yeux, sans
+  cigarette) ; un SVG de fan du logo de classe proposé par Mathys a été refusé
+  comme source, gardé comme référence de proportions. Mis de côté sauf demande :
+  switch RED/BLU, sons du jeu, vidéo « Meet the Team ».
+- Outils créés : `styleguide.html`, `tests/front.html` (20/20 à l'époque) ; un
+  auditeur de contraste jetable (377 nœuds) : 0 échec WCAG AA dans les deux
+  thèmes.
+
+## 2026-09-16/17 — Stabilisation / professionnalisation
+
+`dc34834`, `b0889bf`, `5ebe50c`, `9333d8e`, `4cfef2c`, `bbbbd9f`, `2fcf2e7`,
+`fa639ff`, `55d9f86`.
+
+- Objectif : rendre le site solide sans toucher à l'identité.
+- Résultat : accessibilité (menu mobile, lightbox, palette, carousel), mouvement
+  réduit en JS, site lisible sans JS, pré-rendu + Tailwind 3.4.17 compilé (plus
+  de CDN ; équivalence vérifiée sur la géométrie des 1031 éléments à 1280/390 px,
+  deux thèmes), CI `--check`, SEO, WebP + WOFF2, fiches de projet structurées,
+  « Ma part » (`role`) rédigée avec les mots de Mathys pour les 8 projets.
+
+## 2026-09-17 — Passe de finition
+
+`293432b`, puis `1a436b6` (correctif de publication).
+
+- Zéro police externe : Anton et Inter ne changeaient le rendu que de 7 signes
+  (`« » ‹ › · … ↓`), mesuré glyphe par glyphe → supprimés. JetBrains Mono et
+  Space Grotesk auto-hébergés (variables 400→700, 31 + 22 Ko).
+- Favicon SVG Mann Co., socle commun des jeux `game-ui.css`, Morpion aligné
+  (`?server=`, `aria-label` des 9 cases, code copiable), échec de copie dit.
+- **Incident** : le socle s'est d'abord appelé `games/_shared/`. Jekyll (GitHub
+  Pages) ignore tout ce qui commence par `_` : les cinq jeux sont partis en
+  production **sans socle** (code de room en gros bouton plein, plus d'anneau de
+  focus, plus de mouvement réduit, polices en repli), alors que tout était vert
+  en local. → dossier renommé `games/shared/`, et `checkPagesPaths` dans
+  `tools/build.mjs`.
+- Contraste mesuré et corrigé (auditeur qui compose les couches alpha) : gris
+  `#6f6c80` → `#8b87a0` dans 4 jeux (3,59 → 5,30:1) ; blanc sur violet
+  `#8b5cf6` → `#7c3aed` (4,23 → 5,70) ; blanc sur rouge `#ef4444` → `#dc2626`
+  (3,76 → 4,84) ; `#4a4a52` → `#8a8a94` dans precision (2,24 → 5,74) ;
+  `--qi-collectors` `#e87070` → `#ee8080` (4,14 → 4,76) ; billet Bigflo
+  `opacity-80` → `-90` (4,11 → 5,18 en Blueprint). `#stop-btn` du Ban gardé
+  (grand texte, 3,76 pour 3:1 exigé).
+- Décisions : `/data/` reste autorisé dans robots.txt (sans `data/*.js`,
+  `PROJECTS is not defined` casse la palette) ; **AVIF non** (225 Ko de WebP,
+  ~20-30 % de gain théorique contre un encodeur, du `<picture>` partout et 45
+  fichiers de plus).
+- Tests créés : `tests/games.html`, `tests/keyboard.mjs`.
+
+## 2026-09-18 — Le Passeur et Qui Ment ?
+
+`c101d23`, `523e04a`, `f3a29d1`.
+
+- Deux jeux multijoueurs, chacun son dépôt serveur ; premiers jeux à porter la
+  DA du portfolio. Secrets côté serveur (barème du Passeur au `results`, mot de
+  Qui Ment ? jamais diffusé).
+- Hub de la section Jeux (`js/gamehub.js`) : caisse « Je joue à quoi ? » et un
+  « Trouver une partie » qui était un **faux** matchmaking (annoncé comme tel ;
+  point d'extension `buildMatch()`). Retiré le 2026-09-19 (voir randomizer).
+- Mise en ligne le jour même : serveurs déployés par Mathys, `status: 'live'`,
+  `noindex` retiré, 8 `<loc>` au sitemap. Vérifié par un fumigène qui joue une
+  vraie manche sur chaque serveur Render (le health check ne prouve que le
+  process) : 10/10 en production.
+- Backstage : le poste de volley passe de central à passeur (FR + EN).
+- Tests : front 195/194, jeux 146/146, clavier 8/8, passeur-server 28 + 24,
+  qui-ment-server 52 + 57, Qui Ment ? à trois dans un navigateur 42/42.
+
+## 2026-09-18 — Le Passeur : du terrain SVG à la vraie situation de volley
+
+`a406e35` (terrain, fausse 3D, mise en situation, jouabilité — un seul commit
+pour cinq passes de travail).
+
+1. **Terrain SVG** (après playtest : cinq boutons de texte, trop abstrait).
+   `court.js` dessine la `scene` envoyée par le serveur ; repli si elle manque
+   (vérifié 34/34 contre la production d'alors). Trois collisions de libellés
+   trouvées seulement à l'image. Champ pseudo de 50 px pour un bouton de 40
+   (pas de `border-box`, `line-height` hérité).
+2. **Fausse 3D** : Three.js écarté (~600 Ko pour une scène fixe) ; une
+   projection de six lignes. « 2e main » élargie, zone arrière rallongée (elle
+   était tombée à 40 px au téléphone).
+3. **Vraie situation de volley** : règles FIVB 2025-2028 dans `rules.js`
+   (serveur), modèle de situation déduit, deux temps `round` / `go` tenus par
+   le serveur (0 ms d'écart mesuré à 3 joueurs). Les classes d'équipe
+   (`sil-us` / `sil-them` / `sil-set`) avaient disparu en réécrivant `paint()` :
+   silhouettes en noir, vu seulement à l'image. 6 situations sur 12 ont un
+   passeur avant, 6 un passeur arrière.
+4. **Boucle de jeu** — ⚠️ **le piège SMIL** : `begin` compte sur la timeline du
+   document ; à la 2e manche (document vieux de 4 s) tout était déjà figé sur
+   l'état final — mesuré 0 → 7,3 → 17,7 → 20,7 en manche 1, 20,7 d'emblée en
+   manche 2. Le service, la réception, le passeur et le bloc ne jouaient
+   jamais. Correctif `svg.setCurrentTime(0)`. Aussi : bloc immobile (9
+   situations sur 12 avec `start === target`), chrono à 0,43 % de la surface,
+   noms de zones jamais affichés (`ZONES[].label`), 2e main reprise via
+   `ACTION` / `attackFault()`. Mesuré en e2e : ballon 140 px, passeur 69 px,
+   bloc 20 px ; 0/0/0 en mouvement réduit.
+5. **Jouabilité réelle** — ⚠️ le serveur **déployé avait deux versions de
+   retard** (ni `scene`, ni `introMs`, jamais de `go`) : aucune zone cliquable,
+   chrono figé, 5 joueurs, bloc immobile. Correctif côté client (armer sans
+   `go`), pas « redéployer ». Aussi : l'ombre du réceptionneur interceptait le
+   clic au centre de la zone arrière (`pointer-events: none` sur les couches
+   `.c-*`) ; bloc en chemin en L ; 6 joueurs par équipe (FIVB 7.3).
+   Test ajouté : `tests/passeur-play.mjs` (vraies entrées, 49/49 local et
+   production périmée). Plomberie : `rawKeyDown` sans `text`, `taskkill /T`
+   (49 processus msedge fantômes avaient saturé la machine).
+
+## 2026-09-18/19 — Les pages de jeux au propre
+
+`5a12614` (WIP phase 3 Game Hub, qui embarque aussi ces lots).
+
+- **Harmonisation visuelle des 7 jeux** : chrome commun (tf2.css + game-ui.css),
+  gameplay et accent propres. Avant : boutons de 40 à 48 px, champs de 40 à 50,
+  trois familles de titre, deux fonds, panneaux dans 3 jeux sur 7 ; après :
+  40 / 40 partout. Pièges : `:where()` écrasé par `button {}` (avatars devenus
+  boutons pleins), Précision qui redéfinissait `--bg`/`--ink`/`--line`/`--card`,
+  CSS injecté dans un commentaire par un script d'édition. Jeux 213/208.
+- **Précision : plateau écrasé** en bande de **560×45** (ratio 12,5:1) par la
+  migration : sélecteur `.card.play-card` orphelin, rembourrage du socle, fond
+  et `overflow` perdus. Rien ne manquait dans le DOM. Plateau agrandi au passage
+  (1280×900 → 640×768, +31 % d'aire) ; boîtier « appareil de mesure ». Même
+  migration : **Morpion avait perdu son panneau** (`class="card"` orpheline).
+  Jeux 239/234 ; les 7 tests de géométrie échouent bien sur la bande.
+- **Layout des 7 lobbys** : 0 px entre avatars et « Créer » dans 4 jeux
+  (`* { margin: 0 }` bat `:where()` — troisième fois que ce piège mord) ; le
+  `flex-wrap` du Demi-Cercle séparait « thèmes : » de sa liste. Faux positifs
+  écartés : comparer les `top` au lieu des centres ; un `<span class="pts">`
+  ajouté par le harnais. Icône 🎙 orpheline → espace insécable. 10 tests
+  échouent sur l'état d'avant. Jeux 308/303.
+
+## 2026-09-18/19 — Game Hub, phases 1 et 2 : manifest et profil local
+
+`5a12614`, `48a85f5`.
+
+- **Phase 1, le manifest** : `data/games.manifest.json` généré depuis
+  `data/games.js`, schéma fermé validé au build, `tests/manifest.mjs` (71).
+- Décisions prises pour le Hub (design review hors dépôt) : pilote **Le
+  Passeur** ; navigation **même onglet** (d'où la reprise par `player.id`) ;
+  photo au Hub seulement *(remplacé le 2026-09-19 : la PP voyage en jeu, à la
+  demande de Mathys)* ; pré-réveil Render au tirage *(abandonné le 2026-09-20)* ;
+  public entre amis ; `/games/` remplace le faux randomizer de `js/gamehub.js`.
+  Une reprise par `resumeToken` était envisagée ; c'est finalement le même
+  `player.id` qui sert (voir CLAUDE.md). Les serveurs tronquaient alors l'avatar
+  à 4 caractères (`slice(0, 4)`), d'où l'idée d'une `avatarUrl` servie par le
+  Hub, abandonnée au profit de la data-URL dans le `join`.
+- **Phase 2, le profil local** : `game-profile.js`, une ligne par jeu
+  (`GameProfile.startEmoji`). Pièges : un champ fichier à `width: 1px` occupait
+  encore 30×20 px ; `keyboard.mjs` passé de 14 à 18 tabulations pour atteindre
+  « ajouter une photo ». Profil 41 + 31.
+
+## 2026-09-19 — La photo de profil voyage, et se voit
+
+`48a85f5` ; serveurs : `avatar.js` dans les six dépôts, poussés sur `main` et
+redéployés le 2026-09-19 à la demande de Mathys.
+
+- Contrat `{ kind, emoji, src? }` dans les deux sens, `cleanAvatar()` côté
+  serveur, `GameAvatar.slot()` / `fill()` côté client. Borne alignée : le
+  profil comptait 24 Ko de texte (~18 Ko d'image) contre 12 Ko annoncés.
+- **Incident « [obj »** : front neuf testé contre la production avant que les
+  serveurs soient poussés → `String(avatar).slice(0, 4)` sur l'objet diffusé à
+  tous, affiché comme emoji. Tous les tests tournaient contre des serveurs
+  locaux déjà modifiés. Correctif client (emoji réseau validé) +
+  `avatar-play.mjs` rejoue désormais contre le serveur d'avant extrait de git.
+  Leçon devenue règle : serveurs d'abord, front ensuite.
+- Finition : hiérarchie `sm` / `md` / `lg`, forme Mann Co., `.g-player`.
+- Défauts préexistants vus en passant : podium du Demi-Cercle masqué après
+  `end` (**corrigé depuis**, `inEndScreen`) ; mutation CRLF de `manifest.mjs`
+  (toujours ouvert) ; `passeur-play.mjs --reduced` instable au premier clic
+  (toujours ouvert) ; course dans `open()` de 4 harnais serveur (corrigée).
+
+## 2026-09-19 — Game Hub, phase 3 et stabilisation
+
+`48a85f5` ; hub: `7406178`, `4c1784c`.
+
+- `/games/` passe de 404 à l'entrée du Hub : profil → créer / rejoindre →
+  salon. Protocole relu dans le serveur, pas deviné. `GameProfile.load()` écrit
+  l'id dès la première lecture (avant, chaque lecture d'un profil jamais
+  enregistré tirait un nouvel id : reconnexion impossible ; l'ancienne
+  assertion de `profile.html` décrivait précisément ce défaut).
+- Stabilisation serveur : heartbeat 20 s ; « trois sorties, trois
+  comportements » ; avant, un `leave` laissait vivre la session 60 s tant
+  qu'un absent y restait. Mesuré : en production une fermeture initiée par le
+  client n'est vue qu'au bout de ~10 s (proxy Render).
+- Tests : `hub.mjs` 50 local / 49 prod, `hub-play.mjs` 40/40 puis 45,
+  `test-presence.js` 23.
+
+## 2026-09-19/20 — Randomizer et handoff du Passeur
+
+`cf0cc4f` ; hub: `1110de2`, `4f676ee`.
+
+- Randomizer : moteur pur filtrer → pondérer → tirer, catalogue relu sur Pages,
+  caisse côté page. Le **faux matchmaking** de `js/gamehub.js` est retiré (il
+  prétendait trouver un groupe sans serveur) ; la caisse solo reste.
+- Handoff pilote Le Passeur : ~50 lignes dans `app.js`, `hub-handoff.js` créé.
+  Trois pièges trouvés par les tests : l'hôte qui navigue perdait l'hôte ; une
+  session sans connectés se fermait pendant un lancement ; « partie en cours »
+  affiché au salon du jeu.
+- **Défaut de production** : le Hub déployé voyait les sept serveurs « down »
+  en moins d'une seconde (réveil Render de 12 à 22 s) → `NO_ELIGIBLE_GAME` pour
+  tout le monde. Premier correctif : réessayer 40 s dans `health.js`. Dépassé
+  le lendemain (voir ci-dessous).
+- Anneau de focus rogné par `clip-path` sur la page du Hub → box-shadow inset ;
+  le même défaut reste dans les jeux au `button` générique (vu sur Imitation).
+- Tests : serveur engine 65, draw 57, e2e 26, launch 43, handoff 42 ;
+  portfolio hub 77, hub-draw 66/64, handoff 22, handoff-play 42.
+
+## 2026-09-20 — Le tirage ne dépend plus de la santé ; capacités d'office
+
+`b095c4f`, `a442d34`, `be76ee3`, `3fd3404` ; hub: `aca1450`, `b674bc2`,
+`c976e7d`.
+
+- Un bloc « Réveil du serveur… » (`#hub-waking`, `wakingText`, `showWake`,
+  champs d'état `waking` / `tried`) a vécu quelques heures (`b095c4f`) puis a
+  été retiré : plus aucun `/health` dans le tirage, ni
+  pré-réveil à la création de session. `NO_SERVER_AVAILABLE` supprimé du
+  protocole. Mesuré en navigateur : Passeur seul éligible, `/health` à 503,
+  tiré en ~90 ms.
+- Code d'erreur inconnu affiché avec son code (`a442d34`).
+- L'écran « Ce que tu apportes » (micro, avertissement) est retiré :
+  `caps: { mic: true, consent: true }` par défaut. Sans ça, Imitation et le Ban
+  auraient été impossibles pour tout le monde. À 3 joueurs : 3 → 5 jeux
+  possibles.
+- Tests : game-hub-server 378/378 ; hub 82, hub-draw 79/77, handoff-play 42.
+
+## 2026-09-20 → 25 — Handoff et présence dans les sept jeux
+
+`78ca958`, `6dddca4`, `7145351`, `9bde223`, `7d2b21f`, `d11626b`, `7eb89d1`,
+`fa51067`, `b65f980`, `db60fec`, `48bc1b3`, `12d9ab5`.
+
+- Handoff branché jeu par jeu, présence applicative (`presence.js` identique
+  dans les sept serveurs, `game-net.js` côté client, `GameNet.surPerte`).
+- `48bc1b3` : « Rejouer » de Qui Ment ? envoyait `start` en phase `end`, que
+  le serveur ignore sans erreur → passe par `lobby`.
+
+## 2026-09-26/27 — Score de soirée
+
+`90d0562`, `92c74f8`, `b4c40a4`, `e64b761`, `660c073`, `ce4c59b`, `084f480`,
+`6976b29`, `b20d683`, `1aae85d`, `7493cf8` ; hub: `9832a56`, `d679eab`.
+
+- Contrat `roomReady(code, place)` → `results` → `ended` ; conversion par le
+  rang ; validé en production le 2026-09-26. Pilote Le Passeur, puis Imitation,
+  Demi-Cercle, Ban, Précision, Qui Ment ?, Morpion. Aucun serveur de jeu touché.
+- Défaut de `hub-handoff.js` révélé par le Demi-Cercle : `failed()` remettait
+  `joint = false`, et un retardataire refusé entrait en douce dans la room
+  revenue au salon. Corrigé (`?v=3`).
+- **Défaut de `game-hub-server`** vu avec Précision solo : au `debrief`, une
+  session vide était fermée tout de suite ; seul, le joueur perdait sa session
+  et son score à chaque partie (Passeur solo aussi, et un groupe revenant d'un
+  bloc). Corrigé `d679eab` (`backFromGame`) ; le scénario solo échoue en
+  `SESSION_NOT_FOUND` contre le Hub d'avant. Production : sonde solo 4/4,
+  trio 5/5.
+- Qui Ment ? : ex æquo 1 / 1 / 3 **construit** manche par manche (recherche
+  exhaustive des votes), l'intrus étant tiré au hasard.
+- Garde-fou statique `tests/hub-score-contract.mjs`.
+
+## 2026-09-27 — Débrief, fin de soirée, lots UX
+
+`d672716`, `25c2455`, `5b1df70`, `b3a7446`, `58f48d9` ; hub: `e9a7a7a`.
+
+- Débrief personnel en quittant ; le bouton a brièvement dit « Terminer ma
+  soirée » avant la vraie fin de soirée.
+- Fin de soirée : `finish`, état `finished`, podium figé ; révélation locale.
+- Lot B (retour de partie) : carte Résultat ; le couvercle de la caisse
+  recouvrait « DE LA » (−11 px), marge 1.6rem → 2.9rem.
+- Lot A (hiérarchie du salon) : trois blocs frères, `#hub-act`, catalogue
+  replié, « Terminer » secondaire.
+- Pièges de test : `scrollIntoView` en `'auto'` restait animé et avalait le
+  clic suivant ; colonne masquée en solo qui poussait « PRÉC… » ; clic perdu
+  pendant un défilement doux (2 sur 2 un jour, 0 sur 6 le lendemain) ; 2 clics
+  perdus sur 5 après 390 → 1280 px sans pause.
+
+## 2026-09-28 — Livraison fiable results → ended
+
+`83d48c5`.
+
+- Audit : `send()` jetait en silence sur un socket Hub fermé / CONNECTING,
+  `rapporte` et `fini` passaient à `true` quand même, rien n'était rejoué.
+  Démontré avant correction (script jetable, 22/22 deux fois) puis par la suite
+  définitive : `tests/hub-report.mjs` 21 échecs sur l'ancien code (score `{}`,
+  Hub bloqué en `inGame`), `tests/hub-report-play.mjs` bloqué sur « debrief
+  jamais reçu ».
+- Correctif : attente dans le `sessionStorage` par partie, livraison pilotée
+  par l'état du Hub, reprise par `/games/`. Aucun serveur touché.
+- Résultat : 59/59 et 19/19, et **19/19 en production** (front local contre le
+  vrai Hub et le vrai `morpion-server`). Régressions : contrat 125, hub 82,
+  hub-score 80, hub-score-morpion 52, hub-play 56, handoff-play 42.
+- Piège de harnais : le WebSocket de Node n'émet pas `close` sur une connexion
+  refusée ; les ports 1 / 9 sont bloqués d'office.
+
+## 2026-09-28 — Documentation séparée
+
+`CLAUDE.md` ne garde que l'état actuel et les règles ; ce journal reçoit
+l'historique.
