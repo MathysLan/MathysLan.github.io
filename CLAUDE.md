@@ -604,6 +604,16 @@ le build échoue. ⚠️ Il écrit vraiment dans le fichier puis restaure dans u
   la fiche arrive PENDANT le défilement doux lancé à `pending` : `animate()` le
   coupe d'un saut `instant`, sinon le clic sur « Continuer » tombe à côté
   (attrapé par `handoff-play.mjs`). Ne pas retirer ce saut.
+- ⚠️⚠️ **Les classes de mise en scène d'un tirage (`MISE_EN_SCENE` dans
+  `hub-page.js` : `is-pending`, `is-open`, `is-revealed`, `is-single`,
+  `is-launching`) sont effacées quand la caisse se range ET à chaque nouveau
+  tirage.** Régression corrigée le 2026-09-28 : après un lancement annulé ou
+  raté, `is-launching` (qui masque la bande en `display: none`) restait posée,
+  et le tirage suivant tournait sur une bande NON RENDUE — pas de transition,
+  cible calculée à 0 px, bande figée et mauvais jeu sous le repère. Une
+  transition CSS ne se joue jamais sur un élément non rendu. Test :
+  `hub-play.mjs` observe trois tirages séparés par un lancement annulé (il
+  échoue sur l'ancien code : 0 position aux tirages 2 et 3).
 
 ## Handoff et présence : l'état des sept jeux
 

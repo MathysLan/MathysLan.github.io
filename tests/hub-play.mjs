@@ -3,6 +3,7 @@
 //   node tests/hub-play.mjs                          serveur du Hub lancé en local
 //   node tests/hub-play.mjs --hub wss://game-hub-server-qqdk.onrender.com
 //   node tests/hub-play.mjs --shots <dossier>        une capture par étape
+//   node tests/hub-play.mjs --reduced                mouvement réduit
 //
 // Deux contextes de navigation isolés (deux localStorage, deux player.id) :
 //   A — une vraie photo, posée par le vrai champ fichier du profil ;
@@ -28,6 +29,7 @@ const arg = (n) => { const i = process.argv.indexOf(n); return i > 0 ? process.a
 const EDGE = arg('--edge') || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
 const PROD = arg('--hub');
 const SHOTS = arg('--shots');
+const REDUCED = process.argv.includes('--reduced');
 if (SHOTS) fs.mkdirSync(SHOTS, { recursive: true });
 const R = () => Math.floor(Math.random() * 300);
 const HTTP_PORT = 8700 + R(), CDP_PORT = 9700 + R();
@@ -104,6 +106,7 @@ async function joueur(cdp, nom) {
   });
   const S = (m, p) => cdp.send(m, p, sessionId);
   await S('Runtime.enable'); await S('Page.enable'); await S('DOM.enable');
+  if (REDUCED) await S('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
   J.size = (w, h) => S('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile: w < 500 });
   await J.size(1100, 1000);
   J.eval = async (expression) => {
@@ -288,9 +291,49 @@ try {
   // Le cycle n'est PAS modifié : tirage → « Continuer » → lancement (étape
   // create) → annulation par l'hôte → retour au salon, comme avant. On ne
   // navigue vers aucun jeu ici (handoff-play.mjs le fait) : on lit le Hub.
+  // ⚠️ RÉGRESSION DU LOT C, gardée ici : après un lancement ANNULÉ (ou raté),
+  // la caisse gardait `is-launching`, qui masque la bande. Le tirage suivant
+  // tournait sur une bande non rendue : aucune animation, bande figée à la
+  // révélation, gagnant même pas sous le repère. On observe donc TROIS tirages,
+  // séparés chacun par un lancement annulé, chez l'hôte ET chez l'invité : la
+  // bande doit être visible et DÉFILER (positions relevées pendant la
+  // rotation), puis s'arrêter sur le jeu du serveur. En mouvement réduit : pas
+  // de défilement, mais la bande visible et le bon jeu sous le repère.
+  const BANDE = `(() => { const reel = document.getElementById('hub-reel'), s = reel.querySelector('.reel-strip'), r = reel.getBoundingClientRect();
+    const x = r.left + r.width / 2, y = r.top + r.height / 2;
+    const c = [...reel.querySelectorAll('.reel-cell')].find((el) => { const b = el.getBoundingClientRect(); return x >= b.left && x <= b.right && y >= b.top && y <= b.bottom; });
+    const res = document.getElementById('hub-result');
+    return { dx: Math.round(new DOMMatrix(getComputedStyle(s).transform).m41), vue: reel.checkVisibility(), sous: c ? c.dataset.game : null,
+      lancement: document.getElementById('hub-draw').classList.contains('is-launching'), res: res.hidden ? null : res.dataset.game }; })()`;
+  async function tirageObserve(n) {
+    await A.click('#hub-draw-btn');
+    const vus = { A: [], B: [] };
+    for (let i = 0; i < 80; i++) {
+      for (const [J, k] of [[A, 'A'], [B, 'B']]) vus[k].push(await J.eval(BANDE));
+      if (vus.A[vus.A.length - 1].res && vus.B[vus.B.length - 1].res) break;
+      await sleep(90);
+    }
+    for (const [k, role] of [['A', 'hôte'], ['B', 'invité']]) {
+      const v = vus[k], fin = v[v.length - 1];
+      const pendant = v.filter((x) => !x.res && x.vue);
+      const positions = new Set(pendant.map((x) => x.dx)).size;
+      const anime = REDUCED || positions >= 4;
+      t(`tirage ${n}, ${role} : ${REDUCED ? 'bande posée d’emblée' : 'la bande DÉFILE (' + positions + ' positions)'}, jamais masquée, arrêtée sur le jeu du serveur`,
+        anime && fin.vue && v.every((x) => !x.lancement) && !!fin.res && fin.sous === fin.res,
+        JSON.stringify({ positions, vue: fin.vue, lancement: v.some((x) => x.lancement), sous: fin.sous, res: fin.res }));
+    }
+  }
+  async function annuleLancement() {
+    await A.until(`!document.getElementById('hub-result').hidden && !document.getElementById('hub-continue').hidden`, 15000, 'Continuer');
+    await A.click('#hub-continue');
+    for (const J of [A, B]) await J.until(`!document.getElementById('hub-launch').hidden`, 8000, `lancement ${J.nom}`);
+    await A.click('#launch-cancel');
+    for (const J of [A, B]) await J.until(`document.getElementById('hub-launch').hidden && !document.getElementById('hub-failed').hidden`, 8000, `retour au salon ${J.nom}`);
+    await A.until(`!document.getElementById('hub-draw-btn').hidden && !document.getElementById('hub-draw-btn').disabled`, 8000, 'Tirer de nouveau');
+  }
   {
     const TITRE0 = await B.eval('document.title');
-    await A.click('#hub-draw-btn');
+    await tirageObserve(1);
     for (const J of [A, B]) await J.until(`!document.getElementById('hub-result').hidden && !!document.getElementById('hub-result').dataset.game`, 15000, `révélation ${J.nom}`);
     const jeu = await A.eval(`document.getElementById('result-title').textContent`);
     const rv = await A.eval(`({ focus: document.activeElement && document.activeElement.id, cont: document.getElementById('hub-continue').textContent })`);
@@ -323,6 +366,14 @@ try {
     for (const J of [A, B]) await J.until(`document.getElementById('hub-launch').hidden && !document.getElementById('hub-failed').hidden`, 8000, `retour au salon ${J.nom}`);
     const fin = await A.eval(`({ titre: document.title, tirer: !document.getElementById('hub-draw-btn').hidden })`);
     t('annulation : retour au salon comme avant (raison affichée, « Tirer » chez l\'hôte), onglet rendu', fin.tirer && fin.titre === TITRE0, JSON.stringify(fin));
+    await A.until(`!document.getElementById('hub-draw-btn').disabled`, 8000, 'Tirer de nouveau');
+    // Tirages 2 et 3, chacun après un lancement annulé : c'est là que la bande
+    // restait figée.
+    await tirageObserve(2);
+    await A.shot('2d-tirage-2-hote'); await B.shot('2d-tirage-2-invite');
+    await annuleLancement();
+    await tirageObserve(3);
+    await annuleLancement();
   }
 
   // ═══ 4. B recharge : il reprend SA place (même player.id, pas de doublon)

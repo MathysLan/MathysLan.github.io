@@ -437,6 +437,12 @@
   });
 
   // ----------------------------------------------------------------- caisse
+  // ⚠️ Les classes de MISE EN SCÈNE d'un tirage (ouverte, révélée, un seul jeu,
+  // lancement) ne doivent pas survivre à ce tirage. `is-launching` masque la
+  // bande (display: none) : restée posée après un lancement annulé ou échoué,
+  // le tirage suivant tournait sur une bande NON RENDUE — aucune transition,
+  // cible calculée à 0 px, la bande apparaissait figée à la révélation.
+  const MISE_EN_SCENE = ['is-pending', 'is-open', 'is-revealed', 'is-single', 'is-launching'];
   function renderDraw(session, you, round) {
     const d = session.draw;
     const stage = $('hub-draw');
@@ -444,7 +450,7 @@
     const hist = session.history.played;
     $('hub-history').textContent = hist.length ? 'Tirés ce soir : ' + hist.map((id, i) => `${i + 1}. ${info(id).title}`).join(' · ') : '';
     if (!actif) {
-      if (!animating) { stage.hidden = true; stage.classList.remove('is-pending', 'is-open'); }
+      if (!animating) { stage.hidden = true; stage.classList.remove(...MISE_EN_SCENE); }
       return;
     }
     stage.hidden = false;
@@ -452,8 +458,8 @@
 
     if (d.status === 'pending') {
       amene(d);
+      stage.classList.remove(...MISE_EN_SCENE);
       stage.classList.add('is-pending');
-      stage.classList.remove('is-open');
       $('hub-result').hidden = true;
       HubCrate.reset($('hub-reel'));
       reelFor = null;
@@ -596,7 +602,7 @@
     // le doigt et le clic tomberait à côté (le piège de showRecap, attrapé par
     // handoff-play.mjs) : un saut immédiat interrompt ce défilement.
     if (seul) $('hub-draw').scrollIntoView({ block: 'start', behavior: 'instant' });
-    stage.classList.remove('is-pending', 'is-revealed');
+    stage.classList.remove(...MISE_EN_SCENE);
     stage.classList.add('is-open');
     stage.classList.toggle('is-single', seul);
     $('hub-result').hidden = true;
