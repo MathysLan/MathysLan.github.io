@@ -447,7 +447,11 @@ const PHASES = {
       // (garde : un hub-handoff.js resté en cache n'a pas encore results)
       if (lien.results) lien.results(rangs(msg.podium));
       lien.ended();
-      $('to-hub').hidden = false;
+      // Mode Hub : le retour au Hub devient l'action PRINCIPALE, la revanche
+      // (#to-lobby) passe au second plan (hub-handoff.js, endActions). Garde : un
+      // hub-handoff.js resté en cache n'a pas encore endActions.
+      if (HubHandoff.endActions) HubHandoff.endActions($('to-hub'), $('to-lobby'));
+      else $('to-hub').hidden = false;
     }
     status('bien joué');
   },

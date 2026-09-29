@@ -34,6 +34,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { fakeHealth, localManifest } from './hub-fixture.mjs';
+import { finHub } from './hub-end.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const arg = (n) => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : null; };
@@ -294,6 +295,8 @@ try {
     const depuis = tous.map((J) => J.recus.length);
     for (const J of tous) {
       await J.until(`!document.getElementById('to-hub').hidden`, 10000, `« Retour au Game Hub » chez ${J.nom}`);
+      // Lot F : la fin en mode Hub (tests/hub-end.mjs) ; pas de revanche au Morpion.
+      if (n === 1) await finHub(J, t, `Morpion — ${J.nom}`, { replay: null });
       await J.click('#to-hub');
     }
     for (const J of tous) await J.until(`${auSalon} && document.querySelectorAll('#hub-score-list li').length === 2`, 20000 * LENT, `retour Hub ${J.nom}`);

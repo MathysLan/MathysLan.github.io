@@ -101,7 +101,11 @@ function classement(winner) {
 
 function finie() {
   lien.ended();
-  $('to-hub').hidden = false;
+  // Mode Hub : le retour au Hub devient l'action PRINCIPALE (hub-handoff.js,
+  // endActions). Pas de revanche au Morpion : la room se ferme au départ d'un
+  // joueur. Garde : un hub-handoff.js resté en cache n'a pas encore endActions.
+  if (HubHandoff.endActions) HubHandoff.endActions($('to-hub'), null);
+  else $('to-hub').hidden = false;
 }
 
 // --- connexion perdue --------------------------------------------------------

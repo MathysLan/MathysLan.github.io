@@ -143,6 +143,7 @@
   // d'abord d'y revenir (`lobby`, réservé au MJ) ; le nouveau `start` ne part
   // qu'au retour du salon diffusé par le serveur — jamais avant, et une fois.
   let rejouer = false;
+  let relance = false;         // le `start` automatique de la revanche est parti, sans réponse encore
   $('again').addEventListener('click', () => {
     if (rejouer) return;
     rejouer = true;
@@ -252,13 +253,18 @@
     show('lobby');
     // Retour au salon demandé par « Rejouer » : la room est de nouveau en
     // `lobby`, le serveur accepte maintenant le lancement.
-    if (rejouer) { rejouer = false; if (isHost) lancer(); }
+    // ⚠️ Pendant que ce `start` voyage, « Lancer la partie » reste ÉTEINT : le
+    // salon s'affiche à la place de l'écran de fin, et le 2e clic d'un double
+    // clic sur la revanche tombait pile dessus → un second `start` (ignoré par
+    // le serveur, mais envoyé). Mesuré : tests/quiment-replay.mjs, via le Hub.
+    if (rejouer) { rejouer = false; if (isHost) { relance = true; $('start').disabled = true; lancer(); } }
   });
 
   // Le rôle : le seul message qui arrive joueur par joueur. `word` est null
   // quand on est l'intrus — ce n'est pas une omission d'affichage, le mot n'est
   // jamais arrivé jusqu'ici.
   NET.on('role', (msg) => {
+    relance = false;                         // la revanche a bien démarré
     players = msg.players;
     amImpostor = msg.impostor;
     // La première manche démarre : c'est l'hôte qui le dit au Hub.
@@ -391,7 +397,11 @@
     if (lien) {
       if (lien.results) lien.results(rangs(msg.ranking));
       lien.ended();
-      $('to-hub').hidden = false;
+      // Mode Hub : le retour au Hub devient l'action PRINCIPALE, la revanche
+      // (#again) passe au second plan (hub-handoff.js, endActions). Garde : un
+      // hub-handoff.js resté en cache n'a pas encore endActions.
+      if (HubHandoff.endActions) HubHandoff.endActions($('to-hub'), $('again'));
+      else $('to-hub').hidden = false;
     }
     show('end');
   });
@@ -404,6 +414,9 @@
     if (lien && viaHub && !myId) { viaHub = false; lien.failed('JOIN', msg.message); }
     // « Rejouer » refusé (on n'est plus le MJ) : on rend le bouton.
     if (rejouer) { rejouer = false; $('again').disabled = false; }
+    // Le lancement automatique de la revanche refusé : « Lancer » redevient
+    // utilisable (il était éteint le temps de la réponse).
+    if (relance) { relance = false; $('start').disabled = players.length < 3; }
     // Un indice refusé doit rendre la main, sinon le joueur reste bloqué sur
     // une saisie verrouillée pour un indice que le serveur n'a pas gardé.
     if (!$('play').hidden) lockClue(false);

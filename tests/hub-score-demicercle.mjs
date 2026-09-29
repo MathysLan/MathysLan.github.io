@@ -27,6 +27,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { fakeHealth, localManifest } from './hub-fixture.mjs';
+import { finHub } from './hub-end.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const arg = (n) => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : null; };
@@ -323,6 +324,8 @@ try {
   t('le Hub a converti le podium : 30 / 30 / 10', same(Object.entries(gain).sort(), Object.entries(attendu(podium)).sort()), JSON.stringify(gain));
   for (const J of tous) {
     await J.until(`!document.getElementById('to-hub').hidden`, 10000, `fin chez ${J.nom}`);
+    // Lot F : la fin en mode Hub (tests/hub-end.mjs), chez l'hôte et un invité.
+    if (J === A || J === B) await finHub(J, t, `Demi-Cercle — ${J.nom}`, { replay: 'back-lobby' });
     await J.click('#to-hub');
     await J.until(`${auSalon} && document.querySelectorAll('#hub-score-list li').length === 3`, 20000 * LENT, `retour Hub ${J.nom}`);
   }

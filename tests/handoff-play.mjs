@@ -24,6 +24,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { fakeHealth, localManifest } from './hub-fixture.mjs';
+import { finHub } from './hub-end.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const arg = (n) => { const i = process.argv.indexOf(n); return i > 0 ? process.argv[i + 1] : null; };
@@ -370,6 +371,9 @@ try {
   t('classement final du Passeur : trois joueurs', fin.ranking.length === 3);
   for (const J of [A, B, C]) await J.until(`!document.getElementById('end').hidden && !document.getElementById('to-hub').hidden`, 8000, `fin chez ${J.nom}`);
   t('fin de partie : « Retour au Game Hub » proposé à chacun', true);
+  // Lot F : la fin en mode Hub (tests/hub-end.mjs) — l'hôte a la revanche, l'invité non.
+  await finHub(A, t, 'Le Passeur — A', { replay: 'again', retour: [1100, 1000] });
+  await finHub(B, t, 'Le Passeur — B', { replay: 'again', hote: false, retour: [1100, 1000] });
   const deb = await B.attendsTrame((m) => m.session && m.session.state === 'debrief', 10000, 'debrief');
   t('Hub : la partie finie ramène la session en debrief (prête pour un nouveau tirage)', deb.session.launch.stage === 'ended');
   await A.shot('7-fin-A');

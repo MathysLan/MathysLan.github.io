@@ -53,6 +53,8 @@
   outline: 2px solid var(--g-focus);
   outline-offset: 2px;
 }
+/* (Les boutons, découpés au clip-path, ont en plus un anneau INTÉRIEUR :
+   voir « Anneau des boutons découpés », après la section Boutons.) */
 /* Un élément qui reçoit le focus par programme (une case du plateau, le code
    de room) doit rester dans l'écran même quand la page est centrée. */
 :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
@@ -267,6 +269,71 @@ button:disabled:hover { filter: none; transform: none; }
   background: rgba(255, 255, 255, .06);
   color: var(--ink);
   filter: none;
+}
+
+/* ------------------------------------------ Anneau des boutons découpés
+   ⚠️ Les boutons du socle sont DÉCOUPÉS (clip-path, ci-dessus), et clip-path
+   rogne l'outline tout entier : au clavier, aucun anneau ne se voyait sur
+   « Créer une partie », « Lancer »… On AJOUTE donc l'anneau à l'intérieur,
+   en ombre — la forme de .tf-btn (tf2.css) et des boutons de /games/.
+   L'outline du haut du fichier reste pour ce qui n'est pas découpé, et pour
+   un bouton qu'un jeu habille par un id avec sa propre ombre : rien n'y
+   régresse. Placé APRÈS `.join-row button` (même poids, 0,1,1 : le dernier
+   gagne). Mesuré en pixels dorés, à la vraie touche Tab : tests/keyboard.mjs. */
+button:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--g-focus), inset 0 0 0 4px rgba(0, 0, 0, .6);
+}
+
+/* ------------------------------------ Fin de partie lancée par le Game Hub
+   Posé par HubHandoff.endActions() (hub-handoff.js), et SEULEMENT quand la
+   page a été ouverte depuis le Hub : hors Hub, ces classes n'existent pas.
+   Le retour au Hub devient l'action principale, avec l'allure du bouton
+   d'action du jeu (son accent) ; la revanche, en .ghost, passe dessous, plus
+   petite. Le Passeur et Qui Ment ? (#to-hub en .tf-btn) échangent leurs
+   propres classes tf2.css (.tf-btn-buy / .tf-btn-sm), d'où les :not().
+   ⚠️ `#to-hub.g-hub-home` (1,1,0) est exprès plus fort qu'une classe : chaque
+   jeu habille son `#to-hub { … }` (1,0,0) en simple lien de la couleur de
+   l'accent — qui, sinon, gagnerait (texte accent sur fond accent). */
+#to-hub.g-hub-home:not(.tf-btn) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin: 1.2rem auto 0;
+  font-family: 'TF2 Build', 'Arial Narrow', sans-serif;
+  font-size: 1.05rem;
+  line-height: normal;
+  text-transform: uppercase;
+  letter-spacing: .02em;
+  text-align: center;
+  text-decoration: none;
+  padding: .7rem 1.4rem;
+  color: var(--g-accent-ink);
+  background: var(--g-accent);
+  clip-path: polygon(
+    var(--g-cut) 0%, 100% 0%,
+    100% calc(100% - var(--g-cut)), calc(100% - var(--g-cut)) 100%,
+    0% 100%, 0% var(--g-cut));
+  box-shadow:
+    inset 2px 2px 0 0 var(--bevel-hi, rgba(255, 255, 255, .18)),
+    inset -2px -2px 0 0 var(--bevel-lo, rgba(0, 0, 0, .35));
+}
+#to-hub.g-hub-home:not(.tf-btn):hover { filter: brightness(1.12); color: var(--g-accent-ink); }
+/* Un bouton, pas un lien souligné (le `a` du Passeur et de Qui Ment ? l'est). */
+#to-hub.g-hub-home { text-decoration: none; }
+/* Découpé comme un bouton : même anneau intérieur (voir plus haut). */
+#to-hub.g-hub-home:not(.tf-btn):focus-visible {
+  box-shadow: inset 0 0 0 2px var(--g-focus), inset 0 0 0 4px rgba(0, 0, 0, .6);
+}
+.g-hub-replay:not(.tf-btn) {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: .7rem auto 0;
+  font-size: .88rem;
+  padding: .5rem 1.1rem;
 }
 
 /* ------------------------------------------------------------------ Champs

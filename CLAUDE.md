@@ -315,11 +315,14 @@ gameplay et accent propres.
   `font: inherit` ramène un `line-height: 1.5` : c'est ce qui faisait déborder
   les champs. Un champ masqué en `width: 1px` garde son rembourrage : il faut
   aussi `padding: 0; border: 0; min-height: 0`.
-- ⚠️ **Anneau de focus rogné** : le socle le dessine en `outline`, que le
-  `clip-path` des boutons génériques rogne. Corrigé sur `/games/` (box-shadow
-  inset) et bon sur `.tf-btn` ; **défaut encore ouvert** dans les jeux au
-  `button` générique (vu sur Imitation), et `keyboard.mjs` ne le voit pas (il
-  compte le biseau comme un anneau).
+- ⚠️ **Anneau de focus et `clip-path`** : l'outline du socle est rogné tout
+  entier sur un bouton découpé (les 7 jeux en avaient, 14 boutons). Le socle
+  AJOUTE donc un anneau intérieur (`button:focus-visible`, box-shadow inset,
+  la forme de `.tf-btn` et de `/games/`), placé APRÈS `.join-row button` (même
+  poids 0,1,1 : le dernier gagne). Un bouton qu'un jeu habille par un id avec
+  sa propre ombre (`#stop-btn`) garde l'outline, comme avant. Preuve :
+  `keyboard.mjs` compte les pixels DORÉS de chaque élément découpé atteint au
+  vrai Tab (le simple « outline non nul » voyait un anneau rogné comme bon).
 
 ### Mises en page propres à un jeu
 
@@ -665,12 +668,32 @@ code, rejoindre avec) —, affiche un bandeau, et la page le prévient :
   (score de soirée) ; ré-annoncé seulement quand la place change (reconnexion
   au salon = nouvel id), jamais pour un simple retour au salon (même code) ;
 - `started()` par l'hôte à la première vraie phase de jeu ;
-- `results(rangs)` PUIS `ended()` à la fin d'une partie complète, et un lien
+- `results(rangs)` PUIS `ended()` à la fin d'une partie complète, et
   **« ↩ Retour au Game Hub »** (`#to-hub`, jamais la classe `.back`, réservée
   au retour portfolio). Détail du contrat : « Score de soirée », tableau de
   référence. Les deux sont LIVRÉS jusqu'à confirmation par l'état du Hub, même
   à travers une coupure ou un retour à `/games/` : « Livraison fiable du
   classement » ;
+- **Fin de partie en mode Hub** (lot F) : juste après `ended()`, la page
+  appelle `HubHandoff.endActions(#to-hub, revanche)` (gardé : un
+  `hub-handoff.js` en cache peut ne pas l'avoir). `#to-hub` devient l'action
+  PRINCIPALE (bouton plein, focus dessus, sans défilement), placé AVANT la
+  revanche dans le DOM ; la revanche passe au second plan et s'appelle
+  « ↻ Revanche (hors score) » — son écouteur ne change pas, et elle ne peut
+  rien rapporter (`results` / `ended` déjà consommés). Hors Hub, la fonction
+  n'est jamais appelée : rien ne change. Classes : `.tf-btn-buy` /
+  `.tf-btn-sm` (Passeur, Qui Ment ?), `.g-hub-home` / `.ghost` +
+  `.g-hub-replay` (les autres, `game-ui.css` ; `#to-hub.g-hub-home` en 1,1,0
+  exprès, contre le `#to-hub {}` de chaque jeu).
+  | Jeu | revanche | écart |
+  |---|---|---|
+  | Passeur, Qui Ment ? | `#again` | réservée à l'hôte ; « Les autres jeux » reste, après |
+  | Imitation, Demi-Cercle | `#back-lobby` | — |
+  | Ban | `#to-lobby` | — |
+  | Précision | le rond `#fab` (mode `lobby`) | reste DANS le plateau (couches positionnées) : habit d'anneau (`.g-hub-replay-icon`), nom en `aria-label`, remis à zéro par `setFab()` ; il précède `#to-hub` au clavier |
+  | Morpion | aucune | la room se ferme au départ d'un joueur |
+  Test commun : `tests/hub-end.mjs` (`finHub`), appelé par les 6
+  `hub-score-*.mjs` et `handoff-play.mjs` ;
 - `failed('JOIN' | 'UNREACHABLE', détail)` si l'entrée lancée par le Hub
   échoue (`viaHub` et pas encore dans une room). Pour l'hôte déjà au stade
   `join`, `failed` devient `cancel()` : sa room est perdue pour tout le groupe,
@@ -690,7 +713,10 @@ Les écarts, voulus :
 - **Qui Ment ?, « Rejouer »** : `qui-ment-server` n'accepte `start` QUE depuis
   le salon (ailleurs il l'ignore **sans erreur**). « Rejouer » envoie donc
   `lobby` (MJ seulement), et le `start` ne part qu'au retour du salon. Ne pas
-  « simplifier » en renvoyant `start` directement.
+  « simplifier » en renvoyant `start` directement. Pendant ce `start`
+  automatique, « Lancer la partie » reste éteint (`relance`) : depuis le lot F
+  la revanche a changé de place, et le 2e clic d'un double clic tombait sur ce
+  bouton du salon (second `start`, attrapé par `quiment-replay.mjs`).
 - Une revanche jouée dans la même room **ne parle pas au Hub** : il reste en
   `debrief` sur le lancement terminé, rien n'est recompté.
 
@@ -910,8 +936,6 @@ indisponibles → Quitter / Terminer.**
 
 ## Défauts connus, non corrigés
 
-- Anneau de focus rogné dans les jeux au `button` générique (voir « Pièges de
-  spécificité »).
 - `tests/manifest.mjs` : la mutation « jeu live sans bloc hub » est une regex en
   `\n`, qui ne s'applique pas sur un poste en `core.autocrlf=true` (CRLF).
 - `tests/passeur-play.mjs --reduced` instable au premier clic sur ce poste

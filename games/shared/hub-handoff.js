@@ -221,6 +221,54 @@
     return { pump: pump };
   }
 
+  // --------------------------------------------- fin de partie, mode Hub
+  // La partie lancée par le Hub est finie : continuer la soirée, c'est revenir
+  // au Hub. #to-hub devient l'action PRINCIPALE, placée AVANT la revanche du
+  // jeu — à l'écran comme au clavier —, et la revanche passe au second plan en
+  // disant qu'elle ne compte pas. Rien d'autre ne change : la revanche garde
+  // son écouteur (et ne rapporte rien : `results` / `ended` sont déjà
+  // consommés, voir plus bas), le lien garde son href.
+  // ⚠️ La page ne l'appelle QUE quand `lien` existe : hors Hub, rien ne bouge.
+  //   home   : le lien #to-hub ;
+  //   replay : le bouton de revanche du jeu, ou null (le Morpion n'en a pas).
+  //            Un bouton-icône (le rond de Précision) garde son icône : son
+  //            nom passe dans aria-label, et la page l'habille elle-même.
+  // Les classes viennent de chaque jeu : .tf-btn-buy / .tf-btn-sm pour le
+  // Passeur et Qui Ment ? (tf2.css), .g-hub-home / .ghost pour les autres
+  // (game-ui.css).
+  var REVANCHE = '↻ Revanche (hors score)';
+  function endActions(home, replay) {
+    if (!home) return;
+    home.hidden = false;
+    var tf = home.classList.contains('tf-btn');
+    if (tf) { home.classList.remove('tf-btn-sm'); home.classList.add('tf-btn-buy'); }
+    home.classList.add('g-hub-home');
+    if (replay) {
+      if (replay.textContent.trim()) {
+        if (tf) { replay.classList.remove('tf-btn-buy'); replay.classList.add('tf-btn-sm'); }
+        else replay.classList.add('ghost');
+        replay.classList.add('g-hub-replay');
+        replay.textContent = REVANCHE;
+      } else {
+        replay.classList.add('g-hub-replay-icon');
+        replay.setAttribute('aria-label', REVANCHE + ' — retour au salon du jeu');
+      }
+      replay.title = 'Rejouer ici : la revanche ne compte pas dans le score de la soirée';
+      // Même parent : le retour au Hub passe devant (ordre de tabulation).
+      if (replay.parentNode === home.parentNode && (home.compareDocumentPosition(replay) & 2)) home.parentNode.insertBefore(home, replay);
+    }
+    // Le focus rejoint l'action principale : le bouton qu'on vient d'utiliser
+    // (« Voir le classement », STOP…) a disparu avec la partie — le focus
+    // serait retombé sur <body> — ou a changé de rôle (le rond de Précision
+    // devient « retour au salon »). Jamais arraché à un champ où l'on tape.
+    // Sans défilement : le podium reste à l'écran.
+    setTimeout(function () {
+      var a = document.activeElement;
+      if (home.hidden || (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) return;
+      home.focus({ preventScroll: true });
+    }, 0);
+  }
+
   // ------------------------------------------------------------ démarrage
   // opts : { gameId, join(code | null), onUpdate(info) }
   // Rend null sans billet (la page reste autonome), sinon un petit objet que
@@ -372,5 +420,5 @@
   }
 
   return { KEY: KEY, MAX_AGE_MS: MAX_AGE_MS, REPORT: REPORT, readTicket: readTicket, write: write, read: read, clear: clear,
-    start: start, attach: attach };
+    start: start, attach: attach, endActions: endActions };
 });

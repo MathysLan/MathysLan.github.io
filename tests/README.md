@@ -348,6 +348,37 @@ deux lignes par-dessus le biseau à 390 px). ⚠️ Après `finish`, le Hub ferm
 LUI-MÊME les sockets des joueurs : `fermer()` d'un client Node doit rendre la
 main si le socket est déjà fermé (sinon la suite attend pour toujours).
 
+## Lot F — fin de partie → retour au Game Hub (2026-09-29)
+
+Composants communs touchés (`hub-handoff.js` : `endActions` ; `game-ui.css` :
+classes de fin en mode Hub, anneau intérieur des boutons découpés), d'où une
+régression large. La vérification de fin est écrite UNE fois,
+`tests/hub-end.mjs` (`finHub(J, t, jeu, { replay, icone, hote })`), et appelée
+là où une vraie partie lancée par le Hub se termine dans un vrai navigateur :
+retour au Hub = action principale (bouton plein, focus dessus), revanche
+« ↻ Revanche (hors score) » secondaire et APRÈS lui (sauf le rond de
+Précision, qui reste dans le plateau), rien ne déborde à 390 / 768 / 1280 px,
+captures `fin-hub-*` avec `--shots`. « Rien de recompté par une revanche » :
+là où elle est vraiment jouée (`hub-score-quiment.mjs`, `quiment-replay.mjs`).
+
+| Suite | Ce qui a été ajouté | Vérifications |
+|---|---|---|
+| `keyboard.mjs` | pixels dorés comptés sur chaque élément DÉCOUPÉ atteint au vrai Tab (7 jeux) | 8 pages : 18 boutons découpés + le retour au Hub des 7 jeux (Maj+Tab / Tab), en pixels |
+| `handoff-play.mjs` | `finHub` : Passeur, hôte (revanche) et invité (sans) | 57 |
+| `hub-score-morpion.mjs` | `finHub` : Morpion, les deux joueurs, pas de revanche | 60 |
+| `hub-score-imitation.mjs` | `finHub` : Imitation, `#back-lobby` | 27 |
+| `hub-score-demicercle.mjs` | `finHub` : Demi-Cercle, `#back-lobby` | 31 |
+| `hub-score-ban.mjs` | `finHub` : Ban, `#to-lobby` | 34 |
+| `hub-score-precision.mjs` | `finHub` : Précision, le rond `#fab` (`icone`) | 51 |
+| `hub-score-quiment.mjs` | `finHub` : à la 1re fin (avant « Rejouer ») ET à la fin de la revanche | 50 |
+| `quiment-replay.mjs` | inchangé — a ATTRAPÉ un second `start` : la revanche ayant changé de place, le 2e clic d’un double clic tombait sur « Lancer la partie » du salon (corrigé dans `quiment/app.js`, `relance`) | 36 |
+
+Contre-épreuves (code d'avant, tests d'après) : `keyboard.mjs` KO dans les 7
+jeux (14 boutons découpés sans anneau visible) ; `handoff-play.mjs` 3 KO
+(« Rejouer » en 16,8 px avant le retour au Hub, pas de focus).
+⚠️ La capture de `finHub` marque le parent de `#to-hub` (`data-fin-hub`),
+attribut de test seulement.
+
 ## Livraison fiable results → ended (2026-09-28) : `hub-report.mjs`, `hub-report-play.mjs`
 
 Le défaut (CLAUDE.md, « Livraison fiable du classement ») : un `send()` sur un

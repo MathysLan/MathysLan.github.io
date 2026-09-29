@@ -349,7 +349,11 @@
       // (garde : un hub-handoff.js resté en cache n'a pas encore results)
       if (lien.results) lien.results(rangs(msg.ranking));
       lien.ended();
-      $('to-hub').hidden = false;
+      // Mode Hub : le retour au Hub devient l'action PRINCIPALE, la revanche
+      // (#again) passe au second plan (hub-handoff.js, endActions). Garde : un
+      // hub-handoff.js resté en cache n'a pas encore endActions.
+      if (HubHandoff.endActions) HubHandoff.endActions($('to-hub'), $('again'));
+      else $('to-hub').hidden = false;
     }
     const me = msg.ranking.find((r) => r.id === myId);
     $('final-title').textContent = me ? `${me.avg} / 100 — ${me.title}` : 'Fin de partie';

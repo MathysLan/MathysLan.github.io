@@ -110,6 +110,9 @@ const ICON = {
 function setFab(mode) {
   const b = $('fab');
   b.dataset.mode = mode || '';
+  // Le nom « Revanche (hors score) » (fin de partie en mode Hub, posé par
+  // HubHandoff.endActions) ne vaut que pour le mode « retour au salon ».
+  b.classList.remove('g-hub-replay-icon'); b.removeAttribute('aria-label'); b.removeAttribute('title');
   if (!mode) { b.hidden = true; return; }
   b.hidden = false;
   b.classList.toggle('wait', mode === 'wait');
@@ -839,7 +842,11 @@ const PHASES = {
       // (garde : un hub-handoff.js resté en cache n'a pas encore results)
       if (lien.results) lien.results(rangs(msg.podium));
       lien.ended();
-      $('to-hub').hidden = false;
+      // Mode Hub : le retour au Hub devient l'action PRINCIPALE, la revanche
+      // (#fab) passe au second plan (hub-handoff.js, endActions). Garde : un
+      // hub-handoff.js resté en cache n'a pas encore endActions.
+      if (HubHandoff.endActions) HubHandoff.endActions($('to-hub'), $('fab'));
+      else $('to-hub').hidden = false;
     }
   },
 };
