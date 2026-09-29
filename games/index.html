@@ -432,14 +432,108 @@
   .recap-empty { text-align: center; margin: .6rem 0 0; }
   #recap-home { display: block; margin: 1.2rem auto 0; min-width: 14rem; }
 
-  /* LA FINALE : la même page, révélée. Tant que .is-revealing est posée, les
-     lignes du podium et tout ce qui suit sont retenus ; hub-page.js les montre
-     3e → 2e → 1er, puis le reste. En mouvement réduit, rien n'est retenu. */
+  /* --- LA FINALE (#hub-recap.is-final) ----------------------------------
+     Pas une variante du récap : un PODIUM. En-tête éclairé, une marche en
+     bois de caisse Mann Co. par rang (le 2e à gauche, le 1er au centre, le
+     3e à droite — le DOM, lui, reste dans l'ordre des rangs), la suite du
+     classement en petit, TA place sur une plaque, le nombre de parties, un
+     historique compact, puis la sortie. Le récap garde sa liste. */
+  #hub-recap.is-final .recap-head { position: relative; isolation: isolate; padding: .6rem 0 .4rem; }
+  #hub-recap.is-final .recap-head::before { content: ''; position: absolute; inset: -1rem 0 -.6rem; z-index: -1; pointer-events: none;
+    background: radial-gradient(ellipse at 50% 58%, rgba(242, 161, 95, .3), transparent 62%),
+      repeating-conic-gradient(from 0deg at 50% 62%, rgba(242, 161, 95, .09) 0 5deg, transparent 5deg 15deg);
+    -webkit-mask-image: radial-gradient(ellipse at 50% 60%, #000 25%, transparent 72%); mask-image: radial-gradient(ellipse at 50% 60%, #000 25%, transparent 72%); }
+  #hub-recap.is-final .recap-title { font-size: clamp(2.2rem, 9vw, 3.4rem); color: #f2a15f; text-shadow: 0 2px 0 #1f130a, 0 0 18px rgba(242, 161, 95, .35); }
+
+  #recap-ranking.is-podium { max-width: 760px; margin-top: 1.3rem; position: relative; isolation: isolate;
+    display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: center; gap: 0 .5rem; }
+  /* Une marche : ses joueurs, debout sur le socle (le socle vient d'abord dans
+     le DOM — « 1er ex æquo », puis les noms —, affiché dessous). */
+  .recap-step { order: 2; flex: var(--n, 1) 1 0; min-width: 0; max-width: calc(var(--n, 1) * 13rem);
+    display: flex; flex-direction: column-reverse; position: relative; }
+  .recap-step[data-rank="2"] { order: 1; }
+  .recap-step[data-rank="3"] { order: 3; }
+  .recap-step-players { list-style: none; margin: 0; padding: 0 0 .55rem; display: flex; flex-wrap: wrap; justify-content: center; gap: .6rem .4rem; }
+  #recap-ranking.is-podium .recap-step .recap-row { display: flex; flex-direction: column; align-items: center; gap: .3rem; text-align: center;
+    flex: 1 1 6.5rem; min-width: 0; max-width: 12rem; padding: 0; background: none; border: 0; box-shadow: none; }
+  .recap-step .recap-rank { font-size: 1.8rem; }
+  .recap-step[data-rank="1"] .recap-rank { font-size: 2.3rem; }
+  .recap-step .recap-name { justify-content: center; font-size: 1.02rem; }
+  .recap-step[data-rank="1"] .recap-name { font-size: 1.25rem; }
+  .recap-step .recap-pts { font-size: 1.3rem; }
+  .recap-step[data-rank="1"] .recap-pts { font-size: 1.75rem; }
+  .recap-step .recap-row.is-me .g-av { --g-av-ring: #f2a15f; }
+  /* Le socle : le bois de la caisse, la plaque au pochoir (même matière que
+     .crate / .crate-stencil). La hauteur dit le rang ; le texte aussi. */
+  .recap-plinth { margin: 0; display: flex; flex-direction: column; align-items: center; gap: .25rem; padding-top: .6rem;
+    background: repeating-linear-gradient(90deg, #7a4f2c 0 22px, #6b4426 22px 24px), #7a4f2c;
+    box-shadow: inset 0 0 0 3px #4a2e18, inset 0 0 0 5px #9a6a3c; transform-origin: 50% 100%; }
+  .recap-step[data-rank="1"] .recap-plinth { height: 6.4rem; box-shadow: inset 0 3px 0 #f2a15f, inset 0 0 0 3px #4a2e18, inset 0 0 0 5px #9a6a3c; }
+  .recap-step[data-rank="2"] .recap-plinth { height: 4.6rem; }
+  .recap-step[data-rank="3"] .recap-plinth { height: 3.4rem; }
+  .recap-plinth-n { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 1.25rem; letter-spacing: .06em; text-transform: uppercase;
+    color: #1f130a; background: rgba(242, 161, 95, .82); padding: .05rem .5rem; transform: rotate(-3deg); }
+  .recap-plinth-tie { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: .66rem; letter-spacing: .12em; text-transform: uppercase;
+    color: #1f130a; background: rgba(242, 161, 95, .6); padding: 0 .35rem; }
+  /* La lumière du vainqueur, derrière lui (jamais au-delà de sa marche). */
+  .recap-step[data-rank="1"]::before { content: ''; position: absolute; left: 0; right: 0; top: -1.2rem; bottom: 4rem; z-index: -1; pointer-events: none;
+    background: radial-gradient(ellipse at 50% 55%, rgba(255, 200, 120, .32), transparent 68%); }
+  /* Solo : pas de podium à une marche — une plaque, toi et tes points. */
+  #hub-recap.is-solo .recap-plinth { display: none; }
+  #hub-recap.is-solo #recap-ranking.is-podium .recap-step .recap-row { padding: .9rem 1.4rem; max-width: 16rem;
+    background: radial-gradient(ellipse at 50% 30%, rgba(207, 106, 50, .24), transparent 70%), rgba(0,0,0,.24); box-shadow: inset 0 0 0 2px #cf6a32; }
+  #hub-recap.is-solo .recap-step::before { display: none; }
+  /* La suite du classement : petite, sous le podium. */
+  .recap-rest { order: 4; flex: 1 0 100%; margin-top: 1rem; }
+  .recap-rest-list { list-style: none; margin: 0 auto; padding: 0; display: grid; gap: .3rem; max-width: 560px; }
+  .recap-rest .recap-row { grid-template-columns: 2.2rem auto minmax(0, 1fr) auto; padding-block: .3rem; }
+  .recap-rest .recap-name { font-size: .95rem; }
+  .recap-rest .recap-pts { font-size: 1.1rem; }
+  /* TA place : après le podium, une plaque — plus petite que lui. */
+  .recap-me { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; gap: .2rem 1rem; max-width: 560px;
+    margin: 1.3rem auto 0; padding: .65rem 1rem .7rem; text-align: center; background: rgba(207, 106, 50, .14); box-shadow: inset 0 0 0 2px #cf6a32; }
+  .recap-me-label { flex: 1 0 100%; font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: .72rem; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--ink-2); }
+  #recap-me-rank { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-weight: normal; font-size: clamp(1.5rem, 6vw, 2rem); letter-spacing: .03em; color: var(--ink); }
+  #recap-me-of { color: var(--ink-2); font-size: .95rem; }
+  .recap-me-pts { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 1.5rem; color: #f2a15f; white-space: nowrap; }
+  .recap-me-pts small { font-size: .6em; color: var(--ink-3); }
+  .recap-me.is-first { background: radial-gradient(ellipse at 50% 0%, rgba(242, 161, 95, .3), transparent 70%), rgba(207, 106, 50, .14); }
+  /* Les chiffres : seulement le nombre de parties (dernier jeu, dernier gain
+     appartiennent au récap) ; l'historique en petit, secondaire. */
+  /* ⚠️ Même préfixe que `.recap-facts div` ci-dessous, plus une classe :
+     sinon le `display: flex` de la règle suivante le rallume. */
+  #hub-recap.is-final .recap-facts .recap-fact-perso { display: none; }
+  #hub-recap.is-final .recap-facts { border: 0; margin-top: .8rem; padding: 0; }
+  #hub-recap.is-final .recap-facts div { display: flex; align-items: baseline; gap: .5rem; }
+  #hub-recap.is-final .recap-facts dd { margin: 0; font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 1.2rem; order: -1; }
+  #hub-recap.is-final .recap-games-head { text-align: center; margin-top: 1.3rem; }
+  #hub-recap.is-final .recap-game.recap-game-cols { display: none; }
+  #hub-recap.is-final #recap-games { max-width: 560px; margin: 0 auto; gap: .1rem; }
+  #hub-recap.is-final .recap-game { font-size: .8rem; padding: .2rem .6rem; background: none; border-left-width: 2px; }
+  #hub-recap.is-final .recap-game-emoji { font-size: 1rem; }
+  #hub-recap.is-final .recap-game-me { font-size: .95rem; }
+  #hub-recap.is-final #recap-home { margin-top: 1.6rem; min-width: 16rem; font-size: 1.15rem; padding-block: .85rem; }
+
+  /* La RÉVÉLATION : tant que .is-revealing est posée, marches, lignes et
+     suite sont retenues ; hub-page.js les montre 3e → 2e → 1er, puis le
+     reste. Le socle monte, les joueurs tombent dessus, le 1er s'éclaire.
+     Rien n'est retenu sans .is-revealing (mouvement réduit : jamais posée). */
   #hub-recap.is-revealing .recap-row:not(.is-shown),
+  #hub-recap.is-revealing .recap-rest:not(.is-shown),
   #hub-recap.is-revealing .recap-later:not(.is-shown) { opacity: 0; transform: translateY(10px); }
-  #hub-recap .recap-row, #hub-recap .recap-later { transition: opacity .45s ease-out, transform .45s ease-out; }
-  #hub-recap.is-final .recap-row.is-top { animation: recap-crown .9s ease-out 1; }
-  @keyframes recap-crown { 0% { box-shadow: 0 0 0 0 rgba(242, 161, 95, .0); } 40% { box-shadow: inset 0 0 0 2px #f2a15f; } 100% { box-shadow: none; } }
+  #hub-recap.is-revealing .recap-step .recap-row:not(.is-shown) { transform: translateY(-18px); }
+  #hub-recap.is-revealing .recap-step:not(.is-shown) .recap-plinth { transform: scaleY(0); }
+  #hub-recap.is-revealing .recap-step:not(.is-shown)::before { opacity: 0; }
+  #hub-recap .recap-row, #hub-recap .recap-rest, #hub-recap .recap-later { transition: opacity .45s ease-out, transform .45s ease-out; }
+  .recap-plinth { transition: transform .4s cubic-bezier(.2,.8,.2,1); }
+  .recap-step::before { transition: opacity .6s ease-out; }
+  #hub-recap.is-final.is-revealing .recap-title { animation: finale-stamp .55s ease-out both; }
+  .recap-step.is-shown .recap-rank { animation: medal-pop .5s .2s ease-out both; }
+  .recap-step[data-rank="1"].is-shown::before { animation: finale-flash 1.4s ease-out 1; }
+  @keyframes finale-stamp { from { opacity: 0; transform: scale(1.18); } to { opacity: 1; transform: none; } }
+  @keyframes medal-pop { 0% { transform: scale(.4) rotate(-20deg); } 60% { transform: scale(1.2) rotate(6deg); } 100% { transform: none; } }
+  @keyframes finale-flash { 0% { opacity: 0; } 30% { opacity: 1; filter: brightness(1.8); } 100% { opacity: 1; filter: none; } }
 
   /* Terminer la soirée : l'hôte seul, avec confirmation. Distinct du simple
      départ (fantôme gris) par son liseré rouge — mais une action SECONDAIRE :
@@ -462,8 +556,8 @@
 
   @media (prefers-reduced-motion: reduce) {
     #hub-recap { animation: none; }
-    #hub-recap .recap-row, #hub-recap .recap-later { transition: none; }
-    #hub-recap.is-final .recap-row.is-top { animation: none; }
+    #hub-recap .recap-row, #hub-recap .recap-rest, #hub-recap .recap-later, .recap-plinth, .recap-step::before { transition: none; }
+    #hub-recap.is-final.is-revealing .recap-title, .recap-step.is-shown .recap-rank, .recap-step[data-rank="1"].is-shown::before { animation: none; }
     #hub-draw.is-pending .crate { animation: none; }
     #hub-round.is-new, #hub-round.is-new #round-me { animation: none; }
     #hub-result.is-new, #hub-result.is-new .result-title, #hub-launch.is-your-turn #launch-go { animation: none; }
@@ -498,6 +592,35 @@
     .recap-game-me { grid-column: 2; grid-row: 1 / span 2; }
     .recap-game-pts { grid-column: 3; grid-row: 1 / span 2; }
     .recap-row { gap: .45rem; padding-inline: .5rem; }
+    /* Finale au téléphone : trois colonnes étroites (~105 px à 390 px). */
+    #recap-ranking.is-podium { gap: 0 .3rem; }
+    .recap-step .recap-rank { font-size: 1.5rem; }
+    .recap-step[data-rank="1"] .recap-rank { font-size: 1.9rem; }
+    .recap-step .recap-name { font-size: .92rem; }
+    .recap-step[data-rank="1"] .recap-name { font-size: 1.05rem; }
+    .recap-step .recap-pts { font-size: 1.1rem; }
+    .recap-step[data-rank="1"] .recap-pts { font-size: 1.4rem; }
+    .recap-step[data-rank="1"] .recap-plinth { height: 5.2rem; }
+    .recap-step[data-rank="2"] .recap-plinth { height: 3.8rem; }
+    .recap-step[data-rank="3"] .recap-plinth { height: 2.8rem; }
+    .recap-plinth-n { font-size: 1rem; }
+    /* Des ex æquo sur une marche : plusieurs joueurs n'y tiennent pas côte à
+       côte. Les marches s'empilent (1er en haut), socle à gauche, joueurs en
+       lignes. */
+    #recap-ranking.is-podium.is-crowded { flex-direction: column; align-items: stretch; gap: .5rem; }
+    #recap-ranking.is-crowded .recap-step { order: 0; flex: none; max-width: none; flex-direction: row; align-items: stretch; }
+    #recap-ranking.is-crowded .recap-rest { order: 0; margin-top: .5rem; }
+    /* Le pochoir « EX ÆQUO » sur UNE ligne, à l'intérieur du biseau (sinon il
+       passait sur deux lignes par-dessus le bord ; tests/hub-finale.mjs). */
+    #recap-ranking.is-crowded .recap-plinth { height: auto; width: 5rem; flex: none; justify-content: center; padding: .4rem 0; }
+    #recap-ranking.is-crowded .recap-plinth-tie { font-size: .56rem; letter-spacing: .05em; padding: 0 .25rem; white-space: nowrap; }
+    #recap-ranking.is-crowded .recap-step-players { flex: 1 1 auto; min-width: 0; flex-direction: column; flex-wrap: nowrap; padding: 0 0 0 .5rem; gap: .3rem; }
+    #recap-ranking.is-podium.is-crowded .recap-step .recap-row { display: grid; grid-template-columns: 2rem auto minmax(0, 1fr) auto; gap: .45rem;
+      flex: none; max-width: none; text-align: left; padding: .35rem .5rem; background: rgba(0,0,0,.2); }
+    #recap-ranking.is-crowded .recap-step .recap-name { justify-content: flex-start; }
+    #recap-ranking.is-crowded .recap-step .recap-rank { font-size: 1.35rem; }
+    #recap-ranking.is-crowded .recap-step[data-rank="1"]::before { top: 0; bottom: 0; }
+    #hub-recap.is-final #recap-home { width: 100%; min-width: 0; }
     .round-row { gap: .45rem; padding-inline: .5rem; }
     .round-actions #hub-draw-btn { width: 100%; min-width: 0; }
   }
@@ -520,13 +643,21 @@
         <h2 class="recap-title" id="recap-title" tabindex="-1">🏆 Soirée terminée</h2>
         <p class="hub-note" id="recap-sub"></p>
       </div>
+      <!-- Récap : une liste. Finale : un PODIUM (une marche par rang, dans
+           l'ordre des rangs ; le CSS pose 2e · 1er · 3e), puis la suite. -->
       <ol id="recap-ranking" aria-label="classement de la soirée"></ol>
       <!-- Annonce de fin de révélation (lecteurs d'écran). -->
       <p class="sr-only" id="recap-live" role="status"></p>
+      <!-- Finale seulement : TA place, après le podium collectif. -->
+      <p class="recap-me recap-later" id="recap-me" hidden>
+        <span class="recap-me-label">Ta place finale<span class="sr-only"> :</span></span>
+        <span class="recap-me-place"><strong id="recap-me-rank"></strong> <span id="recap-me-of"></span><span class="sr-only">,</span></span>
+        <span class="recap-me-pts"><span id="recap-me-pts"></span> <small>pts</small></span>
+      </p>
       <dl class="recap-facts recap-later">
-        <div><dt>Parties jouées</dt><dd id="recap-count"></dd></div>
-        <div><dt>Dernier jeu</dt><dd id="recap-last"></dd></div>
-        <div><dt>Ton dernier gain</dt><dd id="recap-gain"></dd></div>
+        <div><dt id="recap-count-label">Parties jouées</dt><dd id="recap-count"></dd></div>
+        <div class="recap-fact-perso"><dt>Dernier jeu</dt><dd id="recap-last"></dd></div>
+        <div class="recap-fact-perso"><dt>Ton dernier gain</dt><dd id="recap-gain"></dd></div>
       </dl>
       <p class="hub-label recap-games-head recap-later">La soirée, partie par partie</p>
       <div class="recap-game recap-game-cols recap-later" aria-hidden="true">
@@ -735,7 +866,7 @@
   <script src="shared/game-hub.js?v=4"></script>
   <script src="shared/hub-handoff.js?v=4"></script>
   <script src="hub-crate.js?v=2"></script>
-  <script src="hub-recap.js?v=3"></script>
-  <script src="hub-page.js?v=11"></script>
+  <script src="hub-recap.js?v=4"></script>
+  <script src="hub-page.js?v=12"></script>
 </body>
 </html>

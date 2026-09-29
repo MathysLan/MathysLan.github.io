@@ -61,7 +61,33 @@
     });
     r.by = finale.by;
     r.byName = (finale.ranking.find((l) => l.playerId === finale.by) || {}).name || null;
+    r.podium = podium(classement);
+    r.place = finalPlace(classement);
     return r;
+  }
+
+  // Le PODIUM de la finale : les rangs du Hub, REGROUPÉS — jamais recalculés.
+  // Une marche par rang ≤ 3 tenu par un joueur qui a marqué ; des ex æquo
+  // partagent leur marche ; un rang absent (1, 1, 3 : pas de 2e) n'a PAS de
+  // marche. Le reste (4e et au-delà, et qui n'a rien marqué) suit en liste.
+  function podium(classement) {
+    const steps = [], rest = [];
+    classement.forEach((l) => {
+      if (l.rank > 3 || !(l.pts > 0)) { rest.push(l); return; }
+      let s = steps.find((x) => x.rank === l.rank);
+      if (!s) steps.push(s = { rank: l.rank, players: [] });
+      s.players.push(l);
+    });
+    steps.sort((a, b) => a.rank - b.rank).forEach((s) => { s.tie = s.players.length > 1; });
+    return { steps, rest };
+  }
+
+  // Ta place finale, telle que le classement la donne : rang, ex æquo, sur
+  // combien de joueurs (partis compris), tes points. null si tu n'y es pas.
+  function finalPlace(classement) {
+    const moi = classement.find((l) => l.me);
+    if (!moi) return null;
+    return { rank: moi.rank, pts: moi.pts, of: classement.length, tie: classement.filter((l) => l.rank === moi.rank).length > 1 };
   }
 
   function assemble(code, classement, jeux, you, info, extra) {
@@ -135,5 +161,5 @@
   // En toutes lettres, pour une phrase : 1 → « 1er », 2 → « 2e ».
   const ordinal = (rank) => (rank === 1 ? '1er' : rank + 'e');
 
-  return { ranking, build, fromFinale, lastResult, place, ordinal, MEDAILLES };
+  return { ranking, build, fromFinale, podium, finalPlace, lastResult, place, ordinal, MEDAILLES };
 });

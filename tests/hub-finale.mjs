@@ -17,8 +17,16 @@
 //      (deux fois, exprès) → une seule fin, le même podium chez les trois ;
 //      la révélation 3e → 1er (ou tout de suite en mouvement réduit) ;
 //      390 px lisible ; « Retour à l'accueil » ;
-//   2. un joueur absent pendant la fin revient : pas de reprise, le podium ;
-//   3. l'hôte seul, sans aucune partie : un podium d'une ligne, sans historique.
+//      la finale n'est PAS le récap rebaptisé (podium à marches, « Ta place
+//      finale », pas de « dernier gain », « Retour à l'accueil ») ; focus sur
+//      le titre ; géométrie du podium à 1280 / 1100 / 768 / 390 px (ex æquo :
+//      marches empilées au téléphone) ;
+//   2. un joueur absent pendant la fin revient : pas de reprise, le podium —
+//      à deux : deux marches, pas de 3e ;
+//   4. trois joueurs, trois parties, rangs distincts : 2e · 1er · 3e, socles
+//      décroissants, « 2e sur 3 », historique compact, aux quatre largeurs ;
+//   5. solo avec une partie : une plaque, pas de socle ni de « Ta place » ;
+//   3. l'hôte seul, sans aucune partie : une ligne, aucun podium fabriqué.
 import { spawn, execFileSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
@@ -191,7 +199,9 @@ function client(nom) {
   });
   c.until = (pred, ms, from) => c.waitFor((m) => m.session && pred(m.session), ms, from).then((m) => m.session);
   c.last = () => { const m = [...c.msgs].reverse().find((x) => x.session); return m && m.session; };
-  c.fermer = () => new Promise((res) => { ws.once('close', res); ws.close(); });
+  // ⚠️ Déjà fermé (le Hub ferme lui-même chaque socket à la fin de soirée,
+  // 4002) : 'close' ne reviendra jamais — attendre bloquait la suite pour toujours.
+  c.fermer = () => new Promise((res) => { if (ws.readyState === ws.CLOSED) return res(); ws.once('close', res); ws.close(); });
   return c;
 }
 const joueurNode = (id, name) => ({ id, name, avatar: { kind: 'emoji', emoji: '🦊' } });
@@ -272,6 +282,33 @@ const edge = spawn(EDGE, ['--headless=new', '--disable-gpu', `--remote-debugging
   '--disable-features=BackForwardCache', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', 'about:blank'], { stdio: 'ignore' });
 let cdp = null;
 
+// La COMPOSITION de l'écran : ce qui fait qu'une finale n'est pas un récap
+// rebaptisé (podium à marches, « Ta place finale », pas de « dernier gain »,
+// « Retour à l'accueil » au lieu de « crée une session »). Même sonde dans
+// tests/hub-recap.mjs, qui vérifie l'inverse.
+const COMPO = `(() => { const s = document.getElementById('hub-recap'), l = document.getElementById('recap-ranking');
+  const vu = (id) => document.getElementById(id).checkVisibility();
+  return { final: s.classList.contains('is-final'), podium: l.classList.contains('is-podium'), label: l.getAttribute('aria-label'),
+    marches: [...l.querySelectorAll('.recap-step')].map((m) => [+m.dataset.rank, m.querySelector('.recap-plinth').textContent, m.querySelectorAll('.recap-row').length]),
+    reste: [...l.querySelectorAll('.recap-rest .recap-row')].map((r) => r.dataset.player),
+    moi: vu('recap-me') ? document.getElementById('recap-me').textContent.replace(/\\s+/g, ' ').trim() : null,
+    gainVu: vu('recap-gain'), dernierVu: vu('recap-last'), countVu: vu('recap-count'), suiteVu: vu('recap-next'), accueilVu: vu('recap-home'),
+    focus: document.activeElement && document.activeElement.id }; })()`;
+// La GÉOMÉTRIE du podium : où sont les marches, leur hauteur, ce qui suit.
+const PODIUM = `(() => { const R = (e) => e.getBoundingClientRect();
+  const m = [...document.querySelectorAll('#recap-ranking .recap-step')].map((s) => { const r = R(s), p = s.querySelector('.recap-plinth');
+    return { rank: +s.dataset.rank, x: Math.round(r.left + r.width / 2), top: Math.round(r.top), bottom: Math.round(r.bottom),
+      socle: Math.round(R(p).height), socleVu: getComputedStyle(p).display !== 'none',
+      // Le pochoir (« 1er », « ex æquo ») tient DANS son socle, à l'intérieur du
+      // biseau (5 px), sur UNE ligne : à 390 px, « EX ÆQUO » passait sur deux
+      // lignes et recouvrait le bord du socle.
+      pochoir: [...p.children].every((k) => { const a = R(k), b = R(p), ligne = parseFloat(getComputedStyle(k).lineHeight) || parseFloat(getComputedStyle(k).fontSize) * 1.3;
+        return a.left >= b.left + 4 && a.right <= b.right - 4 && k.getClientRects().length === 1 && a.height < ligne * 1.6; }) }; });
+  const reste = document.querySelector('#recap-ranking .recap-rest'), moi = document.getElementById('recap-me');
+  return { m, bas: Math.max(0, ...m.map((x) => x.bottom)), resteTop: reste ? Math.round(R(reste).top) : null,
+    moiTop: moi.hidden ? null : Math.round(R(moi).top), homeTop: Math.round(R(document.getElementById('recap-home')).top),
+    empile: getComputedStyle(document.getElementById('recap-ranking')).flexDirection === 'column' }; })()`;
+const LARGEURS = [[1280, 900], [1100, 900], [768, 900], [390, 780]];
 const finaleVue = `!document.getElementById('hub-recap').hidden && document.getElementById('hub-recap').classList.contains('is-final')`;
 const toutMontre = `!document.getElementById('hub-recap').classList.contains('is-revealing')`;
 // L'état visible d'une ligne du podium : montrée ou encore retenue par la révélation.
@@ -331,6 +368,9 @@ try {
   await A.click('#finish-confirm');
   await A.eval(`document.getElementById('finish-confirm').click(); true`);
   for (const J of [A, B, C]) await J.until(finaleVue, 8000, `podium chez ${J.nom}`);
+  const vuA = Date.now();
+  const focus = await Promise.all([A, B, C].map((J) => J.eval(`document.activeElement && document.activeElement.id`)));
+  t('focus : le titre « Soirée terminée » chez les trois (début logique, annoncé)', focus.every((x) => x === 'recap-title'), JSON.stringify(focus));
   const envoisFin = A.envoyes.filter((f) => f.g === 'hub' && f.d.action === 'finish').length;
   t('confirmer : `finish` envoyé (une fois, ou deux au double clic — jamais plus)', envoisFin >= 1 && envoisFin <= 2, `${envoisFin} envoi(s)`);
   const finales = [A, B, C].map((J, i) => J.recus.slice(marques[i]).filter((f) => f.g === 'hub' && f.d.type === 'finale').map((f) => f.d.finale));
@@ -341,7 +381,15 @@ try {
   // La révélation.
   if (REDUCED) {
     t('mouvement réduit : pas de révélation retenue, tout est visible tout de suite', (await A.eval(toutMontre)) && (await A.eval(VISIBLES)).every(([, v]) => v));
+    const r0 = await A.eval(`(() => ({ anims: document.getElementById('hub-recap').getAnimations({ subtree: true }).length,
+      socles: [...document.querySelectorAll('.recap-plinth')].map((p) => getComputedStyle(p).transform),
+      reste: getComputedStyle(document.querySelector('.recap-rest')).opacity, moi: getComputedStyle(document.getElementById('recap-me')).opacity,
+      home: getComputedStyle(document.getElementById('recap-home')).opacity, live: document.getElementById('recap-live').textContent }))()`);
+    t('mouvement réduit : aucune animation ni transition en cours, socles dressés, suite + ta place + sortie visibles, annonce déjà faite',
+      r0.anims === 0 && r0.socles.every((x) => x === 'none') && r0.reste === '1' && r0.moi === '1' && r0.home === '1' && /Vainqueurs/.test(r0.live), JSON.stringify(r0));
   } else {
+    const s0 = await C.eval(`[...document.querySelectorAll('.recap-plinth')].map((p) => getComputedStyle(p).transform)`);
+    t('révélation : les socles sont encore couchés (ils montent à leur tour)', s0.every((x) => x !== 'none' && /matrix\(1, 0, 0, 0,/.test(x)), JSON.stringify(s0));
     const t0 = await C.eval(VISIBLES);
     t('révélation : au début, « La soirée est terminée » seul — aucune ligne encore montrée', (await C.eval(`document.getElementById('hub-recap').classList.contains('is-revealing')`)) && t0.every(([, v]) => !v), JSON.stringify(t0));
     // Le 3e (Cam) avant les 1ers (Ana, Bob, ex æquo : ensemble).
@@ -356,6 +404,8 @@ try {
   const tousVisibles = `${toutMontre} && ${VISIBLES}.every((x) => x[1])`;
   const finis = await Promise.all([A, B, C].map((J) => J.until(tousVisibles, 8000, `fin de révélation chez ${J.nom}`).then(() => true, () => false)));
   t('au bout de la révélation : tout est visible chez les trois', finis.every(Boolean), JSON.stringify(finis));
+  const duree = Date.now() - vuA;
+  t('révélation COURTE : tout est là en moins de 4,5 s', duree < 4500, duree + ' ms');
 
   const vues = await Promise.all([A, B, C].map((J) => J.eval(LIRE)));
   t('« 🏆 Soirée terminée », code de la session, chez les trois', vues.every((v) => /Soirée terminée/.test(v.titre) && v.code === code));
@@ -365,17 +415,40 @@ try {
   t('Dan, parti avant la fin : au podium avec ses points, marqué « parti »', vues.every((v) => v.rang[3].parti && v.rang[3].av));
   t('chacun voit SA ligne en évidence', vues.every((v, i) => v.rang.find((l) => l.moi).id === [ids.A, ids.B, ids.C][i]));
   t('le total des parties et l\'historique suivent le podium', vues.every((v) => v.count === '1' && v.jeux.length === 1 && v.jeux[0].game === 'passeur'));
+  const lib1 = await B.eval(`document.querySelector('#hub-recap .recap-facts dt').textContent`);
+  t('« 1 partie jouée » au singulier (le chiffre et son libellé se lisent comme une phrase)', lib1 === 'partie jouée', lib1);
   t('la phrase dit qui a terminé', /^Tu as terminé/.test(await A.eval(`document.getElementById('recap-sub').textContent`)) && /Ana a terminé/.test(await B.eval(`document.getElementById('recap-sub').textContent`)));
   t('lecteurs d\'écran : les vainqueurs à égalité sont annoncés', /à égalité : Ana, Bob/.test(await B.eval(`document.getElementById('recap-live').textContent`)));
   t('le salon est rangé, l\'accueil caché derrière le podium', (await Promise.all([A, B, C].map((J) => J.eval(`document.getElementById('lobby').hidden && document.getElementById('entry').hidden`)))).every(Boolean));
   t('plus de session à reprendre dans ces onglets', (await Promise.all([A, B, C].map((J) => J.eval(`sessionStorage.getItem('mathys_hub_session')`)))).every((x) => x === null));
   t('aucun refus du Hub côté hôte pendant la fin', trames(A, 'error').length === 0, JSON.stringify(trames(A, 'error')));
 
-  for (const [w_, h_] of [[1280, 900], [390, 780]]) {
+  // La composition : un PODIUM, pas le récap rebaptisé.
+  const compos = await Promise.all([A, B, C].map((J) => J.eval(COMPO)));
+  const cb = compos[1];
+  t('finale ≠ récap : podium à marches, une par rang — 1er à DEUX (ex æquo), pas de 2e inventé, puis 3e ; Dan (4e) dans la suite',
+    compos.every((c) => c.final && c.podium && same(c.marches.map(([r, , n]) => [r, n]), [[1, 2], [3, 1]]) && same(c.reste, [ids.D])), JSON.stringify(cb));
+  t('les socles disent le rang en toutes lettres (pas la médaille seule) : « 1er ex æquo », « 3e »', /^1er\s*ex æquo$/.test(cb.marches[0][1]) && cb.marches[1][1] === '3e', JSON.stringify(cb.marches));
+  t('« Ta place finale » : Bob « 1er ex æquo sur 4 · 40 pts », Cam « 3e sur 4 · 20 pts »', /1er ex æquo sur 4/.test(cb.moi) && /40 pts/.test(cb.moi) && /3e sur 4/.test(compos[2].moi) && /20 pts/.test(compos[2].moi), cb.moi + ' | ' + compos[2].moi);
+  t('finale : le nombre de parties reste, « dernier jeu » / « dernier gain » (le récap) disparaissent, « Retour à l\'accueil » remplace « crée une session »',
+    compos.every((c) => c.countVu && !c.gainVu && !c.dernierVu && !c.suiteVu && c.accueilVu), JSON.stringify(cb));
+  t('lecteurs d\'écran : la liste s\'appelle « podium final », chaque ligne dit son rang ex æquo, et « parti »',
+    cb.label === 'podium final de la soirée' && /^1er ex æquo : Ana/.test(await B.eval(`document.querySelector('#recap-ranking .recap-row').getAttribute('aria-label')`))
+    && /\(parti\), 10 points/.test(await B.eval(`document.querySelector('.recap-rest .recap-row').getAttribute('aria-label')`)));
+  t('lecteurs d\'écran : la fin annonce aussi TA place', /Ta place finale : 3e sur 4, 20 points/.test(await C.eval(`document.getElementById('recap-live').textContent`)));
+
+  for (const [w_, h_] of LARGEURS) {
     await B.size(w_, h_); await sleep(250);
     const g = await B.eval(GEOM);
     t(`${w_} px : podium lisible — rien ne déborde, rien ne se chevauche, pas de défilement horizontal`, !g.deborde.length && !g.chev.length && !g.coupe.length && !g.scrollX, JSON.stringify(g));
-    if (SHOTS) await B.shot(`finale-${w_}`, '#hub-recap');
+    const p = await B.eval(PODIUM);
+    const [m1, m3] = p.m;
+    const ok = w_ > 560
+      ? !p.empile && m1.x < m3.x && m1.socle > m3.socle && Math.abs(m1.bottom - m3.bottom) <= 1    // côte à côte, posées au même sol, le 1er plus haut
+      : p.empile && m1.bottom <= m3.top + 1;                                                          // ex æquo au téléphone : empilées, 1er en haut
+    t(`${w_} px : ${w_ > 560 ? 'marches côte à côte, 1er plus haut que le 3e' : 'ex æquo au téléphone : marches empilées, 1er en haut'} ; la suite, puis ta place, puis la sortie`,
+      ok && p.m.every((x) => x.pochoir) && p.resteTop >= p.bas - 1 && p.moiTop > p.resteTop && p.homeTop > p.moiTop, JSON.stringify(p));
+    if (SHOTS) await B.shot(`finale-exaequo-${w_}`, '#hub-recap');
   }
   await B.size(1280, 900);
   // ⚠️ Laisser la mise en page se refaire après le passage mobile → bureau :
@@ -385,7 +458,8 @@ try {
   // « Retour à l'accueil »
   await B.click('#recap-home');
   await B.until(`!document.getElementById('entry').hidden && document.getElementById('hub-recap').hidden`, 3000, 'accueil');
-  t('« Retour à l\'accueil » : hors session, l\'accueil, sans podium', /soirée est terminée/i.test(await B.eval(`document.getElementById('hub-state').textContent`)));
+  t('« Retour à l\'accueil » : hors session, l\'accueil, sans podium, focus sur « Créer une session »', /soirée est terminée/i.test(await B.eval(`document.getElementById('hub-state').textContent`))
+    && (await B.eval(`document.activeElement && document.activeElement.id`)) === 'hub-create');
   await B.goto(PAGE);
   await sleep(500);
   t('recharger ensuite : ni reprise, ni podium recréé', (await B.eval(`!document.getElementById('entry').hidden && document.getElementById('hub-recap').hidden && document.getElementById('lobby').hidden`)));
@@ -407,11 +481,83 @@ try {
     await A.until(finaleVue, 8000, 'podium chez Xia');
     await C.goto(PAGE);                                       // Yan revient : sa session est toujours notée dans l'onglet
     await C.until(finaleVue, 10000, 'podium chez Yan qui revient');
+    await C.until(`${toutMontre} && ${VISIBLES}.every((x) => x[1])`, 8000, 'révélation chez Yan');
     const v = await C.eval(LIRE);
     t('absent pendant la fin, il revient : PAS de reprise, le podium final (🥇 Yan 20, 🥈 Xia 10)', same(v.rang.map((l) => [l.id, l.pts, l.medaille]), [['p_finy', 20, '🥇'], ['p_finx', 10, '🥈']])
       && (await C.eval(`document.getElementById('lobby').hidden`)), JSON.stringify(v.rang));
     const refus = C.recus.filter((f) => f.g === 'hub' && f.d.type === 'error').pop();
     t('… c\'est le refus SESSION_CLOSED du Hub qui porte ce podium', !!refus && refus.d.code === 'SESSION_CLOSED' && !!refus.d.finale);
+    const c2 = await C.eval(COMPO);
+    t('2 joueurs : deux marches (1er, 2e), aucune 3e place inexistante ; « 1er sur 2 »', same(c2.marches.map(([r, , n]) => [r, n]), [[1, 1], [2, 1]]) && !c2.reste.length && /1er sur 2/.test(c2.moi), JSON.stringify(c2));
+    await C.size(390, 780); await sleep(250);
+    const p2 = await C.eval(PODIUM), g2 = await C.eval(GEOM);
+    t('2 joueurs, 390 px : côte à côte (pas d\'ex æquo), 2e à gauche du 1er, plus bas ; rien ne déborde', !p2.empile && p2.m[1].x < p2.m[0].x && p2.m[0].socle > p2.m[1].socle
+      && !g2.deborde.length && !g2.chev.length && !g2.coupe.length && !g2.scrollX, JSON.stringify({ p2, g2 }));
+    await C.size(1280, 900);
+  }
+
+  // ═══ 4. trois joueurs, trois parties, rangs distincts : le vrai podium 2 · 1 · 3
+  {
+    const h = await entre('Hugo', 'p_fin4h');
+    const code4 = h.last().code;
+    const i = await entre('Iris', 'p_fin4i', code4), j = await entre('Jade', 'p_fin4j', code4);
+    await partie(h, [i, j], 'passeur', { Hugo: 2, Iris: 1, Jade: 3 });      // 20 / 30 / 10
+    await partie(h, [i, j], 'precision', { Hugo: 1, Iris: 2, Jade: 3 });    // 30 / 20 / 10
+    const deb = await partie(h, [i, j], 'demicercle', { Hugo: 3, Iris: 1, Jade: 2 }); // 10 / 30 / 20
+    t('préparation : 3 parties, le Hub a compté Iris 80, Hugo 60, Jade 40', same(Object.entries(deb.scores).sort(), [['p_fin4h', 60], ['p_fin4i', 80], ['p_fin4j', 40]]), JSON.stringify(deb.scores));
+    await h.fermer();
+    await reprend(A, 'p_fin4h', 'Hugo', code4);                             // A = Hugo, l'hôte ; Iris et Jade restent connectées
+    await A.click('#hub-finish');
+    await A.until(`document.getElementById('finish-dialog').open`, 3000, 'confirmation 4');
+    await A.click('#finish-confirm');
+    await A.until(finaleVue, 8000, 'podium 4');
+    t('3 parties : focus sur le titre', (await A.eval(`document.activeElement && document.activeElement.id`)) === 'recap-title');
+    await A.until(`${toutMontre} && ${VISIBLES}.every((x) => x[1])`, 8000, 'révélation 4');
+    const c = await A.eval(COMPO), v = await A.eval(LIRE);
+    t('3 joueurs : trois marches 1er / 2e / 3e (ordre du DOM = ordre des rangs), une personne chacune, rien dessous',
+      same(c.marches.map(([r, , n]) => [r, n]), [[1, 1], [2, 1], [3, 1]]) && !c.reste.length && same(v.rang.map((l) => [l.id, l.pts, l.medaille]), [['p_fin4i', 80, '🥇'], ['p_fin4h', 60, '🥈'], ['p_fin4j', 40, '🥉']]), JSON.stringify(c.marches));
+    const lib3 = await A.eval(`document.querySelector('#hub-recap .recap-facts dt').textContent`);
+    t('3 joueurs : « Ta place finale : 2e sur 3 · 60 pts » ; « 3 parties jouées »', /2e sur 3/.test(c.moi) && /60 pts/.test(c.moi) && !/ex æquo/.test(c.moi) && v.count === '3' && lib3 === 'parties jouées', c.moi + ' | ' + v.count + ' ' + lib3);
+    t('3 parties : l\'historique reste là, compact (3 lignes, dans l\'ordre, sans en-tête de colonnes)', same(v.jeux.map((x) => x.game), ['passeur', 'precision', 'demicercle'])
+      && (await A.eval(`!document.querySelector('#hub-recap .recap-game-cols').checkVisibility() && parseFloat(getComputedStyle(document.querySelector('#recap-games .recap-game')).fontSize) < 14`)));
+    for (const [w_, h_] of LARGEURS) {
+      await A.size(w_, h_); await sleep(250);
+      const g = await A.eval(GEOM), p = await A.eval(PODIUM);
+      const [m1, m2, m3] = p.m;
+      t(`3 joueurs, ${w_} px : 2e à gauche, 1er au centre, 3e à droite ; socles 1er > 2e > 3e ; puis ta place, puis la sortie ; rien ne déborde`,
+        !p.empile && p.m.every((x) => x.pochoir) && m2.x < m1.x && m1.x < m3.x && m1.socle > m2.socle && m2.socle > m3.socle && p.moiTop > p.bas && p.homeTop > p.moiTop
+        && !g.deborde.length && !g.chev.length && !g.coupe.length && !g.scrollX, JSON.stringify({ p, g }));
+      if (SHOTS) await A.shot(`finale-3j-${w_}`, '#hub-recap');
+    }
+    await A.size(1280, 900); await sleep(300);
+    await A.click('#recap-home');
+    await A.until(`!document.getElementById('entry').hidden && document.getElementById('hub-recap').hidden`, 3000, 'accueil 4');
+    t('3 joueurs : « Retour à l\'accueil » ramène à l\'accueil', true);
+    await i.fermer(); await j.fermer();
+  }
+
+  // ═══ 5. solo, une partie : une plaque, pas un podium à trois marches
+  {
+    const s = await entre('Solo', 'p_fin5s');
+    const code5 = s.last().code;
+    await partie(s, [], 'precision', { Solo: 1 });                          // 10
+    await s.fermer();
+    await reprend(A, 'p_fin5s', 'Solo', code5);
+    await A.click('#hub-finish');
+    await A.until(`document.getElementById('finish-dialog').open`, 3000, 'confirmation 5');
+    await A.click('#finish-confirm');
+    await A.until(`${finaleVue} && ${toutMontre} && ${VISIBLES}.every((x) => x[1])`, 8000, 'podium 5');
+    const c = await A.eval(COMPO), p = await A.eval(PODIUM), v = await A.eval(LIRE);
+    t('solo : une seule « marche », SANS socle (une plaque : 🥇 toi, 10 pts), pas de « Ta place finale » (1er sur 1)',
+      c.marches.length === 1 && p.m.length === 1 && !p.m[0].socleVu && c.moi === null && same(v.rang.map((l) => [l.pts, l.medaille, l.moi]), [[10, '🥇', true]]), JSON.stringify({ c, p }));
+    t('solo : 1 partie jouée, l\'historique sans colonne vainqueur, « Retour à l\'accueil »', v.count === '1' && v.jeux.length === 1 && !v.jeux[0].winVu && c.accueilVu);
+    for (const [w_, h_] of [[1280, 900], [390, 780]]) {
+      await A.size(w_, h_); await sleep(250);
+      const g = await A.eval(GEOM);
+      t(`solo, ${w_} px : rien ne déborde`, !g.deborde.length && !g.chev.length && !g.coupe.length && !g.scrollX, JSON.stringify(g));
+      if (SHOTS) await A.shot(`finale-solo-partie-${w_}`, '#hub-recap');
+    }
+    await A.size(1280, 900);
   }
 
   // ═══ 3. l'hôte seul, sans aucune partie
@@ -428,6 +574,8 @@ try {
     const v = await A.eval(LIRE);
     t('solo, sans partie : une ligne (toi, 0 pt), « Aucune partie classée », pas de faux historique', v.rang.length === 1 && v.rang[0].moi && v.rang[0].pts === 0
       && v.count === '0' && v.last === '—' && v.jeux.length === 0 && (await A.eval(`!document.getElementById('recap-empty').hidden && document.getElementById('recap-games').hidden`)), JSON.stringify(v));
+    const c = await A.eval(COMPO);
+    t('sans partie : aucun podium fabriqué (pas de marche, pas de médaille, pas de « Ta place finale »)', !c.podium && !c.marches.length && c.moi === null && v.rang[0].medaille === '1.', JSON.stringify(c));
     await A.size(390, 780); await sleep(250);
     const g = await A.eval(GEOM);
     t('solo, 390 px : rien ne déborde', !g.deborde.length && !g.coupe.length && !g.scrollX, JSON.stringify(g));

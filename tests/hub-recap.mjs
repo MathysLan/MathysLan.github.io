@@ -210,6 +210,53 @@ t('aucune partie classée → pas de débrief (null), pas de faux historique', H
 t('place() : 🥇 🥈 🥉 puis « 4e »', same([1, 2, 3, 4].map(HubRecap.place), ['🥇', '🥈', '🥉', '4e']));
 t('ordinal() : « 1er », « 2e », « 3e »', same([1, 2, 3].map(HubRecap.ordinal), ['1er', '2e', '3e']));
 
+// ── fromFinale() : le PODIUM de la finale — les rangs du Hub regroupés, jamais recalculés
+console.log('\nPodium de la finale — module pur\n');
+// Une finale telle que game-hub-server (finale.js) l'envoie : [id, nom, points, rang, présent].
+const FIN = (rows, games = [G(1, 'passeur', [])]) => ({ code: 'ABCDE', at: 1, by: rows[0][0], played: games.length, games,
+  ranking: rows.map(([playerId, name, points, rank, present = true]) => ({ playerId, name, avatar: { kind: 'emoji', emoji: '🦊' }, points, rank, present })) });
+const marches = (r) => r.podium.steps.map((s) => [s.rank, s.tie, s.players.map((l) => l.id)]);
+{
+  const r = HubRecap.fromFinale(FIN([['a', 'Ana', 70, 1], ['b', 'Bob', 50, 2], ['c', 'Cam', 30, 3]]), 'b', info);
+  t('finale 3 joueurs : trois marches 1er / 2e / 3e, personne en dessous', same(marches(r), [[1, false, ['a']], [2, false, ['b']], [3, false, ['c']]]) && r.podium.rest.length === 0, JSON.stringify(marches(r)));
+  t('finale 3 joueurs : ta place = « 2e sur 3 », 50 pts (repris du Hub)', same(r.place, { rank: 2, pts: 50, of: 3, tie: false }));
+}
+{
+  const r = HubRecap.fromFinale(FIN([['a', 'Ana', 70, 1], ['b', 'Bob', 70, 1], ['c', 'Cam', 50, 3]]), 'b', info);
+  t('ex æquo (1, 1, 3) : une marche 1er à DEUX, pas de marche 2e inventée, la 3e', same(marches(r), [[1, true, ['a', 'b']], [3, false, ['c']]]), JSON.stringify(marches(r)));
+  t('ex æquo : ta place = « 1er ex æquo sur 3 »', same(r.place, { rank: 1, pts: 70, of: 3, tie: true }));
+}
+{
+  const r = HubRecap.fromFinale(FIN([['a', 'Ana', 60, 1], ['b', 'Bob', 40, 2], ['c', 'Cam', 40, 2], ['d', 'Dan', 20, 4], ['e', 'Eva', 10, 5, false]]), 'e', info);
+  t('5 joueurs (1, 2, 2, 4, 5) : marches 1er et 2e (à deux) ; 4e et 5e dans la suite, dans l\'ordre du Hub', same(marches(r), [[1, false, ['a']], [2, true, ['b', 'c']]])
+    && same(r.podium.rest.map((l) => [l.id, l.rank]), [['d', 4], ['e', 5]]), JSON.stringify(r.podium));
+  t('joueur parti : gardé (nom, avatar, points, rang), marqué parti ; « 5e sur 5 »', r.podium.rest[1].gone === true && r.podium.rest[1].avatar && r.podium.rest[1].pts === 10 && same(r.place, { rank: 5, pts: 10, of: 5, tie: false }));
+}
+{
+  const r = HubRecap.fromFinale(FIN([['a', 'Ana', 40, 1], ['b', 'Bob', 40, 1], ['c', 'Cam', 40, 1]]), 'c', info);
+  t('tous ex æquo : UNE marche, les trois dessus, aucun départage', same(marches(r), [[1, true, ['a', 'b', 'c']]]) && same(r.place, { rank: 1, pts: 40, of: 3, tie: true }));
+}
+{
+  const r = HubRecap.fromFinale(FIN([['a', 'Ana', 30, 1], ['b', 'Bob', 10, 2]]), 'a', info);
+  t('2 joueurs : deux marches, pas de 3e place inexistante', same(marches(r), [[1, false, ['a']], [2, false, ['b']]]) && r.podium.rest.length === 0 && r.solo === false);
+}
+{
+  const r = HubRecap.fromFinale(FIN([['a', 'Ana', 30, 1]]), 'a', info);
+  t('solo : une marche, un joueur, marqué solo', same(marches(r), [[1, false, ['a']]]) && r.solo === true && r.place.of === 1);
+}
+{
+  const r = HubRecap.fromFinale(FIN([['a', 'Ana', 30, 1], ['b', 'Bob', 0, 2], ['c', 'Cam', 0, 2]]), 'b', info);
+  t('0 point : pas de marche (pas de médaille pour rien) — dans la suite, rang du Hub gardé', same(marches(r), [[1, false, ['a']]]) && same(r.podium.rest.map((l) => [l.id, l.rank]), [['b', 2], ['c', 2]]));
+  const vide = HubRecap.fromFinale(FIN([['a', 'Ana', 0, 1], ['b', 'Bob', 0, 1]], []), 'a', info);
+  t('personne n\'a marqué (fin sans partie) : aucune marche, tout le monde dans la suite', vide.podium.steps.length === 0 && vide.podium.rest.length === 2 && vide.games.length === 0);
+}
+{
+  // Le Hub a déjà rangé : fromFinale ne retrie RIEN (même un ordre inattendu passe tel quel).
+  const r = HubRecap.fromFinale(FIN([['b', 'Bob', 50, 1], ['a', 'Ana', 50, 1], ['c', 'Cam', 20, 3]]), 'a', info);
+  t('rien de retrié ni recompté : ordre, rangs et points du Hub tels quels', same(r.ranking.map((l) => [l.id, l.rank, l.pts]), [['b', 1, 50], ['a', 1, 50], ['c', 3, 20]])
+    && same(marches(r)[0][2], ['b', 'a']));
+}
+
 // ── lastResult() : la carte « Résultat » du debrief, la dernière partie classée
 console.log('\nRésultat de partie (carte du debrief) — module pur\n');
 // Un debrief qui SUIT le lancement `drawId` (terminé).
@@ -444,6 +491,13 @@ try {
     t('A — chiffres : 1 partie, Le Passeur, +20 pts', v.count === '1' && /Passeur/.test(v.last) && v.gain === '+20 pts', `${v.count} | ${v.last} | ${v.gain}`);
     t('A — historique : une ligne, vainqueur Bob, ta place 🥈, +20', v.jeux.length === 1 && /Bob/.test(v.jeux[0].win) && v.jeux[0].winVu && v.jeux[0].me === '🥈' && v.jeux[0].pts === '+20', JSON.stringify(v.jeux));
     t('A — l\'entrée reste juste dessous (créer / rejoindre), le salon est rangé', v.entree && !v.salon);
+    // La composition du RÉCAP, pas celle de la finale (tests/hub-finale.mjs vérifie l'inverse).
+    const compo = await W.eval(`(() => { const l = document.getElementById('recap-ranking'), vu = (id) => document.getElementById(id).checkVisibility();
+      return { final: document.getElementById('hub-recap').classList.contains('is-final'), podium: l.classList.contains('is-podium'),
+        marches: l.querySelectorAll('.recap-step, .recap-plinth').length, lignes: l.querySelectorAll(':scope > .recap-row').length,
+        moi: vu('recap-me'), gain: vu('recap-gain'), dernier: vu('recap-last'), suite: vu('recap-next'), accueil: vu('recap-home') }; })()`);
+    t('A — récap ≠ finale : une LISTE (ni podium ni marche), pas de « Ta place finale », dernier jeu + dernier gain, la suite (créer / rejoindre), pas de « Retour à l\'accueil »',
+      !compo.final && !compo.podium && compo.marches === 0 && compo.lignes === 3 && !compo.moi && compo.gain && compo.dernier && compo.suite && !compo.accueil, JSON.stringify(compo));
     for (const [w_, h_] of [[1280, 900], [390, 780]]) {
       await W.size(w_, h_); await sleep(200);
       const g = await W.eval(GEOM);

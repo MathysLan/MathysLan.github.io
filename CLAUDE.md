@@ -838,11 +838,34 @@ podium final.
   calculé UNE fois sur `scores`, joueurs partis compris (`present: false`) ;
   sockets détachés et fermés (4002) ; double clic = une seule clôture, la même
   finale.
-- **Page** : `fromFinale()` reprend le podium TEL QUEL. Révélation locale (« La
-  soirée est terminée », puis 3e, 2e, 1er par RANG, ex æquo ensemble, rang
-  absent sauté) ; mouvement réduit : tout d'emblée. Confirmation = `<dialog>`
-  natif avec un `.panel` DEDANS (`.panel` sur le `<dialog>` casserait son
-  positionnement).
+- **Page** : `fromFinale()` reprend le podium TEL QUEL. Confirmation =
+  `<dialog>` natif avec un `.panel` DEDANS (`.panel` sur le `<dialog>`
+  casserait son positionnement).
+- **La finale n'est PAS le récap rebaptisé** (lot D). Même section
+  `#hub-recap` et mêmes id, mais `.is-final` change la composition :
+  | | 📋 Récap (`leave`) | 🏆 Finale (`finish`) |
+  |---|---|---|
+  | classement | liste de lignes | podium : `#recap-ranking.is-podium`, une `.recap-step` par rang, puis `.recap-rest` |
+  | toi | ligne en évidence | + plaque `#recap-me` « Ta place finale : 2e sur 5 · 50 pts » |
+  | chiffres | parties, dernier jeu, dernier gain | parties seulement (`.recap-fact-perso` masqués) |
+  | historique | tableau à colonnes | compact, secondaire |
+  | suite | `#recap-next` (créer / rejoindre) | `#recap-home` « Retour à l'accueil » |
+- **Podium** : `HubRecap.podium()` REGROUPE les rangs du Hub, ne calcule rien.
+  Une marche par rang ≤ 3 tenu par quelqu'un qui a marqué ; des ex æquo
+  partagent la marche (`.is-tie`, largeur `--n`) ; un rang absent (1, 1, 3)
+  n'a PAS de marche ; 4e et au-delà, et 0 point, dans `.recap-rest`. DOM dans
+  l'ordre des rangs (lisible sans CSS), le CSS pose 2e · 1er · 3e (`order`).
+  Socle = bois de la caisse + plaque au pochoir « 1er ex æquo » (rang en
+  toutes lettres, `aria-hidden` : chaque ligne dit son rang dans son
+  `aria-label`). Solo : pas de socle (une plaque) ni de `#recap-me`. Personne
+  n'a marqué (fin sans partie) : pas de podium, la liste. Au téléphone, des ex
+  æquo empilent les marches (`.is-crowded`, 1er en haut) ; sans ex æquo, trois
+  colonnes même à 390 px.
+- **Révélation** : titre tamponné, puis la marche du 3e, du 2e, du 1er (socle
+  qui monte, joueurs qui tombent dessus, lumière du 1er), puis le reste :
+  ~3 s (`REVEAL_FIRST` 900, `REVEAL_STEP` 850). Tout est retenu par
+  `.is-revealing` SEULEMENT : sans elle (mouvement réduit), tout est visible,
+  aucune animation. Annonce finale (`#recap-live`) : vainqueurs, puis ta place.
 - ⚠️ `scrollIntoView({ behavior: 'instant' })`, pas `'auto'` (qui suit le
   `scroll-behavior: smooth` de tf2.css et avale le clic suivant). Au téléphone,
   les colonnes de l'historique du récap sont posées EXPLICITEMENT.

@@ -941,12 +941,13 @@
   // Affiché en quittant une session où au moins une partie a été classée, au-
   // dessus de l'écran d'entrée : la suite (créer, rejoindre) est juste dessous.
   // Tout vient de HubRecap.build(), donc du Hub ; rien n'est recalculé ici.
-  // La RÉVÉLATION du podium final : « La soirée est terminée », un temps, puis
-  // le 3e, le 2e, le 1er (par RANG : des ex æquo apparaissent ensemble, et un
-  // rang absent — 1, 1, 3 — est simplement sauté), puis le reste. Tout est déjà
-  // dans le DOM : une connexion lente n'y change rien, seule la mise en scène
-  // attend. Mouvement réduit : tout est là tout de suite.
-  const REVEAL_FIRST = 1100, REVEAL_STEP = 950;
+  // La RÉVÉLATION du podium final : « Soirée terminée », un temps, puis la
+  // marche du 3e, du 2e, du 1er (par RANG : des ex æquo partagent leur marche
+  // et apparaissent ensemble ; un rang absent — 1, 1, 3 — n'a pas de marche,
+  // il est simplement sauté), puis le reste. Tout est déjà dans le DOM : une
+  // connexion lente n'y change rien, seule la mise en scène attend (~3 s en
+  // tout). Mouvement réduit : tout est là tout de suite, rien n'est retenu.
+  const REVEAL_FIRST = 900, REVEAL_STEP = 850;
   let revealTimers = [];
   function clearReveal() {
     revealTimers.forEach(clearTimeout);
@@ -954,29 +955,41 @@
     $('hub-recap').classList.remove('is-revealing');
     $('recap-ranking').removeAttribute('aria-busy');
   }
+  // La phrase des lecteurs d'écran, à la fin : le collectif, puis toi.
+  function annonceFinale(r) {
+    const tops = r.ranking.filter((l) => l.rank === 1 && l.pts > 0).map((l) => l.name);
+    const p = r.place;
+    const toi = p && !r.solo && tops.length ? ` Ta place finale : ${HubRecap.ordinal(p.rank)}${p.tie ? ' ex æquo' : ''} sur ${p.of}, ${nbPts(p.pts)}.` : '';
+    return (!tops.length ? 'Aucun point marqué ce soir.'
+      : (tops.length > 1 ? 'Vainqueurs de la soirée, à égalité : ' : 'Vainqueur de la soirée : ') + tops.join(', ') + '.') + toi;
+  }
   function reveler(r) {
     const sec = $('hub-recap');
-    const rows = [...document.querySelectorAll('#recap-ranking .recap-row')];
-    const later = [...sec.querySelectorAll('.recap-later')];
-    const tops = r.ranking.filter((l) => l.rank === 1).map((l) => l.name);
-    const annonce = () => { $('recap-live').textContent = (tops.length > 1 ? 'Vainqueurs de la soirée, à égalité : ' : 'Vainqueur de la soirée : ') + tops.join(', ') + '.'; };
+    const marches = [...sec.querySelectorAll('#recap-ranking .recap-step')];
+    const rows = [...sec.querySelectorAll('#recap-ranking .recap-row')];
+    const reste = [...sec.querySelectorAll('#recap-ranking .recap-rest, .recap-later')];
+    const annonce = () => { $('recap-live').textContent = annonceFinale(r); };
     if (reduced()) { annonce(); return; }
     sec.classList.add('is-revealing');
     $('recap-ranking').setAttribute('aria-busy', 'true');
-    [...rows, ...later].forEach((x) => x.classList.remove('is-shown'));
+    [...marches, ...rows, ...reste].forEach((x) => x.classList.remove('is-shown'));
+    // Une marche se montre avec ses joueurs (les lignes portent aussi la
+    // classe : c'est elles que les tests et la transition regardent).
+    const montre = (m) => { m.classList.add('is-shown'); m.querySelectorAll('.recap-row').forEach((x) => x.classList.add('is-shown')); };
     let t = REVEAL_FIRST;
     for (const k of [3, 2, 1]) {
-      const groupe = rows.filter((x) => Number(x.dataset.rank) === k);
+      const groupe = marches.filter((x) => Number(x.dataset.rank) === k);
       if (!groupe.length) continue;
-      revealTimers.push(setTimeout(() => groupe.forEach((x) => x.classList.add('is-shown')), t));
+      revealTimers.push(setTimeout(() => groupe.forEach(montre), t));
       t += REVEAL_STEP;
     }
     revealTimers.push(setTimeout(() => {
-      [...rows, ...later].forEach((x) => x.classList.add('is-shown'));
+      [...marches, ...rows, ...reste].forEach((x) => x.classList.add('is-shown'));
       clearReveal();
       annonce();
     }, t));
   }
+  const nbPts = (n) => `${n} point${n > 1 ? 's' : ''}`;
 
   const el = (tagName, cls, text) => {
     const n = document.createElement(tagName);
@@ -1003,7 +1016,9 @@
     $('recap-live').textContent = '';
 
     const personne = r.ranking.every((l) => l.pts === 0);
-    $('recap-ranking').replaceChildren(...r.ranking.map((l) => {
+    // Une ligne joueur : médaille, avatar, nom, points. La même dans le récap
+    // (liste) et dans la finale (sur sa marche) ; seule la mise en page change.
+    const ligne = (l, taille) => {
       const li = el('li', 'recap-row' + (l.me ? ' is-me' : '') + (l.rank === 1 && !personne ? ' is-top' : ''));
       li.dataset.player = l.id;
       li.dataset.rank = String(l.rank);
@@ -1011,20 +1026,73 @@
       const medaille = !personne && l.pts > 0 && l.rank <= 3;
       const rang = el('span', 'recap-rank' + (medaille ? '' : ' is-num'), medaille ? MEDAILLES[l.rank - 1] : l.rank + '.');
       rang.setAttribute('aria-hidden', 'true');
-      const av = GameAvatar.node(l.avatar, undefined, l.rank === 1 && !personne ? 'lg' : 'md');
+      const av = GameAvatar.node(l.avatar, undefined, taille);
       av.setAttribute('aria-hidden', 'true');
       const nom = el('span', 'recap-name', l.name);
       if (l.me) nom.appendChild(el('small', 'hub-tag me', 'toi'));
       if (l.gone) nom.appendChild(el('small', 'hub-tag away', 'parti'));
       const pts = el('span', 'recap-pts', String(l.pts));
       pts.appendChild(el('small', null, 'pts'));
-      li.setAttribute('aria-label', `${l.rank === 1 ? '1er' : l.rank + 'e'} : ${l.name}${l.me ? ' (toi)' : ''}, ${l.pts} point${l.pts > 1 ? 's' : ''}`);
+      const egal = r.ranking.filter((x) => x.rank === l.rank).length > 1;
+      li.setAttribute('aria-label', `${HubRecap.ordinal(l.rank)}${egal ? ' ex æquo' : ''} : ${l.name}${l.me ? ' (toi)' : ''}${l.gone ? ' (parti)' : ''}, ${nbPts(l.pts)}`);
       li.append(rang, av, nom, pts);
       return li;
-    }));
+    };
+    const liste = $('recap-ranking');
+    const marches = finale && r.podium ? r.podium.steps : [];
+    liste.classList.toggle('is-podium', marches.length > 0);
+    // Des ex æquo sur une marche : au téléphone, les marches s'empilent.
+    liste.classList.toggle('is-crowded', marches.some((s) => s.players.length > 1));
+    if (marches.length) {
+      // LA FINALE : une marche par rang (ordre du DOM = ordre des rangs, lu
+      // tel quel sans CSS ; c'est le CSS qui pose le 2e à gauche, le 1er au
+      // centre, le 3e à droite). Le socle est décoratif : chaque ligne dit son
+      // rang (aria-label), la médaille et la couleur ne portent rien seules.
+      liste.setAttribute('aria-label', 'podium final de la soirée');
+      const items = marches.map((s) => {
+        const li = el('li', 'recap-step' + (s.tie ? ' is-tie' : ''));
+        li.dataset.rank = String(s.rank);
+        li.style.setProperty('--n', String(s.players.length));   // une marche s'élargit avec ses ex æquo
+        const socle = el('p', 'recap-plinth');
+        socle.setAttribute('aria-hidden', 'true');
+        socle.append(el('span', 'recap-plinth-n', HubRecap.ordinal(s.rank)));
+        if (s.tie) socle.append(el('small', 'recap-plinth-tie', 'ex æquo'));
+        const qui = el('ul', 'recap-step-players');
+        qui.append(...s.players.map((l) => ligne(l, s.rank === 1 ? 'lg' : 'md')));
+        li.append(socle, qui);
+        return li;
+      });
+      if (r.podium.rest.length) {
+        const reste = el('li', 'recap-rest');
+        const ul = el('ul', 'recap-rest-list');
+        ul.setAttribute('aria-label', 'la suite du classement');
+        ul.append(...r.podium.rest.map((l) => ligne(l, 'sm')));
+        reste.append(ul);
+        items.push(reste);
+      }
+      liste.replaceChildren(...items);
+    } else {
+      liste.setAttribute('aria-label', 'classement de la soirée');
+      liste.replaceChildren(...r.ranking.map((l) => ligne(l, l.rank === 1 && !personne ? 'lg' : 'md')));
+    }
+
+    // TA place finale (finale seulement) : après le podium collectif, avant
+    // les chiffres. Pas en solo (« 1er sur 1 » n'apprend rien), pas si
+    // personne n'a marqué.
+    const p = finale && !r.solo && !personne ? r.place : null;
+    $('recap-me').hidden = !p;
+    if (p) {
+      $('recap-me-rank').textContent = HubRecap.ordinal(p.rank) + (p.tie ? ' ex æquo' : '');
+      $('recap-me-of').textContent = `sur ${p.of}`;
+      $('recap-me-pts').textContent = String(p.pts);
+      $('recap-me').classList.toggle('is-first', p.rank === 1);
+    }
 
     const f = r.facts;
     $('recap-count').textContent = String(f.count);
+    // Finale : le chiffre PUIS son libellé, lus comme une phrase (« 1 partie
+    // jouée ») ; récap : un intitulé de colonne, au-dessus du chiffre.
+    $('recap-count-label').textContent = !finale ? 'Parties jouées' : f.count > 1 ? 'parties jouées' : 'partie jouée';
     $('recap-last').textContent = f.last ? `${f.last.emoji} ${f.last.title}` : '—';
     $('recap-gain').textContent = f.lastGain == null ? '—' : '+' + f.lastGain + ' pts';
 
