@@ -378,7 +378,7 @@
      anneau visible sur les boutons du Hub. On le redessine donc À L'INTÉRIEUR,
      en box-shadow inset, la seule forme que clip-path laisse passer. Les ID
      (1,1,1) passent devant les états pressés (❤️ / 🚫, capacités). */
-  #entry button:focus-visible, #lobby button:focus-visible, #hub-lobby-games button:focus-visible, #hub-recap button:focus-visible, #finish-dialog button:focus-visible {
+  #entry button:focus-visible, #lobby button:focus-visible, #hub-lobby-games button:focus-visible, #hub-recap button:focus-visible, #finish-dialog button:focus-visible, #profile-dialog button:focus-visible {
     box-shadow: inset 0 0 0 2px #ffd700, inset 0 0 0 4px rgba(0, 0, 0, .6);
   }
 
@@ -549,9 +549,22 @@
   /* La confirmation : un <dialog> natif (focus piégé, Échap, fond), habillé
      d'un panneau Mann Co. à l'intérieur — .panel sur le <dialog> lui-même
      casserait son positionnement (position: relative). */
-  #finish-dialog { border: 0; padding: 0; background: transparent; color: var(--ink); max-width: min(440px, calc(100vw - 2rem)); }
-  #finish-dialog::backdrop { background: rgba(8, 5, 3, .72); }
-  #finish-dialog .panel { padding: 1.4rem 1.3rem 1.2rem; }
+  #finish-dialog, #profile-dialog { border: 0; padding: 0; background: transparent; color: var(--ink); max-width: min(440px, calc(100vw - 2rem)); }
+  #finish-dialog::backdrop, #profile-dialog::backdrop { background: rgba(8, 5, 3, .72); }
+  #finish-dialog .panel, #profile-dialog .panel { padding: 1.4rem 1.3rem 1.2rem; }
+
+  /* --- ton profil, depuis le salon ----------------------------------------
+     Un petit bouton sur TA carte (rien chez les autres), qui ouvre un panneau
+     en lecture : l'identité de la soirée, telle que le Hub la connaît. On ne
+     la modifie pas ici (voir hub-page.js, « ton profil »). */
+  .hub-card-profile { font-size: .72rem; letter-spacing: .06em; padding: .3rem .7rem; }
+  .profile-id { display: flex; align-items: center; gap: 1rem; margin: 1rem 0 .9rem; padding: .8rem .9rem;
+    background: rgba(0,0,0,.2); border: 1px solid var(--panel-edge); }
+  .profile-name { flex: 1 1 auto; min-width: 0; margin: 0; font-size: 1.3rem; line-height: 1.2; overflow-wrap: anywhere; }
+  .profile-name small { display: block; font-size: .72rem; color: var(--ink-3); margin-top: .2rem; }
+  .profile-text { margin: 0 0 .6rem; color: var(--ink-2); font-size: .9rem; }
+  .profile-local { padding-left: .7rem; border-left: 3px solid #cf6a32; }
+  #profile-dialog .finish-actions { margin-top: 1rem; }
   .finish-title { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 1.4rem; letter-spacing: .04em; margin: 0; text-transform: uppercase; }
   .finish-text { margin: .6rem 0 1.1rem; color: var(--ink-2); font-size: .95rem; }
   .finish-actions { display: flex; flex-wrap: wrap; gap: .6rem; justify-content: flex-end; }
@@ -581,6 +594,7 @@
     .hub-foot button { width: 100%; }
     .hub-foot-actions { flex-direction: column; }
     .finish-actions button { width: 100%; }
+    .profile-id { gap: .7rem; padding: .7rem; }
     .reel { height: 84px; }
     #hub-continue { width: 100%; min-width: 0; }
     .reel-cell { flex-basis: 92px; }
@@ -857,6 +871,25 @@
       </div>
     </dialog>
 
+    <!-- Ton profil, depuis le salon : EN LECTURE. Ce que la soirée connaît de
+         toi (nom, icône ou photo), relu dans l'état du Hub — jamais le profil
+         local à sa place. Il se modifie à l'accueil, hors session. -->
+    <dialog id="profile-dialog" aria-labelledby="profile-title" aria-describedby="profile-session">
+      <div class="panel">
+        <h2 class="finish-title" id="profile-title">Ton profil</h2>
+        <div class="profile-id">
+          <span id="profile-avatar"></span>
+          <p class="profile-name"><span id="profile-name"></span><small id="profile-kind"></small></p>
+        </div>
+        <p class="profile-text" id="profile-session"></p>
+        <p class="profile-text profile-local" id="profile-local" hidden></p>
+        <p class="profile-text" id="profile-where"></p>
+        <div class="finish-actions">
+          <button type="button" class="ghost" id="profile-close">Fermer</button>
+        </div>
+      </div>
+    </dialog>
+
     <a class="back hub-back" href="../">← retour au portfolio</a>
   </main>
 
@@ -864,12 +897,12 @@
        source que le manifest que lit le Hub. Puis profil local, avatars, client
        du Hub, caisse — la page s'appuie sur tous. -->
   <script src="../data/games.js"></script>
-  <script src="shared/game-profile.js"></script>
+  <script src="shared/game-profile.js?v=2"></script>
   <script src="shared/game-avatar.js"></script>
   <script src="shared/game-hub.js?v=5"></script>
   <script src="shared/hub-handoff.js?v=5"></script>
   <script src="hub-crate.js?v=3"></script>
   <script src="hub-recap.js?v=4"></script>
-  <script src="hub-page.js?v=13"></script>
+  <script src="hub-page.js?v=14"></script>
 </body>
 </html>

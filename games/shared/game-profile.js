@@ -39,6 +39,23 @@
     return typeof e === 'string' && e.length > 0 && e.length <= MAX_EMOJI && e.trim() === e;
   }
 
+  // Le pseudo, tel qu'il sera enregistré et envoyé. Il est affiché PARTOUT en
+  // textContent (aucun HTML ne peut y passer) ; ce qui reste à craindre, ce sont
+  // les caractères qui cassent la MISE EN PAGE sans rien afficher :
+  //  - contrôles (retour à la ligne, tabulation, C0 / C1) ;
+  //  - forçages de sens d'écriture (U+202A–202E, U+2066–2069, marques LRM /
+  //    RLM / ALM) : un « ‮ » en tête retournait « Alice (toi) » dans le score ;
+  //  - espaces invisibles (U+200B, U+FEFF) et suites d'espaces.
+  // Le ZWJ (U+200D) reste : il soude les emojis composés. Puis la borne des
+  // serveurs, 16 unités UTF-16 — sans couper un emoji en deux (une moitié de
+  // paire isolée s'afficherait « � »).
+  var INVISIBLES = /[\u0000-\u001f\u007f-\u009f؜​‎‏‪-‮⁦-⁩﻿]/g;
+  function cleanName(s) {
+    var t = String(s == null ? '' : s).replace(INVISIBLES, ' ').replace(/\s+/g, ' ').trim().slice(0, MAX_NAME);
+    if (/[\ud800-\udbff]$/.test(t)) t = t.slice(0, -1);
+    return t.trim();
+  }
+
   // Une image n'est acceptée que sous la forme qu'on produit nous-mêmes : une
   // data-URL webp ou png sortie d'un canvas. SVG exclu par construction — il
   // peut porter du script, et aucune image légitime n'arrive ici sous ce
@@ -83,7 +100,7 @@
     // qu'une migration viendra se brancher le jour où le format changera.
     if (raw.v !== V) return p;
     if (typeof raw.id === 'string' && /^p_[a-z0-9]{1,16}$/.test(raw.id)) p.id = raw.id;
-    if (typeof raw.name === 'string') p.name = raw.name.trim().slice(0, MAX_NAME);
+    if (typeof raw.name === 'string') p.name = cleanName(raw.name);
 
     var a = raw.avatar;
     if (a && typeof a === 'object') {
@@ -99,10 +116,23 @@
   }
 
   // ------------------------------------------------------------------ stockage
+  // ⚠️ LA COPIE DE LA PAGE. Stockage bloqué (cookies bloqués, ancienne
+  // navigation privée : localStorage JETTE) ou refusé en écriture : sans elle,
+  // chaque load() rendait un profil NEUF — autre id, pseudo vide. Le pseudo
+  // tapé juste avant « Créer » était perdu et le Hub refusait d'entrer
+  // (« Choisis un pseudo ») ; tests/hub-profile.mjs le rejoue. La copie ne sert
+  // QUE si le stockage est INACCESSIBLE (lecture qui jette, ou rien de relu
+  // après une écriture refusée) : un contenu illisible ou d'une autre version
+  // garde sa règle (profil neuf, voir tests/profile.html).
+  var memoire = null;
+  var ecritureRefusee = false;
+  var copie = function (p) { return JSON.parse(JSON.stringify(p)); };
   function load() {
-    var raw = null;
-    try { raw = JSON.parse(localStorage.getItem(KEY)); } catch (_) { /* illisible : on repart à neuf */ }
-    var p = sanitize(raw);
+    var raw = null, txt = null, bloque = false;
+    try { txt = localStorage.getItem(KEY); } catch (_) { bloque = true; }
+    try { raw = JSON.parse(txt); } catch (_) { /* illisible : on repart à neuf */ }
+    var inaccessible = bloque || (txt === null && ecritureRefusee);
+    var p = sanitize(inaccessible && memoire ? memoire : raw);
     // ⚠️ PROFIL NEUF → son id est écrit TOUT DE SUITE, une seule fois. Sinon
     // chaque lecture tirait un nouvel id (`defaults()`), et le Hub ne pouvait
     // pas reconnaître un joueur qui se reconnecte : pour lui, c'était un autre.
@@ -113,17 +143,21 @@
     var autreVersion = raw && typeof raw === 'object' && typeof raw.v === 'number' && raw.v !== V;
     var neuf = !autreVersion && (!raw || typeof raw !== 'object' || raw.id !== p.id);
     if (neuf) {
-      try { localStorage.setItem(KEY, JSON.stringify(p)); } catch (_) { /* stockage indisponible : id de la page seulement */ }
+      try { localStorage.setItem(KEY, JSON.stringify(p)); } catch (_) { ecritureRefusee = true; /* la copie de la page suffit */ }
     }
+    memoire = copie(p);
     return p;
   }
 
   function save(p) {
     var clean = sanitize(p);
+    memoire = copie(clean);                  // gardé pour la page, même si l'écriture échoue
     try {
       localStorage.setItem(KEY, JSON.stringify(clean));
+      ecritureRefusee = false;
       return { ok: true, profile: clean };
     } catch (e) {
+      ecritureRefusee = true;
       // Navigation privée, stockage plein, cookies bloqués : le jeu continue,
       // simplement le profil ne survivra pas au rechargement.
       return { ok: false, error: 'profil non enregistré (stockage indisponible)', profile: clean };
@@ -132,6 +166,7 @@
 
   function reset() {
     try { localStorage.removeItem(KEY); } catch (_) { /* rien à faire */ }
+    memoire = null;
     return defaults();
   }
 
@@ -142,7 +177,7 @@
   }
 
   var setName = function (name) {
-    return patch(function (p) { p.name = String(name || '').trim().slice(0, MAX_NAME); });
+    return patch(function (p) { p.name = cleanName(name); });
   };
   var setEmoji = function (emoji) {
     return patch(function (p) { if (okEmoji(emoji)) p.avatar.emoji = emoji; });
@@ -254,7 +289,12 @@
       // On enregistre quand la saisie est FINIE (change = à la sortie du champ),
       // pas à chaque frappe : écrire dans localStorage à chaque lettre ne sert
       // à rien et fait travailler le disque pour rien.
-      input.addEventListener('change', function () { setName(input.value); });
+      // Le champ montre ensuite ce qui a VRAIMENT été retenu (invisibles et
+      // espaces en trop retirés), pas ce qui a été tapé.
+      input.addEventListener('change', function () {
+        var n = setName(input.value).profile.name;
+        if (input.value !== n) input.value = n;
+      });
       // Filet : cliquer « Créer » sans quitter le champ ne déclenche pas
       // toujours `change` avant le handler du jeu. On passe en capture pour
       // enregistrer avant que la partie ne démarre.
@@ -368,7 +408,7 @@
     load: load, save: save, reset: reset,
     setName: setName, setEmoji: setEmoji,
     setImage: setImage, clearImage: clearImage, normalizeImage: normalizeImage,
-    startEmoji: startEmoji, joinAvatar: joinAvatar,
+    startEmoji: startEmoji, joinAvatar: joinAvatar, cleanName: cleanName,
     _sanitize: sanitize, _okEmoji: okEmoji, _okImage: okImage, _defaults: defaults,
   };
 })();

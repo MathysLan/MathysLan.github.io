@@ -355,7 +355,39 @@ gameplay et accent propres.
   'image', emoji, src? } }`. `id` est local et ne prouve rien ; il est écrit dès
   la première lecture (`GameProfile.load()`), sinon la reconnexion au Hub est
   impossible. `sanitize()` est le seul point d'entrée (profil illisible → neuf,
-  sans exception ; une migration de `v` se branchera là).
+  sans exception ; une migration de `v` se branchera là). C'est LE profil
+  joueur (lot G, 2026-09-30) : aucune seconde source, pas de compte, pas de
+  date de création (rien ne s'en sert encore).
+- **Stockage inaccessible** (cookies bloqués, ancienne navigation privée :
+  `localStorage` qui jette, ou écriture refusée) : `load()` rend la **copie de
+  la page** (`memoire`), même id et même pseudo jusqu'au bout de la visite.
+  Sans elle, chaque lecture donnait un profil neuf et le pseudo tapé était
+  perdu avant « Créer » (le Hub refusait d'entrer). La copie ne sert QUE dans
+  ce cas : un contenu illisible ou d'une autre version garde sa règle (profil
+  neuf ; `tests/profile.html`).
+- **Pseudo** : toujours `GameProfile.cleanName()` (relecture, enregistrement,
+  carte de l'accueil) — contrôles, forçages de sens d'écriture (U+202A–202E,
+  U+2066–2069, LRM/RLM/ALM), espaces invisibles retirés, espaces réduits, 16
+  unités sans couper un emoji en deux. Le ZWJ reste. Affichage en
+  `textContent` partout. ⚠️ Seul NOTRE client filtre : un client forgé peut
+  encore envoyer ces caractères au Hub (`identity.js` ne filtre que la
+  longueur) — c'est au serveur de les retirer le jour où ça compte.
+- **Trois niveaux, qui ne se mélangent pas** : profil local = préférence, dans
+  ce navigateur ; identité de session = ce que le Hub a reçu au `join` (reprise
+  comprise : `hub.js` remplace nom et avatar) et montre à tous ; serveur =
+  seule autorité (hôte, score, résultats). Salon, score, carte Résultat, récap
+  et finale lisent l'identité de SESSION (`session.players`, ou l'historique
+  pour un parti), jamais le profil local.
+- **« 👤 ton profil »** (`#hub-profile-btn`, sur ta carte seulement) ouvre
+  `#profile-dialog` (`<dialog>` natif + `.panel` dedans, comme la fin de
+  soirée) EN LECTURE : l'identité de la soirée, le code, où le profil est
+  gardé. On ne le modifie pas pendant une soirée (choix du lot G) : l'éditeur
+  est à l'accueil. Si le profil local a changé ailleurs (autre onglet, page de
+  jeu), le panneau le dit : le Hub le prendra à la prochaine connexion
+  (rechargement, retour d'une partie — `hub-handoff.js` rejoint avec le profil
+  local). Limite connue, assumée. ⚠️ Le bouton est UN élément déplacé dans ta
+  carte à chaque rendu (recréé, il perdait le focus clavier à chaque état du
+  Hub) ; à la fermeture, le focus lui revient.
 - Bornes, prises dans les serveurs : `name` 16 caractères ; `emoji` **4 unités
   UTF-16 max** (un emoji à ZWJ serait coupé) ; `src` = data-URL **webp ou png**
   produite par notre canvas, **≤ 12 Ko décodés** (SVG refusé : il peut porter

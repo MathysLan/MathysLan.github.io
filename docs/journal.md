@@ -335,3 +335,23 @@ redéployés le 2026-09-19 à la demande de Mathys.
 
 `CLAUDE.md` ne garde que l'état actuel et les règles ; ce journal reçoit
 l'historique.
+
+## 2026-09-30 — Lot G : profil joueur
+
+- Audit : le profil existait déjà (`game-profile.js` : id local stable, pseudo,
+  icône / photo, `sanitize()`), branché sur l'accueil du Hub et les jeux ; le
+  serveur reprend nom et avatar à chaque `join`. Aucune seconde source créée.
+- Choix de Mathys : dans le salon, le profil se CONSULTE (« 👤 ton profil »,
+  panneau en lecture) ; il se modifie à l'accueil, hors session. Aucun
+  changement serveur ni protocole.
+- Bug démontré puis corrigé : `localStorage` bloqué → chaque `load()` rendait
+  un profil neuf, le pseudo tapé était perdu avant « Créer » et le Hub
+  refusait d'entrer. Copie de la page, limitée au stockage inaccessible (les
+  unitaires de `profile.html` fixent la règle « illisible → neuf »).
+- Pseudo nettoyé à la source (`cleanName`) : contrôles, forçages de sens
+  (un U+202E retournait « Alice (toi) »), espaces invisibles, emoji jamais
+  coupé à la 16e unité.
+- Piège de test : `profile.mjs` échouait déjà sur `ea0262f` (« retirer la
+  photo ») — son `click()` visait un bouton à y = 573 dans une fenêtre de 450.
+  `keyboard.mjs` : 1 échec intermittent sur le Ban (focus sur `#tw-check`),
+  1 fois sur 4 ici, 0 sur 2 sur `HEAD` — non traité.

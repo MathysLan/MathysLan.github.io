@@ -9,6 +9,7 @@ Des suites qui ne se recouvrent pas :
 | `keyboard.mjs` | le focus clavier, avec de **vraies frappes Tab** (voir plus bas) |
 | `manifest.mjs` | le **manifest des jeux** (`data/games.manifest.json`) : cohérence avec `data/games.js` et avec les clients, et les garde-fous du build |
 | `profile.mjs` | le **profil local** (pseudo + avatar) : tests unitaires du module, puis intégration sur les vraies pages de jeux |
+| `hub-profile.mjs` | **le profil joueur dans le Game Hub** : aucun profil, pseudo nettoyé, icône, photo, stockage corrompu / bloqué, joueur sans profil, la même identité du salon à la finale, panneau « ton profil » au clavier, 390 → 1280 px (voir « Lot G ») |
 | `passeur-play.mjs` | **une partie réelle du Passeur**, avec de vrais clics, un vrai tactile et de vraies touches (voir plus bas) |
 | `avatar-play.mjs` | **la photo de profil en vraie partie**, dans les six jeux qui reçoivent une identité, à trois joueurs (voir plus bas) |
 | `hub.mjs` | le **client du Game Hub** (`games/shared/game-hub.js`) : unitaires, puis protocole contre le vrai `game-hub-server` (local, ou `--hub wss://…`) |
@@ -394,6 +395,40 @@ Contre-épreuve : `hub-draw.mjs` avec l'ancien `hub-crate.js` → 10 KO, tous de
 géométrie (autre vignette sous le repère, jusqu'à −2,25 vignettes), dont le
 redimensionnement en plein défilement. Un tirage NEUF sans redimensionnement
 passe sur l'ancien code : seule la mesure après coup voit le défaut.
+
+## Lot G — profil joueur (2026-09-30) : `hub-profile.mjs`
+
+Front seulement (CLAUDE.md, « Profil et avatars »). `game-profile.js` touché
+(`cleanName`, copie de la page) : `?v=2` sur les huit pages qui le chargent.
+
+    node tests/hub-profile.mjs                 ~20 s, vrai game-hub-server local
+    node tests/hub-profile.mjs --reduced
+    node tests/hub-profile.mjs --shots <dir>   profil fermé / ouvert, nom long 390 / 1280, photo, clavier
+
+Cinq navigateurs isolés + des clients Node (les parties classées sont jouées
+par le protocole, comme `hub-finale.mjs`). A : aucun profil (id écrit une
+fois, stable), pseudo nettoyé (invisibles, U+202E, espaces, 16 unités sans
+couper un emoji, HTML affiché en texte), icône, photo, restauré au
+rechargement. E : stockage illisible, profil hostile (SVG refusé), puis le Hub
+reçoit le pseudo NETTOYÉ. P : **stockage bloqué** (`localStorage` qui jette,
+posé par `Page.addScriptToEvaluateOnNewDocument`) → on entre quand même, un
+seul id, nom long (16 × W) sans débordement à 390 / 768 / 1100 / 1280 px,
+panneau compris. F : sans profil, rejoint comme avant. G : la même identité
+(pseudo + photo) dans le salon, le score, la carte Résultat, le panneau, le
+récap et la finale ; un profil local changé ailleurs ne remplace pas
+l'identité de la soirée (le panneau le dit). I : vraie touche Tab jusqu'à
+« ton profil » (anneau doré), Entrée ouvre (modal, focus sur « Fermer »),
+Échap ferme et rend le focus ; salon redessiné par un état du Hub : le focus
+reste sur le bouton, panneau ouvert ou non.
+
+| Suite | Ce qui a été ajouté / changé | Normal | Réduit |
+|---|---|---|---|
+| `hub-profile.mjs` | nouvelle suite (ci-dessus) | 46 | 46 |
+| `profile.mjs` | harnais : `click()` amène l'élément à l'écran — « retirer » (photo) de Qui Ment ? était à y = 573 px dans une fenêtre de 450, le clic était perdu et le test échouait déjà sur `ea0262f`, sans que la page soit en cause | 31 lignes | — |
+
+Contre-épreuve : `hub-profile.mjs` avec `game-profile.js` SANS la copie de la
+page (`cleanName` déjà posé) → 1 KO, « stockage bloqué : on entre quand
+même » (« Choisis un pseudo avant de continuer. ») ; vert avec elle.
 
 ## Livraison fiable results → ended (2026-09-28) : `hub-report.mjs`, `hub-report-play.mjs`
 

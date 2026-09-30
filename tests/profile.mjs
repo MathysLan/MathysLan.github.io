@@ -79,11 +79,15 @@ async function go(cdp, url) {
   await sleep(900);
 }
 
-// Un vrai clic, aux coordonnées réelles de l'élément.
+// Un vrai clic, aux coordonnées réelles de l'élément — amené à l'écran d'abord :
+// un clic hors de la fenêtre est perdu. « retirer » (la photo) de Qui Ment ?
+// était à y = 573 px dans une fenêtre de 450 : le test échouait sans que la
+// page soit en cause.
 async function click(cdp, sel) {
   const box = await evaluate(cdp, `(() => {
     const e = document.querySelector(${JSON.stringify(sel)});
     if (!e) return null;
+    e.scrollIntoView({ block: 'center', behavior: 'instant' });
     const r = e.getBoundingClientRect();
     return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
   })()`);

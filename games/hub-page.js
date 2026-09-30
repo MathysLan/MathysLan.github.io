@@ -44,7 +44,9 @@
   // AU-DESSUS de l'entrée (voir leave) : tout autre écran le range.
   // Le salon, ce sont TROIS blocs frères : #lobby (joueurs, action, caisse),
   // #hub-score, puis #hub-lobby-games (catalogue, actions secondaires).
-  const show = (id) => { $('entry').hidden = id !== 'entry'; $('lobby').hidden = id !== 'lobby'; $('hub-score').hidden = id !== 'lobby';
+  // Hors du salon, le panneau « ton profil » n'a plus d'objet : il se ferme.
+  const show = (id) => { if (id !== 'lobby') fermerProfil();
+    $('entry').hidden = id !== 'entry'; $('lobby').hidden = id !== 'lobby'; $('hub-score').hidden = id !== 'lobby';
     $('hub-lobby-games').hidden = id !== 'lobby'; $('hub-recap').hidden = true; };
   const say = (t) => { $('hub-state').textContent = t || ''; };
   const warn = (t) => { $('hub-msg').textContent = t ? '> ' + t : ''; };
@@ -72,13 +74,16 @@
 
   // Le pseudo tapé mais pas encore « validé » (pas de sortie du champ) compte.
   function flushName() {
-    const v = $('name-input').value.trim();
+    const v = GameProfile.cleanName($('name-input').value);
     if (v && v !== GameProfile.load().name) GameProfile.setName(v);
+    if (v && $('name-input').value !== v) $('name-input').value = v;
   }
 
   function renderMe() {
     const p = GameProfile.load();
-    const typed = $('name-input').value.trim();
+    // Ce qui SERA enregistré (invisibles et espaces en trop retirés, 16 unités) :
+    // la carte n'affiche jamais un pseudo que le profil refuserait.
+    const typed = GameProfile.cleanName($('name-input').value);
     const name = typed || p.name;
     $('me-avatar').replaceChildren(GameAvatar.node(p.avatar, undefined, 'lg'));
     $('me-name').textContent = name || 'sans pseudo';
@@ -149,6 +154,10 @@
     $('hub-count-sub').textContent = (absents ? `${absents} absent${absents > 1 ? 's' : ''} · ` : '') + `${session.maxPlayers} max`;
 
     const list = $('hub-players');
+    // Le bouton « ton profil » est UN élément, déplacé dans ta carte à chaque
+    // rendu : recréé, il perdait le focus clavier à chaque état reçu du Hub
+    // (un joueur qui arrive, un veto…) — le focus retombait sur <body>.
+    const avaitFocus = document.activeElement === boutonProfil;
     list.replaceChildren(...session.players.map((p) => {
       const li = document.createElement('li');
       li.className = 'hub-card' + (p.id === you ? ' is-me' : '') + (p.connected ? '' : ' is-away');
@@ -163,10 +172,74 @@
       if (!p.connected) tags.appendChild(tag('absent', 'away'));
       li.append(GameAvatar.node(p.avatar, undefined, 'lg'), name);
       if (tags.childNodes.length) li.appendChild(tags);   // pas de ligne vide réservée
+      if (p.id === you) li.appendChild(boutonProfil);
       return li;
     }));
-
+    if (avaitFocus && boutonProfil.isConnected) boutonProfil.focus({ preventScroll: true });
+    if (dlgProfil.open) remplirProfil(session, you);
   }
+
+  // ------------------------------------------------------------ ton profil
+  // Dans le salon, le profil se CONSULTE : c'est l'identité de la soirée, telle
+  // que le Hub la connaît (session.players), qui est affichée — jamais le
+  // profil local à sa place. Trois niveaux, qui ne se mélangent pas :
+  //   profil local (game-profile.js)  préférence du joueur, dans CE navigateur ;
+  //   identité de session             ce que le Hub a reçu au `join` (reprise
+  //                                   comprise) et montre à tous ;
+  //   serveur                         seule autorité : hôte, score, résultats.
+  // On ne le modifie pas pendant une soirée (choix du lot G) : l'éditeur est à
+  // l'accueil. Si le profil local a changé entre-temps (autre onglet, page de
+  // jeu), on le DIT : le Hub le reprendra à la prochaine connexion, puisqu'il
+  // relit l'identité à chaque `join` (game-hub-server, hub.js).
+  const boutonProfil = document.createElement('button');
+  boutonProfil.type = 'button';
+  boutonProfil.className = 'ghost hub-card-profile';
+  boutonProfil.id = 'hub-profile-btn';
+  boutonProfil.textContent = '👤 ton profil';
+  boutonProfil.setAttribute('aria-haspopup', 'dialog');
+  boutonProfil.setAttribute('aria-controls', 'profile-dialog');
+  const dlgProfil = $('profile-dialog');
+  // Le profil survit-il à cette visite ? (navigation privée, stockage bloqué :
+  // non — le Hub marche quand même, l'id ne vaut que pour la page.)
+  const garde = () => { try { return localStorage.getItem(GameProfile.KEY) !== null; } catch (_) { return false; } };
+  const memeAvatar = (a, b) => !!a && !!b && a.kind === b.kind && a.emoji === b.emoji && (a.kind !== 'image' || a.src === b.src);
+  function remplirProfil(session, you) {
+    const moi = session.players.find((p) => p.id === you);
+    if (!moi) return;
+    const av = GameAvatar.node(moi.avatar, undefined, 'lg');
+    av.setAttribute('aria-hidden', 'true');
+    $('profile-avatar').replaceChildren(av);
+    $('profile-name').textContent = moi.name;
+    const photo = moi.avatar && moi.avatar.kind === 'image';
+    $('profile-kind').textContent = photo ? 'avec ta photo de profil' : 'avec ton icône';
+    $('profile-session').textContent = `C'est ainsi que les autres te voient dans cette soirée (session ${session.code}) : `
+      + 'joueurs, score, résultats et podium. Ça ne change pas en cours de soirée : ton pseudo et ton icône '
+      + 'se modifient à l\'accueil, avant de créer ou de rejoindre une session.';
+    const local = GameProfile.load();
+    const joue = GameHub.playerFrom(local);
+    const change = joue.name !== moi.name || !memeAvatar(joue.avatar, moi.avatar);
+    $('profile-local').hidden = !change;
+    $('profile-local').textContent = change
+      ? `Ton profil enregistré a changé depuis ton entrée (« ${joue.name || 'sans pseudo'} », ${joue.avatar.kind === 'image' ? 'avec une photo' : 'avec ' + joue.avatar.emoji}) : `
+        + 'le Hub le prendra à ta prochaine connexion (rechargement, retour d\'une partie).'
+      : '';
+    $('profile-where').textContent = garde()
+      ? 'Enregistré dans ce navigateur, sans compte : tu le retrouves en revenant.'
+      : 'Ce navigateur ne garde pas ton profil (navigation privée ?) : il ne vaut que pour cette visite.';
+  }
+  boutonProfil.addEventListener('click', () => {
+    if (!current || typeof dlgProfil.showModal !== 'function') return;
+    remplirProfil(current.session, current.you);
+    dlgProfil.showModal();                     // focus sur « Fermer », le seul bouton ; Échap ferme
+  });
+  $('profile-close').addEventListener('click', () => dlgProfil.close());
+  // Le focus revient au bouton qui a ouvert — même s'il a changé de carte
+  // pendant que le panneau était ouvert (un état du Hub est arrivé).
+  dlgProfil.addEventListener('close', () => {
+    const a = document.activeElement;
+    if (boutonProfil.isConnected && !$('lobby').hidden && (!a || a === document.body || !a.isConnected)) boutonProfil.focus({ preventScroll: true });
+  });
+  function fermerProfil() { try { if (dlgProfil.open) dlgProfil.close(); } catch (_) {} }
 
   // ------------------------------------------------------------ catalogue
   // Pour l'AFFICHAGE seulement (titre, emoji, fourchettes) : data/games.js, la
