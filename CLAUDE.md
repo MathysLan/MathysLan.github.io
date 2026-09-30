@@ -507,7 +507,7 @@ gameplay et accent propres.
 | partagé | `games/shared/game-hub.js` | LE client du Hub (navigateur ET Node) : connexion, reprise, erreurs |
 | partagé | `games/shared/hub-handoff.js` | billet, handoff côté page de jeu, livraison results → ended |
 | partagé | `games/shared/game-net.js` | transport des jeux + présence (`GameNet.create`, `surPerte`) |
-| serveur | `game-hub-server/src/` | `hub.js`, `session.js`, `engine.js`, `catalog.js`, `health.js`, `launch.js`, `scores.js`, `finale.js`, `protocol.js`, `serialize.js` |
+| serveur | `game-hub-server/src/` | `hub.js`, `session.js`, `engine.js`, `catalog.js`, `health.js`, `launch.js`, `scores.js`, `finale.js`, `protocol.js`, `serialize.js`, `stats.js`, `store-pg.js`, `store-memory.js` |
 
 Configuration : une seule constante `PROD` dans `game-hub.js` ; `?hub=` la
 remplace. Protocole relu dans `game-hub-server/src` : `create` / `join` /
@@ -981,9 +981,63 @@ indisponibles → Quitter / Terminer.**
 - ⚠️ Test : un clic envoyé pendant un défilement DOUX tombe à côté ;
   `hub-draw.mjs` attend la fin réelle du défilement (`J.scrollFini()`).
 
+## Statistiques de joueur (lot H)
+
+« Comment je joue ? » : parties, victoires, podiums, meilleure place, par jeu,
+d'une soirée à l'autre, dans le panneau « 👤 ton profil » du salon.
+
+- **Source de vérité : le Hub.** Une ligne n'existe que parce que le Hub a
+  ACCEPTÉ un classement (`results`, contrat Score **inchangé**) :
+  `game-hub-server/src/stats.js` (règles pures), écrit juste après
+  `scores.apply`, en asynchrone, jamais attendu. Le client ne déclare rien :
+  `{ action: 'stats' }` ne porte RIEN, le Hub désigne le joueur par son socket
+  et ne rend que SES agrégats. Aucun calcul dans `hub-page.js`.
+- **Stockage** : Postgres (Neon, `DATABASE_URL` sur le service Render du Hub),
+  tables `hub_players` (id + empreinte de la clé) et `hub_plays` (une ligne
+  par tirage et par joueur), agrégats calculés en SQL (`group by` jeu). Sans
+  `DATABASE_URL` : pas de statistiques, la soirée marche comme avant, et le
+  Hub l'annonce (`created` / `joined` portent `stats: false`) — la page ne
+  demande alors rien et dit « Ce Hub ne garde pas encore de statistiques ».
+  `HUB_STATS=memory` : stockage en mémoire (tests). ⚠️ Pour qu'elles existent
+  en production, Mathys crée la base Neon et pose `DATABASE_URL` (le schéma se
+  crée tout seul au premier appel).
+- **Identité** : l'id du profil ne suffit pas (il est dans l'état public de
+  chaque session). Le profil porte une **clé** (`key`, 43 caractères base64url,
+  `game-profile.js`), envoyée au Hub SEUL par `playerFrom` ; le Hub n'en garde
+  que le sha256. Premier passage d'un id = enregistrement ; autre clé = ni
+  lecture ni écriture pour ce socket (« Pas de statistiques pour ce profil dans
+  ce navigateur »), la partie se joue quand même. Un pseudo changé ne change
+  rien ; effacer les données du site = nouvel id = nouvelles statistiques (pas
+  de compte). Un profil d'avant le lot H reçoit sa clé au premier chargement.
+  ⚠️ La clé ne doit JAMAIS partir vers un serveur de jeu ni s'afficher.
+- **Définitions** (rang du JEU, tel que reçu : aucun classement recalculé) :
+  | | compte |
+  |---|---|
+  | partie | une partie classée où tu as une place, solo compris |
+  | victoire | rang 1 **et au moins un classé derrière** : ni un solo, ni un nul du Morpion (1 / 1). Ex æquo 1, 1, 3 → deux victoires |
+  | podium | rang ≤ 3, à 2 classés ou plus |
+  | meilleure place | plus petit rang, à 2 classés ou plus (absente si que du solo) |
+  Les points de soirée sont stockés, **pas affichés** (ils dépendent de la
+  taille du groupe). Un joueur PARTI avant le classement compte (sa place le
+  prouve) ; le score de SOIRÉE, lui, reste aux présents.
+- **Doublons** : `RESULTS_ALREADY` (une fois par lancement), puis la clé
+  primaire `(draw_id, player_id)` + `on conflict do nothing` — un renvoi, même
+  après un redémarrage du Hub, ne recompte rien. Base injoignable : deux
+  nouvelles tentatives, `stats` répond `UNAVAILABLE` (jamais un faux zéro).
+- **Panneau** : « 📊 Tes statistiques » entre l'identité et le texte de soirée ;
+  redemandées à CHAQUE ouverture. Vide → une phrase (« Aucune partie jouée… »),
+  jamais une rangée de zéros. Quatre cases `<dl>` libellé / chiffre / précision
+  (2 × 2 sous 560 px), puis « 🎮 Par jeu » (le plus joué d'abord, nom en « … »).
+  Que du solo → une seule case « en solo » et la raison (« personne à
+  battre »). Résumé annoncé par `#profile-stats-live` (`role="status"`),
+  `aria-busy` pendant le chargement.
+
 ## Défauts connus, non corrigés
 
 - `tests/manifest.mjs` : la mutation « jeu live sans bloc hub » est une regex en
   `\n`, qui ne s'applique pas sur un poste en `core.autocrlf=true` (CRLF).
 - `tests/passeur-play.mjs --reduced` instable au premier clic sur ce poste
   (harnais, pas le jeu ; le mode normal passe).
+- `tests/keyboard.mjs` : échec intermittent sur le Ban (« Retour au Game Hub » :
+  le focus tombe sur `#tw-check`), ~1 passage sur 3 ou 4 sur ce poste, vu aux
+  lots G et H, jamais reproduit sur commande.

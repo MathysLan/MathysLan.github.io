@@ -9,6 +9,7 @@ Des suites qui ne se recouvrent pas :
 | `keyboard.mjs` | le focus clavier, avec de **vraies frappes Tab** (voir plus bas) |
 | `manifest.mjs` | le **manifest des jeux** (`data/games.manifest.json`) : cohérence avec `data/games.js` et avec les clients, et les garde-fous du build |
 | `profile.mjs` | le **profil local** (pseudo + avatar) : tests unitaires du module, puis intégration sur les vraies pages de jeux |
+| `hub-stats.mjs` | **les statistiques de joueur dans le Game Hub** : nouveau joueur (une phrase, pas de zéros), 4 parties jouées par le protocole avec l'id ET la clé du profil, ex æquo, joueur parti, renvoi refusé, rechargement, pseudo changé, autre clé, Hub sans statistiques, solo seul, 390 → 1280 px, clavier et annonce (voir « Lot H ») |
 | `hub-profile.mjs` | **le profil joueur dans le Game Hub** : aucun profil, pseudo nettoyé, icône, photo, stockage corrompu / bloqué, joueur sans profil, la même identité du salon à la finale, panneau « ton profil » au clavier, 390 → 1280 px (voir « Lot G ») |
 | `passeur-play.mjs` | **une partie réelle du Passeur**, avec de vrais clics, un vrai tactile et de vraies touches (voir plus bas) |
 | `avatar-play.mjs` | **la photo de profil en vraie partie**, dans les six jeux qui reçoivent une identité, à trois joueurs (voir plus bas) |
@@ -465,3 +466,27 @@ Trois pièges de plomberie, tous rencontrés :
 `hub-report-play.mjs --prod` sert de sonde de production : il crée une vraie
 session sur le Hub Render et joue deux Morpions sur le vrai `morpion-server`,
 avec le front de CE dépôt servi en local (sans `?hub=` ni `?server=`).
+
+## Lot H — statistiques de joueur (2026-09-30) : `hub-stats.mjs`
+
+Serveur d'abord (game-hub-server : `src/stats.js`, `store-pg.js`,
+`store-memory.js`, message `stats`), front ensuite. `game-hub.js` et
+`game-profile.js` touchés : `?v=6` / `?v=3` sur les huit pages.
+
+    node tests/hub-stats.mjs                 ~10 s, vrai game-hub-server local (HUB_STATS=memory) + un second SANS stats
+    node tests/hub-stats.mjs --reduced
+    node tests/hub-stats.mjs --shots <dir>   vide, rempli 1280 / 390, solo, indisponible
+
+La vérité (définitions, clé, doublons, panne, 9 joueurs, SQL) est éprouvée
+côté serveur : `game-hub-server/test-stats.js` (50 vérifications, + 5 en SQL
+avec `TEST_DATABASE_URL`). Pour ces 5-là sans Postgres sur le poste : PGlite
+(le vrai moteur Postgres en WebAssembly) installé DANS LE SCRATCHPAD —
+`npm i @electric-sql/pglite @electric-sql/pglite-socket`, puis
+`node node_modules/@electric-sql/pglite-socket/dist/scripts/server.js -p 55432 -m 6`
+et `TEST_DATABASE_URL=postgresql://postgres@127.0.0.1:55432/postgres`. ⚠️ Arrêter
+ce serveur par le PID qui écoute sur le port, jamais `taskkill /IM node.exe`.
+
+| Suite | Ce qui a été ajouté | Normal | Réduit |
+|---|---|---|---|
+| `hub-stats.mjs` | nouvelle suite (ci-dessus) | 27 | 27 |
+| `hub.mjs`, `profile.mjs`, `hub-profile.mjs` | inchangées, vertes avec la clé et le message `stats` | 86 / 31 lignes / 46 | — |

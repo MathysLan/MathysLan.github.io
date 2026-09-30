@@ -355,3 +355,21 @@ l'historique.
   photo ») — son `click()` visait un bouton à y = 573 dans une fenêtre de 450.
   `keyboard.mjs` : 1 échec intermittent sur le Ban (focus sur `#tw-check`),
   1 fois sur 4 ici, 0 sur 2 sur `HEAD` — non traité.
+
+## 2026-09-30 — Lot H : statistiques de joueur
+
+- Audit : aucune persistance dans game-hub-server (sessions en mémoire,
+  Render gratuit éphémère, Render Postgres gratuit expire à 30 jours). Arrêt
+  avant code, proposition validée par Mathys : Postgres Neon, victoire = 1er
+  devant au moins un joueur, un parti compte, clé secrète par profil.
+- Serveur d'abord : `stats.js` (pur), `store-pg.js` / `store-memory.js`,
+  `stats` annoncé dans created / joined ; contrat Score inchangé ;
+  `test-stats.js` 50/50, et le SQL éprouvé sur un vrai moteur Postgres (PGlite
+  dans le scratchpad) : agrégats SQL = agrégats JS, champ par champ.
+- Front : clé dans le profil (migration = écrite au premier chargement),
+  section « 📊 Tes statistiques » dans le panneau. Défaut vu à la capture et
+  corrigé : la précision passait avant le libellé (`column-reverse`).
+- Incident de poste : pour arrêter PGlite, un `taskkill /IM node.exe` trop
+  large a pu tuer d'autres processus node — arrêter par PID désormais.
+- Mise en production : sans `DATABASE_URL` le Hub annonce `stats: false` et
+  la page le dit ; les stats commencent quand la base Neon est branchée.

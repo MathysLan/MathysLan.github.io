@@ -212,9 +212,8 @@
     $('profile-name').textContent = moi.name;
     const photo = moi.avatar && moi.avatar.kind === 'image';
     $('profile-kind').textContent = photo ? 'avec ta photo de profil' : 'avec ton icône';
-    $('profile-session').textContent = `C'est ainsi que les autres te voient dans cette soirée (session ${session.code}) : `
-      + 'joueurs, score, résultats et podium. Ça ne change pas en cours de soirée : ton pseudo et ton icône '
-      + 'se modifient à l\'accueil, avant de créer ou de rejoindre une session.';
+    $('profile-session').textContent = `Les autres te voient ainsi dans cette soirée (session ${session.code}). `
+      + 'Pseudo et icône se modifient à l\'accueil, hors session.';
     const local = GameProfile.load();
     const joue = GameHub.playerFrom(local);
     const change = joue.name !== moi.name || !memeAvatar(joue.avatar, moi.avatar);
@@ -230,8 +229,88 @@
   boutonProfil.addEventListener('click', () => {
     if (!current || typeof dlgProfil.showModal !== 'function') return;
     remplirProfil(current.session, current.you);
+    ouvrirStats();
     dlgProfil.showModal();                     // focus sur « Fermer », le seul bouton ; Échap ferme
   });
+
+  // ---------------------------------------------------- tes statistiques
+  // ⚠️ AUCUN CALCUL ICI. Les chiffres viennent du Hub (message `stats`,
+  // game-hub-server → stats.js), qui les tire des classements qu'IL a
+  // acceptés. Définitions (lot H) : victoire = 1er devant au moins un joueur
+  // (ni un solo ni un nul du Morpion) ; podium = dans les 3 premiers, à deux ou
+  // plus ; meilleure place = à deux ou plus. Demandées à CHAQUE ouverture.
+  const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
+  function noteStats(texte) {
+    $('profile-stats-note').hidden = false;
+    $('profile-stats-note').textContent = texte;
+    $('profile-figures').hidden = true;
+    $('profile-games-title').hidden = true;
+    $('profile-games').hidden = true;
+  }
+  function ouvrirStats() {
+    $('profile-stats-live').textContent = '';
+    if (hub.requestStats()) { noteStats('Chargement de tes statistiques…'); $('profile-stats').setAttribute('aria-busy', 'true'); return; }
+    noteStats('Ce Hub ne garde pas encore de statistiques.');
+    $('profile-stats').removeAttribute('aria-busy');
+    $('profile-stats-live').textContent = 'Ce Hub ne garde pas encore de statistiques.';
+  }
+  function figure(n, mot, detail) {
+    const d = el('div', 'profile-figure');
+    const dd = document.createElement('dd');
+    dd.append(el('b', null, String(n)), el('small', null, detail));
+    d.append(el('dt', null, mot), dd);
+    return d;
+  }
+  function afficherStats(r) {
+    $('profile-stats').removeAttribute('aria-busy');
+    const s = r.stats;
+    let dit;
+    if (!s) {
+      dit = r.reason === 'UNVERIFIED' ? 'Pas de statistiques pour ce profil dans ce navigateur.'
+        : 'Statistiques indisponibles pour l\'instant. Réessaie un peu plus tard.';
+      noteStats(dit);
+    } else if (!s.played) {
+      dit = 'Aucune partie jouée pour l\'instant. Tes parties classées dans le Game Hub apparaîtront ici.';
+      noteStats(dit);
+    } else {
+      const toutSolo = s.solo === s.played;
+      const chiffres = [figure(s.played, s.played > 1 ? 'parties' : 'partie', toutSolo ? 'en solo' : s.solo ? `dont ${s.solo} en solo` : 'classées')];
+      if (!toutSolo) {
+        chiffres.push(
+          figure(s.wins, s.wins > 1 ? 'victoires' : 'victoire', 'fois 1er, devant au moins un joueur'),
+          figure(s.podiums, s.podiums > 1 ? 'podiums' : 'podium', 'fois dans les 3 premiers'),
+          figure(s.best ? HubRecap.ordinal(s.best) : '—', 'meilleure place', 'à plusieurs'));
+      }
+      $('profile-figures').replaceChildren(...chiffres);
+      $('profile-figures').hidden = false;
+      // Que du solo : on le dit, sans « 0 victoire » (il n'y avait personne à battre).
+      $('profile-stats-note').hidden = !toutSolo;
+      $('profile-stats-note').textContent = toutSolo ? 'En solo, ni victoire ni podium : il n\'y a personne à battre.' : '';
+      $('profile-games').replaceChildren(...s.games.map((g) => {
+        const jeu = info(g.gameId);
+        const li = el('li', 'profile-game');
+        li.dataset.game = g.gameId;
+        const em = el('span', 'profile-game-emoji', jeu.emoji);
+        em.setAttribute('aria-hidden', 'true');
+        const txt = el('span', 'profile-game-text');
+        const nom = el('span', 'profile-game-name', jeu.title);
+        nom.title = jeu.title;
+        const meta = g.solo === g.played ? `${pluriel(g.played, 'partie')} en solo`
+          : `${pluriel(g.played, 'partie')}${g.solo ? ` (${g.solo} en solo)` : ''} · ${pluriel(g.wins, 'victoire')} · ${pluriel(g.podiums, 'podium')}`;
+        txt.append(nom, el('span', 'profile-game-meta', meta));
+        li.append(em, txt);
+        return li;
+      }));
+      $('profile-games-title').hidden = !s.games.length;
+      $('profile-games').hidden = !s.games.length;
+      dit = toutSolo ? `${pluriel(s.played, 'partie')} en solo.`
+        : `${pluriel(s.played, 'partie')}, ${pluriel(s.wins, 'victoire')}, ${pluriel(s.podiums, 'podium')}`
+          + (s.best ? `, meilleure place : ${HubRecap.ordinal(s.best)}.` : '.');
+    }
+    // Annoncé une fois arrivé (le panneau est déjà ouvert, le focus sur « Fermer »).
+    $('profile-stats-live').textContent = dit;
+  }
+  hub.on('stats', (r) => { if (dlgProfil.open) afficherStats(r); });
   $('profile-close').addEventListener('click', () => dlgProfil.close());
   // Le focus revient au bouton qui a ouvert — même s'il a changé de carte
   // pendant que le panneau était ouvert (un état du Hub est arrivé).

@@ -79,13 +79,29 @@
     return n > 0 && n <= MAX_IMAGE;
   }
 
+  // La CLÉ du profil (lot H) : 32 octets aléatoires en base64url (43
+  // caractères). Elle prouve au Game Hub que ce navigateur est bien celui de
+  // cet id, pour ses STATISTIQUES : l'id, lui, n'est pas secret (il est dans
+  // l'état public de chaque session). Elle ne part qu'au Hub (playerFrom, dans
+  // game-hub.js), qui n'en garde que l'empreinte ; jamais vers un serveur de
+  // jeu, jamais affichée. Effacer les données du site = nouvelle clé =
+  // nouvelles statistiques (il n'y a pas de compte).
+  var KEY_RE = /^[A-Za-z0-9_-]{32,64}$/;
+  function nouvelleCle() {
+    var b = new Uint8Array(32);
+    try { crypto.getRandomValues(b); } catch (_) { for (var i = 0; i < 32; i++) b[i] = Math.floor(Math.random() * 256); }
+    var s = '';
+    for (var j = 0; j < b.length; j++) s += String.fromCharCode(b[j]);
+    return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
   function defaults() {
     return {
       v: V,
-      // Identifiant LOCAL. Il sert à se reconnaître dans son propre navigateur,
-      // jamais à prouver quoi que ce soit : aucun serveur ne le reçoit, et le
-      // jour où le Hub existera, l'autorité viendra du socket, pas de cet id.
+      // Identifiant LOCAL, stable. Il ne prouve rien à lui seul : c'est la clé
+      // qui prouve (statistiques), et le socket qui fait autorité en session.
       id: 'p_' + Math.random().toString(36).slice(2, 10),
+      key: nouvelleCle(),
       name: '',
       avatar: { kind: 'emoji', emoji: '🙂' },
     };
@@ -100,6 +116,9 @@
     // qu'une migration viendra se brancher le jour où le format changera.
     if (raw.v !== V) return p;
     if (typeof raw.id === 'string' && /^p_[a-z0-9]{1,16}$/.test(raw.id)) p.id = raw.id;
+    // Un profil d'avant le lot H n'a pas de clé : il en reçoit une (load()
+    // l'écrit aussitôt, une fois — c'est toute la « migration »).
+    if (typeof raw.key === 'string' && KEY_RE.test(raw.key)) p.key = raw.key;
     if (typeof raw.name === 'string') p.name = cleanName(raw.name);
 
     var a = raw.avatar;
@@ -137,11 +156,11 @@
     // chaque lecture tirait un nouvel id (`defaults()`), et le Hub ne pouvait
     // pas reconnaître un joueur qui se reconnecte : pour lui, c'était un autre.
     // « Neuf » = rien de stocké, du texte illisible, ou un profil v1 sans id
-    // valable. Une AUTRE version (`v` numérique ≠ V) n'est pas écrasée : elle
+    // valable ou sans clé (d'avant le lot H). Une AUTRE version (`v` numérique ≠ V) n'est pas écrasée : elle
     // vient peut-être d'une page plus récente, et on ne détruit pas ses données.
     // Aucune écriture sinon : les lectures suivantes retrouvent ce qui est là.
     var autreVersion = raw && typeof raw === 'object' && typeof raw.v === 'number' && raw.v !== V;
-    var neuf = !autreVersion && (!raw || typeof raw !== 'object' || raw.id !== p.id);
+    var neuf = !autreVersion && (!raw || typeof raw !== 'object' || raw.id !== p.id || raw.key !== p.key);
     if (neuf) {
       try { localStorage.setItem(KEY, JSON.stringify(p)); } catch (_) { ecritureRefusee = true; /* la copie de la page suffit */ }
     }

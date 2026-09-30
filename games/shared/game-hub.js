@@ -75,11 +75,17 @@
   // ------------------------------------------------------------ messages
   // L'identité qui part au Hub : l'avatar COMPLET (photo comprise). Le Hub
   // garde l'image ; c'est lui qui l'affiche dans le salon.
+  // La CLÉ du profil (lot H) part avec, au Hub SEULEMENT : c'est elle qui lui
+  // prouve que ce navigateur est bien celui de cet id (statistiques). Le Hub
+  // n'en garde que l'empreinte et ne la diffuse jamais ; aucun serveur de jeu
+  // ne la reçoit (leurs `join` passent par joinAvatar, pas par ici).
   function playerFrom(profile) {
     var a = (profile && profile.avatar) || {};
     var avatar = { kind: a.kind === 'image' && a.src ? 'image' : 'emoji', emoji: a.emoji };
     if (avatar.kind === 'image') avatar.src = a.src;
-    return { id: profile && profile.id, name: ((profile && profile.name) || '').trim(), avatar: avatar };
+    var p = { id: profile && profile.id, name: ((profile && profile.name) || '').trim(), avatar: avatar };
+    if (profile && typeof profile.key === 'string' && /^[A-Za-z0-9_-]{32,64}$/.test(profile.key)) p.key = profile.key;
+    return p;
   }
 
   var createMsg = function (player) { return { action: 'create', player: player }; };
@@ -101,6 +107,25 @@
   var abortMsg = function (drawId, reason, detail) { return { action: 'abort', drawId: drawId, reason: reason, detail: detail }; };
   // Fin de soirée : l'hôte termine la session pour tout le monde. Ne porte rien.
   var finishMsg = function () { return { action: 'finish' }; };
+  // TES statistiques (lot H) : ne porte rien — le Hub te désigne par ton socket.
+  var statsMsg = function () { return { action: 'stats' }; };
+
+  // Les statistiques reçues, relues en LISTE BLANCHE. Le client n'en calcule
+  // aucune : il affiche ce que le Hub a compté (game-hub-server, stats.js).
+  // `null` + raison : UNAVAILABLE (pas de stockage, base injoignable) ou
+  // UNVERIFIED (ce navigateur n'a pas la clé de ce profil).
+  var entier = function (v) { return typeof v === 'number' && isFinite(v) && v >= 0 && Math.floor(v) === v ? v : 0; };
+  var rang = function (v) { return typeof v === 'number' && isFinite(v) && v >= 1 && Math.floor(v) === v ? v : null; };
+  function readStats(s, reason) {
+    if (!s || typeof s !== 'object') return { stats: null, reason: reason === 'UNVERIFIED' ? 'UNVERIFIED' : 'UNAVAILABLE' };
+    var jeu = function (g) {
+      return { gameId: g.gameId, played: entier(g.played), solo: entier(g.solo), wins: entier(g.wins), podiums: entier(g.podiums), best: rang(g.best) };
+    };
+    return { stats: {
+      played: entier(s.played), solo: entier(s.solo), wins: entier(s.wins), podiums: entier(s.podiums), best: rang(s.best),
+      games: (Array.isArray(s.games) ? s.games : []).filter(function (g) { return g && typeof g.gameId === 'string' && /^[a-z0-9-]{1,40}$/.test(g.gameId); }).map(jeu),
+    }, reason: null };
+  }
 
   // Ce qui arrive du réseau n'est jamais pris tel quel.
   function parseMessage(raw) {
@@ -375,6 +400,7 @@
     var pending = null;           // { resolve, reject } de create/join en cours
     var retry = 0, retryTimer = null, closedByUs = false;
     var connexion = 0;            // n° du socket en service (+1 à chaque (re)connexion)
+    var statsDispo = false;       // le Hub a-t-il annoncé qu'il répond à `stats` ?
     var handlers = {};
 
     function emit(ev, data) { (handlers[ev] || []).forEach(function (fn) { try { fn(data); } catch (_) {} }); }
@@ -421,9 +447,15 @@
         var s = readSession(m.session);
         if (!s) return;
         you = m.you; session = s; code = s.code; retry = 0;
+        // Un Hub d'avant le lot H n'annonce rien : on ne lui demandera rien.
+        statsDispo = m.stats === true;
         setStatus('in-session');
         emit('session', { session: s, you: you });
         if (pending) { pending.resolve({ session: s, you: you }); pending = null; }
+        return;
+      }
+      if (m.type === 'stats') {
+        emit('stats', readStats(m.stats, m.reason));
         return;
       }
       if (m.type === 'session') {
@@ -554,6 +586,10 @@
       abort: function (drawId, reason, detail) { send(abortMsg(drawId, reason, detail)); },
       // Fin de soirée (hôte). Rend false si le message n'a pas pu partir.
       finish: function () { if (!ws || ws.readyState !== 1) return false; send(finishMsg()); return true; },
+      // TES statistiques : la réponse arrive par l'événement `stats`. Rend false
+      // (rien n'est envoyé) si le Hub ne les a pas annoncées, ou hors ligne.
+      requestStats: function () { return statsDispo && send(statsMsg()); },
+      get statsDispo() { return statsDispo; },
       get status() { return status; },
       // Change à chaque (re)connexion : de quoi n'envoyer une intention qu'UNE
       // fois par socket (hub-handoff.js), sans minuterie.
@@ -572,7 +608,7 @@
     playerFrom: playerFrom, createMsg: createMsg, joinMsg: joinMsg, leaveMsg: leaveMsg,
     prefsMsg: prefsMsg, capsMsg: capsMsg, constraintsMsg: constraintsMsg, drawMsg: drawMsg, continueMsg: continueMsg,
     launchedMsg: launchedMsg, enteredMsg: enteredMsg, resultsMsg: resultsMsg, startedMsg: startedMsg, endedMsg: endedMsg, abortMsg: abortMsg,
-    finishMsg: finishMsg, readFinale: readFinale,
+    finishMsg: finishMsg, readFinale: readFinale, statsMsg: statsMsg, readStats: readStats,
     readLaunch: readLaunch, launchFailureText: launchFailureText,
     parseMessage: parseMessage, readSession: readSession, errorText: errorText, reasonText: reasonText, de: de,
     createClient: createClient,
