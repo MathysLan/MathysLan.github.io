@@ -178,8 +178,9 @@
     const g = INFO[id] || {};
     return { emoji: g.emoji || '🎮', title: g.title || id, accent: g.accent, tagline: g.tagline || '', hub: g.hub || null };
   };
-  // « de Le Passeur » → « du Passeur », « à Le Passeur » → « au Passeur ».
-  const de = (t) => (/^Le /.test(t) ? 'du ' + t.slice(3) : /^Les /.test(t) ? 'des ' + t.slice(4) : 'de ' + t);
+  // « du Passeur », « d'Imitation », « d'Alice », « de Bruno » : game-hub.js
+  // (la même règle que les raisons d'exclusion). « à Le Passeur » → « au Passeur ».
+  const de = GameHub.de;
   const au = (t) => (/^Le /.test(t) ? 'au ' + t.slice(3) : /^Les /.test(t) ? 'aux ' + t.slice(4) : 'à ' + t);
   // Termine une phrase par un point, sauf si le titre porte déjà sa ponctuation (« Qui Ment ? »).
   const point = (t) => (/[?!.…]$/.test(t) ? t : t + '.');
@@ -565,7 +566,7 @@
     if (isHost) { if (btn.parentNode !== actions) actions.insertBefore(btn, actions.firstChild); }
     else if (btn.parentNode !== barre) barre.insertBefore(btn, barre.firstChild);
     $('round-wait').hidden = isHost;
-    $('round-wait').textContent = isHost ? '' : `En attente de ${host ? host.name : 'l\'hôte'} pour le tirage suivant.`;
+    $('round-wait').textContent = isHost ? '' : `En attente ${host ? de(host.name) : 'de l\'hôte'} pour le tirage suivant.`;
 
     if (roundShown === round.drawId) return;
     roundShown = round.drawId;
@@ -638,7 +639,10 @@
     $('result-tag').textContent = g.tagline;
     $('result-players').textContent = g.hub ? range(g.hub.players) : '—';
     $('result-minutes').textContent = g.hub ? range(g.hub.minutes, 'min') : '—';
-    $('result-kicker').textContent = seul ? '🎯 Seul jeu possible ce soir' : '🎯 Jeu tiré';
+    // 🎲 et pas 🎯 : 🎯 est l'emoji de Précision ET du Demi-Cercle — au-dessus
+    // de leur fiche, on lisait deux fois la même cible. Le dé est celui du
+    // bouton « 🎲 Tirer un jeu ». Un seul jeu possible : rien n'a été tiré, pas de dé.
+    $('result-kicker').textContent = seul ? 'Seul jeu possible ce soir' : '🎲 Jeu tiré';
     const res = $('hub-result');
     res.hidden = false;
     res.dataset.game = d.gameId;
@@ -658,7 +662,7 @@
     $('hub-continue').hidden = !(drawn && isHost);
     $('hub-continue').textContent = lancable ? `▶ Continuer — lancer ${g.title}` : 'Continuer';
     $('hub-continue-wait').textContent = drawn && !isHost
-      ? point(`⏳ En attente de ${host ? host.name : 'l\'hôte'} pour ${lancable ? 'lancer ' + g.title : 'continuer'}`) : '';
+      ? point(`⏳ En attente ${host ? de(host.name) : 'de l\'hôte'} pour ${lancable ? 'lancer ' + g.title : 'continuer'}`) : '';
     // Après « continuer » : le bloc de lancement prend le relais pour un jeu
     // lançable ; sinon (ou une fois la partie finie) on le dit ici.
     const l = session.launch;
@@ -691,7 +695,11 @@
     const echec = $('hub-failed');
     echec.hidden = !(l && l.stage === 'failed' && session.state === 'lobby');
     if (!echec.hidden) {
-      echec.textContent = `Le lancement ${de(g.title)} a échoué : ${GameHub.launchFailureText(l.reason)}. `
+      // Une annulation voulue n'est pas un échec (« a échoué : l'hôte a annulé
+      // le lancement » disait deux fois la même chose, et de travers).
+      echec.textContent = (l.reason === 'CANCELLED'
+        ? `Lancement ${de(g.title)} annulé${isHost ? '' : ' par l\'hôte'}. `
+        : `Le lancement ${de(g.title)} a échoué : ${GameHub.launchFailureText(l.reason)}. `)
         + (isHost ? 'Tu peux relancer un tirage.' : 'L\'hôte peut relancer un tirage.');
     }
     const box = $('hub-launch');
@@ -841,7 +849,7 @@
     } else if (isHost) {
       $('hub-wait').textContent = pool.eligible.length ? 'Tu es l\'hôte : c\'est toi qui tires.' : 'Tu es l\'hôte. Aucun jeu n\'est possible pour l\'instant.';
     } else {
-      $('hub-wait').textContent = `⏳ En attente de ${hostName} — c'est l'hôte qui tire le jeu.`;
+      $('hub-wait').textContent = `⏳ En attente ${host ? de(host.name) : 'de l\'hôte'} — c'est l'hôte qui tire le jeu.`;
     }
   }
 

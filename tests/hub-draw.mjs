@@ -9,6 +9,8 @@
 //   portfolio → clic RÉEL sur l'entrée Game Hub → /games/ → A crée
 //   → B et C rejoignent → préférences, visibles chez tous
 //   → A tire : caisse, bande, révélation → CONTINUER → 2e tirage (récence)
+//   → la bande reste arrêtée SUR le jeu tiré quand la fenêtre change : après
+//     l'arrêt, en plein défilement, en paysage, et pour un 3e tirage (GEOM)
 //   → C recharge pendant la révélation : même tirage, pas un nouveau
 //   → aucun jeu possible : le salon dit pourquoi
 //   → 390 / 768 / 1920 px
@@ -245,6 +247,24 @@ const PLAQUE = `(() => { const st = document.getElementById('hub-draw'); if (st.
   const p = st.querySelector('.crate-plate').getBoundingClientRect(), l = st.querySelector('.crate-lid').getBoundingClientRect();
   return { ouvert: st.classList.contains('is-open'), ecart: Math.round(l.top - p.bottom), ok: l.top >= p.bottom - 0.5 }; })()`;
 const DECALAGE = `(() => { const s = document.querySelector('#hub-reel .reel-strip'); return s ? new DOMMatrix(getComputedStyle(s).transform).m41 : 0; })()`;
+// La GÉOMÉTRIE de l'arrêt (lot E) : la vignette gagnante sous le repère, entière
+// dans la bande, son centre à moins de 30 % d'une vignette du repère (le « jeu »
+// d'une vraie roue ; 0 en mouvement réduit). Avant le correctif, la cible était
+// un décalage en pixels figé au lancement : après 1280 → 390 px, c'était une
+// AUTRE vignette sous le repère (écart de −2,1 vignettes), sans rien dans le
+// DOM pour le dire — seule la mesure le voit.
+const GEOM = `(() => { const reel = document.getElementById('hub-reel'); const win = reel.querySelector('.reel-cell.is-win');
+  if (!win || !reel.checkVisibility()) return null;
+  const r = reel.getBoundingClientRect(), b = win.getBoundingClientRect(), x = r.left + r.width / 2;
+  const sous = [...reel.querySelectorAll('.reel-cell')].find((c) => { const q = c.getBoundingClientRect(); return x >= q.left && x <= q.right; });
+  return { jeu: win.dataset.game, sous: sous ? sous.dataset.game : null, sousGagnante: sous === win,
+    ecart: Math.round((b.left + b.width / 2 - x) / b.width * 100) / 100, dedans: b.left >= r.left - 0.5 && b.right <= r.right + 0.5,
+    bande: Math.round(r.width), vignette: Math.round(b.width), largeur: innerWidth }; })()`;
+const arret = async (J, attendu, contexte) => {
+  const g = await J.eval(GEOM);
+  t(`${contexte} : ${J.nom} — la bande reste arrêtée SUR le jeu du serveur (repère dans la vignette gagnante)`,
+    !!g && g.jeu === attendu && g.sousGagnante && g.dedans && Math.abs(g.ecart) <= (REDUCED ? 0.02 : 0.31), JSON.stringify(g));
+};
 // La RÉVÉLATION telle qu'on la lit (lot C) : un seul jeu ou non, la bande, la
 // vignette gagnante, le titre plus gros que TOUT le reste de la fiche (emoji
 // compris), la ligne d'état réservée aux lecteurs d'écran, le focus, et ce qui
@@ -390,8 +410,8 @@ try {
     [vA, vB, vC].every((v) => JSON.stringify(v.eligibles) === JSON.stringify(ELIG)), vA.eligibles.join(','));
   t('les chances affichées suivent le cœur de C (Passeur plus probable)',
     (() => { const pct = (id) => +vA.games.find((g) => g.id === id).etat.match(/(\d+) %/)[1]; return pct('passeur') > pct('demicercle') && pct('demicercle') === pct('quiment'); })());
-  t('hôte : A a le bouton de tirage ; B et C non, et le texte le dit (« En attente de Alice »)',
-    vA.drawBtn && !vA.drawBtnOff && !vB.drawBtn && !vC.drawBtn && /En attente de Alice — c'est l'hôte qui tire le jeu/.test(vB.wait), vB.wait);
+  t('hôte : A a le bouton de tirage ; B et C non, et le texte le dit (« En attente d\'Alice »)',
+    vA.drawBtn && !vA.drawBtnOff && !vB.drawBtn && !vC.drawBtn && /En attente d'Alice — c'est l'hôte qui tire le jeu/.test(vB.wait), vB.wait);
 
   // Le catalogue : les possibles d'abord, les indisponibles repliés — rien
   // n'est perdu, tout reste dans #hub-games (la raison comprise).
@@ -490,11 +510,12 @@ try {
   else t('animation : la bande a réellement défilé chez B', Math.abs(pos[pos.length - 1] - pos[0]) > 300 || new Set(pos.map((x) => Math.round(x))).size > 4,
     pos.map((x) => Math.round(x)).join(' '));
   t('la bande s\'arrête sur le jeu du serveur (sous le repère), chez les trois', sous.every((s) => s === g1), sous.join(','));
+  for (const J of [A, B, C]) await arret(J, g1, '1er tirage, 1100 px');
   t('révélation = le jeu reçu du serveur, chez les trois', r1.every((v) => v.result === g1 && v.titre === TITRE[g1]), r1.map((v) => v.result).join(','));
   const hub1 = MANIFEST_JSON.games.find((g) => g.id === g1);
   t('fiche : joueurs et durée du manifest', r1[0].joueurs === `${hub1.players.min}–${hub1.players.max}` && r1[0].duree === `${hub1.minutes.min}–${hub1.minutes.max} min`,
     `${r1[0].joueurs} / ${r1[0].duree}`);
-  t('CONTINUER : seulement chez l\'hôte ; B et C attendent Alice', r1[0].cont && !r1[1].cont && !r1[2].cont && /En attente de Alice/.test(r1[1].contWait));
+  t('CONTINUER : seulement chez l\'hôte ; B et C attendent Alice', r1[0].cont && !r1[1].cont && !r1[2].cont && /En attente d'Alice/.test(r1[1].contWait));
   for (const J of [A, B, C]) {
     const img = await J.eval(`(() => { const i = document.querySelector('#hub-players .hub-card[data-player=${JSON.stringify(idA)}] .g-av img'); return !!i && i.complete && i.naturalWidth > 0 && i.getAttribute('src') === ${JSON.stringify(srcA)}; })()`);
     t(`${J.nom} : la PP de A est toujours la bonne pendant le tirage`, img);
@@ -507,11 +528,11 @@ try {
     const [ra, rb] = [await A.eval(REVELE), await B.eval(REVELE)];
     t('plusieurs jeux : la bande est là (vrai tirage), pas le mode « un seul jeu »', !ra.single && ra.reelVue && ra.cellules > 20, JSON.stringify({ single: ra.single, n: ra.cellules }));
     t('plusieurs jeux : la vignette mise en avant est celle du serveur (et celle sous le repère)', ra.gagnante === g1 && rb.gagnante === g1 && sous[0] === g1, `${ra.gagnante} / ${g1}`);
-    t('révélation : « 🎯 Jeu tiré », le NOM plus gros que tout le reste de la fiche', /Jeu tiré/.test(ra.kicker) && ra.titre > ra.autres, `${ra.titre} px > ${ra.autres} px`);
+    t('révélation : « 🎲 Jeu tiré », le NOM plus gros que tout le reste de la fiche', /Jeu tiré/.test(ra.kicker) && ra.titre > ra.autres, `${ra.titre} px > ${ra.autres} px`);
     t('révélation : la ligne d\'état dit « Jeu tiré : … » aux lecteurs d\'écran, sans doubler le titre à l\'écran',
       ra.statut === `Jeu tiré : ${TITRE[g1]}` + (/[?!.]$/.test(TITRE[g1]) ? '' : '.') && ra.statutCache, ra.statut);
     t('hôte : le focus est sur « ▶ Continuer — lancer … » dès la révélation', ra.focus === 'hub-continue' && /^▶ Continuer — lancer /.test(ra.contTxt), `${ra.focus} / ${ra.contTxt}`);
-    t('invité : « ⏳ En attente de Alice pour … », à la place du bouton', !rb.cont && /^⏳ En attente de Alice pour /.test(rb.attente), rb.attente);
+    t('invité : « ⏳ En attente d\'Alice pour … », à la place du bouton', !rb.cont && /^⏳ En attente d\'Alice pour /.test(rb.attente), rb.attente);
     const encart = await B.eval(`document.getElementById('hub-wait').textContent`);
     t('invité : l\'encart du haut ne dit plus « a lancé le tirage » une fois le jeu révélé', encart === 'Alice a tiré le jeu de la soirée.', encart);
     t('aucune double ponctuation (« Qui Ment ?. »)', r1.every((v) => !/[?!]\./.test(v.texte)) && !/[?!]\./.test(rb.attente + rb.statut));
@@ -525,8 +546,15 @@ try {
       const v = await J.eval(REVELE);
       t(`${w} px, ${role} : nom du jeu et ${role === 'hôte' ? 'bouton' : 'attente'} à l'écran, sans débordement`,
         v.over <= 0 && v.titreVu && (role === 'hôte' ? v.contVu : v.attenteVue), JSON.stringify({ over: v.over, titre: v.titreVu, cont: v.contVu, att: v.attenteVue }));
+      // Lot E : tirage fini, PUIS la fenêtre change — la bande suit.
+      await arret(J, g1, `1er tirage fini, redimensionné à ${w} px`);
       await J.shot(`2-revelation-${role === 'hôte' ? 'A' : 'B'}-${w}`);
     }
+  }
+  // Rotation d'un téléphone : portrait → paysage → portrait, bande arrêtée.
+  for (const [w, h] of [[390, 780], [844, 390], [390, 780], [1100, 1000]]) {
+    await A.size(w, h); await sleep(200);
+    await arret(A, g1, `1er tirage fini, ${w}×${h}${w > h && h < 500 ? ' (paysage)' : ''}`);
   }
   await A.size(1100, 1000); await B.size(1100, 1000); await sleep(150);
   await A.shot('2-revelation-A'); await C.shot('2-revelation-C');
@@ -572,9 +600,22 @@ try {
     // À L'ÉCRAN pendant qu'elle défile, pas quelque part au-dessus.
     t('390 px : la bande qui défile est à l\'écran (la page est venue à la caisse)', mid.reelTop >= 0 && mid.reelBas <= mid.h, JSON.stringify(mid));
     await A.shot('3-animation-390');
+    // Lot E : la fenêtre change EN PLEIN défilement (390 → 1100 px : bande de
+    // 292 → 560 px, vignettes de 92 → 104 px). La bande doit finir sur le même
+    // jeu, sous le repère — nouvelle cible, même fin.
+    const enCours = await A.eval(`document.getElementById('hub-reel').classList.contains('is-spinning')`);
+    await A.size(1100, 1000);
+    t('2e tirage : redimensionné pendant que la bande défile encore', enCours);
   }
   for (const J of [A, B, C]) await J.until(`document.getElementById('hub-result').dataset.game === ${JSON.stringify(d2.gameId)} && !document.getElementById('hub-result').hidden`, 12000, `2e révélation chez ${J.nom}`);
   t('2e révélation = le jeu du serveur, chez les trois', true, d2.gameId);
+  await arret(A, d2.gameId, REDUCED ? '2e tirage, lancé à 390 px' : '2e tirage, lancé à 390 px, fini à 1100 px');
+  await A.shot('3b-2e-tirage-arret');
+  for (const [w, h] of [[390, 780], [768, 1024], [1100, 1000], [390, 780]]) {
+    await A.size(w, h); await sleep(200);
+    await arret(A, d2.gameId, `2e tirage fini, redimensionné à ${w} px`);
+  }
+  await A.shot('3c-2e-tirage-390-apres-resize');
   await A.click('#hub-continue');
   await A.until(`!document.getElementById('hub-ready').hidden`, 8000);
 
@@ -595,6 +636,7 @@ try {
     t(`${w}×${h} : code, bouton de tirage, PP (≥ 44 px) et boutons accessibles`, m.code && m.tirer && m.pp && m.boutons, JSON.stringify(m));
     const pl = await A.eval(PLAQUE);
     t(`${w}×${h} : caisse ouverte, le couvercle ne recouvre pas la plaque`, pl && pl.ouvert && pl.ok, JSON.stringify(pl));
+    await arret(A, d2.gameId, `${w}×${h}, après « Continuer »`);
     await A.shot(`4-hub-${w}`);
   }
   for (const [w, h] of [[1280, 900], [1100, 1000]]) {
@@ -604,6 +646,23 @@ try {
     await A.shot(`4-caisse-${w}`);
   }
   await A.size(1100, 1000);
+
+  // ═══ 7 bis. un 3e tirage APRÈS toute cette série de redimensionnements
+  // (1100 → 390 → 768 → 1920 → 1280 → 1100) : sa géométrie repart de zéro,
+  // et il suit encore la fenêtre une fois arrêté.
+  await sleep(200);
+  await A.click('#hub-draw-btn');
+  const d3 = await (async () => { for (let i = 0; i < 120; i++) { const d = A.drawn(3); if (d) return d; await sleep(50); } return null; })();
+  t('3e tirage : tiré par le serveur', !!d3 && !!d3.gameId, d3 && d3.gameId);
+  for (const J of [A, B]) await J.until(`document.getElementById('hub-result').dataset.game === ${JSON.stringify(d3.gameId)} && !document.getElementById('hub-result').hidden`, 12000, `3e révélation chez ${J.nom}`);
+  await arret(A, d3.gameId, '3e tirage, 1100 px');
+  await arret(B, d3.gameId, '3e tirage, 1100 px');
+  await A.size(390, 780); await sleep(200);
+  await arret(A, d3.gameId, '3e tirage fini, redimensionné à 390 px');
+  await A.shot('4b-3e-tirage-390');
+  await A.size(1100, 1000); await sleep(150);
+  await A.click('#hub-continue');
+  await A.until(`!document.getElementById('hub-ready').hidden`, 8000);
 
   // ═══ 8. aucun jeu possible : le salon explique, le bouton se tait
   for (const id of ['imitation', 'demicercle', 'ban', 'passeur', 'quiment']) await B.click(`#hub-games [data-pref=veto][data-game=${id}]`);
@@ -710,7 +769,7 @@ try {
       vus.every((v) => !v.bande && Math.round(v.dec) === 0) && rs.single && !rs.reelVue && rs.cellules === 1,
       JSON.stringify({ single: rs.single, bande: rs.reelVue, n: rs.cellules, dec: [...new Set(vus.map((v) => Math.round(v.dec)))] }));
     t('un seul jeu : révélé tout de suite (pas les ~3,4 s de la bande)', msRevele < 1500, `${msRevele} ms`);
-    t('un seul jeu : « 🎯 Seul jeu possible ce soir », et l\'état le dit aussi', /Seul jeu possible/.test(rs.kicker) && rs.statut === 'Seul jeu possible : Le Passeur.', `${rs.kicker} / ${rs.statut}`);
+    t('un seul jeu : « Seul jeu possible ce soir » (sans dé), et l\'état le dit aussi', /Seul jeu possible/.test(rs.kicker) && rs.statut === 'Seul jeu possible : Le Passeur.', `${rs.kicker} / ${rs.statut}`);
     t('un seul jeu : le nom domine la fiche, le focus est sur « Continuer »', rs.titre > rs.autres && rs.focus === 'hub-continue', `${rs.titre} > ${rs.autres}, focus ${rs.focus}`);
     for (const [w, h] of [[390, 780], [768, 1024], [1100, 1000], [1280, 900]]) {
       await E.size(w, h); await sleep(200);

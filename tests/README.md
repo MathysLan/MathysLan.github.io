@@ -310,7 +310,7 @@ CLAUDE.md, « Game Hub : le salon et le retour de partie »).
 | Suite | Ce qui a été ajouté | Normal | Réduit |
 |---|---|---|---|
 | `hub-recap.mjs` | `HubRecap.lastResult()` (partie normale, ex æquo, solo, joueur parti, pas classé, **aucune carte sans partie classée**) ; carte Résultat dans la vraie page à 1280 / 1100 / 390 px ; focus sur le titre ; rechargement sans rien rejouer ni doubler | 76 | 76 |
-| `hub-score.mjs` | carte Résultat chez l'hôte (« Tirage suivant » dans la carte) et les invités (« En attente de Alice ») ; gain en pastille ; score vide en une ligne ; ordre du salon et place de « Tirer » / « Terminer » à 390 / 768 / 1100 / 1280 px | 80 | 80 |
+| `hub-score.mjs` | carte Résultat chez l'hôte (« Tirage suivant » dans la carte) et les invités (« En attente d'Alice ») ; gain en pastille ; score vide en une ligne ; ordre du salon et place de « Tirer » / « Terminer » à 390 / 768 / 1100 / 1280 px | 80 | 80 |
 | `hub-play.mjs` | action de l'hôte sous les joueurs, attente de l'invité, changement d'hôte (le bouton suit), score vide à 2 et 12 joueurs, salon rangé au départ | 56 | — |
 | `hub-draw.mjs` | plaque / couvercle (échoue sur l'ancienne marge : −11 px) ; catalogue : possibles d'abord, indisponibles repliés avec leur raison, dépliés d'office s'il n'y a plus rien ; **ordre de tabulation réel** (code → Tirer → durée → ❤️/🚫 → indisponibles → Quitter → Terminer) et fin du défilement attendue | 92 | 90 |
 | `hub-finale.mjs` | « Terminer » secondaire (liseré rouge, sans fond plein), dans le panneau des jeux, loin de « Tirer » | 34 | 32 |
@@ -327,7 +327,7 @@ Ban 76, Précision 79, Qui Ment ? 61, Le Passeur 47 ; Morpion avec
 
 | Suite | Ce qui a été ajouté | Normal | Réduit |
 |---|---|---|---|
-| `hub-draw.mjs` | **plusieurs jeux** : bande présente, vignette gagnante = jeu du serveur, « 🎯 Jeu tiré », nom plus gros que tout le reste de la fiche, état réservé aux lecteurs d'écran, focus sur « ▶ Continuer — lancer … », attente de l'invité, encart du haut à jour, pas de « ?. » ; hôte et invité à 390 / 768 / 1100 / 1280 px. **Un seul jeu** : bande jamais affichée ni déplacée, révélé en moins de 1,5 s, « Seul jeu possible ce soir », les 4 largeurs, puis « Continuer » à la **vraie touche Entrée** | 114 | 112 |
+| `hub-draw.mjs` | **plusieurs jeux** : bande présente, vignette gagnante = jeu du serveur, « 🎲 Jeu tiré » (🎯 avant le lot E), nom plus gros que tout le reste de la fiche, état réservé aux lecteurs d'écran, focus sur « ▶ Continuer — lancer … », attente de l'invité, encart du haut à jour, pas de « ?. » ; hôte et invité à 390 / 768 / 1100 / 1280 px. **Un seul jeu** : bande jamais affichée ni déplacée, révélé en moins de 1,5 s, « Seul jeu possible ce soir », les 4 largeurs, puis « Continuer » à la **vraie touche Entrée** | 114 | 112 |
 | `hub-play.mjs` | du tirage au lancement à deux : libellés, focus qui passe tout seul sur « ▶ Ouvrir … », encart « à toi » et titre d'onglet chez l'hôte seulement, `role=status`, fiche resserrée, 4 largeurs, puis annulation → salon comme avant, onglet rendu. **Trois tirages séparés par un lancement annulé**, chez l'hôte et l'invité : la bande visible, qui DÉFILE (positions relevées pendant la rotation), arrêtée sur le jeu du serveur — échoue sur le code d'avant le correctif (0 position aux tirages 2 et 3). `--reduced` ajouté | 73 | 73 |
 | `handoff-play.mjs` | un seul jeu (pas de bande) chez les trois ; focus et onglet « ▶ Ouvrir Le Passeur » ; invité : onglet « ▶ Rejoindre Le Passeur », encart « à toi », titre annoncé ; onglet rendu au retour. A attrapé la course du défilement doux (voir CLAUDE.md) | 47 | 47 |
 
@@ -378,6 +378,22 @@ jeux (14 boutons découpés sans anneau visible) ; `handoff-play.mjs` 3 KO
 (« Rejouer » en 16,8 px avant le retour au Hub, pas de focus).
 ⚠️ La capture de `finHub` marque le parent de `#to-hub` (`data-fin-hub`),
 attribut de test seulement.
+
+## Lot E — roulette et textes (2026-09-30)
+
+Front seulement (CLAUDE.md, « Le tirage »). `game-hub.js` touché (`GameHub.de`,
+`reasonText`) : `?v=5` sur les huit pages qui le chargent.
+
+| Suite | Ce qui a été ajouté | Normal | Réduit |
+|---|---|---|---|
+| `hub-draw.mjs` | `GEOM` / `arret()` : la bande reste arrêtée SUR le jeu du serveur (vignette gagnante sous le repère, entière dans la bande, écart ≤ 30 % d'une vignette, 0 en réduit) — 1er tirage fini puis 390 / 768 / 1100 / 1280 px chez l'hôte et l'invité, rotation 390×780 ↔ 844×390 ; 2e tirage lancé à 390 px, **redimensionné à 1100 px en plein défilement**, puis 390 / 768 / 1100 / 390 ; 3e tirage après toute la série, puis 390 px ; « En attente d'Alice » | 144 | 141 |
+| `hub.mjs` | `GameHub.de()` sur les 8 titres du manifest (« d'Imitation », « du Jeu du Ban », « du Passeur »…) et 15 pseudos (voyelles accentuées, minuscule, H / Y / chiffre / emoji → « de ») ; « veto d'Alice et Bruno » | 86 | — |
+| `hub-play.mjs` | annulation : « Lancement de X annulé » (hôte), « … annulé par l'hôte » (invité), plus « a échoué » | 75 | 75 |
+
+Contre-épreuve : `hub-draw.mjs` avec l'ancien `hub-crate.js` → 10 KO, tous de
+géométrie (autre vignette sous le repère, jusqu'à −2,25 vignettes), dont le
+redimensionnement en plein défilement. Un tirage NEUF sans redimensionnement
+passe sur l'ancien code : seule la mesure après coup voit le défaut.
 
 ## Livraison fiable results → ended (2026-09-28) : `hub-report.mjs`, `hub-report-play.mjs`
 

@@ -240,6 +240,20 @@
     };
   }
 
+  // « de » devant un pseudo ou un titre de jeu, à la française :
+  //   Alice → « d'Alice », Imitation → « d'Imitation », Bruno → « de Bruno »,
+  //   Le Passeur → « du Passeur », Le Jeu du Ban → « du Jeu du Ban ».
+  // Élision devant une VOYELLE seulement (accents compris : « d'Ève »). Le H et
+  // le Y dépendent de la prononciation (h muet ou aspiré ; « d'Yves » mais
+  // « de Yanis ») : on ne devine pas, « de » se lit sans faute grave. Un pseudo
+  // qui commence par un chiffre ou un emoji garde « de ».
+  function de(mot) {
+    var t = String(mot == null ? '' : mot);
+    if (/^Les /.test(t)) return 'des ' + t.slice(4);
+    if (/^Le /.test(t)) return 'du ' + t.slice(3);
+    return (/^[aeiouàâäéèêëîïôöùûüœæ]/i.test(t) ? 'd\'' : 'de ') + t;
+  }
+
   // Pourquoi un jeu est exclu, en français. `nameOf(id)` rend le pseudo d'un
   // joueur (la page le connaît, pas ce module).
   function reasonText(r, nameOf) {
@@ -257,7 +271,7 @@
         if (r.need === 'consent') return 'avertissement non accepté : ' + noms(r.players);
         if (r.need === 'cam') return 'caméra non déclarée : ' + noms(r.players);
         return 'capacité manquante (' + r.need + ') : ' + noms(r.players);
-      case 'VETO': return 'veto de ' + noms(r.players);
+      case 'VETO': return 'veto ' + de(noms(r.players));
       case 'TOO_LONG': return 'peut durer ' + r.max + ' min (limite : ' + r.limit + ' min)';
       case 'SERVER_DOWN': return 'serveur du jeu indisponible pour l\'instant';
       default: return 'indisponible';
@@ -560,7 +574,7 @@
     launchedMsg: launchedMsg, enteredMsg: enteredMsg, resultsMsg: resultsMsg, startedMsg: startedMsg, endedMsg: endedMsg, abortMsg: abortMsg,
     finishMsg: finishMsg, readFinale: readFinale,
     readLaunch: readLaunch, launchFailureText: launchFailureText,
-    parseMessage: parseMessage, readSession: readSession, errorText: errorText, reasonText: reasonText,
+    parseMessage: parseMessage, readSession: readSession, errorText: errorText, reasonText: reasonText, de: de,
     createClient: createClient,
   };
 });

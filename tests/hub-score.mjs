@@ -370,8 +370,8 @@ try {
     if (J === A) t(`${w} px — hôte : « 🎲 Tirer un jeu » juste sous les joueurs, dans le salon, avant le score et le catalogue`,
       !!x.tirer && x.tirer.t >= x.players.b && x.tirer.b <= x.lobby.b && (w >= 1200 || x.tirer.b <= x.score.t) && x.tirer.b <= x.games.t
       && /Tirer un jeu/.test(await A.eval(`document.getElementById('hub-draw-btn').textContent`)) && !x.enAttente, JSON.stringify({ t: x.tirer, p: x.players }));
-    else t(`${w} px — invité ${J.nom} : pas de bouton, « En attente de Alice » juste sous les joueurs`,
-      !x.tirer && x.enAttente && /En attente de Alice/.test(x.attenteTxt) && x.attente.t >= x.players.b && x.attente.b <= x.lobby.b, JSON.stringify({ a: x.attente, txt: x.attenteTxt }));
+    else t(`${w} px — invité ${J.nom} : pas de bouton, « En attente d'Alice » juste sous les joueurs`,
+      !x.tirer && x.enAttente && /En attente d'Alice/.test(x.attenteTxt) && x.attente.t >= x.players.b && x.attente.b <= x.lobby.b, JSON.stringify({ a: x.attente, txt: x.attenteTxt }));
     t(`${w} px (${J.nom}) : ordre joueurs → action → score → jeux possibles → indisponibles → actions secondaires, aucun débordement`,
       (w >= 1200 ? x.score.l >= x.lobby.r : x.act.b <= x.score.t && x.score.b <= x.games.t) && x.act.b <= x.games.t && x.ok.b <= x.out.t && x.out.b <= x.leave.t && x.over <= 0
       && (!x.finish || x.finish.t >= x.out.b), JSON.stringify({ act: x.act && x.act.b, s: [x.score.t, x.score.b], g: x.games.t, ok: x.ok.b, out: [x.out.t, x.out.b], leave: x.leave.t }));
@@ -473,8 +473,8 @@ try {
       && c.total.includes(`${p1.session.scores[id[J.nom]]} pts`), c.moi + ' | ' + c.total);
     t(`partie 1 — ${J.nom} : le panneau Score met SON gain en pastille (+${moi.points}), et seulement le sien`, c.pastille === '+' + moi.points && c.pastilles === 1, c.pastille);
     if (J === A) t('partie 1 — hôte : « 🎲 Tirage suivant » DANS la carte, sous le résultat', c.tirerIci && c.tirerDansCarte && /Tirage suivant/.test(c.tirerTxt) && !c.attente, JSON.stringify(c));
-    else t(`partie 1 — ${J.nom} (invité) : aucun bouton de tirage, « En attente de Alice pour le tirage suivant. »`,
-      !c.tirerIci && c.tirerCache && c.attente === 'En attente de Alice pour le tirage suivant.', JSON.stringify(c));
+    else t(`partie 1 — ${J.nom} (invité) : aucun bouton de tirage, « En attente d'Alice pour le tirage suivant. »`,
+      !c.tirerIci && c.tirerCache && c.attente === 'En attente d\'Alice pour le tirage suivant.', JSON.stringify(c));
   }
   for (const [w, h] of [[1100, 900], [390, 780]]) {
     await A.size(w, h); await sleep(250);

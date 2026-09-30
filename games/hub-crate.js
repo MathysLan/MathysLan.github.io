@@ -69,12 +69,76 @@
     return li;
   }
 
+  // ⚠️ LA GÉOMÉTRIE DE L'ARRÊT. La cible est un décalage en PIXELS, calculé
+  // sur la largeur de la bande et la position du gagnant — qui changent avec la
+  // fenêtre (bande plafonnée à 560 px, vignettes de 104 → 92 px au téléphone).
+  // Calculée une seule fois, elle laissait après un redimensionnement ou une
+  // rotation la bande arrêtée à côté du gagnant (une autre vignette sous le
+  // repère). On garde donc le jeu de l'arrêt en FRACTION de vignette, et un
+  // ResizeObserver invalide la géométrie : bande arrêtée → reposée d'un coup ;
+  // bande qui tourne → même fin, nouvelle cible, sur le temps qui reste.
+  // Seulement quand une mesure a vraiment changé (l'observateur se déclenche
+  // aussi à l'observation, et quand la bande réapparaît après display: none).
+  var etats = typeof WeakMap === 'function' ? new WeakMap() : null;
+  var FIN_REPRISE = 'cubic-bezier(.2, .6, .3, 1)';
+
+  function mesure(reel, cible) {
+    return reel.clientWidth + ':' + cible.offsetLeft + ':' + cible.offsetWidth;
+  }
+  function cibleX(reel, e) {
+    var w = e.cible.offsetWidth;
+    return -(e.cible.offsetLeft + w / 2 - reel.clientWidth / 2 + e.jeu * w);
+  }
+  function surResize(reel) {
+    var e = etats && etats.get(reel);
+    if (!e || !e.cible.isConnected || !reel.clientWidth) return;   // rangée, ou masquée : rien à mesurer
+    var reste = e.finAt - Date.now();
+    if (e.tourne && reste < 60) return;      // la fin est là : stop() reposera la bande
+    var m = mesure(reel, e.cible);
+    if (m === e.geo) return;
+    e.geo = m;
+    var strip = e.strip;
+    if (!e.tourne) {
+      strip.style.transition = 'none';
+      strip.style.transform = 'translateX(' + cibleX(reel, e) + 'px)';
+      return;
+    }
+    // En plein défilement : on repart de là où la bande EST, vers la nouvelle
+    // cible. Le transitionend attendu par spin() arrive à la fin de celle-ci.
+    var ici = new DOMMatrix(getComputedStyle(strip).transform).m41;
+    strip.style.transition = 'none';
+    strip.style.transform = 'translateX(' + ici + 'px)';
+    void strip.offsetWidth;
+    strip.style.transition = 'transform ' + Math.round(reste) + 'ms ' + FIN_REPRISE;
+    strip.style.transform = 'translateX(' + cibleX(reel, e) + 'px)';
+  }
+  function suivre(reel, strip, cible, jeu, dureeMs) {
+    if (!etats) return;
+    var e = { strip: strip, cible: cible, jeu: jeu, tourne: dureeMs > 0, finAt: Date.now() + dureeMs, geo: mesure(reel, cible) };
+    etats.set(reel, e);
+    if (typeof ResizeObserver !== 'function') return;
+    if (!reel._hubResize) {
+      reel._hubResize = new ResizeObserver(function () { surResize(reel); });
+      reel._hubResize.observe(reel);
+    }
+    // La vignette aussi : sa largeur change avec le point de rupture.
+    if (reel._hubCible) reel._hubResize.unobserve(reel._hubCible);
+    reel._hubCible = cible;
+    reel._hubResize.observe(cible);
+    return e;
+  }
+  function oublier(reel) {
+    if (etats) etats.delete(reel);
+    if (reel._hubResize && reel._hubCible) { reel._hubResize.unobserve(reel._hubCible); reel._hubCible = null; }
+  }
+
   // Fait défiler la bande jusqu'au gagnant. Rend une promesse tenue à l'arrêt.
   // opts : { eligible, winnerId, info, reduced }.
   // Un seul jeu possible : une seule vignette, posée, aucune transition (la
   // page masque alors la bande, voir #hub-draw.is-single).
   function spin(reel, opts) {
     var strip = reel.querySelector('.reel-strip');
+    oublier(reel);
     reel.classList.remove('is-spinning', 'is-done', 'is-single');
     if (single(opts.eligible, opts.winnerId)) {
       strip.style.transition = 'none';
@@ -95,28 +159,33 @@
     cible.classList.add('is-win');
     // Centre du gagnant sous le repère, à ±30 % d'une vignette près : la bande
     // ne s'arrête pas pile au milieu, comme une vraie roue — mais toujours
-    // DANS la vignette gagnante.
-    var fin = function () {
-      var w = cible.offsetWidth;
-      var jeu = opts.reduced ? 0 : (Math.random() - 0.5) * w * 0.6;
-      return -(cible.offsetLeft + w / 2 - reel.clientWidth / 2 + jeu);
-    };
+    // DANS la vignette gagnante. Le jeu est une FRACTION de vignette, pour
+    // rester le même si la vignette change de largeur (voir surResize).
+    var jeu = opts.reduced ? 0 : (Math.random() - 0.5) * 0.6;
 
     return new Promise(function (resolve) {
       if (opts.reduced) {
-        strip.style.transform = 'translateX(' + fin() + 'px)';
+        var pose = suivre(reel, strip, cible, jeu, 0);
+        strip.style.transform = 'translateX(' + cibleX(reel, pose || { cible: cible, jeu: jeu }) + 'px)';
         reel.classList.add('is-done');
         resolve();
         return;
       }
       void strip.offsetWidth;                // reflow : sinon la transition ne part pas
       reel.classList.add('is-spinning');
+      var e = suivre(reel, strip, cible, jeu, DUREE_MS) || { cible: cible, jeu: jeu };
       strip.style.transition = 'transform ' + DUREE_MS + 'ms cubic-bezier(.1, .7, .14, 1)';
-      strip.style.transform = 'translateX(' + fin() + 'px)';
+      strip.style.transform = 'translateX(' + cibleX(reel, e) + 'px)';
       var fini = false;
       var stop = function () {
         if (fini) return;
         fini = true;
+        // Arrêt : la bande est reposée sur la géométrie DU MOMENT (un
+        // redimensionnement dans les dernières images, ou le filet ci-dessous
+        // qui coupe une transition avalée). Même cible : rien ne bouge sinon.
+        e.tourne = false;
+        e.geo = null;
+        surResize(reel);
         reel.classList.remove('is-spinning');
         reel.classList.add('is-done');
         resolve();
@@ -129,6 +198,7 @@
 
   function reset(reel) {
     var strip = reel.querySelector('.reel-strip');
+    oublier(reel);
     strip.style.transition = 'none';
     strip.style.transform = 'translateX(0px)';
     strip.replaceChildren();

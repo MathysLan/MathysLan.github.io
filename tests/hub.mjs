@@ -88,8 +88,26 @@ const R = (r) => H.reasonText(r, (id) => noms[id]);
 t('raison : trop peu de joueurs', R({ code: 'TOO_FEW', min: 3, count: 2 }) === 'il faut 3 joueurs, vous êtes 2');
 t('raison : trop de joueurs', R({ code: 'TOO_MANY', max: 2, count: 3 }) === '2 joueurs maximum, vous êtes 3');
 t('raison : micro, nominatif', R({ code: 'NEEDS', need: 'mic', players: ['p_b'] }) === 'micro non déclaré : Bruno');
-t('raison : veto, nominatif (et plusieurs)', R({ code: 'VETO', players: ['p_a', 'p_b'] }) === 'veto de Alice et Bruno'
-  && R({ code: 'VETO', players: ['p_a', 'p_b', 'p_c', 'p_d'] }) === 'veto de Alice, Bruno et 2 autres');
+t('raison : veto, nominatif (et plusieurs)', R({ code: 'VETO', players: ['p_a', 'p_b'] }) === 'veto d\'Alice et Bruno'
+  && R({ code: 'VETO', players: ['p_a', 'p_b', 'p_c', 'p_d'] }) === 'veto d\'Alice, Bruno et 2 autres');
+t('raison : veto d\'un pseudo en consonne → « de »', R({ code: 'VETO', players: ['p_b', 'p_a'] }) === 'veto de Bruno et Alice');
+// « de » à la française (GameHub.de) : les VRAIS titres du manifest, puis des
+// pseudos — voyelles accentuées, minuscule, H et Y laissés à « de », chiffre, emoji.
+{
+  const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'games.manifest.json'), 'utf8'));
+  const titres = Object.fromEntries(manifest.games.map((g) => [g.id, g.title]));
+  const attendus = { morpion: 'de Morpion', imitation: 'd\'Imitation', demicercle: 'de Demi-Cercle', puissance4: 'de Puissance 4',
+    ban: 'du Jeu du Ban', precision: 'de Précision', passeur: 'du Passeur', quiment: 'de Qui Ment ?' };
+  const vus = Object.entries(titres).map(([id, titre]) => [id, H.de(titre)]);
+  t('de() : chaque titre du manifest (8) a sa forme naturelle', vus.length === 8 && vus.every(([id, v]) => v === attendus[id]),
+    JSON.stringify(vus.filter(([id, v]) => v !== attendus[id])));
+  const pseudos = { Alice: 'd\'Alice', Bruno: 'de Bruno', 'Ève': 'd\'Ève', 'Émile': 'd\'Émile', Olga: 'd\'Olga', Ugo: 'd\'Ugo',
+    'Œdipe': 'd\'Œdipe', alice: 'd\'alice', Inès: 'd\'Inès', Yanis: 'de Yanis', Hugo: 'de Hugo', Chloé: 'de Chloé',
+    '42': 'de 42', '🦊Fox': 'de 🦊Fox', 'Léa': 'de Léa' };
+  const faux = Object.entries(pseudos).filter(([p, v]) => H.de(p) !== v).map(([p]) => `${p} → ${H.de(p)}`);
+  t('de() : pseudos — élision devant une voyelle (accents, minuscule), « de » sinon (H, Y, chiffre, emoji)', !faux.length, faux.join(' ; '));
+  t('de() : jamais d\'exception ni de « undefined »', H.de(undefined) === 'de ' && H.de(null) === 'de ' && H.de('') === 'de ');
+}
 t('raison : durée, serveur, local, consentement', /15 min.*10 min/.test(R({ code: 'TOO_LONG', max: 15, limit: 10 }))
   && /indisponible/.test(R({ code: 'SERVER_DOWN' })) && /seul/.test(R({ code: 'LOCAL_ONLY', count: 2 }))
   && /avertissement/.test(R({ code: 'NEEDS', need: 'consent', players: ['p_c'] })));

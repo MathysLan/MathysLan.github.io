@@ -273,8 +273,8 @@ try {
   {
     const a = await A.eval(ACT), b = await B.eval(ACT);
     t('hôte A : « Tirer » juste sous les joueurs, dans le salon ; « Terminer » à lui seul', a.bouton && a.sousJoueurs && a.dansSalon && !a.attente && a.finish, JSON.stringify(a));
-    t('invité B : pas de bouton ni de « Terminer », mais « En attente de Alice », à la même place', !b.bouton && !b.finish && b.attente && b.attenteVue && b.sousJoueurs
-      && /En attente de Alice/.test(b.texte), JSON.stringify(b));
+    t('invité B : pas de bouton ni de « Terminer », mais « En attente d\'Alice », à la même place', !b.bouton && !b.finish && b.attente && b.attenteVue && b.sousJoueurs
+      && /En attente d'Alice/.test(b.texte), JSON.stringify(b));
     t('les trois blocs du salon sont là chez les deux (salon, score, jeux)', [a, b].every((x) => x.salon && x.score && x.jeux));
     t('2 joueurs, aucune partie : score en une ligne (« Aucune partie jouée »), aucune ligne à 0 visible', [a, b].every((x) => x.scoreVide && x.lignesVues === 0 && x.lignes === 2 && x.scoreH <= 110), JSON.stringify([a.scoreH, b.scoreH]));
   }
@@ -329,6 +329,12 @@ try {
     for (const J of [A, B]) await J.until(`!document.getElementById('hub-launch').hidden`, 8000, `lancement ${J.nom}`);
     await A.click('#launch-cancel');
     for (const J of [A, B]) await J.until(`document.getElementById('hub-launch').hidden && !document.getElementById('hub-failed').hidden`, 8000, `retour au salon ${J.nom}`);
+    // Lot E : une annulation voulue n'est pas un échec (avant : « Le lancement
+    // de … a échoué : l'hôte a annulé le lancement »), et « de » s'élide.
+    const [ma, mb, du] = [await A.eval(`document.getElementById('hub-failed').textContent`), await B.eval(`document.getElementById('hub-failed').textContent`),
+      await A.eval(`GameHub.de(document.getElementById('result-title').textContent)`)];
+    t('annulation : « Lancement <de jeu> annulé » chez l\'hôte, « … annulé par l\'hôte » chez l\'invité, jamais « a échoué »',
+      ma === `Lancement ${du} annulé. Tu peux relancer un tirage.` && mb === `Lancement ${du} annulé par l'hôte. L'hôte peut relancer un tirage.`, `${ma} / ${mb}`);
     await A.until(`!document.getElementById('hub-draw-btn').hidden && !document.getElementById('hub-draw-btn').disabled`, 8000, 'Tirer de nouveau');
   }
   {
@@ -339,7 +345,7 @@ try {
     const rv = await A.eval(`({ focus: document.activeElement && document.activeElement.id, cont: document.getElementById('hub-continue').textContent })`);
     const rvB = await B.eval(`({ cont: !document.getElementById('hub-continue').hidden, att: document.getElementById('hub-continue-wait').textContent })`);
     t('révélation, hôte : « ▶ Continuer — lancer <jeu> », et le focus dessus', rv.focus === 'hub-continue' && rv.cont === `▶ Continuer — lancer ${jeu}`, JSON.stringify(rv));
-    t('révélation, invité : pas de bouton, « ⏳ En attente de Alice pour lancer <jeu> »', !rvB.cont && rvB.att.startsWith(`⏳ En attente de Alice pour lancer ${jeu}`), rvB.att);
+    t('révélation, invité : pas de bouton, « ⏳ En attente d\'Alice pour lancer <jeu> »', !rvB.cont && rvB.att.startsWith(`⏳ En attente d'Alice pour lancer ${jeu}`), rvB.att);
     await A.click('#hub-continue');
     for (const J of [A, B]) await J.until(`!document.getElementById('hub-launch').hidden`, 8000, `lancement ${J.nom}`);
     await sleep(150);

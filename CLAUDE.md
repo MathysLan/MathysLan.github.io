@@ -584,6 +584,15 @@ le build échoue. ⚠️ Il écrit vraiment dans le fichier puis restaure dans u
   pas le tirage.
 - ⚠️ **La caisse ne choisit rien** : sa bande est tirée dans `draw.eligible` et
   s'arrête sur `draw.gameId`, tous deux venus du serveur.
+- ⚠️ **L'arrêt de la bande est un décalage en PIXELS** (bande plafonnée à
+  560 px, vignettes 104 → 92 px sous 560 px) : figé au lancement, il laissait
+  après un redimensionnement ou une rotation une AUTRE vignette sous le repère
+  (lot E, 2026-09-30). `hub-crate.js` garde le jeu d'arrêt en fraction de
+  vignette et un `ResizeObserver` (bande + vignette gagnante) invalide la
+  géométrie SEULEMENT quand une mesure change : bande arrêtée → reposée d'un
+  coup, en plein défilement → nouvelle cible sur le temps restant ; à l'arrêt,
+  reposée sur la géométrie du moment. Pas de calcul par image. Rien dans le
+  DOM ne trahit ce défaut : `hub-draw.mjs` le MESURE (`GEOM`).
 - **Capacités acquises d'office** : un joueur naît avec `caps: { mic: true,
   consent: true }` (`session.js`), aucun écran de déclaration — ne pas remettre
   l'ancien bloc « Ce que tu apportes ». La règle `NEEDS`
@@ -596,11 +605,17 @@ le build échoue. ⚠️ Il écrit vraiment dans le fichier puis restaure dans u
   caisse amenée à l'écran chez tous au début d'un tirage (au téléphone elle
   tournait 900 px plus haut), historique de la soirée.
 - **Révélation** (lot C, 2026-09-28) : le NOM du jeu est le plus gros texte de
-  la fiche (`#result-kicker` « 🎯 Jeu tiré »), la bande s'efface derrière la
-  vignette gagnante (`.reel-cell.is-win`), `#hub-draw-status` passe en texte
-  pour lecteurs d'écran seulement (`#hub-draw.is-revealed`). Focus sur
-  `#hub-continue` chez l'hôte ; chez l'invité, « ⏳ En attente de <hôte> pour
+  la fiche (`#result-kicker` « 🎲 Jeu tiré » — pas 🎯, l'emoji de Précision et
+  du Demi-Cercle ; « Seul jeu possible ce soir » sans dé), la bande s'efface
+  derrière la vignette gagnante (`.reel-cell.is-win`), `#hub-draw-status` passe
+  en texte pour lecteurs d'écran seulement (`#hub-draw.is-revealed`). Focus sur
+  `#hub-continue` chez l'hôte ; chez l'invité, « ⏳ En attente d'<hôte> pour
   lancer <jeu> ». `point()` évite « Qui Ment ?. ».
+- **« de » devant un pseudo ou un titre** : toujours `GameHub.de()`
+  (`game-hub.js`, repris par `hub-page.js` et `reasonText`) : « d'Alice »,
+  « d'Imitation », « du Passeur », « de Bruno ». Élision devant une voyelle
+  seulement (H et Y laissés à « de » : on ne devine pas la prononciation). Une
+  annulation voulue se dit « Lancement de X annulé », pas « a échoué ».
 - ⚠️ **Un seul jeu possible = pas de bande** (`HubCrate.single(draw.eligible,
   draw.gameId)`) : `#hub-draw.is-single`, révélation directe, zéro faux
   suspense. Plusieurs jeux : bande et hasard de décor inchangés. Dans ce cas

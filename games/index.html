@@ -210,7 +210,10 @@
     background: radial-gradient(ellipse at 50% 30%, rgba(207, 106, 50, .18), transparent 70%), rgba(0,0,0,.25);
     border: 1px solid var(--panel-edge); }
   .crate-plate { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; letter-spacing: .32em; text-transform: uppercase;
-    font-size: .8rem; color: #f2a15f; margin: 0 0 2.9rem; }
+    font-size: .8rem; color: #f2a15f; margin: 0 0 2.9rem; text-wrap: balance; }
+  /* text-wrap: balance (ici et sur .result-kicker) : au téléphone, ces plaques
+     à grand interlettrage passent sur deux lignes, et laissaient un mot seul
+     dessous (« SOIRÉE », « SOIR »). Même nombre de lignes, coupées au milieu. */
   /* ⚠️ Place pour le couvercle OUVERT : il monte de 14 px et pivote de −10°
      autour de son coin gauche, donc son bout droit s'élève d'environ 40 px
      au-dessus de la caisse. À 1.6rem (26 px), il recouvrait « DE LA » de la
@@ -266,7 +269,7 @@
   /* Le résultat. */
   #hub-result { margin-top: 1rem; }
   .result-kicker { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; letter-spacing: .25em; text-transform: uppercase;
-    font-size: .9rem; color: #f2a15f; margin: 0; }
+    font-size: .9rem; color: #f2a15f; margin: 0; text-wrap: balance; }
   /* Hiérarchie : le NOM d'abord (le plus gros), l'emoji en appui, puis la
      suite (bouton ou attente) ; accroche et fourchettes en retrait. */
   .result-emoji { font-size: 2.2rem; line-height: 1.1; margin: .35rem 0 0; }
@@ -756,7 +759,7 @@
         <div class="reel" id="hub-reel" aria-hidden="true"><ul class="reel-strip"></ul><span class="reel-line"></span></div>
         <p id="hub-draw-status" role="status"></p>
         <div id="hub-result" hidden>
-          <p class="result-kicker" id="result-kicker">🎯 Jeu tiré</p>
+          <p class="result-kicker" id="result-kicker">🎲 Jeu tiré</p>
           <p class="result-emoji" id="result-emoji"></p>
           <h2 class="result-title" id="result-title"></h2>
           <p class="result-tag" id="result-tag"></p>
@@ -863,10 +866,10 @@
   <script src="../data/games.js"></script>
   <script src="shared/game-profile.js"></script>
   <script src="shared/game-avatar.js"></script>
-  <script src="shared/game-hub.js?v=4"></script>
+  <script src="shared/game-hub.js?v=5"></script>
   <script src="shared/hub-handoff.js?v=5"></script>
-  <script src="hub-crate.js?v=2"></script>
+  <script src="hub-crate.js?v=3"></script>
   <script src="hub-recap.js?v=4"></script>
-  <script src="hub-page.js?v=12"></script>
+  <script src="hub-page.js?v=13"></script>
 </body>
 </html>
