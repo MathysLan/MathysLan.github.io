@@ -157,7 +157,10 @@
     // Le bouton « ton profil » est UN élément, déplacé dans ta carte à chaque
     // rendu : recréé, il perdait le focus clavier à chaque état reçu du Hub
     // (un joueur qui arrive, un veto…) — le focus retombait sur <body>.
-    const avaitFocus = document.activeElement === boutonProfil;
+    // Même règle pour les boutons « 👤 Profil » des autres (lot K) : un par
+    // joueur, gardé d'un rendu à l'autre.
+    const focusAvant = document.activeElement;
+    const avaitFocus = focusAvant === boutonProfil || (!!focusAvant && focusAvant.classList.contains('hub-card-public'));
     list.replaceChildren(...session.players.map((p) => {
       const li = document.createElement('li');
       li.className = 'hub-card' + (p.id === you ? ' is-me' : '') + (p.connected ? '' : ' is-away');
@@ -173,10 +176,16 @@
       li.append(GameAvatar.node(p.avatar, undefined, 'lg'), name);
       if (tags.childNodes.length) li.appendChild(tags);   // pas de ligne vide réservée
       if (p.id === you) li.appendChild(boutonProfil);
+      else if (hub.profilsDispo) li.appendChild(boutonPublic(p));
       return li;
     }));
-    if (avaitFocus && boutonProfil.isConnected) boutonProfil.focus({ preventScroll: true });
-    if (dlgProfil.open) remplirProfil(session, you);
+    if (avaitFocus && focusAvant.isConnected && document.activeElement !== focusAvant) focusAvant.focus({ preventScroll: true });
+    if (dlgProfil.open && fiche.mode === 'prive') remplirProfil(session, you);
+    // Profil public ouvert : la cible part ou revient → on le dit, sans rien redemander.
+    if (dlgProfil.open && fiche.mode === 'public' && fiche.ident) {
+      const ici = session.players.find((p) => p.id === fiche.cible);
+      if (!!ici !== fiche.ident.present) remplirPublic(ici ? { name: ici.name, avatar: ici.avatar, present: true } : { ...fiche.ident, present: false });
+    }
   }
 
   // ------------------------------------------------------------ ton profil
@@ -228,9 +237,91 @@
   }
   boutonProfil.addEventListener('click', () => {
     if (!current || typeof dlgProfil.showModal !== 'function') return;
+    Object.assign(fiche, { mode: 'prive', cible: null, origine: boutonProfil, ident: null });
+    poserTitres();
     remplirProfil(current.session, current.you);
     ouvrirStats();
     dlgProfil.showModal();                     // focus sur « Fermer », le seul bouton ; Échap ferme
+  });
+
+  // -------------------------------------------- profil PUBLIC (lot K)
+  // Le MÊME panneau (même mise en page, mêmes ids) sert deux profils :
+  //   'prive'   « Ton profil » : tes stats, message `stats` ;
+  //   'public'  le profil d'un AUTRE joueur de la soirée : `public-profile`,
+  //             demandé à l'ouverture seulement (pas de polling).
+  // ⚠️ UN PLAYER ID SEUL N'OUVRE RIEN : le Hub vérifie que la cible est dans TA
+  // session et que sa clé y a été vérifiée (game-hub-server, onPublicProfile).
+  // L'identité affichée est celle du HUB (jamais un profil local) ; rien n'est
+  // gardé côté page une fois le panneau fermé.
+  const fiche = { mode: 'prive', cible: null, origine: null, ident: null };
+  const MOTS = {
+    prive: { stats: '📊 Tes statistiques', records: '🏆 Tes records', succes: '🎖️ Tes succès ', charge: 'Chargement de tes statistiques…',
+      vide: 'Aucune partie jouée pour l\'instant. Tes parties classées dans le Game Hub apparaîtront ici.',
+      nonVerifie: 'Pas de statistiques pour ce profil dans ce navigateur.' },
+    public: { stats: '📊 Statistiques', records: '🏆 Records', succes: '🎖️ Succès ', charge: 'Chargement du profil…',
+      vide: 'Aucune partie enregistrée.',
+      nonVerifie: 'Pas de statistiques pour ce joueur : le Hub n\'a pas vérifié son profil.' },
+  };
+  const mots = () => MOTS[fiche.mode];
+  function poserTitres() {
+    if (fiche.mode === 'prive') $('profile-title').textContent = 'Ton profil';
+    $('profile-stats-title').textContent = mots().stats;
+    $('profile-records-title').textContent = mots().records;
+    $('profile-ach-title').firstChild.textContent = mots().succes;
+  }
+  // L'identité d'un autre joueur, telle que le Hub la connaît.
+  function remplirPublic(ident) {
+    fiche.ident = ident;
+    const av = GameAvatar.node(ident.avatar, undefined, 'lg');
+    av.setAttribute('aria-hidden', 'true');
+    $('profile-avatar').replaceChildren(av);
+    $('profile-title').textContent = `Profil ${de(ident.name)}`;
+    $('profile-name').textContent = ident.name;
+    const photo = ident.avatar && ident.avatar.kind === 'image';
+    $('profile-kind').textContent = (photo ? 'avec sa photo de profil' : 'avec son icône') + (ident.present ? '' : ' · parti de la soirée');
+    $('profile-session').textContent = ident.present
+      ? `Joueur de cette soirée${current ? ` (session ${current.session.code})` : ''} : tout le monde de la soirée voit ses statistiques, records et succès.`
+      : `${ident.name} a quitté la soirée : ses statistiques restent celles que le Hub a enregistrées.`;
+    $('profile-local').hidden = true;
+    $('profile-local').textContent = '';
+    $('profile-where').textContent = `Ces chiffres viennent du Game Hub, jamais du navigateur ${de(ident.name)}.`;
+  }
+  const boutonsPublics = new Map();   // playerId → son bouton « 👤 Profil »
+  function boutonPublic(p) {
+    let b = boutonsPublics.get(p.id);
+    if (!b) {
+      b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'ghost hub-card-profile hub-card-public';
+      b.textContent = '👤 Profil';
+      b.dataset.player = p.id;
+      b.setAttribute('aria-haspopup', 'dialog');
+      b.setAttribute('aria-controls', 'profile-dialog');
+      b.addEventListener('click', () => ouvrirPublic(p.id, b));
+      boutonsPublics.set(p.id, b);
+    }
+    b.setAttribute('aria-label', `Voir le profil ${de(p.name)}`);
+    return b;
+  }
+  function ouvrirPublic(id, bouton) {
+    if (!current || typeof dlgProfil.showModal !== 'function') return;
+    Object.assign(fiche, { mode: 'public', cible: id, origine: bouton, ident: null });
+    poserTitres();
+    const p = current.session.players.find((x) => x.id === id);
+    remplirPublic(p ? { name: p.name, avatar: p.avatar, present: true } : { name: '…', avatar: null, present: false });
+    $('profile-stats-live').textContent = '';
+    if (hub.requestPublicProfile(id)) { noteStats(mots().charge); $('profile-stats').setAttribute('aria-busy', 'true'); }
+    else {
+      noteStats('Ce Hub ne garde pas encore de statistiques.');
+      $('profile-stats').removeAttribute('aria-busy');
+      $('profile-stats-live').textContent = 'Ce Hub ne garde pas encore de statistiques.';
+    }
+    dlgProfil.showModal();                     // focus sur « Fermer » ; Échap ferme ; le focus revient au bouton
+  }
+  hub.on('public-profile', (r) => {
+    if (!dlgProfil.open || fiche.mode !== 'public' || r.playerId !== fiche.cible) return;
+    if (r.profile) remplirPublic(r.profile);
+    afficherStats({ stats: r.profile ? r.profile.stats : null, reason: r.reason });
   });
 
   // ---------------------------------------------------- tes statistiques
@@ -251,7 +342,7 @@
   }
   function ouvrirStats() {
     $('profile-stats-live').textContent = '';
-    if (hub.requestStats()) { noteStats('Chargement de tes statistiques…'); $('profile-stats').setAttribute('aria-busy', 'true'); return; }
+    if (hub.requestStats()) { noteStats(mots().charge); $('profile-stats').setAttribute('aria-busy', 'true'); return; }
     noteStats('Ce Hub ne garde pas encore de statistiques.');
     $('profile-stats').removeAttribute('aria-busy');
     $('profile-stats-live').textContent = 'Ce Hub ne garde pas encore de statistiques.';
@@ -268,11 +359,13 @@
     const s = r.stats;
     let dit;
     if (!s) {
-      dit = r.reason === 'UNVERIFIED' ? 'Pas de statistiques pour ce profil dans ce navigateur.'
-        : 'Statistiques indisponibles pour l\'instant. Réessaie un peu plus tard.';
+      dit = r.reason === 'UNVERIFIED' ? mots().nonVerifie
+        : r.reason === 'NOT_FOUND' ? 'Ce profil n\'est pas consultable depuis cette soirée.'
+          : r.reason === 'BUSY' ? 'Le Hub est occupé : rouvre le profil dans un instant.'
+            : 'Statistiques indisponibles pour l\'instant. Réessaie un peu plus tard.';
       noteStats(dit);
     } else if (!s.played) {
-      dit = 'Aucune partie jouée pour l\'instant. Tes parties classées dans le Game Hub apparaîtront ici.';
+      dit = mots().vide;
       noteStats(dit);
     } else {
       const toutSolo = s.solo === s.played;
@@ -313,6 +406,7 @@
     if (s && 'records' in s) dit += ' ' + afficherRecords(s.records);
     if (s && 'achievements' in s) dit += ' ' + afficherSucces(s.achievements);
     // Annoncé une fois arrivé (le panneau est déjà ouvert, le focus sur « Fermer »).
+    if (fiche.mode === 'public' && fiche.ident) dit = `Profil ${de(fiche.ident.name)}. ${dit}`;
     $('profile-stats-live').textContent = dit;
   }
 
@@ -498,13 +592,18 @@
     }
   }
 
-  hub.on('stats', (r) => { if (dlgProfil.open) afficherStats(r); });
+  hub.on('stats', (r) => { if (dlgProfil.open && fiche.mode === 'prive') afficherStats(r); });
   $('profile-close').addEventListener('click', () => dlgProfil.close());
   // Le focus revient au bouton qui a ouvert — même s'il a changé de carte
   // pendant que le panneau était ouvert (un état du Hub est arrivé).
   dlgProfil.addEventListener('close', () => {
     const a = document.activeElement;
-    if (boutonProfil.isConnected && !$('lobby').hidden && (!a || a === document.body || !a.isConnected)) boutonProfil.focus({ preventScroll: true });
+    // Le bouton qui a ouvert (ton profil, ou le « 👤 Profil » d'un autre) ; s'il
+    // a disparu (le joueur est parti), le tien.
+    const retour = fiche.origine && fiche.origine.isConnected ? fiche.origine : boutonProfil;
+    // Focus perdu = sur <body>, détaché, ou resté DANS le panneau fermé (le
+    // navigateur n'a rien pu rendre : le bouton d'origine a disparu).
+    if (retour.isConnected && !$('lobby').hidden && (!a || a === document.body || !a.isConnected || dlgProfil.contains(a))) retour.focus({ preventScroll: true });
   });
   function fermerProfil() { try { if (dlgProfil.open) dlgProfil.close(); } catch (_) {} }
 

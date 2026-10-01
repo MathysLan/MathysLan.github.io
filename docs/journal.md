@@ -437,3 +437,20 @@ l'historique.
 - `hub-stats.mjs` : l'attente « 4 colonnes au-dessus de 561 px » devient
   « 4 entre 561 et 719 px, 2 × 2 ailleurs », et la disposition est mesurée
   (contre-épreuve sur l'ancien CSS : 7 échecs).
+
+## 2026-10-01 — Lot K : profils publics des joueurs
+
+- Audit : les player.id circulent dans l'état de chaque session ; la seule
+  preuve d'identité est la clé, vérifiée PAR SESSION (`verifies(session)`,
+  jamais retirée au départ) ; `session.departed` garde nom et avatar.
+- Choix : une action `public-profile { playerId }` (cible désignée par l'état
+  de session), servie seulement si la cible est dans la session du demandeur
+  ET que sa clé y a été vérifiée — sinon entrer avec l'id d'Alice suffirait.
+  `NOT_FOUND` identique pour un id inventé et une autre soirée. Annoncée par
+  `profiles` dans created / joined. Lecture seule.
+- Front : le même panneau en mode public (`fiche`), boutons « 👤 Profil »
+  gardés d'un rendu à l'autre. Défaut trouvé par le test : quand le joueur
+  consulté part, son bouton disparaît et le focus restait dans le panneau
+  fermé — corrigé (retour à « ton profil »), prouvé par le test qui échouait.
+  Attentes de test corrigées en route (Entrée native par CDP, majuscules CSS
+  dans `innerText`) ; `drawId: null` retiré des succès publics à la relecture.

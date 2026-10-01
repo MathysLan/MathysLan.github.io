@@ -10,6 +10,7 @@ Des suites qui ne se recouvrent pas :
 | `manifest.mjs` | le **manifest des jeux** (`data/games.manifest.json`) : cohérence avec `data/games.js` et avec les clients, et les garde-fous du build |
 | `profile.mjs` | le **profil local** (pseudo + avatar) : tests unitaires du module, puis intégration sur les vraies pages de jeux |
 | `hub-stats.mjs` | **les statistiques de joueur dans le Game Hub** : nouveau joueur (une phrase, pas de zéros), 4 parties jouées par le protocole avec l'id ET la clé du profil, ex æquo, joueur parti, renvoi refusé, rechargement, pseudo changé, autre clé, Hub sans statistiques, solo seul, 390 → 1280 px, clavier et annonce (voir « Lot H ») |
+| `hub-public-profile.mjs` | **les profils publics dans le Game Hub** : « 👤 Profil » sur les cartes des autres (le sien garde « ton profil »), rien demandé avant le clic, profil de Bob chez Ana = profil privé de Bob, nouveau joueur, joueur sans clé, joueur qui part panneau ouvert, clavier (Tab, Entrée, Échap, focus rendu et gardé), « Ton profil » après, 390 → 1280 px, soirée à deux, refus (autre soirée, id forgé), aucune fuite (voir « Lot K ») |
 | `hub-achievements.mjs` | **les succès dans le Game Hub** : 10 verrouillés au départ, victoire à 6 → retour au Hub → deux notifications l'une après l'autre (1/2, 2/2), focus intact, annonce unique ; rien de rejoué (rechargement, autre onglet, autre navigateur) ; profil (obtenus d'abord, « Nouveau », date) ; fenêtre ouverte = attente ; garde-fou local ; survol ; 390 px tactile ; codes = serveur (voir « Lot J ») |
 | `hub-profile.mjs` | **le profil joueur dans le Game Hub** : aucun profil, pseudo nettoyé, icône, photo, stockage corrompu / bloqué, joueur sans profil, la même identité du salon à la finale, panneau « ton profil » au clavier, 390 → 1280 px (voir « Lot G ») |
 | `passeur-play.mjs` | **une partie réelle du Passeur**, avec de vrais clics, un vrai tactile et de vraies touches (voir plus bas) |
@@ -569,3 +570,24 @@ n'ont pas de `node_modules` sur ce poste : leurs `handoff-*` et
 `hub-score-*` (sauf Morpion, qui le prête lui-même) exigent
 `NODE_PATH=C:\perso\game-hub-server\node_modules`, sinon le serveur de jeu ne
 démarre pas (« injoignable », ou suite muette).
+
+## Lot K — profils publics (2026-10-01) : `hub-public-profile.mjs`
+
+Serveur d'abord (game-hub-server : action `public-profile`, annonce
+`profiles`), front ensuite. `game-hub.js` (`?v=9`, huit pages) et
+`hub-page.js` (`?v=17`) touchés.
+
+    node tests/hub-public-profile.mjs              ~1 min 30, vrai game-hub-server local (HUB_STATS=memory), deux navigateurs
+    node tests/hub-public-profile.mjs --reduced
+    node tests/hub-public-profile.mjs --shots <d>  profil public 1280 / 390, nouveau joueur, joueur parti, salon 390
+
+Qui voit quoi est éprouvé côté serveur : `game-hub-server/test-public-profile.js`
+(27 — soi, même soirée, autre soirée, ids forgés et pièges `__proto__` /
+`constructor`, usurpation d'id sans et avec fausse clé, joueur sans clé,
+parti, panne, aucune fuite). Contre-épreuves : sans la vérification de la clé
+de la cible, 4 échecs (Mallory lit les stats de Dan) ; `departed[id]` sans
+`hasOwnProperty`, 1 échec (`constructor`).
+
+Entrée sur un `<button>` natif par CDP : `keyDown` AVEC `text: ''` (comme
+`hub-stats.mjs`) ; un `rawKeyDown` sans texte n'active pas le bouton. Les
+titres de section sont en majuscules CSS : `innerText` rend « SUCCÈS ».

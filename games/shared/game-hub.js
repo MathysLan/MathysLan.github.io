@@ -112,6 +112,10 @@
   // Succès (lot J) : « ces notifications ont été AFFICHÉES ». Ne débloque rien
   // (le Hub ne touche que tes lignes déjà débloquées).
   var achievementsSeenMsg = function (codes) { return { action: 'achievements-seen', codes: codes }; };
+  // Profil PUBLIC (lot K) d'un joueur de TA soirée, désigné par son id tel que
+  // l'état de session le montre. Le Hub vérifie tout (même session, clé de la
+  // cible vérifiée) : un id seul n'ouvre rien.
+  var publicProfileMsg = function (playerId) { return { action: 'public-profile', playerId: playerId }; };
 
   // Les statistiques reçues, relues en LISTE BLANCHE. Le client n'en calcule
   // aucune : il affiche ce que le Hub a compté (game-hub-server, stats.js).
@@ -150,6 +154,25 @@
     if (!Array.isArray(list)) return [];
     return list.filter(function (a) { return a && codeSucces(a.code); }).slice(0, 40)
       .map(function (a) { return { code: a.code, at: instant(a.at), drawId: tirage(a.drawId) }; });
+  }
+  // La réponse `public-profile`, relue en liste blanche. L'identité est celle
+  // que le Hub connaît (affichée en textContent / GameAvatar, jamais en HTML).
+  var RAISONS_PROFIL = ['NOT_FOUND', 'UNVERIFIED', 'UNAVAILABLE', 'BUSY'];
+  // Un profil PUBLIC ne porte jamais de drawId (le Hub n'en envoie pas ; on ne
+  // garde pas la clé vide du lecteur privé).
+  var publique = function (st) {
+    if (st && st.achievements) st.achievements = st.achievements.map(function (a) { return a.unlocked ? { code: a.code, unlocked: true, at: a.at } : a; });
+    return st;
+  };
+  function readPublicProfile(m) {
+    var r = { playerId: typeof m.playerId === 'string' ? m.playerId : null,
+      reason: RAISONS_PROFIL.indexOf(m.reason) >= 0 ? m.reason : null, profile: null };
+    var p = m.profile;
+    if (p && typeof p === 'object' && typeof p.name === 'string') {
+      r.profile = { name: p.name.slice(0, 40), avatar: p.avatar && typeof p.avatar === 'object' ? p.avatar : null, present: p.present === true,
+        stats: p.stats && typeof p.stats === 'object' ? publique(readStats(p.stats, null).stats) : null };
+    } else if (!r.reason) r.reason = 'NOT_FOUND';
+    return r;
   }
   function readStats(s, reason) {
     if (!s || typeof s !== 'object') return { stats: null, reason: reason === 'UNVERIFIED' ? 'UNVERIFIED' : 'UNAVAILABLE' };
@@ -442,6 +465,7 @@
     var retry = 0, retryTimer = null, closedByUs = false;
     var connexion = 0;            // n° du socket en service (+1 à chaque (re)connexion)
     var statsDispo = false;       // le Hub a-t-il annoncé qu'il répond à `stats` ?
+    var profilsDispo = false;     // … et à `public-profile` (lot K) ?
     var handlers = {};
 
     function emit(ev, data) { (handlers[ev] || []).forEach(function (fn) { try { fn(data); } catch (_) {} }); }
@@ -490,6 +514,7 @@
         you = m.you; session = s; code = s.code; retry = 0;
         // Un Hub d'avant le lot H n'annonce rien : on ne lui demandera rien.
         statsDispo = m.stats === true;
+        profilsDispo = m.profiles === true;
         setStatus('in-session');
         emit('session', { session: s, you: you });
         if (pending) { pending.resolve({ session: s, you: you }); pending = null; }
@@ -501,6 +526,10 @@
       }
       // Succès débloqués à notifier (lot J). Seule /games/ les affiche (et en
       // accuse réception) ; la page d'un jeu n'écoute pas cet événement.
+      if (m.type === 'public-profile') {
+        emit('public-profile', readPublicProfile(m));
+        return;
+      }
       if (m.type === 'achievement') {
         var neufs = readUnlocked(m.unlocked);
         if (neufs.length) emit('achievement', neufs);
@@ -637,6 +666,10 @@
       // TES statistiques : la réponse arrive par l'événement `stats`. Rend false
       // (rien n'est envoyé) si le Hub ne les a pas annoncées, ou hors ligne.
       requestStats: function () { return statsDispo && send(statsMsg()); },
+      // Le profil PUBLIC d'un joueur de la soirée : réponse par `public-profile`.
+      // Rend false (rien n'est envoyé) si le Hub ne l'a pas annoncé, ou hors ligne.
+      requestPublicProfile: function (playerId) { return profilsDispo && send(publicProfileMsg(playerId)); },
+      get profilsDispo() { return profilsDispo; },
       // Ces notifications de succès ont été affichées : le Hub ne les renverra plus.
       achievementsSeen: function (codes) { return send(achievementsSeenMsg(codes)); },
       get statsDispo() { return statsDispo; },
@@ -659,7 +692,7 @@
     prefsMsg: prefsMsg, capsMsg: capsMsg, constraintsMsg: constraintsMsg, drawMsg: drawMsg, continueMsg: continueMsg,
     launchedMsg: launchedMsg, enteredMsg: enteredMsg, resultsMsg: resultsMsg, startedMsg: startedMsg, endedMsg: endedMsg, abortMsg: abortMsg,
     finishMsg: finishMsg, readFinale: readFinale, statsMsg: statsMsg, readStats: readStats,
-    achievementsSeenMsg: achievementsSeenMsg, readUnlocked: readUnlocked,
+    achievementsSeenMsg: achievementsSeenMsg, readUnlocked: readUnlocked, publicProfileMsg: publicProfileMsg, readPublicProfile: readPublicProfile,
     readLaunch: readLaunch, launchFailureText: launchFailureText,
     parseMessage: parseMessage, readSession: readSession, errorText: errorText, reasonText: reasonText, de: de,
     createClient: createClient,

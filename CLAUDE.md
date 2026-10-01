@@ -1142,6 +1142,46 @@ Dix succès, la section « 🎖️ Tes succès » du profil, et la notification
   l'hôte, et un second profil fait un faux adversaire. Succès cosmétiques,
   aucun classement entre joueurs.
 
+## Profils publics des joueurs (lot K)
+
+Deux profils, un seul panneau (`#profile-dialog`, même mise en page, mêmes
+ids) :
+
+| | Profil PRIVÉ — « Ton profil » | Profil PUBLIC — un autre joueur |
+|---|---|---|
+| bouton | `#hub-profile-btn` « 👤 ton profil », sur TA carte | `.hub-card-public` « 👤 Profil » (`data-player`, `aria-label` « Voir le profil de Bob »), sur les cartes des AUTRES |
+| message | `stats` (ne porte rien) | `public-profile { playerId }` |
+| qui | toi (ton socket, ta clé) | un joueur de TA soirée dont la clé y a été vérifiée |
+| contenu | tes stats, records, succès (+ « Nouveau ») | identité du HUB + stats, par jeu, records, succès (sans drawId, donc sans « Nouveau ») |
+| textes | « Tes statistiques »… | « Profil de Bob », « 📊 Statistiques », « Aucune partie enregistrée. », « Ces chiffres viennent du Game Hub, jamais du navigateur de Bob. » |
+
+- ⚠️⚠️ **UN PLAYER ID SEUL NE PERMET JAMAIS D'ACCÉDER AUX STATS D'UN JOUEUR.**
+  Les ids sont publics (état de chaque session). Le Hub (`onPublicProfile`)
+  exige : demandeur dans une session, cible dans CETTE session (présente ou
+  partie, `session.departed`), clé de la cible VÉRIFIÉE dans cette session.
+  Entrer avec l'id d'Alice sans sa clé → `UNVERIFIED` (identité seule). Id
+  inventé ou autre soirée → `NOT_FOUND`, même réponse (pas d'oracle).
+  `test-public-profile.js` le prouve (mutation sans la vérification de clé :
+  Mallory lit les stats de Dan).
+- **Identité** : celle que le Hub connaît (nom et avatar de la session, ou de
+  `session.departed`), jamais le profil local du joueur consulté.
+- **À l'ouverture seulement** (`hub.requestPublicProfile`, annoncé par
+  `profiles: true` dans `created` / `joined`) : rien au chargement du salon,
+  pas de polling, rien gardé après fermeture. Un ancien Hub ne l'annonce pas →
+  pas de bouton. Lecture seule : rien n'est débloqué pour la cible.
+- **Joueur parti** : si son profil est ouvert, le panneau le dit (« parti de
+  la soirée », « X a quitté la soirée : ses statistiques restent… ») sans rien
+  redemander ; le Hub le sert encore dans cette soirée. ⚠️ Limite : sa carte
+  disparaît du salon, donc plus de bouton pour l'ouvrir après son départ (pas
+  de nouvelle persistance pour ça).
+- **Focus** : les boutons publics sont gardés d'un rendu à l'autre (Map
+  `boutonsPublics`), comme `#hub-profile-btn` ; à la fermeture le focus revient
+  au bouton d'origine, ou à « ton profil » si celui-ci a disparu — y compris
+  quand le focus est resté DANS le panneau fermé (corrigé au lot K).
+- Le mode du panneau est dans `fiche` (`hub-page.js`) : `stats` n'est affiché
+  qu'en mode privé, `public-profile` qu'en mode public et pour la cible
+  ouverte.
+
 ## Défauts connus, non corrigés
 
 - `tests/manifest.mjs` : la mutation « jeu live sans bloc hub » est une regex en
