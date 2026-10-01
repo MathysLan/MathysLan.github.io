@@ -490,3 +490,36 @@ ce serveur par le PID qui écoute sur le port, jamais `taskkill /IM node.exe`.
 |---|---|---|---|
 | `hub-stats.mjs` | nouvelle suite (ci-dessus) | 27 | 27 |
 | `hub.mjs`, `profile.mjs`, `hub-profile.mjs` | inchangées, vertes avec la clé et le message `stats` | 86 / 31 lignes / 46 | — |
+
+## Lot I — records personnels (2026-10-01) : `hub-stats.mjs` étendue
+
+Aucune nouvelle suite : les records sont dans la MÊME réponse `stats`
+(`stats.records`, dérivé du résumé dans game-hub-server `src/stats.js`).
+`game-hub.js` touché (relecture de `records` en liste blanche) : `?v=7` sur
+les huit pages.
+
+    node tests/hub-stats.mjs                 ~1 min
+    node tests/hub-stats.mjs --reduced
+    node tests/hub-stats.mjs --shots <dir>   + nom long à 390 px (records-nom-long-390)
+
+Ajouté : relecture en Node de `readStats` (Hub d'avant le lot I = section
+cachée, `records` forgés filtrés) ; « Pas encore de record. » ; les quatre
+cartes (meilleure place, victoires, jeu le plus joué, meilleur jeu) ; égalité
+à deux jeux (les deux, sans départage) et à quatre (« 4 jeux », annonce
+complète) ; « meilleure place : 1er » dans « Par jeu » ; nom de jeu long en
+« … » (titre allongé dans `GAMES`, panneau rouvert à 390 px) ; panneau
+refermé / rouvert, rechargement, pseudo changé, autre clé, Hub sans stats ;
+solo (« Aucun record compétitif pour l'instant. » + le jeu le plus joué) ;
+rien d'un autre joueur (ni nom dans le panneau, ni id dans les réponses).
+
+Côté serveur, `game-hub-server/test-stats.js` : définitions pures des records
+(aucune partie, solo, une / plusieurs victoires, meilleur jeu ≠ plus joué,
+égalité, ex æquo 1, 1, 3, sans victoire), puis sur de vraies connexions
+(joueur parti, plusieurs jeux, pseudo changé, doublon, reconnexion, autre clé,
+panne). 69 vérifications, 75 avec `TEST_DATABASE_URL` (PGlite, voir lot H) :
+records SQL = records mémoire.
+
+| Suite | Ce qui a été ajouté | Normal | Réduit |
+|---|---|---|---|
+| `hub-stats.mjs` | records (ci-dessus) | 48 | 48 |
+| `hub-score-contract.mjs`, `hub-profile.mjs`, `hub-recap.mjs`, `hub-finale.mjs`, `handoff-play.mjs` | inchangées, vertes | 125 / 46 / 89 / 67 / 57 | — |

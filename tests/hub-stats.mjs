@@ -19,6 +19,12 @@
 // K par jeu ; L pseudo changé ; M clé qui ne correspond pas, Hub sans
 // statistiques ; solo seulement (pas de « victoire ») ; N 390 → 1280 px ;
 // clavier et annonce.
+//
+// Records personnels (lot I, `stats.records`, calculés par le Hub dans la même
+// réponse) : « Pas encore de record » sans partie, « Aucun record compétitif »
+// en solo, meilleure place / victoires / jeu le plus joué / meilleur jeu, une
+// égalité montre les deux jeux, un nom long finit en « … », la meilleure place
+// par jeu dans « Par jeu », rien d'un autre joueur.
 import { spawn, execFileSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
@@ -146,6 +152,17 @@ async function joueur(cdp, nom) {
 
 // ═══════════════════════════════════════════ la vraie page, les vrais Hubs
 const WS = createRequire(path.join(ROOT, '..', 'game-hub-server', 'package.json'))('ws');
+
+// ═══ records relus en liste blanche (game-hub.js, sans navigateur)
+{
+  const GH = createRequire(import.meta.url)('../games/shared/game-hub.js');
+  const base = { played: 2, solo: 0, wins: 1, podiums: 2, best: 1, games: [{ gameId: 'passeur', played: 2, solo: 0, wins: 1, podiums: 2, best: 1 }] };
+  t('Hub d\'avant le lot I (pas de clé records) : la clé reste absente — la page cache la section', !('records' in GH.readStats(base).stats));
+  t('records: null (aucune partie) : relu null', GH.readStats({ ...base, records: null }).stats.records === null);
+  const forge = GH.readStats({ ...base, records: { best: 0, wins: -2, playerId: 'p_x', mostPlayed: { games: ['passeur', '<img>', 42], played: 2, by: 'p_x' },
+    mostWins: { games: ['passeur'], wins: 'beaucoup' } } }).stats.records;
+  t('records forgés : rangs invalides → null, ids de jeu filtrés, champs inconnus jetés', same(forge, { best: null, wins: null, mostPlayed: { games: ['passeur'], played: 2 }, mostWins: null }), JSON.stringify(forge));
+}
 const sante = await fakeHealth(HEALTH_PORT);
 const MANIFEST = localManifest(ROOT, HEALTH_PORT);
 const HUBDIR = path.join(ROOT, '..', 'game-hub-server');
@@ -229,8 +246,15 @@ const STATS = `(() => { const q = (s) => document.getElementById(s);
   return { ouvert: q('profile-dialog').open, note: q('profile-stats-note').hidden ? null : q('profile-stats-note').textContent,
     figuresVues: !q('profile-figures').hidden, figs, jeuxVus: !q('profile-games').hidden, jeux,
     live: q('profile-stats-live').textContent, busy: q('profile-stats').getAttribute('aria-busy'),
+    recVus: !q('profile-records').hidden, recNote: q('profile-records-note').hidden ? null : q('profile-records-note').textContent,
+    recListe: !q('profile-records-list').hidden,
+    recs: [...document.querySelectorAll('#profile-records-list .profile-record')].map((f) => ({ cle: f.dataset.record,
+      mot: [...f.querySelector('dt').childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join('').trim(), emojiCache: f.querySelector('dt [aria-hidden="true"]') !== null,
+      jeux: [...f.querySelectorAll('.profile-record-game')].map((n) => n.textContent), n: f.querySelector('b').textContent,
+      lu: f.querySelector('b').textContent, detail: f.querySelector('small').textContent })),
     texte: q('profile-stats').innerText, focus: document.activeElement && document.activeElement.id }; })()`;
 const fig = (v, mot) => (v.figs.find((f) => f.mot === mot) || {}).n;
+const rec = (v, cle) => v.recs.find((r) => r.cle === cle);
 // Ouvre le panneau et attend que les statistiques soient arrivées (ou dites indisponibles).
 async function ouvre(J) {
   await J.click('#hub-profile-btn');
@@ -244,14 +268,16 @@ const ferme = (J) => J.click('#profile-close');
 const GEOM = `(() => { const R = (e) => e.getBoundingClientRect(); const dlg = document.getElementById('profile-dialog'), p = R(dlg);
   const sec = R(document.getElementById('profile-stats'));
   const dedans = (e) => { const r = R(e); return r.left >= sec.left - 0.5 && r.right <= sec.right + 0.5; };
-  const figs = [...document.querySelectorAll('#profile-figures .profile-figure')], jeux = [...document.querySelectorAll('#profile-games .profile-game')];
+  const figs = [...document.querySelectorAll('#profile-figures .profile-figure, #profile-records-list .profile-record')], jeux = [...document.querySelectorAll('#profile-games .profile-game')];
   const coupe = [...document.querySelectorAll('.profile-figure b, .profile-figure dt, .profile-game-meta')].filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent);
-  const noms = [...document.querySelectorAll('.profile-game-name')];
+  const noms = [...document.querySelectorAll('.profile-game-name, .profile-record-game')];
   return { largeur: innerWidth, scrollX: document.documentElement.scrollWidth - innerWidth,
     panneau: p.left >= 0 && p.right <= innerWidth + 0.5 && p.top >= 0 && p.bottom <= innerHeight + 0.5,
     figures: figs.every(dedans), jeux: jeux.every(dedans), coupe,
     noms: noms.every((n) => getComputedStyle(n).textOverflow === 'ellipsis' && R(n).right <= sec.right + 0.5),
-    colonnes: getComputedStyle(document.getElementById('profile-figures')).gridTemplateColumns.split(' ').length }; })()`;
+    colonnes: getComputedStyle(document.getElementById('profile-figures')).gridTemplateColumns.split(' ').length,
+    colRecords: getComputedStyle(document.getElementById('profile-records-list')).gridTemplateColumns.split(' ').length,
+    tronques: noms.filter((n) => n.scrollWidth > n.clientWidth + 1).map((n) => n.textContent) }; })()`;
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hubstats-'));
 const edge = spawn(EDGE, ['--headless=new', '--disable-gpu', `--remote-debugging-port=${CDP_PORT}`, `--user-data-dir=${dir}`, '--no-first-run',
@@ -278,6 +304,8 @@ try {
   const v0 = await ouvre(A);
   t('A. nouveau joueur : « Aucune partie jouée », aucun chiffre, aucun jeu', /^Aucune partie jouée/.test(v0.note || '') && !v0.figuresVues && !v0.jeuxVus && !/\b0\b/.test(v0.texte), JSON.stringify({ note: v0.note, texte: v0.texte }));
   t('A. … et c\'est annoncé (role="status")', /Aucune partie jouée/.test(v0.live), v0.live);
+  t('A. records : « Pas encore de record. », aucune carte (pas de collection de zéros)', v0.recVus && v0.recNote === 'Pas encore de record.' && !v0.recListe && !v0.recs.length
+    && /Pas encore de record/.test(v0.live), JSON.stringify({ note: v0.recNote, live: v0.live }));
   await A.shot('A-stats-vides');
   await ferme(A);
 
@@ -306,11 +334,25 @@ try {
   t('chaque chiffre dit ce qu\'il compte, en toutes lettres', v1.figs.every((f) => f.detail.length > 4)
     && /devant au moins un joueur/.test(v1.figs.find((f) => f.mot === 'victoires').detail) && /3 premiers/.test(v1.figs.find((f) => f.mot === 'podiums').detail));
   const jeu = (id) => (v1.jeux.find((j) => j.id === id) || {}).meta;
-  t('K. par jeu, le plus joué d\'abord : Passeur 2 · 1 victoire · 1 podium ; Demi-Cercle 1 · 0 · 1 ; Précision 1 · 1 · 1',
-    v1.jeux[0].id === 'passeur' && jeu('passeur') === '2 parties · 1 victoire · 1 podium' && jeu('demicercle') === '1 partie · 0 victoire · 1 podium'
-    && jeu('precision') === '1 partie · 1 victoire · 1 podium' && v1.jeux.length === 3, JSON.stringify(v1.jeux));
+  t('K/E. par jeu, le plus joué d\'abord, avec la meilleure place : Passeur 2 · 1 · 1 · 1er ; Demi-Cercle 1 · 0 · 1 · 2e ; Précision 1 · 1 · 1 · 1er',
+    v1.jeux[0].id === 'passeur' && jeu('passeur') === '2 parties · 1 victoire · 1 podium · meilleure place : 1er'
+    && jeu('demicercle') === '1 partie · 0 victoire · 1 podium · meilleure place : 2e'
+    && jeu('precision') === '1 partie · 1 victoire · 1 podium · meilleure place : 1er' && v1.jeux.length === 3, JSON.stringify(v1.jeux));
+  t('records : quatre cartes, dans l\'ordre meilleure place, victoires, jeu le plus joué, meilleur(s) jeu(x)', same(v1.recs.map((r) => r.cle), ['best', 'wins', 'mostPlayed', 'mostWins'])
+    && v1.recVus && v1.recNote === null, JSON.stringify(v1.recs));
+  t('A/B. records : « Meilleure place 1er », « Victoires 2 » (la définition du lot H : le Hub, pas la page)',
+    rec(v1, 'best').n === '1er' && rec(v1, 'best').mot === 'Meilleure place' && rec(v1, 'wins').n === '2' && rec(v1, 'wins').mot === 'Victoires', JSON.stringify(v1.recs.slice(0, 2)));
+  t('C. records : « Jeu le plus joué · Le Passeur · 2 parties »', rec(v1, 'mostPlayed').mot === 'Jeu le plus joué' && same(rec(v1, 'mostPlayed').jeux, ['Le Passeur'])
+    && rec(v1, 'mostPlayed').detail === '2 parties', JSON.stringify(rec(v1, 'mostPlayed')));
+  t('D/égalité. meilleur jeu : Le Passeur ET Précision (1 victoire chacun), sans départage', rec(v1, 'mostWins').mot === 'Meilleurs jeux'
+    && same(rec(v1, 'mostWins').jeux, ['Le Passeur', 'Précision']) && rec(v1, 'mostWins').detail === 'à égalité · 1 victoire chacun', JSON.stringify(rec(v1, 'mostWins')));
+  t('records lisibles sans emoji : l\'emoji est caché aux lecteurs d\'écran, chaque carte a un libellé en mots et une précision', v1.recs.every((r) => r.emojiCache && r.mot.length > 4 && r.detail.length > 2));
+  t('records : les deux jeux à égalité sont séparés pour le lecteur d\'écran (« Le Passeur et Précision »)', /Le Passeur\s*et\s*Précision/.test(rec(v1, 'mostWins').lu), rec(v1, 'mostWins').lu);
+  t('rien d\'un autre joueur : ni nom ni id dans le panneau, ni dans les réponses stats', !/Bob|Cam|Dan/.test(v1.texte)
+    && A.recus.filter((m) => m.type === 'stats').every((m) => !/p_stat[bcd]/.test(JSON.stringify(m))));
   t('K. les noms de jeux viennent du catalogue (Le Passeur, Demi-Cercle, Précision)', same(v1.jeux.map((j) => j.nom).sort(), ['Demi-Cercle', 'Le Passeur', 'Précision']));
-  t('annonce : le résumé en une phrase', v1.live === '4 parties, 2 victoires, 3 podiums, meilleure place : 1er.', v1.live);
+  t('annonce : le résumé, puis les jeux en tête', v1.live === '4 parties, 2 victoires, 3 podiums, meilleure place : 1er. '
+    + 'Records : jeu le plus joué : Le Passeur (2 parties) ; meilleurs jeux : Le Passeur et Précision (1 victoire chacun, à égalité).', v1.live);
   t('focus : sur « Fermer » à l\'ouverture', v1.focus === 'profile-close', v1.focus);
   await A.shot('B-stats-1280');
   // H. Cam, partie avant le classement de Précision : sa partie compte.
@@ -323,8 +365,8 @@ try {
     await A.size(w, h); await sleep(250);
     const g = await A.eval(GEOM);
     t(`N. ${w} px : panneau dans l'écran, chiffres et jeux dans le panneau, aucun texte coupé, noms en « … » si trop longs`,
-      g.panneau && g.figures && g.jeux && !g.coupe.length && g.noms && g.scrollX <= 0 && g.colonnes === (w < 561 ? 2 : 4), JSON.stringify(g));
-    if (w === 390) { await A.shot('N-stats-390'); await A.eval(`document.getElementById('profile-games').scrollIntoView({ block: 'end', behavior: 'instant' }); true`); await A.shot('N-stats-390-bas'); }
+      g.panneau && g.figures && g.jeux && !g.coupe.length && g.noms && g.scrollX <= 0 && g.colonnes === (w < 561 ? 2 : 4) && g.colRecords === 2, JSON.stringify(g));
+    if (w === 390) { await A.shot('N-stats-390'); await A.eval(`document.getElementById('profile-records').scrollIntoView({ block: 'end', behavior: 'instant' }); true`); await A.shot('N-stats-390-bas'); }
   }
   await A.size(1280, 900);
   // Clavier : Échap ferme, le focus revient au bouton ; Entrée rouvre et redemande.
@@ -334,14 +376,32 @@ try {
   await A.enter();
   await A.until(`!document.getElementById('profile-stats').hasAttribute('aria-busy') && !!document.getElementById('profile-stats-live').textContent`, 5000);
   t('clavier : Entrée rouvre, les statistiques sont redemandées (une demande par ouverture)', A.envoyes.filter((m) => m.action === 'stats').length === avantDemandes + 1);
+  const vr = await A.eval(STATS);
+  t('refermé puis rouvert : les mêmes records, sans doublon de cartes', same(vr.recs, v1.recs) && vr.recs.length === 4, JSON.stringify(vr.recs.map((r) => r.cle)));
   t('la demande ne porte RIEN (le Hub désigne le joueur par son socket)', A.envoyes.filter((m) => m.action === 'stats').every((m) => same(Object.keys(m), ['action'])));
+  await ferme(A);
+
+  // Noms longs : le catalogue de la page porte le titre ; on l'allonge et on rouvre à 390 px.
+  await A.eval(`GAMES.find((g) => g.id === 'precision').title = 'Précision — édition spéciale du très long dimanche soir'; true`);
+  await A.size(390, 780); await sleep(200);
+  const vlong = await ouvre(A);
+  const gl = await A.eval(GEOM);
+  t('noms longs (390 px) : le nom du meilleur jeu finit en « … » dans sa carte, en entier dans son titre, rien ne déborde',
+    gl.tronques.some((n) => /très long dimanche/.test(n)) && gl.noms && gl.figures && gl.panneau && gl.scrollX <= 0 && !gl.coupe.length
+    && await A.eval(`[...document.querySelectorAll('.profile-record-game')].some((n) => n.title === n.textContent && /très long/.test(n.title))`),
+    JSON.stringify({ tronques: gl.tronques, coupe: gl.coupe }));
+  await A.eval(`document.getElementById('profile-records').scrollIntoView({ block: 'end', behavior: 'instant' }); true`);
+  await A.shot('records-nom-long-390');
+  t('noms longs : l\'annonce garde le nom entier', /très long dimanche soir/.test(vlong.live), vlong.live);
+  await A.eval(`GAMES.find((g) => g.id === 'precision').title = 'Précision'; true`);
+  await A.size(1280, 900);
   await ferme(A);
 
   // J. rechargement : mêmes chiffres.
   await A.goto(PAGE);
   await A.until(`!document.getElementById('lobby').hidden`, 10000, 'reprise après rechargement');
   const vj = await ouvre(A);
-  t('J. rechargement (reprise) : les mêmes statistiques', same(vj.figs, v1.figs) && same(vj.jeux, v1.jeux));
+  t('J. rechargement (reprise) : les mêmes statistiques, les mêmes records', same(vj.figs, v1.figs) && same(vj.jeux, v1.jeux) && same(vj.recs, v1.recs));
   await ferme(A);
 
   // L. pseudo changé entre deux soirées : mêmes statistiques.
@@ -353,7 +413,7 @@ try {
   await A.until(`!document.getElementById('lobby').hidden`, 10000, 'nouvelle soirée de A');
   const vl = await ouvre(A);
   const nomVu = await A.eval(`document.getElementById('profile-name').textContent`);
-  t('L. pseudo changé, nouvelle soirée : le nouveau nom, les MÊMES statistiques', nomVu === 'Mathys L.' && same(vl.figs, v1.figs), nomVu);
+  t('L. pseudo changé, nouvelle soirée : le nouveau nom, les MÊMES statistiques et records', nomVu === 'Mathys L.' && same(vl.figs, v1.figs) && same(vl.recs, v1.recs), nomVu);
   await ferme(A);
 
   // M. une clé qui ne correspond pas (profil trafiqué) : rien n'est montré ni compté.
@@ -363,7 +423,7 @@ try {
   await A.click('#hub-create');
   await A.until(`!document.getElementById('lobby').hidden`, 10000, 'session avec la mauvaise clé');
   const vm = await ouvre(A);
-  t('M. autre clé pour le même id : « Pas de statistiques pour ce profil dans ce navigateur », aucun chiffre', /^Pas de statistiques pour ce profil/.test(vm.note || '') && !vm.figuresVues, vm.note);
+  t('M. autre clé pour le même id : « Pas de statistiques pour ce profil dans ce navigateur », aucun chiffre, aucun record', /^Pas de statistiques pour ce profil/.test(vm.note || '') && !vm.figuresVues && !vm.recVus, vm.note);
   await ferme(A);
   await A.eval(`document.getElementById('hub-leave').click(); true`);
   await A.eval(`(() => { const p = JSON.parse(localStorage.getItem(${JSON.stringify(KEY)})); p.key = ${JSON.stringify(pA.key)}; localStorage.setItem(${JSON.stringify(KEY)}, JSON.stringify(p)); return true; })()`);
@@ -374,7 +434,7 @@ try {
   await A.click('#hub-create');
   await A.until(`!document.getElementById('lobby').hidden`, 10000, 'salon sur le Hub sans statistiques');
   const vs = await ouvre(A);
-  t('M. Hub sans statistiques : « Ce Hub ne garde pas encore de statistiques », rien de demandé', vs.note === 'Ce Hub ne garde pas encore de statistiques.' && !vs.figuresVues
+  t('M. Hub sans statistiques : « Ce Hub ne garde pas encore de statistiques », rien de demandé, pas de records', vs.note === 'Ce Hub ne garde pas encore de statistiques.' && !vs.figuresVues && !vs.recVus
     && A.recus.some((m) => m.type === 'created' && m.stats === false) && A.envoyes.filter((m) => m.action === 'stats').length === demandesAvant, vs.note);
   await A.shot('M-stats-indisponibles');
   await ferme(A);
@@ -397,10 +457,41 @@ try {
   t('solo seulement : « 2 parties — en solo », pas de chiffre de victoires ni de podiums', vso.figs.length === 1 && vso.figs[0].n === '2' && vso.figs[0].detail === 'en solo'
     && !vso.figs.some((f) => /victoire|podium/.test(f.mot)), JSON.stringify(vso.figs));
   t('solo seulement : la raison est dite (« personne à battre »), et par jeu « 1 partie en solo »', /personne à battre/.test(vso.note || '') && vso.jeux.every((j) => j.meta === '1 partie en solo'), JSON.stringify({ note: vso.note, jeux: vso.jeux }));
+  t('solo seulement : « Aucun record compétitif pour l\'instant », ni meilleure place, ni victoires, ni meilleur jeu',
+    /^Aucun record compétitif pour l'instant/.test(vso.recNote || '') && same(vso.recs.map((r) => r.cle), ['mostPlayed']), JSON.stringify({ note: vso.recNote, recs: vso.recs }));
+  t('solo seulement : le jeu le plus joué reste un record — égalité Le Passeur / Précision, 1 partie chacun',
+    same(rec(vso, 'mostPlayed').jeux, ['Le Passeur', 'Précision']) && rec(vso, 'mostPlayed').mot === 'Jeux les plus joués' && rec(vso, 'mostPlayed').detail === 'à égalité · 1 partie chacun',
+    JSON.stringify(rec(vso, 'mostPlayed')));
+  t('solo seulement : annoncé', /Aucun record compétitif pour l'instant\. Records : jeux les plus joués : Le Passeur et Précision \(1 partie chacun, à égalité\)\./.test(vso.live), vso.live);
   await Sj.size(390, 780); await sleep(200);
+  const gso = await Sj.eval(GEOM);
+  t('solo seulement, 390 px : rien ne déborde', gso.panneau && gso.figures && gso.noms && !gso.coupe.length && gso.scrollX <= 0, JSON.stringify(gso));
   await Sj.shot('solo-390');
 
-  const errs = [A, Sj].flatMap((J) => J.erreurs.map((e) => `[${J.nom}] ${e}`));
+  // Égalité à plus de trois jeux : Tom gagne une fois à quatre jeux → « 4 jeux »
+  // pour le plus joué comme pour le meilleur (le détail est dans « Par jeu »).
+  const Tj = await joueur(cdp, 'T');
+  await Tj.goto(PAGE);
+  const pT = await Tj.profil();
+  const nt = await entre('Tom', pT.id, null, pT.key);
+  const codeT = nt.last().code;
+  const u2 = await entre('U2', 'p_statu2', codeT, 'u'.repeat(40)), u3 = await entre('U3', 'p_statu3', codeT, 'v'.repeat(40)), u4 = await entre('U4', 'p_statu4', codeT, 'w'.repeat(40));
+  clients.push(nt, u2, u3, u4);
+  for (const g of ['passeur', 'demicercle', 'precision', 'quiment']) await partie(nt, [u2, u3, u4], g, { Tom: 1, U2: 2, U3: 3, U4: 4 });
+  await nt.fermer();
+  await Tj.eval(`(() => { const p = JSON.parse(localStorage.getItem(${JSON.stringify(KEY)})); p.name = 'Tom'; localStorage.setItem(${JSON.stringify(KEY)}, JSON.stringify(p));
+    sessionStorage.setItem('mathys_hub_session', ${JSON.stringify(codeT)}); return true; })()`);
+  await Tj.goto(PAGE);
+  await Tj.until(`!document.getElementById('lobby').hidden`, 10000, 'T de retour');
+  const vt = await ouvre(Tj);
+  t('égalité à 4 jeux : « 4 jeux » (pluriel, « à égalité · 1 … chacun »), aucun départage, aucun nom tronqué',
+    rec(vt, 'mostPlayed').n === '4 jeux' && rec(vt, 'mostPlayed').mot === 'Jeux les plus joués' && rec(vt, 'mostPlayed').detail === 'à égalité · 1 partie chacun'
+    && rec(vt, 'mostWins').n === '4 jeux' && rec(vt, 'mostWins').mot === 'Meilleurs jeux' && rec(vt, 'mostWins').detail === 'à égalité · 1 victoire chacun'
+    && rec(vt, 'wins').n === '4', JSON.stringify(vt.recs));
+  t('égalité à 4 jeux : l\'annonce nomme les quatre', /jeux les plus joués : Demi-Cercle, Le Passeur, Précision et Qui Ment \? \(1 partie chacun, à égalité\)/.test(vt.live), vt.live);
+  t('égalité à 4 jeux : les quatre restent dans « Par jeu »', vt.jeux.length === 4, JSON.stringify(vt.jeux.map((j) => j.id)));
+
+  const errs = [A, Sj, Tj].flatMap((J) => J.erreurs.map((e) => `[${J.nom}] ${e}`));
   t('aucune erreur JS dans les pages', errs.length === 0, errs.slice(0, 3).join(' | '));
 } catch (e) {
   t('EXCEPTION', false, e.message);

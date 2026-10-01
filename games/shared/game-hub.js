@@ -116,15 +116,34 @@
   // UNVERIFIED (ce navigateur n'a pas la clé de ce profil).
   var entier = function (v) { return typeof v === 'number' && isFinite(v) && v >= 0 && Math.floor(v) === v ? v : 0; };
   var rang = function (v) { return typeof v === 'number' && isFinite(v) && v >= 1 && Math.floor(v) === v ? v : null; };
+  var gameIdOk = function (id) { return typeof id === 'string' && /^[a-z0-9-]{1,40}$/.test(id); };
+  // Records (lot I) : `null` = aucune partie ; chaque record absent vaut null.
+  // Le(s) jeu(x) en tête : `{ games, <cle> }`, TOUS les jeux à égalité, tels
+  // que le Hub les a rangés (aucun départage ici).
+  function readRecords(r) {
+    if (!r || typeof r !== 'object') return null;
+    var tete = function (t, cle) {
+      if (!t || typeof t !== 'object' || !Array.isArray(t.games) || rang(t[cle]) === null) return null;
+      var g = t.games.filter(gameIdOk).slice(0, 12);
+      if (!g.length) return null;
+      var o = { games: g }; o[cle] = t[cle];
+      return o;
+    };
+    return { best: rang(r.best), wins: rang(r.wins), mostPlayed: tete(r.mostPlayed, 'played'), mostWins: tete(r.mostWins, 'wins') };
+  }
   function readStats(s, reason) {
     if (!s || typeof s !== 'object') return { stats: null, reason: reason === 'UNVERIFIED' ? 'UNVERIFIED' : 'UNAVAILABLE' };
     var jeu = function (g) {
       return { gameId: g.gameId, played: entier(g.played), solo: entier(g.solo), wins: entier(g.wins), podiums: entier(g.podiums), best: rang(g.best) };
     };
-    return { stats: {
+    var out = {
       played: entier(s.played), solo: entier(s.solo), wins: entier(s.wins), podiums: entier(s.podiums), best: rang(s.best),
-      games: (Array.isArray(s.games) ? s.games : []).filter(function (g) { return g && typeof g.gameId === 'string' && /^[a-z0-9-]{1,40}$/.test(g.gameId); }).map(jeu),
-    }, reason: null };
+      games: (Array.isArray(s.games) ? s.games : []).filter(function (g) { return g && gameIdOk(g.gameId); }).map(jeu),
+    };
+    // Un Hub d'avant le lot I n'envoie pas `records` : la clé reste absente
+    // (la page ne montre alors pas la section), à ne pas confondre avec `null`.
+    if ('records' in s) out.records = readRecords(s.records);
+    return { stats: out, reason: null };
   }
 
   // Ce qui arrive du réseau n'est jamais pris tel quel.

@@ -246,6 +246,7 @@
     $('profile-figures').hidden = true;
     $('profile-games-title').hidden = true;
     $('profile-games').hidden = true;
+    $('profile-records').hidden = true;
   }
   function ouvrirStats() {
     $('profile-stats-live').textContent = '';
@@ -296,7 +297,8 @@
         const nom = el('span', 'profile-game-name', jeu.title);
         nom.title = jeu.title;
         const meta = g.solo === g.played ? `${pluriel(g.played, 'partie')} en solo`
-          : `${pluriel(g.played, 'partie')}${g.solo ? ` (${g.solo} en solo)` : ''} · ${pluriel(g.wins, 'victoire')} · ${pluriel(g.podiums, 'podium')}`;
+          : `${pluriel(g.played, 'partie')}${g.solo ? ` (${g.solo} en solo)` : ''} · ${pluriel(g.wins, 'victoire')} · ${pluriel(g.podiums, 'podium')}`
+            + (g.best ? ` · meilleure place : ${HubRecap.ordinal(g.best)}` : '');
         txt.append(nom, el('span', 'profile-game-meta', meta));
         li.append(em, txt);
         return li;
@@ -307,8 +309,69 @@
         : `${pluriel(s.played, 'partie')}, ${pluriel(s.wins, 'victoire')}, ${pluriel(s.podiums, 'podium')}`
           + (s.best ? `, meilleure place : ${HubRecap.ordinal(s.best)}.` : '.');
     }
+    if (s && 'records' in s) dit += ' ' + afficherRecords(s.records);
     // Annoncé une fois arrivé (le panneau est déjà ouvert, le focus sur « Fermer »).
     $('profile-stats-live').textContent = dit;
+  }
+
+  // ------------------------------------------------------ tes records (lot I)
+  // ⚠️ AUCUN CALCUL ICI NON PLUS : `stats.records` vient du Hub (stats.js →
+  // records()), dérivé des mêmes parties. Un record absent vaut null et n'est
+  // pas montré (pas de « 0 victoire » en record) ; une égalité arrive avec TOUS
+  // les jeux à égalité et on les montre tous — au-delà de trois, « 4 jeux à
+  // égalité » (le détail est dans « Par jeu », juste au-dessus). Rend la phrase
+  // annoncée. Un Hub d'avant le lot I n'envoie pas `records` : rien n'est montré.
+  const liste = (mots) => (mots.length < 2 ? mots.join('') : mots.slice(0, -1).join(', ') + ' et ' + mots[mots.length - 1]);
+  function jeuxRecord(ids) {
+    const b = el('b');
+    if (ids.length > 3) { b.textContent = `${ids.length} jeux`; return b; }
+    ids.forEach((id, i) => {
+      // Séparateurs pour le lecteur d'écran seulement : à l'écran, un jeu par ligne.
+      if (i) b.append(el('span', 'sr-only', i === ids.length - 1 ? ' et ' : ', '));
+      const n = el('span', 'profile-record-game', info(id).title);
+      n.title = info(id).title;
+      b.append(n);
+    });
+    return b;
+  }
+  function record(cle, emoji, mot, valeur, detail) {
+    const d = el('div', 'profile-figure profile-record');
+    d.dataset.record = cle;
+    const dt = document.createElement('dt');
+    const em = el('span', null, emoji + ' ');
+    em.setAttribute('aria-hidden', 'true');
+    dt.append(em, mot);
+    const dd = document.createElement('dd');
+    dd.append(typeof valeur === 'string' ? el('b', null, valeur) : valeur, el('small', null, detail));
+    d.append(dt, dd);
+    return d;
+  }
+  function afficherRecords(r) {
+    const note = $('profile-records-note'), dl = $('profile-records-list');
+    $('profile-records').hidden = false;
+    const noter = (texte) => { note.hidden = !texte; note.textContent = texte || ''; };
+    if (!r) { noter('Pas encore de record.'); dl.hidden = true; return 'Pas encore de record.'; }
+    const cartes = [];
+    if (r.best) cartes.push(record('best', '🥇', 'Meilleure place', HubRecap.ordinal(r.best), 'à plusieurs, tous jeux'));
+    if (r.wins) cartes.push(record('wins', '🏆', r.wins > 1 ? 'Victoires' : 'Victoire', String(r.wins), '1er devant au moins un joueur'));
+    // Meilleure place et victoires sont déjà dans la phrase des statistiques :
+    // l'annonce ne dit que les jeux en tête.
+    const dits = [];
+    const enTete = (t, cle, n, mot, un, plusieurs) => {
+      if (!t) return;
+      const egal = t.games.length > 1;
+      cartes.push(record(cle, cle === 'mostPlayed' ? '🎮' : '🏅', egal ? plusieurs : un, jeuxRecord(t.games),
+        egal ? `à égalité · ${pluriel(n, mot)} chacun` : pluriel(n, mot)));
+      dits.push(`${(egal ? plusieurs : un).toLowerCase()} : ${liste(t.games.map((id) => info(id).title))} (${pluriel(n, mot)}${egal ? ' chacun, à égalité' : ''})`);
+    };
+    if (r.mostPlayed) enTete(r.mostPlayed, 'mostPlayed', r.mostPlayed.played, 'partie', 'Jeu le plus joué', 'Jeux les plus joués');
+    if (r.mostWins) enTete(r.mostWins, 'mostWins', r.mostWins.wins, 'victoire', 'Meilleur jeu', 'Meilleurs jeux');
+    // Que du solo : pas de meilleure place à plusieurs, donc rien de compétitif.
+    const solo = !r.best;
+    noter(solo ? 'Aucun record compétitif pour l\'instant.' : '');
+    dl.replaceChildren(...cartes);
+    dl.hidden = !cartes.length;
+    return (solo ? 'Aucun record compétitif pour l\'instant. ' : '') + (dits.length ? 'Records : ' + dits.join(' ; ') + '.' : '');
   }
   hub.on('stats', (r) => { if (dlgProfil.open) afficherStats(r); });
   $('profile-close').addEventListener('click', () => dlgProfil.close());

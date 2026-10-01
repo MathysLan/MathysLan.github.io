@@ -586,6 +586,13 @@
   .profile-game-emoji { font-size: 1.1rem; text-align: center; }
   .profile-game-name { display: block; font-size: .95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .profile-game-meta { display: block; font-size: .78rem; color: var(--ink-3); }
+  /* Tes records : sous un trait, en deux colonnes à toutes les largeurs (le
+     panneau ne dépasse pas 440 px : quatre colonnes rogneraient les noms de
+     jeux). Un nom trop long finit en « … », le titre le donne en entier. */
+  .profile-records { margin-top: .9rem; padding-top: .8rem; border-top: 1px dashed var(--panel-edge); }
+  .profile-record-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .profile-stats-note:not([hidden]) + .profile-record-list { margin-top: .5rem; }
+  .profile-record-game { display: block; font-size: 1.05rem; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .finish-title { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 1.4rem; letter-spacing: .04em; margin: 0; text-transform: uppercase; }
   .finish-text { margin: .6rem 0 1.1rem; color: var(--ink-2); font-size: .95rem; }
   .finish-actions { display: flex; flex-wrap: wrap; gap: .6rem; justify-content: flex-end; }
@@ -911,6 +918,14 @@
           <dl class="profile-figures" id="profile-figures" hidden></dl>
           <h4 class="profile-stats-title" id="profile-games-title" hidden>🎮 Par jeu</h4>
           <ul class="profile-games" id="profile-games" aria-labelledby="profile-games-title" hidden></ul>
+          <!-- Tes records (lot I) : `stats.records`, calculés par le Hub dans
+               la même réponse. Un record absent n'est pas montré, une égalité
+               montre TOUS les jeux à égalité. -->
+          <section class="profile-records" id="profile-records" aria-labelledby="profile-records-title" hidden>
+            <h3 class="profile-stats-title" id="profile-records-title">🏆 Tes records</h3>
+            <p class="profile-stats-note" id="profile-records-note" hidden></p>
+            <dl class="profile-figures profile-record-list" id="profile-records-list" hidden></dl>
+          </section>
           <p class="sr-only" id="profile-stats-live" role="status"></p>
         </section>
         <p class="profile-text" id="profile-session"></p>
@@ -931,7 +946,7 @@
   <script src="../data/games.js"></script>
   <script src="shared/game-profile.js?v=3"></script>
   <script src="shared/game-avatar.js"></script>
-  <script src="shared/game-hub.js?v=6"></script>
+  <script src="shared/game-hub.js?v=7"></script>
   <script src="shared/hub-handoff.js?v=5"></script>
   <script src="hub-crate.js?v=3"></script>
   <script src="hub-recap.js?v=4"></script>

@@ -373,3 +373,24 @@ l'historique.
   large a pu tuer d'autres processus node — arrêter par PID désormais.
 - Mise en production : sans `DATABASE_URL` le Hub annonce `stats: false` et
   la page le dit ; les stats commencent quand la base Neon est branchée.
+
+## 2026-10-01 — Lot I : records personnels
+
+- Audit : `hub_plays` (rang, classés, derrière, jeu, points de SOIRÉE) et
+  l'agrégat SQL `perGame` du lot H donnent déjà, par jeu, parties / solo /
+  victoires / podiums / meilleure place. Tous les records demandés s'en
+  déduisent : ni table, ni requête, ni persistance de plus. Non retenu : la
+  meilleure performance en points du jeu (jamais stockée).
+- Serveur d'abord : `records()` dans `stats.js`, attaché par `summarize()` à
+  la réponse `stats` (une seule demande). Égalité = tous les jeux à égalité,
+  aucun départage. `test-stats.js` 69/69, 75/75 en SQL (PGlite, arrêté par
+  PID).
+- Front : `readRecords` (liste blanche, `game-hub.js` en `?v=7`), section
+  « 🏆 Tes records » sous les statistiques, « meilleure place » par jeu.
+  Retouches vues à la capture : en solo, « personne à battre » était dit deux
+  fois (note des records réduite à la phrase demandée). Attente de test
+  fausse corrigée : les jeux à égalité sont dans l'ordre du résumé (id), pas
+  dans l'ordre de jeu.
+- À arbitrer par Mathys : la maquette du lot montre « Victoires » et
+  « Meilleure place » dans les statistiques ET dans les records (doublon
+  visible dans le panneau).

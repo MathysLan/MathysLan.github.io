@@ -1030,7 +1030,46 @@ d'une soirée à l'autre, dans le panneau « 👤 ton profil » du salon.
   (2 × 2 sous 560 px), puis « 🎮 Par jeu » (le plus joué d'abord, nom en « … »).
   Que du solo → une seule case « en solo » et la raison (« personne à
   battre »). Résumé annoncé par `#profile-stats-live` (`role="status"`),
-  `aria-busy` pendant le chargement.
+  `aria-busy` pendant le chargement. Chaque ligne « Par jeu » finit par
+  « meilleure place : 1er » quand elle existe (déjà dans `games[].best`).
+
+## Records personnels (lot I)
+
+« 🏆 Tes records », sous les statistiques, dans le même panneau.
+
+- **Source de vérité : le Hub, et les MÊMES données que le lot H.** Aucune
+  table, aucune requête, aucune persistance de plus : `records(s)` dans
+  `game-hub-server/src/stats.js` est dérivé du résumé (`summarize()`, qui
+  l'attache en `stats.records`), lui-même tiré des agrégats par jeu
+  (`perGame`, SQL `group by`). Donc mémoire = Postgres par construction, et la
+  MÊME réponse `stats` porte tout (une seule demande par ouverture). Même
+  garde que le lot H : le joueur est désigné par son socket, id + clé vérifiés.
+- **Définitions** (celles du lot H, rien de recalculé) :
+  | `records.` | contenu | absent (`null`) |
+  |---|---|---|
+  | `best` | meilleure place à plusieurs | que du solo |
+  | `wins` | victoires (1er + au moins un classé derrière) | aucune victoire |
+  | `mostPlayed` | `{ games, played }` — solo compris | jamais (dès 1 partie) |
+  | `mostWins` | `{ games, wins }` | aucune victoire |
+  `records: null` = aucune partie (« Pas encore de record. »). Que du solo →
+  « Aucun record compétitif pour l'instant. » + le jeu le plus joué. Un record
+  absent n'est jamais montré comme un zéro.
+- ⚠️ **Égalité = TOUS les jeux à égalité dans `games`**, dans l'ordre du résumé
+  (le plus joué, puis l'id) : aucun départage, ni au serveur ni à la page.
+  Libellé au pluriel (« Meilleurs jeux »), précision « à égalité · 1 victoire
+  chacun », un jeu par ligne (séparateurs « , » / « et » pour le lecteur
+  d'écran) ; plus de trois → « 4 jeux » (le détail est dans « Par jeu »).
+- **Non retenu** : la meilleure performance en POINTS du jeu (`hub_plays` ne
+  garde que les points de soirée) ; séries, badges, XP, comparaison avec les
+  autres — hors lot.
+- **Page** : `game-hub.js` relit `records` en liste blanche (`readRecords`) ;
+  un Hub d'avant le lot I n'envoie pas la clé → section cachée (≠ `null`).
+  Cartes `.profile-record` (classe `.profile-figure` réutilisée), en deux
+  colonnes à toutes les largeurs (le panneau ne dépasse pas 440 px), emoji en
+  `aria-hidden`, nom de jeu en « … » avec le nom entier en `title`. L'annonce
+  ajoute les jeux en tête (meilleure place et victoires sont déjà dans la
+  phrase des statistiques). Le panneau montre donc deux fois victoires et
+  meilleure place : c'est la maquette du lot I.
 
 ## Défauts connus, non corrigés
 
