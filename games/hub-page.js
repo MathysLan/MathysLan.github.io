@@ -247,6 +247,7 @@
     $('profile-games-title').hidden = true;
     $('profile-games').hidden = true;
     $('profile-records').hidden = true;
+    $('profile-ach').hidden = true;
   }
   function ouvrirStats() {
     $('profile-stats-live').textContent = '';
@@ -310,6 +311,7 @@
           + (s.best ? `, meilleure place : ${HubRecap.ordinal(s.best)}.` : '.');
     }
     if (s && 'records' in s) dit += ' ' + afficherRecords(s.records);
+    if (s && 'achievements' in s) dit += ' ' + afficherSucces(s.achievements);
     // Annoncé une fois arrivé (le panneau est déjà ouvert, le focus sur « Fermer »).
     $('profile-stats-live').textContent = dit;
   }
@@ -373,6 +375,129 @@
     dl.hidden = !cartes.length;
     return (solo ? 'Aucun record compétitif pour l\'instant. ' : '') + (dits.length ? 'Records : ' + dits.join(' ; ') + '.' : '');
   }
+  // ------------------------------------------------------- tes succès (lot J)
+  // ⚠️ LE HUB DÉCIDE (game-hub-server, achievements.js) : la page ne connaît que
+  // les TEXTES. Un code que le Hub envoie sans texte ici est ignoré ; un texte
+  // sans code côté Hub reste verrouillé (un test compare les deux listes).
+  const SUCCES = [
+    { code: 'first-win', emoji: '🥇', name: 'Première victoire', desc: 'Gagne une partie à plusieurs.' },
+    { code: 'explorer', emoji: '🧭', name: 'Touche-à-tout', desc: 'Joue à 5 jeux différents (le solo compte).' },
+    { code: 'stalemate', emoji: '✖️', name: 'Pat', desc: 'Fais 3 matchs nuls au Morpion.' },
+    { code: 'shared-throne', emoji: '🤝', name: 'Partage du trône', desc: 'Termine 1er ex æquo, devant au moins un joueur.' },
+    { code: 'versatile', emoji: '🔀', name: 'Polyvalent', desc: 'Gagne à 3 jeux différents.' },
+    { code: 'marathon', emoji: '🏃', name: 'Marathon', desc: 'Joue 10 parties à plusieurs dans une même soirée.' },
+    { code: 'night-owl', emoji: '🌙', name: 'Oiseau de nuit', desc: 'Termine une partie à plusieurs entre minuit et 5 h (heure de Paris).' },
+    { code: 'hat-trick', emoji: '🔥', name: 'Hat-trick', desc: 'Gagne 3 parties d\'affilée dans une même soirée.' },
+    { code: 'crowd-king', emoji: '👑', name: 'Roi de la foule', desc: 'Gagne une partie à 6 joueurs ou plus.' },
+    { code: 'grand-slam', emoji: '💎', name: 'Grand Chelem', desc: 'Gagne au moins une fois à chacun des 7 jeux en ligne.' },
+  ];
+  const succesDe = (code) => SUCCES.find((x) => x.code === code) || null;
+  const DATE = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+  // Débloqué pendant CETTE soirée : sa partie est dans l'historique de la session.
+  const deCeSoir = (drawId) => !!drawId && !!current && current.session.history.games.some((g) => g.drawId === drawId);
+  function afficherSucces(list) {
+    const par = new Map(list.map((a) => [a.code, a]));
+    const lignes = SUCCES.map((x) => ({ ...x, etat: par.get(x.code) || { unlocked: false } }));
+    const obtenus = lignes.filter((l) => l.etat.unlocked);
+    // Obtenus d'abord (ordre du catalogue), puis verrouillés.
+    $('profile-ach-list').replaceChildren(...[...obtenus, ...lignes.filter((l) => !l.etat.unlocked)].map((l) => {
+      const ok = l.etat.unlocked;
+      const li = el('li', 'profile-ach-item ' + (ok ? 'is-unlocked' : 'is-locked'));
+      li.dataset.code = l.code;
+      const em = el('span', 'profile-ach-emoji', l.emoji);
+      em.setAttribute('aria-hidden', 'true');
+      const txt = el('span', 'profile-ach-text');
+      const nom = el('span', 'profile-ach-name', l.name);
+      if (ok && deCeSoir(l.etat.drawId)) nom.append(el('span', 'profile-ach-new', 'Nouveau'));
+      const etat = el('span', 'profile-ach-state');
+      const signe = el('span', null, ok ? '✓ ' : '🔒 ');
+      signe.setAttribute('aria-hidden', 'true');
+      etat.append(signe, ok ? (l.etat.at ? `Obtenu le ${DATE.format(new Date(l.etat.at))}` : 'Obtenu') : 'Verrouillé');
+      txt.append(nom, el('span', 'profile-ach-desc', l.desc), etat);
+      li.append(em, txt);
+      return li;
+    }));
+    $('profile-ach-count').textContent = `· ${obtenus.length}/${SUCCES.length}`;
+    $('profile-ach').hidden = false;
+    return `Succès : ${obtenus.length} sur ${SUCCES.length}.`;
+  }
+
+  // « 🏆 Succès débloqué » : le Hub envoie les succès débloqués PAS ENCORE
+  // notifiés (au retour d'une partie, ou tout de suite si l'on est déjà ici).
+  // On les montre UN PAR UN, puis on dit au Hub « affiché » (achievementsSeen) :
+  // il ne les renverra plus — ni au rechargement, ni à la reconnexion, ni dans
+  // un autre onglet. Garde-fou d'AFFICHAGE en plus (ne débloque rien) : les
+  // codes déjà montrés dans ce navigateur ne sont pas rejoués si l'accusé s'est
+  // perdu dans une coupure ; on les accuse à nouveau, sans les montrer.
+  const TOAST_MS = 5000, TOAST_SORTIE_MS = 300, TOAST_ECART_MS = 350, TOAST_ARRIVEE_MS = 700;
+  const VUS_KEY = 'mathys_hub_ach_shown';
+  const vusIci = () => {
+    try { const v = JSON.parse(localStorage.getItem(VUS_KEY) || 'null'); return v && current && v.id === current.you && Array.isArray(v.codes) ? v.codes : []; }
+    catch (_) { return []; }
+  };
+  const noteVu = (code) => {
+    try { localStorage.setItem(VUS_KEY, JSON.stringify({ id: current.you, codes: [...new Set([...vusIci(), code])] })); } catch (_) { /* stockage bloqué */ }
+  };
+  const fileSucces = [];
+  const montres = new Set();          // ce chargement de page
+  let toastActif = false, attente = false, numero = 0;   // numero : rang dans la salve en cours
+  hub.on('achievement', (list) => {
+    const deja = vusIci();
+    const relus = [];
+    for (const u of list) {
+      if (!succesDe(u.code)) continue;                       // code inconnu de cette page : rien à montrer
+      if (deja.includes(u.code) || montres.has(u.code)) { relus.push(u.code); continue; }
+      if (fileSucces.some((x) => x.code === u.code)) continue;
+      fileSucces.push(u);
+    }
+    if (relus.length) hub.achievementsSeen(relus);
+    if (!fileSucces.length) return;
+    // Une salve qui commence : un court délai, le temps que la carte Résultat
+    // arrive et prenne le focus. Pendant une salve, la file s'allonge seulement.
+    if (!toastActif && !attente) { attente = true; setTimeout(pompe, TOAST_ARRIVEE_MS); }
+  });
+  // Attendre : une fenêtre ouverte (profil, fin de soirée), ou l'onglet caché —
+  // une notification que personne ne voit ne doit pas être « affichée ».
+  const bloque = () => !!document.querySelector('dialog[open]') || document.visibilityState === 'hidden';
+  function pompe() {
+    if (toastActif) return;
+    if (!fileSucces.length) { attente = false; numero = 0; return; }
+    if (bloque()) { setTimeout(pompe, 400); return; }
+    const u = fileSucces.shift();
+    const x = succesDe(u.code);
+    toastActif = true;
+    numero++;
+    montres.add(u.code);
+    noteVu(u.code);
+    hub.achievementsSeen([u.code]);
+    const total = numero + fileSucces.length;
+    $('ach-toast-icon').textContent = x.emoji;
+    $('ach-toast-n').textContent = total > 1 ? `· ${numero}/${total}` : '';
+    $('ach-toast-name').textContent = x.name;
+    $('ach-toast-desc').textContent = x.desc;
+    $('ach-live').textContent = `Succès débloqué : ${x.name}. ${x.desc}`;
+    const t = $('ach-toast');
+    t.dataset.code = u.code;
+    t.hidden = false;
+    void t.offsetWidth;                                       // la transition part de l'état caché
+    t.classList.add('is-in');
+    let reste = TOAST_MS, depuis = Date.now();
+    let minuterie = setTimeout(sortie, reste);
+    // Pause au survol (souris) : on a le temps de lire.
+    t.onmouseenter = () => { clearTimeout(minuterie); reste -= Date.now() - depuis; };
+    t.onmouseleave = () => { depuis = Date.now(); minuterie = setTimeout(sortie, Math.max(reste, 1200)); };
+    function sortie() {
+      t.onmouseenter = t.onmouseleave = null;
+      t.classList.remove('is-in');
+      setTimeout(() => {
+        t.hidden = true;
+        delete t.dataset.code;
+        toastActif = false;
+        setTimeout(pompe, TOAST_ECART_MS);
+      }, reduced() ? 0 : TOAST_SORTIE_MS);
+    }
+  }
+
   hub.on('stats', (r) => { if (dlgProfil.open) afficherStats(r); });
   $('profile-close').addEventListener('click', () => dlgProfil.close());
   // Le focus revient au bouton qui a ouvert — même s'il a changé de carte

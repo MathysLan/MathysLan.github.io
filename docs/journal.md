@@ -394,3 +394,30 @@ l'historique.
 - À arbitrer par Mathys : la maquette du lot montre « Victoires » et
   « Meilleure place » dans les statistiques ET dans les records (doublon
   visible dans le panneau).
+
+## 2026-10-01 — Lot J : succès
+
+- Conception d'abord (sans code) : audit de `hub_plays` (rang, classés,
+  derrière, jeu, soirée, heure ; ni score du jeu, ni hôte, ni rôles), 20
+  candidats, pack de 10 validé par Mathys (« Lanterne rouge » retirée), séries
+  limitées à la soirée, Touche-à-tout à 5 jeux, nuit 00:00–04:59:59 Paris.
+- Exigence « succès débloqué » façon Steam : le système dérivé ne suffisait pas
+  (premier déblocage sûr, « déjà notifié » à travers rechargement / autre
+  onglet / redémarrage). Table `hub_achievements` proposée, puis validée avec
+  `draw_id` et `notified_at` ; succès d'avant le lot inscrits sans
+  notification ; notification sur `/games/` seulement.
+- Serveur : `achievements.js` (rejeu pur), table + rattrapage silencieux dans
+  la transaction de création, `auRetour` à chaque entrée vérifiée. Défaut
+  trouvé par le passage SQL : le nettoyage de la base de TEST de
+  `test-stats.js` supprimait `hub_players` avant `hub_achievements` (clé
+  étrangère) — corrigé dans le test (la production ne supprime rien).
+- Front : notifications en file, accusé à l'affichage, garde-fou local,
+  attente sous une fenêtre ouverte. Attentes de test corrigées en route (code
+  de session par onglet, mesure pendant la glissade, `pointer: coarse` sans
+  émulation tactile, `.01ms` du mouvement réduit). `hub-page.js` passe à
+  `?v=16` (il n'avait pas été relevé au lot I).
+- Régression large (game-hub.js et l'entrée au Hub ont changé) : tout vert.
+  Deux attentes de `hub-stats.mjs` ajustées à la nouvelle section (compteur
+  « 0/10 » et annonce). Les `handoff-*` de Ban, Demi-Cercle, Imitation,
+  Morpion et Précision ont d'abord échoué faute de `node_modules` dans ces
+  serveurs : relancés avec `NODE_PATH` (game-hub-server), verts.

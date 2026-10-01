@@ -109,6 +109,9 @@
   var finishMsg = function () { return { action: 'finish' }; };
   // TES statistiques (lot H) : ne porte rien — le Hub te désigne par ton socket.
   var statsMsg = function () { return { action: 'stats' }; };
+  // Succès (lot J) : « ces notifications ont été AFFICHÉES ». Ne débloque rien
+  // (le Hub ne touche que tes lignes déjà débloquées).
+  var achievementsSeenMsg = function (codes) { return { action: 'achievements-seen', codes: codes }; };
 
   // Les statistiques reçues, relues en LISTE BLANCHE. Le client n'en calcule
   // aucune : il affiche ce que le Hub a compté (game-hub-server, stats.js).
@@ -131,6 +134,23 @@
     };
     return { best: rang(r.best), wins: rang(r.wins), mostPlayed: tete(r.mostPlayed, 'played'), mostWins: tete(r.mostWins, 'wins') };
   }
+  // Succès (lot J), relus en liste blanche : le code, débloqué ou non, quand et
+  // par quelle partie. Aucun calcul : c'est le Hub qui a décidé.
+  var codeSucces = function (c) { return typeof c === 'string' && /^[a-z][a-z-]{0,29}$/.test(c); };
+  var instant = function (v) { return typeof v === 'number' && isFinite(v) && v > 0 ? v : null; };
+  var tirage = function (v) { return typeof v === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(v) ? v : null; };
+  function readAchievements(list) {
+    if (!Array.isArray(list)) return [];
+    return list.filter(function (a) { return a && codeSucces(a.code); }).slice(0, 40).map(function (a) {
+      return a.unlocked === true ? { code: a.code, unlocked: true, at: instant(a.at), drawId: tirage(a.drawId) } : { code: a.code, unlocked: false };
+    });
+  }
+  // Le message `achievement` : les succès débloqués PAS ENCORE notifiés.
+  function readUnlocked(list) {
+    if (!Array.isArray(list)) return [];
+    return list.filter(function (a) { return a && codeSucces(a.code); }).slice(0, 40)
+      .map(function (a) { return { code: a.code, at: instant(a.at), drawId: tirage(a.drawId) }; });
+  }
   function readStats(s, reason) {
     if (!s || typeof s !== 'object') return { stats: null, reason: reason === 'UNVERIFIED' ? 'UNVERIFIED' : 'UNAVAILABLE' };
     var jeu = function (g) {
@@ -143,6 +163,8 @@
     // Un Hub d'avant le lot I n'envoie pas `records` : la clé reste absente
     // (la page ne montre alors pas la section), à ne pas confondre avec `null`.
     if ('records' in s) out.records = readRecords(s.records);
+    // Même logique pour un Hub d'avant le lot J : pas de clé `achievements`.
+    if ('achievements' in s) out.achievements = readAchievements(s.achievements);
     return { stats: out, reason: null };
   }
 
@@ -477,6 +499,13 @@
         emit('stats', readStats(m.stats, m.reason));
         return;
       }
+      // Succès débloqués à notifier (lot J). Seule /games/ les affiche (et en
+      // accuse réception) ; la page d'un jeu n'écoute pas cet événement.
+      if (m.type === 'achievement') {
+        var neufs = readUnlocked(m.unlocked);
+        if (neufs.length) emit('achievement', neufs);
+        return;
+      }
       if (m.type === 'session') {
         var s2 = readSession(m.session);
         if (!s2) return;
@@ -608,6 +637,8 @@
       // TES statistiques : la réponse arrive par l'événement `stats`. Rend false
       // (rien n'est envoyé) si le Hub ne les a pas annoncées, ou hors ligne.
       requestStats: function () { return statsDispo && send(statsMsg()); },
+      // Ces notifications de succès ont été affichées : le Hub ne les renverra plus.
+      achievementsSeen: function (codes) { return send(achievementsSeenMsg(codes)); },
       get statsDispo() { return statsDispo; },
       get status() { return status; },
       // Change à chaque (re)connexion : de quoi n'envoyer une intention qu'UNE
@@ -628,6 +659,7 @@
     prefsMsg: prefsMsg, capsMsg: capsMsg, constraintsMsg: constraintsMsg, drawMsg: drawMsg, continueMsg: continueMsg,
     launchedMsg: launchedMsg, enteredMsg: enteredMsg, resultsMsg: resultsMsg, startedMsg: startedMsg, endedMsg: endedMsg, abortMsg: abortMsg,
     finishMsg: finishMsg, readFinale: readFinale, statsMsg: statsMsg, readStats: readStats,
+    achievementsSeenMsg: achievementsSeenMsg, readUnlocked: readUnlocked,
     readLaunch: readLaunch, launchFailureText: launchFailureText,
     parseMessage: parseMessage, readSession: readSession, errorText: errorText, reasonText: reasonText, de: de,
     createClient: createClient,

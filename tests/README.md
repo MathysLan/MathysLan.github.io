@@ -10,6 +10,7 @@ Des suites qui ne se recouvrent pas :
 | `manifest.mjs` | le **manifest des jeux** (`data/games.manifest.json`) : cohérence avec `data/games.js` et avec les clients, et les garde-fous du build |
 | `profile.mjs` | le **profil local** (pseudo + avatar) : tests unitaires du module, puis intégration sur les vraies pages de jeux |
 | `hub-stats.mjs` | **les statistiques de joueur dans le Game Hub** : nouveau joueur (une phrase, pas de zéros), 4 parties jouées par le protocole avec l'id ET la clé du profil, ex æquo, joueur parti, renvoi refusé, rechargement, pseudo changé, autre clé, Hub sans statistiques, solo seul, 390 → 1280 px, clavier et annonce (voir « Lot H ») |
+| `hub-achievements.mjs` | **les succès dans le Game Hub** : 10 verrouillés au départ, victoire à 6 → retour au Hub → deux notifications l'une après l'autre (1/2, 2/2), focus intact, annonce unique ; rien de rejoué (rechargement, autre onglet, autre navigateur) ; profil (obtenus d'abord, « Nouveau », date) ; fenêtre ouverte = attente ; garde-fou local ; survol ; 390 px tactile ; codes = serveur (voir « Lot J ») |
 | `hub-profile.mjs` | **le profil joueur dans le Game Hub** : aucun profil, pseudo nettoyé, icône, photo, stockage corrompu / bloqué, joueur sans profil, la même identité du salon à la finale, panneau « ton profil » au clavier, 390 → 1280 px (voir « Lot G ») |
 | `passeur-play.mjs` | **une partie réelle du Passeur**, avec de vrais clics, un vrai tactile et de vraies touches (voir plus bas) |
 | `avatar-play.mjs` | **la photo de profil en vraie partie**, dans les six jeux qui reçoivent une identité, à trois joueurs (voir plus bas) |
@@ -523,3 +524,48 @@ records SQL = records mémoire.
 |---|---|---|---|
 | `hub-stats.mjs` | records (ci-dessus) | 48 | 48 |
 | `hub-score-contract.mjs`, `hub-profile.mjs`, `hub-recap.mjs`, `hub-finale.mjs`, `handoff-play.mjs` | inchangées, vertes | 125 / 46 / 89 / 67 / 57 | — |
+
+## Lot J — succès (2026-10-01) : `hub-achievements.mjs`
+
+Serveur d'abord (game-hub-server : `src/achievements.js`, table
+`hub_achievements`, message `achievement`, action `achievements-seen`), front
+ensuite. `game-hub.js` (`?v=8`, huit pages) et `hub-page.js` (`?v=16`) touchés.
+
+    node tests/hub-achievements.mjs              ~1 min 30, vrai game-hub-server local (HUB_STATS=memory)
+    node tests/hub-achievements.mjs --reduced
+    node tests/hub-achievements.mjs --shots <d>  notification 1280 / 390, profil 1280 / 390
+    node tests/hub-achievements.mjs --pg <url>   le Hub sur une base Postgres de TEST (tables hub_* vidées)
+
+Les parties sont jouées par des clients Node avec l'id ET la clé du profil du
+navigateur, qui revient ensuite au Hub (le vrai retour d'une partie). La
+notification est suivie DANS la page (MutationObserver : apparitions,
+compteur, focus, annonce, durée de transition). `(pointer: coarse)` exige
+l'émulation tactile (`Emulation.setTouchEmulationEnabled`) : redimensionner
+ne suffit pas. En mouvement réduit, `game-ui.css` force `.01ms` partout : le
+test accepte ≤ 1 ms.
+
+La vérité (définitions aux bornes, rejeu, premier déblocage, accusé, joueur
+parti, panne, rattrapage silencieux, SQL) est côté serveur :
+`game-hub-server/test-achievements.js` (78, 94 avec `TEST_DATABASE_URL` /
+PGlite, voir lot H). Contre-épreuves faites : quatre mutations serveur (accusé
+ignoré, pas de livraison au retour, nul qui ne casse pas la série, 5 h
+incluse) et deux côté page (pas d'attente sous une fenêtre, pas d'accusé),
+toutes attrapées.
+
+| Suite | Ce qui a été ajouté | Normal | Réduit | Postgres |
+|---|---|---|---|---|
+| `hub-achievements.mjs` | nouvelle suite (ci-dessus) | 36 | 34 | 36 |
+| `hub-stats.mjs` | attentes ajustées : le texte « pas de zéros » exclut la section des succès (compteur « 0/10 ») et l'annonce ; l'annonce finit par « Succès : 2 sur 10. » | 48 | 48 | — |
+
+Régression large (game-hub.js et l'entrée au Hub ont changé) : `npm test` du
+Hub (14 fichiers), `hub` 86, `hub-draw` 144, `hub-play` 75, `hub-profile` 46,
+`hub-recap` 89, `hub-finale` 67, `hub-report` 59, `hub-score-contract` 125,
+`hub-score` 80, `hub-score-ban` 34, `-demicercle` 31, `-imitation` 27,
+`-morpion` 60, `-precision` 51, `-quiment` 50, `handoff` 22, `handoff-play` 57,
+`handoff-ban` 76, `-demicercle` 68, `-imitation` 34, `-morpion` 58,
+`-precision` 79, `-quiment` 61, `quiment-replay` 36, `profile` 31 lignes,
+`keyboard` : tout vert. ⚠️ Ban, Demi-Cercle, Imitation, Morpion et Précision
+n'ont pas de `node_modules` sur ce poste : leurs `handoff-*` et
+`hub-score-*` (sauf Morpion, qui le prête lui-même) exigent
+`NODE_PATH=C:\perso\game-hub-server\node_modules`, sinon le serveur de jeu ne
+démarre pas (« injoignable », ou suite muette).

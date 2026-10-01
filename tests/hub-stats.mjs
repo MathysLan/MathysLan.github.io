@@ -252,7 +252,12 @@ const STATS = `(() => { const q = (s) => document.getElementById(s);
       mot: [...f.querySelector('dt').childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join('').trim(), emojiCache: f.querySelector('dt [aria-hidden="true"]') !== null,
       jeux: [...f.querySelectorAll('.profile-record-game')].map((n) => n.textContent), n: f.querySelector('b').textContent,
       lu: f.querySelector('b').textContent, detail: f.querySelector('small').textContent })),
-    texte: q('profile-stats').innerText, focus: document.activeElement && document.activeElement.id }; })()`;
+    // Le texte des STATISTIQUES (et des records) : les succès (lot J) ont leur
+    // propre compteur « 0/10 », qui n'est pas une rangée de zéros (hub-achievements.mjs).
+    // L'annonce (#profile-stats-live) est vérifiée à part (champ live).
+    texte: q('profile-stats').innerText.replace(q('profile-ach').hidden ? '' : q('profile-ach').innerText, '')
+      .replace(q('profile-stats-live').textContent, ''),
+    focus: document.activeElement && document.activeElement.id }; })()`;
 const fig = (v, mot) => (v.figs.find((f) => f.mot === mot) || {}).n;
 const rec = (v, cle) => v.recs.find((r) => r.cle === cle);
 // Ouvre le panneau et attend que les statistiques soient arrivées (ou dites indisponibles).
@@ -352,7 +357,8 @@ try {
     && A.recus.filter((m) => m.type === 'stats').every((m) => !/p_stat[bcd]/.test(JSON.stringify(m))));
   t('K. les noms de jeux viennent du catalogue (Le Passeur, Demi-Cercle, Précision)', same(v1.jeux.map((j) => j.nom).sort(), ['Demi-Cercle', 'Le Passeur', 'Précision']));
   t('annonce : le résumé, puis les jeux en tête', v1.live === '4 parties, 2 victoires, 3 podiums, meilleure place : 1er. '
-    + 'Records : jeu le plus joué : Le Passeur (2 parties) ; meilleurs jeux : Le Passeur et Précision (1 victoire chacun, à égalité).', v1.live);
+    + 'Records : jeu le plus joué : Le Passeur (2 parties) ; meilleurs jeux : Le Passeur et Précision (1 victoire chacun, à égalité). '
+    + 'Succès : 2 sur 10.', v1.live);
   t('focus : sur « Fermer » à l\'ouverture', v1.focus === 'profile-close', v1.focus);
   await A.shot('B-stats-1280');
   // H. Cam, partie avant le classement de Précision : sa partie compte.

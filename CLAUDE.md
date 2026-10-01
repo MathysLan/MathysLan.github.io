@@ -1071,6 +1071,67 @@ d'une soirée à l'autre, dans le panneau « 👤 ton profil » du salon.
   phrase des statistiques). Le panneau montre donc deux fois victoires et
   meilleure place : c'est la maquette du lot I.
 
+## Succès (lot J)
+
+Dix succès, la section « 🎖️ Tes succès » du profil, et la notification
+« 🏆 Succès débloqué » au retour au Hub.
+
+- **Le Hub décide** (`game-hub-server/src/achievements.js`, pur) : rejeu des
+  parties `hub_plays` du joueur dans l'ordre (`played_at`, `draw_id`), chaque
+  succès daté par la PREMIÈRE partie qui le rend vrai (tous monotones). Aucun
+  message client ne débloque quoi que ce soit ; la page ne connaît que les
+  TEXTES (`SUCCES` dans `hub-page.js`, mêmes codes et même ordre que `CODES`
+  côté serveur — `hub-achievements.mjs` compare).
+  | code | succès | condition |
+  |---|---|---|
+  | `first-win` | 🥇 Première victoire | 1 victoire |
+  | `explorer` | 🧭 Touche-à-tout | 5 jeux différents (solo compris) |
+  | `stalemate` | ✖️ Pat | 3 nuls au Morpion (1 / 1, personne derrière) |
+  | `shared-throne` | 🤝 Partage du trône | 1er ex æquo devant au moins un joueur |
+  | `versatile` | 🔀 Polyvalent | victoires dans 3 jeux |
+  | `marathon` | 🏃 Marathon | 10 parties compétitives dans une soirée |
+  | `night-owl` | 🌙 Oiseau de nuit | partie compétitive à 00:00:00–04:59:59, Europe/Paris |
+  | `hat-trick` | 🔥 Hat-trick | 3 victoires d'affilée dans une soirée |
+  | `crowd-king` | 👑 Roi de la foule | victoire à 6 classés ou plus |
+  | `grand-slam` | 💎 Grand Chelem | victoire aux 7 jeux en ligne (liste FIGÉE) |
+  Victoire = celle du lot H. Compétitive = 2 classés ou plus : le solo ne
+  compte que pour Touche-à-tout. Soirée = parties compétitives consécutives,
+  même code de session, ≤ 12 h entre deux. Série : un 1er ex æquo devant
+  quelqu'un la continue, une défaite ou un nul du Morpion la casse, un solo
+  est ignoré, une partie abandonnée ou jouée sans toi n'existe pas.
+- ⚠️ **Table `hub_achievements`** `(player_id, code, unlocked_at, draw_id,
+  notified_at)` — nécessaire pour retenir le PREMIER déblocage (la clé
+  primaire décide : `returning code` = les nouveaux) et « déjà notifié » à
+  travers rechargement, reconnexion, autre onglet, autre navigateur et
+  redémarrage du Hub. Créée toute seule ; le jour de sa création, les succès
+  déjà mérités y sont inscrits SANS notification (`notified_at =
+  unlocked_at`, même transaction). Aucune action sur Neon.
+- **Quand la notification apparaît** : le Hub débloque juste après les lignes
+  d'un classement accepté et envoie `achievement` aux sockets du joueur ; la
+  page du JEU l'ignore (seule `hub-page.js` écoute — le test le vérifie
+  dans les sources). Au retour à `/games/` (`joined`), le Hub renvoie tout ce
+  qui n'est pas notifié (`auRetour`, qui rattrape aussi un déblocage manqué) ;
+  déjà sur `/games/`, c'est immédiat.
+- **La notification** (`#ach-toast`, bas droite ; pleine largeur sous 560 px) :
+  une à la fois, en file (« · 1/2 »), ~5 s chacune, 0,7 s après l'arrivée (la
+  carte Résultat prend le focus d'abord). Visuelle seulement (`aria-hidden`) ;
+  annoncée UNE fois par `#ach-live`. Ne prend jamais le focus. Attend tant
+  qu'un `<dialog>` est ouvert ou que l'onglet est caché. Pause au survol ;
+  `pointer-events: none` au doigt. Mouvement réduit : ni glissement ni fondu.
+- **Mémorisée par le Hub** : à l'AFFICHAGE, la page envoie
+  `achievements-seen` (→ `notified_at`). Garde-fou d'affichage en plus
+  (`localStorage` `mathys_hub_ach_shown`, par id) : un code déjà montré ici
+  n'est pas rejoué si l'accusé s'est perdu — il est accusé de nouveau, sans
+  être affiché. Ce garde-fou ne débloque rien.
+- **Profil** : 10 lignes, obtenus d'abord puis verrouillés, l'état ÉCRIT
+  (« ✓ Obtenu le 1 oct. 2026 » / « 🔒 Verrouillé », signes en `aria-hidden`),
+  « Nouveau » si la partie qui l'a débloqué est dans la soirée en cours,
+  compteur « · 5/10 ». Un Hub d'avant le lot J n'envoie pas `achievements` :
+  section cachée.
+- **Limite** (celle du score) : le classement passe par le navigateur de
+  l'hôte, et un second profil fait un faux adversaire. Succès cosmétiques,
+  aucun classement entre joueurs.
+
 ## Défauts connus, non corrigés
 
 - `tests/manifest.mjs` : la mutation « jeu live sans bloc hub » est une regex en

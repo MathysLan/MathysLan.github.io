@@ -598,7 +598,48 @@
   .finish-actions { display: flex; flex-wrap: wrap; gap: .6rem; justify-content: flex-end; }
   #finish-confirm { background: linear-gradient(180deg, #b8452f, #8e3322); color: #fff3e6; }
 
+  /* Tes succès (profil) : une ligne par succès, l'état en toutes lettres. */
+  .profile-ach-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
+  .profile-ach-item { display: grid; grid-template-columns: 1.8rem minmax(0, 1fr); gap: .55rem; align-items: start;
+    padding: .4rem .5rem; border-left: 3px solid var(--q-unique); background: rgba(0,0,0,.18); }
+  .profile-ach-item.is-locked { border-left-color: var(--panel-edge); background: rgba(0,0,0,.08); }
+  .profile-ach-item.is-locked .profile-ach-emoji { filter: grayscale(1); opacity: .45; }
+  .profile-ach-emoji { font-size: 1.25rem; line-height: 1.5rem; text-align: center; }
+  .profile-ach-text { min-width: 0; }
+  .profile-ach-name { display: block; font-size: .95rem; line-height: 1.25; color: var(--ink); }
+  .profile-ach-item.is-locked .profile-ach-name { color: var(--ink-2); }
+  .profile-ach-desc { display: block; font-size: .78rem; line-height: 1.3; color: var(--ink-3); }
+  .profile-ach-state { display: block; margin-top: .15rem; font-size: .72rem; letter-spacing: .04em; color: var(--ink-3); }
+  .profile-ach-item.is-unlocked .profile-ach-state { color: var(--qi-unique); }
+  .profile-ach-new { display: inline-block; margin-left: .35rem; padding: 0 .3rem; font-family: 'TF2 Build', 'Arial Narrow', sans-serif;
+    font-size: .64rem; letter-spacing: .08em; text-transform: uppercase; color: #1a120b; background: var(--q-unique); }
+  #profile-ach-count { color: var(--ink-3); letter-spacing: .06em; }
+
+  /* « 🏆 Succès débloqué » : bas droite, comme un succès Steam, aux couleurs
+     Mann Co. (plaque unique, coin coupé ; lueur en drop-shadow, que le
+     clip-path ne rogne pas). Entre en glissant, sort en fondu. */
+  .ach-toast { position: fixed; right: 1rem; bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); z-index: 60;
+    width: min(360px, calc(100vw - 2rem)); display: grid; grid-template-columns: 2.6rem minmax(0, 1fr); gap: .75rem; align-items: center;
+    padding: .75rem .9rem .75rem .8rem; color: var(--ink);
+    background: linear-gradient(180deg, #4a3a2b, #2b2118); border-left: 4px solid var(--q-unique);
+    box-shadow: inset 1px 1px 0 rgba(255,255,255,.12), inset -1px -1px 0 rgba(0,0,0,.45);
+    clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+    filter: drop-shadow(0 6px 14px rgba(0,0,0,.55));
+    opacity: 0; transform: translateY(14px); transition: opacity .25s ease, transform .3s ease; }
+  .ach-toast.is-in { opacity: 1; transform: none; }
+  .ach-toast[hidden] { display: none; }
+  .ach-toast-icon { font-size: 2rem; line-height: 1; text-align: center; }
+  .ach-toast-body { min-width: 0; }
+  .ach-toast-body p { margin: 0; }
+  .ach-toast-kicker { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--qi-unique); }
+  #ach-toast-n { color: var(--ink-3); letter-spacing: .04em; }
+  .ach-toast-name { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 1.15rem; line-height: 1.2; margin-top: .1rem !important; overflow-wrap: anywhere; }
+  .ach-toast-desc { font-size: .82rem; line-height: 1.3; color: var(--ink-2); margin-top: .15rem !important; }
+  /* Au doigt : pas de pause au survol, et rien sous le doigt n'est bloqué. */
+  @media (pointer: coarse) { .ach-toast { pointer-events: none; } }
+
   @media (prefers-reduced-motion: reduce) {
+    .ach-toast { transition: none; transform: none; }
     #hub-recap { animation: none; }
     #hub-recap .recap-row, #hub-recap .recap-rest, #hub-recap .recap-later, .recap-plinth, .recap-step::before { transition: none; }
     #hub-recap.is-final.is-revealing .recap-title, .recap-step.is-shown .recap-rank, .recap-step[data-rank="1"].is-shown::before { animation: none; }
@@ -624,6 +665,7 @@
     .finish-actions button { width: 100%; }
     .profile-id { gap: .7rem; padding: .7rem; }
     .profile-figures { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ach-toast { left: .75rem; right: .75rem; width: auto; bottom: calc(.75rem + env(safe-area-inset-bottom, 0px)); }
     .reel { height: 84px; }
     #hub-continue { width: 100%; min-width: 0; }
     .reel-cell { flex-basis: 92px; }
@@ -926,6 +968,13 @@
             <p class="profile-stats-note" id="profile-records-note" hidden></p>
             <dl class="profile-figures profile-record-list" id="profile-records-list" hidden></dl>
           </section>
+          <!-- Tes succès (lot J) : `stats.achievements`, décidés par le Hub.
+               Obtenus d'abord, puis verrouillés ; l'état est ÉCRIT (pas
+               seulement la couleur ou le cadenas). -->
+          <section class="profile-records profile-ach" id="profile-ach" aria-labelledby="profile-ach-title" hidden>
+            <h3 class="profile-stats-title" id="profile-ach-title">🎖️ Tes succès <span id="profile-ach-count"></span></h3>
+            <ul class="profile-ach-list" id="profile-ach-list"></ul>
+          </section>
           <p class="sr-only" id="profile-stats-live" role="status"></p>
         </section>
         <p class="profile-text" id="profile-session"></p>
@@ -940,16 +989,29 @@
     <a class="back hub-back" href="../">← retour au portfolio</a>
   </main>
 
+  <!-- « 🏆 Succès débloqué » (lot J) : une notification à la fois, qui part
+       toute seule. Visuelle seulement (aria-hidden) : le lecteur d'écran
+       l'entend par #ach-live, une fois. Ne prend jamais le focus. -->
+  <div class="ach-toast" id="ach-toast" aria-hidden="true" hidden>
+    <span class="ach-toast-icon" id="ach-toast-icon"></span>
+    <div class="ach-toast-body">
+      <p class="ach-toast-kicker">🏆 Succès débloqué <span id="ach-toast-n"></span></p>
+      <p class="ach-toast-name" id="ach-toast-name"></p>
+      <p class="ach-toast-desc" id="ach-toast-desc"></p>
+    </div>
+  </div>
+  <p class="sr-only" id="ach-live" role="status"></p>
+
   <!-- Le catalogue pour l'AFFICHAGE (titres, emojis, fourchettes) : la même
        source que le manifest que lit le Hub. Puis profil local, avatars, client
        du Hub, caisse — la page s'appuie sur tous. -->
   <script src="../data/games.js"></script>
   <script src="shared/game-profile.js?v=3"></script>
   <script src="shared/game-avatar.js"></script>
-  <script src="shared/game-hub.js?v=7"></script>
+  <script src="shared/game-hub.js?v=8"></script>
   <script src="shared/hub-handoff.js?v=5"></script>
   <script src="hub-crate.js?v=3"></script>
   <script src="hub-recap.js?v=4"></script>
-  <script src="hub-page.js?v=15"></script>
+  <script src="hub-page.js?v=16"></script>
 </body>
 </html>
