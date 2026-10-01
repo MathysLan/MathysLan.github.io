@@ -282,6 +282,12 @@ const GEOM = `(() => { const R = (e) => e.getBoundingClientRect(); const dlg = d
     noms: noms.every((n) => getComputedStyle(n).textOverflow === 'ellipsis' && R(n).right <= sec.right + 0.5),
     colonnes: getComputedStyle(document.getElementById('profile-figures')).gridTemplateColumns.split(' ').length,
     colRecords: getComputedStyle(document.getElementById('profile-records-list')).gridTemplateColumns.split(' ').length,
+    // Profil compact : largeur du panneau, records À CÔTÉ des statistiques ou dessous,
+    // colonnes des succès, et « Fermer » toujours dans la zone visible.
+    largeurPanneau: Math.round(p.width),
+    recordsACote: R(document.getElementById('profile-records')).left >= R(document.getElementById('profile-figures')).right - 0.5,
+    colSucces: getComputedStyle(document.getElementById('profile-ach-list')).gridTemplateColumns.split(' ').length,
+    fermer: (() => { const f = R(document.getElementById('profile-close')); return f.top >= 0 && f.bottom <= innerHeight + 0.5 && f.bottom <= p.bottom + 0.5; })(),
     tronques: noms.filter((n) => n.scrollWidth > n.clientWidth + 1).map((n) => n.textContent) }; })()`;
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hubstats-'));
@@ -371,7 +377,10 @@ try {
     await A.size(w, h); await sleep(250);
     const g = await A.eval(GEOM);
     t(`N. ${w} px : panneau dans l'écran, chiffres et jeux dans le panneau, aucun texte coupé, noms en « … » si trop longs`,
-      g.panneau && g.figures && g.jeux && !g.coupe.length && g.noms && g.scrollX <= 0 && g.colonnes === (w < 561 ? 2 : 4) && g.colRecords === 2, JSON.stringify(g));
+      g.panneau && g.figures && g.jeux && !g.coupe.length && g.noms && g.scrollX <= 0 && g.colonnes === (w >= 561 && w < 720 ? 4 : 2) && g.colRecords === 2, JSON.stringify(g));
+    const bureau = w >= 720;
+    t(`N. ${w} px : ${bureau ? 'tableau de bord (panneau large, records à côté des statistiques, succès sur 2 colonnes)' : 'une colonne (records sous les statistiques, succès en liste)'}, « Fermer » toujours visible`,
+      (bureau ? g.largeurPanneau >= 700 && g.recordsACote && g.colSucces === 2 : !g.recordsACote && g.colSucces === 1) && g.fermer, JSON.stringify(g));
     if (w === 390) { await A.shot('N-stats-390'); await A.eval(`document.getElementById('profile-records').scrollIntoView({ block: 'end', behavior: 'instant' }); true`); await A.shot('N-stats-390-bas'); }
   }
   await A.size(1280, 900);

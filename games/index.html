@@ -615,6 +615,45 @@
     font-size: .64rem; letter-spacing: .08em; text-transform: uppercase; color: #1a120b; background: var(--q-unique); }
   #profile-ach-count { color: var(--ink-3); letter-spacing: .06em; }
 
+  /* « Fermer » reste sous la main quand le panneau défile (toutes largeurs) :
+     la rangée colle au bas de la zone visible du <dialog>, sur le fond du bas
+     du panneau. Rien n'est déplacé dans le DOM (focus initial inchangé). */
+  #profile-dialog .finish-actions { position: sticky; bottom: 0; z-index: 1; margin-top: .4rem; padding: .7rem 0 .1rem;
+    background: linear-gradient(180deg, transparent, var(--panel-bot) .6rem); }
+
+  /* Profil compact (micro-lot UI) : à partir de 720 px, un petit tableau de
+     bord joueur plutôt qu'une colonne de 440 px. MISE EN PAGE SEULEMENT — le
+     DOM, son ordre de lecture et le contenu ne changent pas :
+       en-tête   identité | textes de la soirée
+       haut      statistiques 2 × 2 | records 2 × 2
+       puis      par jeu (colonnes) — succès (2 colonnes)
+     Les zones vides (fiche cachée, note absente) s'effacent d'elles-mêmes. */
+  @media (min-width: 720px) {
+    #profile-dialog { width: min(980px, calc(100vw - 2rem)); max-width: none; }
+    #profile-dialog .panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); column-gap: 1.2rem;
+      grid-template-areas: "titre titre" "id session" "id local" "id where" "stats stats" "actions actions"; align-items: start;
+      /* la hauteur de la fiche d'identité va à la DERNIÈRE ligne de texte : pas de trou entre les phrases */
+      grid-template-rows: auto auto auto 1fr auto auto; }
+    #profile-title { grid-area: titre; }
+    #profile-dialog .profile-id { grid-area: id; margin-bottom: 1rem; }
+    #profile-session { grid-area: session; margin-top: 1rem; }
+    #profile-local { grid-area: local; }
+    #profile-where { grid-area: where; }
+    #profile-stats { grid-area: stats; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 1.2rem;
+      grid-template-rows: auto auto 1fr auto auto auto;
+      grid-template-areas: "st rec" "note rec" "fig rec" "gt gt" "jeux jeux" "ach ach"; }
+    #profile-dialog .finish-actions { grid-area: actions; }
+    #profile-stats-title { grid-area: st; }
+    #profile-stats-note { grid-area: note; }
+    #profile-figures { grid-area: fig; grid-template-columns: repeat(2, minmax(0, 1fr)); align-self: start; }
+    #profile-records { grid-area: rec; margin-top: 0; padding: 0 0 0 1.2rem; border-top: 0; border-left: 1px dashed var(--panel-edge); align-self: stretch; }
+    #profile-games-title { grid-area: gt; margin-top: 1rem; padding-top: .8rem; border-top: 1px dashed var(--panel-edge); }
+    /* 18,5rem : deux colonnes dès 768 px, et la ligne « parties · victoires · podiums · meilleure place » tient sur une ligne */
+    #profile-games { grid-area: jeux; grid-template-columns: repeat(auto-fill, minmax(18.5rem, 1fr)); column-gap: 1.2rem; row-gap: .45rem; }
+    #profile-ach { grid-area: ach; margin-top: 1rem; }
+    #profile-ach-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
   /* « 🏆 Succès débloqué » : bas droite, comme un succès Steam, aux couleurs
      Mann Co. (plaque unique, coin coupé ; lueur en drop-shadow, que le
      clip-path ne rogne pas). Entre en glissant, sort en fondu. */

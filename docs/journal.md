@@ -421,3 +421,19 @@ l'historique.
   « 0/10 » et annonce). Les `handoff-*` de Ban, Demi-Cercle, Imitation,
   Morpion et Précision ont d'abord échoué faute de `node_modules` dans ces
   serveurs : relancés avec `NODE_PATH` (game-hub-server), verts.
+
+## 2026-10-01 — Micro-lot UI : profil compact
+
+- Constat mesuré (profil rempli, 6 jeux, 5 succès) : `#profile-dialog` figé
+  à 440 px partout, 1 866 px de contenu à 1280 px (2,1 écrans), « Fermer »
+  hors écran, par jeu et succès sur une colonne ; 2 157 px à 390 px.
+- CSS seulement (`games/index.html`) : tableau de bord à partir de 720 px
+  (jusqu'à 980 px, `grid-template-areas`), « Fermer » collant. Après : 1 092 px
+  à 1280 px (−41 %), profil vide sans défilement dès 768 px, « Fermer »
+  toujours visible ; 390 px inchangé (une colonne). Retouches vues à la
+  capture : trou entre les textes de l'en-tête (hauteur de l'identité
+  reportée sur la dernière ligne), « meilleure place » orpheline sur 3
+  colonnes (par jeu ramené à 2).
+- `hub-stats.mjs` : l'attente « 4 colonnes au-dessus de 561 px » devient
+  « 4 entre 561 et 719 px, 2 × 2 ailleurs », et la disposition est mesurée
+  (contre-épreuve sur l'ancien CSS : 7 échecs).

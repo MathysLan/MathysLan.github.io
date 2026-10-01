@@ -1032,6 +1032,16 @@ d'une soirée à l'autre, dans le panneau « 👤 ton profil » du salon.
   battre »). Résumé annoncé par `#profile-stats-live` (`role="status"`),
   `aria-busy` pendant le chargement. Chaque ligne « Par jeu » finit par
   « meilleure place : 1er » quand elle existe (déjà dans `games[].best`).
+- **Disposition du panneau** (micro-lot « profil compact », CSS seulement) :
+  sous 720 px, une colonne dans l'ordre du DOM (identité, statistiques, par
+  jeu, records, succès). À partir de 720 px, `#profile-dialog` s'élargit
+  jusqu'à 980 px et devient un petit tableau de bord par `grid-template-areas`
+  : identité | textes de la soirée ; statistiques 2 × 2 | records 2 × 2 ; par
+  jeu en colonnes (`minmax(18.5rem, 1fr)`) ; les 10 succès sur 2 colonnes.
+  ⚠️ Le DOM et l'ordre de lecture ne changent PAS (seul l'affichage pose les
+  records à côté des statistiques). La rangée « Fermer » colle au bas du
+  `<dialog>` qui défile (`position: sticky`), à toutes les largeurs.
+  `hub-stats.mjs` (N.) mesure tout ça à 390 / 768 / 1100 / 1280 px.
 
 ## Records personnels (lot I)
 
