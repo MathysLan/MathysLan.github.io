@@ -211,16 +211,22 @@
     const cw = Math.round(Math.max(46, Math.min(112, (P / N) * 0.8)));
     let compact = cw < 76;
     $('ring').classList.toggle('is-compact', compact);
-    const taille = cw >= 84 ? 'md' : 'sm';
-    if (taille !== tailleAv) {
-      tailleAv = taille;
+    // La taille d'avatar n'est qu'une classe (game-ui.css) : on la change sur
+    // le nœud existant ; un nœud n'est créé que pour une carte qui n'en a pas.
+    let taille = cw >= 84 ? 'md' : 'sm';
+    const tailler = (t) => {
+      taille = t;
+      if (t === tailleAv && [...cards.values()].every((c) => c.g)) return;
+      tailleAv = t;
       for (const [id, c] of cards) {
+        if (c.g) { c.g.classList.remove('g-av--sm', 'g-av--md'); c.g.classList.add('g-av--' + t); continue; }
         const r = roster.get(id) || {};
-        if (c.g) c.g.remove();
-        c.g = GameAvatar.node(r.avatar, DEFAUT, taille);
+        c.g = GameAvatar.node(r.avatar, DEFAUT, t);
         c.av.prepend(c.g);
       }
-    }
+    };
+    tailler(taille);
+    for (const c of cards.values()) c.li.style.setProperty('--cw', cw + 'px');   // les noms s'ellipsent à cette largeur
     const premiere = cards.values().next().value;
     // Marges : le viseur déborde un peu de la carte ; en compact, le nom de la
     // carte du bas (soi) s'écrit dessous. La carte s'accroche par son avatar
@@ -266,24 +272,47 @@
       }
       return [a + rx * Math.cos(t), b + ry * Math.sin(t)];
     };
-    // Arène bornée par la hauteur : deux voisines qui se recouvrent (le bas
-    // d'une carte sur la suivante, aux bouts de l'ellipse aplatie) → compact.
-    const serrees = (d) => {
-      const w = compact && premiere ? premiere.av.offsetWidth : cw, h = compact && premiere ? premiere.av.offsetHeight : ch;
-      for (let i = 0; i < N; i++) {
-        const [x1, y1] = pos(i, d), [x2, y2] = pos((i + 1) % N, d);
-        if (Math.abs(x1 - x2) < w && Math.abs(y1 - y2) < h) return true;
-      }
-      return false;
+    // Ce que chaque carte MONTRE (avatar, nom s'il est écrit, vies, état s'il
+    // dit quelque chose), en rectangles relatifs au centre de son avatar — le
+    // point de l'anneau. Mesuré sur le DOM : la largeur réelle des noms, la
+    // pastille des vies en compact, le nom de la cible et le sien sous l'avatar.
+    let formes;
+    const mesurerFormes = () => {
+      // En compact, l'étiquette du nom (cible, soi) ne dépasse pas l'écart
+      // entre deux cartes de l'anneau : sinon elle couvre l'avatar voisin.
+      const pr = Math.PI * (3 * (rx + ry) - Math.sqrt((3 * rx + ry) * (rx + 3 * ry)));
+      $('ring').style.setProperty('--nm', Math.max(40, Math.round(pr / N - 8)) + 'px');
+      formes = order.map((id) => {
+        const c = cards.get(id);
+        const L = c.li.getBoundingClientRect();
+        const ox = L.left + L.width / 2, oy = L.top + (c.g && c.g.offsetHeight ? c.av.offsetTop + c.g.offsetTop + c.g.offsetHeight / 2 : L.height / 2);
+        return [c.av, c.nom, c.vies, c.etat]
+          .filter((e) => e === c.av || (e.textContent.trim() && e.checkVisibility()))
+          .map((e) => { const r = e.getBoundingClientRect(); return [r.left - ox, r.top - oy, r.right - ox, r.bottom - oy]; })
+          .filter((r) => r[2] > r[0]);
+      });
     };
-    if (!compact && parHauteur && N > 2 && (serrees(0) || (coupe && serrees(Math.PI / N)))) {
-      compact = true;
-      $('ring').classList.add('is-compact');
-      mesurer();
+    mesurerFormes();
+    const ECART = 3;                                     // px entre deux cartes, viseur compris
+    const touche = (f, x, y, g, u, v, m) => f.some((p) => g.some((q) =>
+      p[0] + x < q[2] + u + m && q[0] + u < p[2] + x + m && p[1] + y < q[3] + v + m && q[1] + v < p[3] + y + m));
+    const libres = (d) => {
+      const P = order.map((_, i) => pos(i, d));
+      for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) {
+        if (touche(formes[i], P[i][0], P[i][1], formes[j], P[j][0], P[j][1], ECART)) return false;
+      }
+      return true;
+    };
+    // Cartes qui se recouvrent : on desserre, du plus doux au plus fort —
+    // l'écart égal le long de l'ellipse (au lieu de l'angle égal, qui entasse
+    // les bouts), puis le compact, puis les petits avatars. Une mise en page
+    // sans recouvrement ne change pas.
+    const toutesLibres = () => libres(0) && (!coupe || libres(Math.PI / N));
+    if (N > 2 && !toutesLibres()) {
+      arcEgal = true;
+      if (!toutesLibres() && !compact) { compact = true; $('ring').classList.add('is-compact'); mesurer(); mesurerFormes(); }
+      if (!toutesLibres() && taille === 'md') { tailler('sm'); mesurer(); mesurerFormes(); }
     }
-    // Arène bornée par la hauteur où l'angle égal fait encore se recouvrir
-    // des cartes : écart égal le long de l'ellipse.
-    if (!arcEgal && parHauteur && N > 2 && serrees(0)) arcEgal = true;
     const g0 = premiere && premiere.g;
     const basCarte = ry - (g0 && g0.offsetHeight ? g0.offsetHeight / 2 : 24) - 12;
     // Le centre : la roquette et le prompt, dans l'ellipse intérieure. Écran
@@ -315,18 +344,17 @@
       }
     };
     // La colonne centrale, ligne par ligne — la bannière à la largeur de la
-    // colonne, le prompt et la saisie en direct à celle du prompt — contre la
-    // boîte de chaque carte (en compact, l'avatar seul ; viseur compris : 7).
-    // Le haut de la colonne est à .32 × --rk au-dessus du pivot (= b).
+    // colonne, le prompt à la sienne (+ la saisie en direct si elle écrit
+    // quelque chose) — contre ce que chaque carte montre. Le haut de la
+    // colonne est à .32 × --rk au-dessus du pivot (= b).
     const chevauche = (d) => {
       const haut = b - 0.32 * rk, wp = $('prompt').offsetWidth + 8;
-      const lignes = [[$('cible'), colonne()], [$('prompt'), wp], [$('live'), wp]]
-        .map(([el, w]) => [haut + el.offsetTop, haut + el.offsetTop + el.offsetHeight, w / 2]);
-      const lc = (compact && premiere ? premiere.av.offsetWidth + 8 : cw) / 2;
+      const lignes = [[$('cible'), colonne()], [$('prompt'), wp]];
+      if ($('live').textContent.trim()) lignes.push([$('live'), wp]);
+      const r = lignes.map(([el, w]) => [a - w / 2, haut + el.offsetTop, a + w / 2, haut + el.offsetTop + el.offsetHeight]);
       for (let i = 0; i < N; i++) {
         const [x, y] = pos(i, d);
-        const h1 = y - ay - 7, h2 = y + ch - ay;
-        for (const [l1, l2, demi] of lignes) if (h1 < l2 && h2 > l1 && Math.abs(x - a) < demi + lc) return true;
+        if (touche(formes[i], x, y, r, 0, 0, ECART)) return true;
       }
       return false;
     };
@@ -339,8 +367,9 @@
     if (!enBas) {
       ajuster(() => basCarte);
       // Même --rk au plancher, la pile déborde sur la carte du bas (arène
-      // bornée par la hauteur) : mode bas, comme un écran coupé.
-      if (parHauteur && sousPivot() > basCarte + 1) {
+      // bornée par la hauteur), ou une carte mord sur la colonne : on tourne
+      // l'anneau, comme pour un écran coupé.
+      if ((parHauteur && sousPivot() > basCarte + 1) || chevauche(0) || !libres(0)) {
         enBas = arcEgal = true;
         rk = Math.round(Math.max(110, Math.min(330, innerW * 0.8)));
         poser();
@@ -348,22 +377,32 @@
     }
     arena.classList.toggle('is-bas', enBas);
     if (enBas) {
-      ajuster(() => H - 8 - b);
       const pas = Math.PI / N / 24;
-      for (;;) {
-        let k = 0;
-        while (k <= 24 && chevauche(k * pas)) k++;
-        if (k <= 24) { d = k * pas; break; }
-        d = Math.PI / N;
-        if (rk <= 110) break;
-        rk = Math.max(110, rk - 6);
+      // Deux essais : les cartes telles quelles, puis compactes si aucun angle
+      // ni --rk au plancher ne libère la colonne.
+      for (let essai = 0; essai < 2; essai++) {
+        ajuster(() => H - 8 - b);
+        let libre = false;
+        for (;;) {
+          let k = 0;
+          while (k <= 24 && (chevauche(k * pas) || !libres(k * pas))) k++;
+          if (k <= 24) { d = k * pas; libre = true; break; }
+          d = Math.PI / N;
+          if (rk <= 110) break;
+          rk = Math.max(110, rk - 6);
+          poser();
+        }
+        if (libre || compact) break;
+        compact = true;
+        $('ring').classList.add('is-compact');
+        mesurer(); mesurerFormes();
+        rk = Math.round(Math.max(110, Math.min(330, innerW * 0.8)));
         poser();
       }
     }
     order.forEach((id, i) => {
       const c = cards.get(id);
       const [x, y] = pos(i, d);
-      c.li.style.setProperty('--cw', cw + 'px');
       c.li.style.setProperty('--x', x.toFixed(1) + 'px');
       c.li.style.setProperty('--y', y.toFixed(1) + 'px');
       // Le point de l'anneau est le centre de l'AVATAR (la cible visée) : la

@@ -115,7 +115,7 @@
      et le nom en étiquette dessous, hors du flux. */
   #ring.is-compact .card { gap: 0; }
   #ring.is-compact .card .nom { display: none; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); z-index: 4;
-    max-width: 9em; padding: 0 .3em; font-size: .7rem; background: var(--bg-deep); }
+    max-width: min(9em, var(--nm, 9em)); padding: 0 .3em; font-size: .7rem; background: var(--bg-deep); }   /* --nm : layout(), l'écart entre deux cartes */
   #ring.is-compact .card:is(.is-target, .is-me) .nom { display: block; }
   #ring.is-compact .card .vies { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); z-index: 2;
     font-size: .5rem; padding: .05em .2em; background: rgba(0, 0, 0, .7); }
@@ -359,6 +359,6 @@
   <script src="net.js?v=2"></script>
   <script src="rocket.js?v=2"></script>
   <script src="sound.js?v=1"></script>
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>
