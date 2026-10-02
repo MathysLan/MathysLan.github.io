@@ -179,15 +179,36 @@
     const etroit = W < 560;
     const vv = window.visualViewport;
     const vh = vv ? vv.height : window.innerHeight;
-    const form = $('saisie').offsetHeight + 14;
+    // La hauteur minimale d'arène : la colonne centrale au plus petit (--rk
+    // 110, prompt à 28 px), pivot au milieu, texte dessous. Mesurée sur la pile
+    // du moment (le prompt suit --pf, ramené à 28) — rien d'estimé.
+    const centre = $('centre');
+    const rk0 = parseFloat(arena.style.getPropertyValue('--rk')) || 260;
+    const pf0 = parseFloat(arena.style.getPropertyValue('--pf')) || 52;
+    const pile = centre.offsetHeight ? centre.offsetHeight - 0.64 * rk0 - $('prompt').offsetHeight * (1 - 28 / pf0) : 96;
+    const hMin = Math.round(2 * (0.32 * 110 + pile + 8));
+    // Écran très bas (clavier ouvert en paysage…) : si le formulaire complet
+    // empêche l'arène d'avoir sa hauteur minimale, il se serre (label masqué
+    // à l'œil seulement, statut vide replié).
+    const saisie = $('saisie');
+    const marge = etroit ? 30 : 24;
+    saisie.classList.remove('is-serree');
+    let form = saisie.offsetHeight + 14;
+    if (saisie.offsetHeight && vh - form - marge < hMin) { saisie.classList.add('is-serree'); form = saisie.offsetHeight + 14; }
     let H = etroit ? Math.min(W * 1.12, vh - form - 30) : Math.min(W * 0.64, 640, Math.max(400, vh - form - 120));
     H = Math.max(etroit ? 250 : 380, Math.round(H));
+    // Écran bas : la hauteur réellement visible commande, les planchers cèdent
+    // (jusqu'à hMin). cadrer() amène alors l'arène et la saisie à l'écran.
+    const place = Math.round(vh - form - marge);
+    const coupe = place < H;
+    if (coupe) H = Math.max(hMin, place);
+    const parHauteur = H < (etroit ? W * 1.12 : Math.min(W * 0.64, 640)) - 1;
     arena.style.setProperty('--arena-h', H + 'px');
     // Périmètre de l'ellipse (Ramanujan) → place de chaque carte.
     const a = W / 2, b = H / 2;
     const P = Math.PI * (3 * (a + b) - Math.sqrt((3 * a + b) * (a + 3 * b)));
     const cw = Math.round(Math.max(46, Math.min(112, (P / N) * 0.8)));
-    const compact = cw < 76;
+    let compact = cw < 76;
     $('ring').classList.toggle('is-compact', compact);
     const taille = cw >= 84 ? 'md' : 'sm';
     if (taille !== tailleAv) {
@@ -200,48 +221,154 @@
       }
     }
     const premiere = cards.values().next().value;
-    const ch = premiere ? premiere.li.offsetHeight || (compact ? 58 : 86) : 80;
     // Marges : le viseur déborde un peu de la carte ; en compact, le nom de la
     // carte du bas (soi) s'écrit dessous. La carte s'accroche par son avatar
     // (--ay, plus bas) : elle s'étend de ay au-dessus du point de l'anneau et de
     // ch − ay en dessous — c'est le plus grand des deux qui borne ry (compact :
     // ay = ch / 2, rien ne change).
-    const g1 = premiere && premiere.g;
-    const ay = g1 && g1.offsetHeight ? premiere.av.offsetTop + g1.offsetTop + g1.offsetHeight / 2 : ch / 2;
-    const rx = a - cw / 2 - 6, ry = b - Math.max(ay, ch - ay) - (compact ? 14 : 6);
+    let ch, ay, ry;
+    const mesurer = () => {
+      ch = premiere ? premiere.li.offsetHeight || (compact ? 58 : 86) : 80;
+      const g1 = premiere && premiere.g;
+      ay = g1 && g1.offsetHeight ? premiere.av.offsetTop + g1.offsetTop + g1.offsetHeight / 2 : ch / 2;
+      ry = b - Math.max(ay, ch - ay) - (compact ? 14 : 6);
+    };
+    mesurer();
+    const rx = a - cw / 2 - 6;
     const base = Math.max(0, order.indexOf(myId));          // soi en bas, près de la saisie
+    // Écran bas : les cartes à intervalles ÉGAUX le long de l'ellipse — à
+    // angle égal, elles s'entassent aux deux bouts d'une ellipse aplatie.
+    // Ailleurs, l'angle égal d'origine. d tourne l'anneau (en fraction de tour).
+    const M = 720;
+    let arc = null, arcRy = null, arcEgal = coupe, enBas = coupe;
+    const table = () => {
+      arc = [0];
+      let px = a + rx, py = b;
+      for (let k = 1; k <= M; k++) {
+        const t = k / M * 2 * Math.PI, x = a + rx * Math.cos(t), y = b + ry * Math.sin(t);
+        arc.push(arc[k - 1] + Math.hypot(x - px, y - py));
+        px = x; py = y;
+      }
+      arcRy = ry;
+    };
+    const pos = (i, d) => {
+      let t;
+      if (!arcEgal) t = (90 + (i - base) * 360 / N) * Math.PI / 180 + d;
+      else {
+        if (arcRy !== ry) table();
+        const L = arc[M];
+        let s = L / 4 + ((i - base) / N + d / (2 * Math.PI)) * L;     // L / 4 : le bas de l'ellipse
+        s = ((s % L) + L) % L;
+        let lo = 0, hi = M;
+        while (hi - lo > 1) { const m = (lo + hi) >> 1; if (arc[m] <= s) lo = m; else hi = m; }
+        t = (lo + (s - arc[lo]) / ((arc[hi] - arc[lo]) || 1)) / M * 2 * Math.PI;
+      }
+      return [a + rx * Math.cos(t), b + ry * Math.sin(t)];
+    };
+    // Arène bornée par la hauteur : deux voisines qui se recouvrent (le bas
+    // d'une carte sur la suivante, aux bouts de l'ellipse aplatie) → compact.
+    const serrees = (d) => {
+      const w = compact && premiere ? premiere.av.offsetWidth : cw, h = compact && premiere ? premiere.av.offsetHeight : ch;
+      for (let i = 0; i < N; i++) {
+        const [x1, y1] = pos(i, d), [x2, y2] = pos((i + 1) % N, d);
+        if (Math.abs(x1 - x2) < w && Math.abs(y1 - y2) < h) return true;
+      }
+      return false;
+    };
+    if (!compact && parHauteur && N > 2 && (serrees(0) || (coupe && serrees(Math.PI / N)))) {
+      compact = true;
+      $('ring').classList.add('is-compact');
+      mesurer();
+    }
+    // Arène bornée par la hauteur où l'angle égal fait encore se recouvrir
+    // des cartes : écart égal le long de l'ellipse.
+    if (!arcEgal && parHauteur && N > 2 && serrees(0)) arcEgal = true;
+    const g0 = premiere && premiere.g;
+    const basCarte = ry - (g0 && g0.offsetHeight ? g0.offsetHeight / 2 : 24) - 12;
+    // Le centre : la roquette et le prompt, dans l'ellipse intérieure. Écran
+    // bas : la colonne se libère en tournant l'anneau (plus bas) — la place
+    // entre la carte du haut et celle du bas ne borne donc plus --rk.
+    const innerW = 2 * (rx - cw / 2), innerH = 2 * (ry - ch / 2);
+    let rk = Math.round(Math.max(110, Math.min(330, innerW * 0.8, enBas ? Infinity : (innerH - 52) / 0.9)));
+    // La colonne du texte : au moins sa largeur d'origine, et assez pour une
+    // bannière entière (« 🎯 » + 16 caractères) tant que l'anneau le permet.
+    const colonne = () => Math.max(1.25 * rk, Math.min(260, innerW - 8));
+    const poser = () => {
+      arena.style.setProperty('--rk', rk + 'px');
+      arena.style.setProperty('--pf', Math.round(Math.max(28, Math.min(62, rk * 0.21))) + 'px');
+      arena.style.setProperty('--cl', Math.round(colonne()) + 'px');
+    };
+    poser();
+    // Le pivot est au centre de l'arène et le texte (bannière, prompt, saisie
+    // en direct) se range dessous : il doit finir avant la limite donnée.
+    // Mesuré, pas estimé. Le texte rétrécit avec --rk (le prompt en suit
+    // 0,21) : le débord baisse de 0,32 à 0,62 px par px de --rk ; un pas de
+    // débord / 0,62 n'en fait donc jamais trop, et converge en quelques passes.
+    const sousPivot = () => 0.32 * rk + (centre.offsetHeight - 0.64 * rk);
+    const ajuster = (limite) => {
+      for (let k = 0; k < 5 && rk > 110 && centre.offsetHeight; k++) {
+        const deborde = sousPivot() - limite();
+        if (deborde <= 0) break;
+        rk = Math.max(110, Math.floor(rk - Math.max(1, deborde / 0.62)));
+        poser();
+      }
+    };
+    // La colonne centrale, ligne par ligne — la bannière à la largeur de la
+    // colonne, le prompt et la saisie en direct à celle du prompt — contre la
+    // boîte de chaque carte (en compact, l'avatar seul ; viseur compris : 7).
+    // Le haut de la colonne est à .32 × --rk au-dessus du pivot (= b).
+    const chevauche = (d) => {
+      const haut = b - 0.32 * rk, wp = $('prompt').offsetWidth + 8;
+      const lignes = [[$('cible'), colonne()], [$('prompt'), wp], [$('live'), wp]]
+        .map(([el, w]) => [haut + el.offsetTop, haut + el.offsetTop + el.offsetHeight, w / 2]);
+      const lc = (compact && premiere ? premiere.av.offsetWidth + 8 : cw) / 2;
+      for (let i = 0; i < N; i++) {
+        const [x, y] = pos(i, d);
+        const h1 = y - ay - 7, h2 = y + ch - ay;
+        for (const [l1, l2, demi] of lignes) if (h1 < l2 && h2 > l1 && Math.abs(x - a) < demi + lc) return true;
+      }
+      return false;
+    };
+    // Écran bas : la pile tient d'abord dans l'arène ; puis l'anneau tourne du
+    // plus petit angle (un demi-pas au plus) qui laisse la colonne libre — soi
+    // reste en bas, un peu de côté. Si aucun angle n'y suffit, --rk recule
+    // (prompt et colonne rétrécissent) jusqu'au plancher. Ailleurs, rien ne
+    // bouge : d = 0, et la limite reste la carte du bas.
+    let d = 0;
+    if (!enBas) {
+      ajuster(() => basCarte);
+      // Même --rk au plancher, la pile déborde sur la carte du bas (arène
+      // bornée par la hauteur) : mode bas, comme un écran coupé.
+      if (parHauteur && sousPivot() > basCarte + 1) {
+        enBas = arcEgal = true;
+        rk = Math.round(Math.max(110, Math.min(330, innerW * 0.8)));
+        poser();
+      }
+    }
+    arena.classList.toggle('is-bas', enBas);
+    if (enBas) {
+      ajuster(() => H - 8 - b);
+      const pas = Math.PI / N / 24;
+      for (;;) {
+        let k = 0;
+        while (k <= 24 && chevauche(k * pas)) k++;
+        if (k <= 24) { d = k * pas; break; }
+        d = Math.PI / N;
+        if (rk <= 110) break;
+        rk = Math.max(110, rk - 6);
+        poser();
+      }
+    }
     order.forEach((id, i) => {
-      const th = (90 + (i - base) * 360 / N) * Math.PI / 180;
       const c = cards.get(id);
+      const [x, y] = pos(i, d);
       c.li.style.setProperty('--cw', cw + 'px');
-      c.li.style.setProperty('--x', (a + rx * Math.cos(th)).toFixed(1) + 'px');
-      c.li.style.setProperty('--y', (b + ry * Math.sin(th)).toFixed(1) + 'px');
+      c.li.style.setProperty('--x', x.toFixed(1) + 'px');
+      c.li.style.setProperty('--y', y.toFixed(1) + 'px');
       // Le point de l'anneau est le centre de l'AVATAR (la cible visée) : la
       // carte s'accroche par lui (offsets : insensibles aux animations).
       if (c.g && c.g.offsetHeight) c.li.style.setProperty('--ay', (c.av.offsetTop + c.g.offsetTop + c.g.offsetHeight / 2).toFixed(1) + 'px');
     });
-    // Le centre : la roquette et le prompt, dans l'ellipse intérieure.
-    const innerW = 2 * (rx - cw / 2), innerH = 2 * (ry - ch / 2);
-    let rk = Math.round(Math.max(110, Math.min(330, innerW * 0.8, (innerH - 52) / 0.9)));
-    const poser = () => {
-      arena.style.setProperty('--rk', rk + 'px');
-      arena.style.setProperty('--pf', Math.round(Math.max(28, Math.min(62, rk * 0.21))) + 'px');
-    };
-    poser();
-    // Le pivot est au centre de l'arène et le texte (bannière, prompt, saisie
-    // en direct) se range dessous : il doit finir avant l'avatar du bas (son
-    // viseur compris : 5 de marge intérieure + 7 de respiration). Mesuré, pas
-    // estimé. Le texte rétrécit avec --rk (le prompt en suit 0,21) : le
-    // débord baisse de 0,32 à 0,62 px par px de --rk ; un pas de débord / 0,62
-    // n'en fait donc jamais trop, et converge en quelques passes.
-    const g0 = premiere && premiere.g;
-    const bas = ry - (g0 && g0.offsetHeight ? g0.offsetHeight / 2 : 24) - 12;
-    for (let k = 0; k < 5 && rk > 110 && $('centre').offsetHeight; k++) {
-      const deborde = 0.32 * rk + ($('centre').offsetHeight - 0.64 * rk) - bas;
-      if (deborde <= 0) break;
-      rk = Math.max(110, Math.floor(rk - Math.max(1, deborde / 0.62)));
-      poser();
-    }
     // La roquette se règle sur la place réelle : avatars et bannière hors de sa flamme.
     rocket.fit([...[...cards.values()].map((c) => c.g), $('cible')]);
     rocket.refit();
@@ -262,13 +389,34 @@
   // calibrée sur ce qui reste visible (layout lit visualViewport) et cadrée en
   // haut — prompt, roquette, cible ET champ à l'écran. Sans ce cadrage, le
   // navigateur centre le champ et fait passer la roquette au-dessus de l'écran.
+  // Écran bas (arène coupée par la hauteur visible, quelle que soit la
+  // largeur) : même cadrage, sans attendre le focus. Si arène et saisie ne
+  // tiennent pas ensemble, la saisie est calée en bas et l'arène montre son
+  // bas — la colonne centrale (bannière, prompt) d'abord.
   const cadrer = () => {
-    if ($('play').hidden || $('arena').clientWidth >= 560 || document.activeElement !== $('mot')) return;
+    if ($('play').hidden) return;
+    const focus = $('arena').clientWidth < 560 && document.activeElement === $('mot');
+    if (!focus && !$('arena').classList.contains('is-bas')) return;
     const vv = window.visualViewport;
-    const top = $('arena').getBoundingClientRect().top + window.scrollY - 4 - (vv ? vv.offsetTop : 0);
+    const vh = vv ? vv.height : window.innerHeight, off = vv ? vv.offsetTop : 0;
+    const ar = $('arena').getBoundingClientRect(), fo = $('saisie').getBoundingClientRect();
+    if (ar.top >= off && fo.bottom <= off + vh) return;               // déjà tout à l'écran : on ne bouge rien
+    const top = fo.bottom - ar.top + 8 <= vh
+      ? ar.top + window.scrollY - 4 - off
+      : fo.bottom + window.scrollY + 4 - vh - off;
     window.scrollTo({ top, behavior: 'instant' });
   };
-  $('mot').addEventListener('focus', () => setTimeout(cadrer, 60));
+  // Au focus, le navigateur amène lui-même le champ à l'écran — en défilement
+  // doux (scroll-behavior du socle), qui finit APRÈS le premier cadrage et
+  // l'écrase : on recadre aussi quand il a fini (scrollend ; sinon 500 ms).
+  $('mot').addEventListener('focus', () => {
+    setTimeout(cadrer, 60);
+    if ('onscrollend' in window) {
+      const fin = () => { clearTimeout(garde); cadrer(); };
+      const garde = setTimeout(() => window.removeEventListener('scrollend', fin), 1500);
+      window.addEventListener('scrollend', fin, { once: true });
+    } else setTimeout(cadrer, 500);
+  });
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', relayout);
   }

@@ -131,7 +131,7 @@
        centre de l'arène, et le texte se range dessous. */
     position: absolute; left: 50%; top: 50%; transform: translate(-50%, calc(var(--rk, 260px) * -.32)); z-index: 2;
     display: flex; flex-direction: column; align-items: center; gap: .15rem; pointer-events: none;
-    width: calc(var(--rk, 260px) * 1.25);
+    width: var(--cl, calc(var(--rk, 260px) * 1.25));   /* --cl : layout(), assez pour une bannière entière */
   }
   #disque { width: var(--rk, 260px); height: var(--rk, 260px); display: grid; place-items: center; margin-bottom: calc(var(--rk, 260px) * -.18); margin-top: calc(var(--rk, 260px) * -.18); }
   /* Largeur posée par Rocket.fit() (la place libre autour du pivot) ; sans elle, 90 % du disque. */
@@ -204,6 +204,12 @@
   .saisie.is-refus #mot { animation: refus .3s ease-out; border-color: var(--g-bad); }
   @keyframes refus { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
   #retour { text-align: center; font-size: .85rem; margin: .35rem 0 0; color: var(--ink-2); }
+  /* Écran très bas (layout() pose .is-serree) : le label, qui répète la bannière,
+     n'est plus montré — il reste le nom accessible du champ — et le statut vide
+     ne réserve plus sa ligne. */
+  .saisie.is-serree .saisie-label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; border: 0;
+    overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .saisie.is-serree #retour:empty { margin: 0; min-height: 0; }
   #retour.is-faute { color: var(--g-bad); }
 
   .feed { list-style: none; margin: .5rem auto 0; padding: 0; max-width: 560px; font-size: .82rem; color: var(--ink-3); }
@@ -353,6 +359,6 @@
   <script src="net.js?v=2"></script>
   <script src="rocket.js?v=2"></script>
   <script src="sound.js?v=1"></script>
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>
