@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Roquette — jeu de mots multijoueur · Mathys Langiny</title>
+<!-- Nom provisoire, page locale (lot 3) : pas encore au portfolio ni au Game Hub. -->
+<meta name="robots" content="noindex">
+<meta name="description" content="Une roquette au centre vise le joueur dont c'est le tour : trouve un mot qui contient les lettres demandées avant qu'elle parte.">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#241c14">
+<!-- Socle TF2 complet (palette, polices, primitives), puis socle commun des
+     pages de jeux (focus clavier, mouvement réduit, cibles tactiles, avatars),
+     puis ce qui est propre à ce jeu dans le <style> ci-dessous. -->
+<link rel="stylesheet" href="../../css/tf2.css?v=9">
+<link rel="stylesheet" href="../shared/game-ui.css?v=6">
+<style>
+  /* L'accent : l'orange « Strange » des armes à compteur — la teinte pour les
+     fonds et bordures, son encre pour le texte (teinte ≠ encre, voir tf2.css). */
+  :root { --g-accent: var(--q-strange); --g-accent-ink: #241608; }
+  body { min-height: 100vh; margin: 0; padding: 1rem 1rem 1.5rem; display: flex; justify-content: center; }
+  main { width: min(980px, 100%); }
+  [hidden] { display: none !important; }
+  .center { text-align: center; }
+
+  .tete { display: flex; align-items: center; justify-content: center; gap: .8rem; position: relative; margin-bottom: .9rem; }
+  .tete h1 { margin: 0; }
+  .tete h1 .a { color: var(--qi-strange); }
+  .tete .sub { margin: 0; }
+  #son { position: absolute; right: 0; top: 50%; transform: translateY(-50%); padding: .35rem .6rem; font-size: 1rem; }
+  #son:active { transform: translateY(-50%); }
+
+  /* --- accueil / salon : la forme des autres jeux --- */
+  .rules { text-align: left; margin: 0 0 1.2rem; }
+  .rules li { margin: .3rem 0; color: var(--ink-2); font-size: .92rem; }
+  input, select {
+    font: inherit; line-height: 1.25; box-sizing: border-box;
+    width: 100%; padding: .5rem .8rem;
+    background: var(--bg-deep); color: var(--ink);
+    border: 2px solid var(--panel-edge);
+  }
+  .field { margin-bottom: .9rem; }
+  .or { color: var(--ink-3); font-size: .74rem; margin: 1rem 0; text-align: center; letter-spacing: .1em; }
+  .join-row { display: flex; gap: .5rem; }
+  .join-row input { width: 8rem; text-align: center; text-transform: uppercase; letter-spacing: .3em; }
+  #avatar-row { display: flex; flex-wrap: wrap; gap: .4rem; justify-content: center; margin-bottom: 1rem; }
+  .avatar-pick { font-size: 1.15rem; background: var(--bg-deep); border: 2px solid var(--panel-edge); padding: .4rem .55rem; cursor: pointer; }
+  .avatar-pick.picked { border-color: var(--g-accent); }
+  .actions { display: flex; flex-wrap: wrap; gap: .6rem; justify-content: center; align-items: center; margin-top: 1.1rem; }
+  .wait { color: var(--ink-3); font-size: .85rem; }
+  #room-code { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 2.4rem; letter-spacing: .4em; text-indent: .4em; color: var(--q-unique); }
+  #code-hint { color: var(--ink-3); font-size: .72rem; margin: .2rem 0 .8rem; }
+  .meta { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; letter-spacing: .06em; color: var(--ink-3); font-size: .8rem; margin: 0 0 .6rem; }
+  #players { list-style: none; padding: 0; margin: 0 auto; max-width: 560px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .1rem 1rem; text-align: left; }
+  #players li { padding: .35rem .2rem; border-bottom: 1px solid var(--line); font-size: .88rem; }
+  .tag { color: var(--qi-unique); font-size: .7rem; margin-left: auto; }
+  #host-config label { color: var(--ink-3); font-size: .85rem; }
+  #host-config select { width: auto; }
+
+  /* =====================================================================
+     L'ARÈNE : la roquette au centre, les joueurs en ellipse autour. Les
+     positions et les tailles (--x, --y, --cw, --rk, --pf) sont posées par
+     app.js à partir de la taille réelle de l'arène et du nombre de joueurs.
+     ===================================================================== */
+  #play { padding: .7rem .7rem .9rem; }
+  #arena { position: relative; width: 100%; height: var(--arena-h, 540px); }
+  #ring { list-style: none; margin: 0; padding: 0; position: absolute; inset: 0; }
+  .card {
+    position: absolute; left: var(--x); top: var(--y); width: var(--cw, 96px);
+    transform: translate(-50%, -50%);
+    display: flex; flex-direction: column; align-items: center; gap: .12rem;
+    text-align: center; z-index: 1;
+  }
+  .card .av { position: relative; display: grid; place-items: center; padding: 5px; }
+  .card .nom { font-size: .78rem; line-height: 1.15; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
+  .card .vies { font-size: .68rem; line-height: 1; letter-spacing: -.04em; white-space: nowrap; }
+  .card .etat { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: .7rem; color: var(--ink-3); min-height: 1em; white-space: nowrap; }
+  .card .num {
+    position: absolute; left: -2px; top: -2px; z-index: 2; min-width: 1.35em; padding: 0 .2em;
+    font: 700 .68rem/1.35 'TF2 Build', 'Arial Narrow', sans-serif; color: #241608; background: var(--cream);
+  }
+  #play:not([data-phase="countdown"]) .card .num { display: none; }
+  /* « Suivant » : un badge au coin de l'avatar, pas une ligne de plus sous la carte. */
+  .card .suiv { position: absolute; right: -2px; top: -2px; z-index: 2; display: none; padding: 0 .28em;
+    font: 700 .66rem/1.35 'TF2 Build', 'Arial Narrow', sans-serif; color: #241608; background: var(--ink-2); }
+  #play[data-phase="turn"] .card.is-next .suiv { display: block; }
+  /* La cible : un viseur à quatre équerres (pas de cercle : le Mann Co. ne
+     connaît pas l'arrondi), la teinte de l'accent, et le nom en encre. */
+  .card .viseur { position: absolute; inset: -3px; pointer-events: none; opacity: 0; --c: var(--q-strange);
+    background:
+      linear-gradient(var(--c) 0 0) left top / 12px 3px, linear-gradient(var(--c) 0 0) left top / 3px 12px,
+      linear-gradient(var(--c) 0 0) right top / 12px 3px, linear-gradient(var(--c) 0 0) right top / 3px 12px,
+      linear-gradient(var(--c) 0 0) left bottom / 12px 3px, linear-gradient(var(--c) 0 0) left bottom / 3px 12px,
+      linear-gradient(var(--c) 0 0) right bottom / 12px 3px, linear-gradient(var(--c) 0 0) right bottom / 3px 12px;
+    background-repeat: no-repeat; }
+  .card.is-target { z-index: 3; }
+  .card.is-target .viseur { opacity: 1; animation: viser .9s ease-in-out infinite alternate; }
+  .card.is-target .g-av { --g-av-ring: var(--q-strange); }
+  .card.is-target .nom { color: var(--qi-strange); font-weight: 700; }
+  .card.is-me .nom { color: var(--ink); }
+  .card.is-me .nom::after { content: ' · toi'; color: var(--ink-3); font-weight: 400; }
+  .card.is-out { filter: grayscale(1) brightness(.62); }
+  .card.is-out .etat::before { content: none; }
+  .card.is-hit .av { animation: touche .5s ease-out 2; }
+  .card.is-hit .viseur { --c: #ff3b1f; opacity: 1; }
+  @keyframes viser { from { inset: -3px; } to { inset: -7px; } }
+  @keyframes touche { 0%, 100% { transform: none; } 30% { transform: translate(-4px, 2px) rotate(-4deg); } 60% { transform: translate(4px, -2px) rotate(4deg); } }
+  /* Compact (beaucoup de joueurs, ou téléphone) : le nom ne reste écrit que
+     pour la cible, le suivant et soi — la bannière centrale nomme toujours la
+     cible en toutes lettres. */
+  /* En compact, la carte n'est QUE l'avatar (c'est sa hauteur qui compte pour
+     l'ellipse) : les vies en pastille dessus, le rang d'un éliminé écrit dessus,
+     et le nom en étiquette dessous, hors du flux. */
+  #ring.is-compact .card { gap: 0; }
+  #ring.is-compact .card .nom { display: none; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); z-index: 4;
+    max-width: 9em; padding: 0 .3em; font-size: .7rem; background: var(--bg-deep); }
+  #ring.is-compact .card:is(.is-target, .is-me) .nom { display: block; }
+  #ring.is-compact .card .vies { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); z-index: 2;
+    font-size: .5rem; padding: .05em .2em; background: rgba(0, 0, 0, .7); }
+  #ring.is-compact .card .etat { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2;
+    font-size: .62rem; color: var(--ink); background: rgba(0, 0, 0, .7); padding: 0 .2em; min-height: 0; }
+  #ring.is-compact .card .etat:empty { display: none; }
+
+  /* Le centre : le disque de la roquette (elle tourne dedans sans rien
+     recouvrir), puis la cible, le prompt et la saisie en direct. */
+  #centre {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2;
+    display: flex; flex-direction: column; align-items: center; gap: .15rem; pointer-events: none;
+    width: calc(var(--rk, 260px) * 1.25);
+  }
+  #disque { width: var(--rk, 260px); height: var(--rk, 260px); display: grid; place-items: center; margin-bottom: calc(var(--rk, 260px) * -.18); margin-top: calc(var(--rk, 260px) * -.18); }
+  #rocket { width: var(--rk, 260px); aspect-ratio: 250 / 92; }
+  .r-aim, .r-fly, .r-bob { width: 100%; height: 100%; }
+  .r-aim { transform-origin: 51.2% 50%; transition: transform .3s cubic-bezier(.3, 1.35, .5, 1); }
+  .r-aim.is-instant { transition: none; }
+  .r-fly { transform-origin: 51.2% 50%; }
+  .r-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .r-ink { fill: #000; stroke: #000; stroke-width: 7; stroke-linejoin: round; }
+  .r-traits path { stroke: #000; stroke-width: 2.2; fill: none; }
+  .r-fumee circle { fill: #8f857a; opacity: 0; transition: opacity .4s; }
+  .r-chaleur { opacity: 0; transition: opacity .5s; }
+  .r-flamme { transform-box: fill-box; transform-origin: right center; --f: 1; animation: flamme .14s steps(2) infinite alternate; }
+  .r-bob { animation: bob 2.6s ease-in-out infinite; }
+  @keyframes flamme { from { transform: scale(var(--f), 1); } to { transform: scale(calc(var(--f) * .86), .92); } }
+  @keyframes bob { 50% { transform: translateY(-2.5%); } }
+  @keyframes trem1 { 0%, 100% { transform: none; } 50% { transform: translate(.6%, -1.2%) rotate(.6deg); } }
+  @keyframes trem2 { 0%, 100% { transform: none; } 25% { transform: translate(-1.2%, 1.6%) rotate(-1.2deg); } 75% { transform: translate(1.2%, -1.6%) rotate(1.2deg); } }
+  @keyframes fumee { from { transform: translateX(0); } to { transform: translateX(-6px); } }
+  .rocket[data-danger="1"] .r-flamme { --f: 1.18; }
+  .rocket[data-danger="1"] .r-chaleur { opacity: .25; }
+  .rocket[data-danger="2"] .r-flamme { --f: 1.38; }
+  .rocket[data-danger="2"] .r-chaleur { opacity: .5; }
+  .rocket[data-danger="2"] .r-fumee circle { opacity: .55; }
+  .rocket[data-danger="2"] .r-svg { animation: trem1 .22s linear infinite; }
+  .rocket[data-danger="3"] .r-flamme { --f: 1.6; }
+  .rocket[data-danger="3"] .r-chaleur { opacity: .8; }
+  .rocket[data-danger="3"] .r-fumee circle { opacity: .8; }
+  .rocket[data-danger="3"] .r-fumee { animation: fumee .5s ease-in-out infinite alternate; }
+  .rocket[data-danger="3"] .r-svg { animation: trem2 .12s linear infinite; }
+  .rocket.is-locked .r-svg { filter: drop-shadow(0 0 5px #ff3b1f) drop-shadow(0 0 2px #ff3b1f); }
+  .rocket.is-gone .r-fly { opacity: 0; }
+
+  #cible { font: 700 clamp(.85rem, 2.4vw, 1.05rem)/1.2 'TF2 Build', 'Arial Narrow', sans-serif; letter-spacing: .05em; color: var(--qi-strange); text-align: center; min-height: 1.2em; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #cible.is-me { color: var(--q-unique); }
+  #prompt {
+    font: 700 var(--pf, 52px)/1 'TF2 Build', 'Arial Narrow', sans-serif; letter-spacing: .14em; text-indent: .14em;
+    color: var(--ink); background: var(--bg-deep); padding: .14em .42em .1em; margin: .1em 0;
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    box-shadow: inset 0 0 0 2px var(--q-strange); text-transform: uppercase; min-width: 2.6em; text-align: center;
+  }
+  #prompt:empty { visibility: hidden; }
+  #live { font: 600 clamp(1rem, 3vw, 1.35rem)/1.2 'JetBrains Mono', monospace; color: var(--ink-2); min-height: 1.3em; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: clip; }
+  #live.is-typing::after { content: '▌'; color: var(--qi-strange); animation: curseur 1s steps(1) infinite; }
+  #live.is-ok { color: var(--g-ok); }
+  #live mark, .feed mark { background: var(--q-strange); color: #241608; padding: 0 .05em; }
+  @keyframes curseur { 50% { opacity: 0; } }
+
+  /* L'explosion, posée sur la carte touchée (pas de gros flash plein écran). */
+  #fx { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
+  .boum { position: absolute; width: 110px; height: 110px; transform: translate(-50%, -50%); animation: boum .55s ease-out forwards; }
+  .boum svg { width: 100%; height: 100%; overflow: visible; }
+  @keyframes boum { 0% { transform: translate(-50%, -50%) scale(.2); opacity: 1; } 60% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1.25); opacity: 0; } }
+
+  /* La saisie : toujours là, jamais désactivée (un champ désactivé ferme le
+     clavier du téléphone) — hors de son tour, éteinte visuellement et muette. */
+  .saisie { margin: .55rem auto 0; max-width: 560px; }
+  .saisie-label { display: block; text-align: center; font: 700 .95rem/1.2 'TF2 Build', 'Arial Narrow', sans-serif; letter-spacing: .05em; color: var(--ink-2); margin-bottom: .35rem; }
+  .saisie.is-mine .saisie-label { color: var(--q-unique); }
+  .saisie-row { display: flex; gap: .5rem; }
+  #mot { font: 600 1.2rem/1.2 'JetBrains Mono', monospace; letter-spacing: .04em; padding: .55rem .8rem; }
+  .saisie.is-mine #mot { border-color: var(--q-strange); }
+  .saisie:not(.is-mine) #mot, .saisie:not(.is-mine) #envoyer { opacity: .5; }
+  .saisie.is-refus #mot { animation: refus .3s ease-out; border-color: var(--g-bad); }
+  @keyframes refus { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+  #retour { text-align: center; font-size: .85rem; margin: .35rem 0 0; color: var(--ink-2); }
+  #retour.is-faute { color: var(--g-bad); }
+
+  .feed { list-style: none; margin: .5rem auto 0; padding: 0; max-width: 560px; font-size: .82rem; color: var(--ink-3); }
+  .feed li { padding: .18rem .2rem; border-top: 1px solid var(--line); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .feed .w { color: var(--ink); font-family: 'JetBrains Mono', monospace; }
+
+  /* --- fin --- */
+  #podium { display: flex; justify-content: center; align-items: flex-end; gap: .8rem; margin: .6rem 0 1rem; }
+  .marche { display: flex; flex-direction: column; align-items: center; gap: .3rem; width: 7.5rem; }
+  .marche .socle { width: 100%; background: linear-gradient(var(--panel-top), var(--panel-bot)); box-shadow: inset 0 0 0 2px var(--panel-edge); display: grid; place-items: center; font: 700 1.4rem 'TF2 Build', 'Arial Narrow', sans-serif; color: var(--ink); }
+  .marche.r1 { order: 2; } .marche.r1 .socle { height: 5.2rem; color: var(--q-unique); }
+  .marche.r2 { order: 1; } .marche.r2 .socle { height: 3.8rem; }
+  .marche.r3 { order: 3; } .marche.r3 .socle { height: 2.8rem; }
+  .marche .nom { font-size: .85rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #ranking { list-style: none; padding: 0; margin: 0 auto; max-width: 520px; text-align: left; }
+  #ranking li { display: flex; align-items: center; gap: .6rem; padding: .35rem .2rem; border-bottom: 1px solid var(--line); font-size: .9rem; }
+  #ranking .rg { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; min-width: 2.2em; color: var(--ink-3); }
+  #ranking .det { margin-left: auto; color: var(--ink-3); font-size: .78rem; white-space: nowrap; }
+
+  #lost { text-align: center; }
+  #lost-text { margin: .4rem 0 1rem; line-height: 1.5; }
+  #lost-retry { display: block; margin: 0 auto; }
+
+  /* Téléphone : l'en-tête se fait discret, l'arène prend la place. */
+  @media (max-width: 600px) {
+    body { padding: .6rem .5rem 1rem; }
+    .tete { margin-bottom: .5rem; }
+    /* En partie, l'en-tête se réduit au bouton du son, posé sur le coin du panneau. */
+    body.en-jeu .tete { position: absolute; right: .8rem; top: .75rem; z-index: 6; margin: 0; }
+    body.en-jeu .tete h1, body.en-jeu .tete .sub { display: none; }
+    body.en-jeu #son { position: static; transform: none; }
+    #play { padding: .45rem .3rem .7rem; }
+    #podium { gap: .4rem; } .marche { width: 6rem; }
+  }
+  /* Mouvement réduit : le socle coupe déjà animations et transitions ; on
+     retire en plus la vibration et le viseur qui « respire ». Rien n'est
+     caché : la cible et la vie perdue sont écrites (bannière, carte). */
+  @media (prefers-reduced-motion: reduce) {
+    .rocket .r-svg, .rocket .r-bob, .rocket .r-flamme, .rocket .r-fumee, .card .viseur, .card .av { animation: none !important; }
+    .r-aim { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+  <main>
+    <header class="tete">
+      <h1>Roquette<span class="a">.</span></h1>
+      <p class="sub">un mot avant qu'elle parte</p>
+      <button type="button" id="son" class="ghost" aria-pressed="false"><span aria-hidden="true" id="son-icone">🔊</span><span class="sr-only">Couper le son</span></button>
+    </header>
+
+    <!-- ACCUEIL -->
+    <section id="home" class="panel g-screen">
+      <ul class="rules attr-list">
+        <li>Une roquette, au centre, vise le joueur dont c'est le tour.</li>
+        <li>Des lettres s'affichent (ION) : tape un mot qui les contient — passion, camion…</li>
+        <li>Mot validé : elle vise le suivant. Trop lent : elle part, et tu perds une vie.</li>
+        <li>Personne ne sait quand elle part. Le dernier en vie gagne. 2 à 16 joueurs.</li>
+      </ul>
+      <div class="field"><input id="name-input" maxlength="16" placeholder="ton pseudo" autocomplete="off"></div>
+      <p class="center" style="color:var(--ink-3);font-size:.74rem;margin:0 0 .5rem">choisis ton icône :</p>
+      <div id="avatar-row"></div>
+      <div class="actions"><button id="host" type="button">Créer une partie</button></div>
+      <p class="or">— ou —</p>
+      <div class="join-row">
+        <input id="code-input" maxlength="4" placeholder="CODE" autocomplete="off" spellcheck="false" aria-label="Code de la partie">
+        <button id="join" type="button" style="flex:1">Rejoindre</button>
+      </div>
+    </section>
+
+    <!-- SALON -->
+    <section id="lobby" class="panel g-screen center" hidden>
+      <p class="meta">Salon · <span id="lobby-count">1 / 16</span> joueurs</p>
+      <button type="button" id="room-code" class="g-copy" title="clique pour copier">····</button>
+      <p id="code-hint" role="status">clique sur le code pour le copier</p>
+      <ul id="players"></ul>
+      <div id="host-config" class="actions" hidden>
+        <label for="vies-select">Vies</label>
+        <select id="vies-select"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select>
+        <label for="rythme-select">Rythme</label>
+        <select id="rythme-select"><option value="detendu">Détendu</option><option value="normal" selected>Normal</option><option value="nerveux">Nerveux</option></select>
+        <button id="start" type="button" disabled>Lancer la partie</button>
+      </div>
+      <p id="need-players" class="wait" role="status">En attente de l'hôte…</p>
+    </section>
+
+    <!-- connexion perdue (`lost`, games/shared/game-net.js) -->
+    <section id="lost" class="panel g-screen center" hidden>
+      <p class="meta">Connexion perdue</p>
+      <p id="lost-text" role="status"></p>
+      <button type="button" id="lost-retry" hidden>Revenir dans le salon</button>
+      <a id="lost-hub" class="ghost" href="../" hidden>↩ Retour au Game Hub</a>
+    </section>
+
+    <!-- LA PARTIE (décompte compris) -->
+    <section id="play" class="panel g-screen" hidden>
+      <div id="arena">
+        <ol id="ring" aria-label="Joueurs, dans l'ordre de passage"></ol>
+        <div id="centre">
+          <div id="disque"><div id="rocket"></div></div>
+          <p id="cible"></p>
+          <p id="prompt" aria-hidden="true"></p>
+          <p id="live" aria-hidden="true"></p>
+        </div>
+        <div id="fx" aria-hidden="true"></div>
+      </div>
+      <form id="saisie" class="saisie" autocomplete="off" novalidate>
+        <label id="saisie-label" class="saisie-label" for="mot">La partie va commencer…</label>
+        <div class="saisie-row">
+          <input id="mot" type="text" maxlength="60" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="send" inputmode="text" aria-describedby="retour">
+          <button id="envoyer" type="submit">Envoyer</button>
+        </div>
+        <p id="retour" class="g-status" role="status"></p>
+      </form>
+      <ol id="feed" class="feed" aria-label="Derniers événements"></ol>
+    </section>
+
+    <!-- FIN -->
+    <section id="end" class="panel g-screen center" hidden>
+      <p class="meta">Fin de partie</p>
+      <h2 id="end-title" tabindex="-1" style="margin:.2rem 0 .4rem"></h2>
+      <div id="podium"></div>
+      <!-- Les actions AVANT le classement complet : à 16 joueurs, il ferait
+           défiler l'hôte pour relancer. -->
+      <div class="actions" style="margin:0 0 1rem">
+        <button id="again" type="button" hidden>Rejouer</button>
+        <button id="to-lobby" type="button" class="ghost" hidden>Retour au salon</button>
+        <p id="wait-host" class="wait" hidden>En attente de l'hôte…</p>
+        <a class="ghost" href="../../#games" style="padding:.55rem 1rem;text-decoration:none">Les autres jeux</a>
+      </div>
+      <ol id="ranking"></ol>
+    </section>
+
+    <p id="error" class="g-error" role="alert"></p>
+    <div id="annonce" class="sr-only" aria-live="polite"></div>
+    <div id="annonce-vite" class="sr-only" aria-live="assertive"></div>
+    <p class="center"><a class="back" href="../../">← retour au portfolio</a></p>
+  </main>
+
+  <script src="../shared/game-profile.js?v=3"></script>
+  <script src="../shared/game-avatar.js"></script>
+  <script src="../shared/game-net.js?v=1"></script>
+  <script src="net.js?v=2"></script>
+  <script src="rocket.js?v=1"></script>
+  <script src="sound.js?v=1"></script>
+  <script src="app.js?v=2"></script>
+</body>
+</html>
