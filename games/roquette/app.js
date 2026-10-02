@@ -35,6 +35,7 @@
   let decompte = null, boucleDanger = null;
   const cards = new Map();         // id → { li, av, nom, vies, etat }
   let tailleAv = null;
+  let viseId = null;          // le JOUEUR que vise la roquette (son avatar peut être remplacé par layout())
   const rocket = Rocket.create($('rocket'));
   const nomDe = (id) => (roster.get(id) || {}).name || 'quelqu’un';
 
@@ -371,7 +372,12 @@
     });
     // La roquette se règle sur la place réelle : avatars et bannière hors de sa flamme.
     rocket.fit([...[...cards.values()].map((c) => c.g), $('cible')]);
-    rocket.refit();
+    // Même cible, nouvel angle, sans animation. La cible est un JOUEUR : si
+    // son avatar vient d'être remplacé (md ↔ sm, plus haut), on vise le nœud
+    // actuel — l'ancien, détaché, ne mesure plus rien.
+    const vise = viseId && cards.get(viseId);
+    if (vise && vise.g && rocket.cible !== vise.g) rocket.aimAt(vise.g, { instant: true });
+    else rocket.refit();
   }
   // La mise en page lit la place disponible (arène, zone visible, formulaire) :
   // elle est refaite après TOUT redimensionnement, à l'image suivante, quand les
@@ -449,7 +455,7 @@
   }
 
   const appliquer = (players) => { for (const p of players || []) etat.set(p.id, { lives: p.lives, out: p.out, left: p.left, rank: p.rank, words: p.words }); };
-  const viser = (id, instant) => { const c = cards.get(id); if (c && c.g) rocket.aimAt(c.g, { instant }); };
+  const viser = (id, instant) => { viseId = id; const c = cards.get(id); if (c && c.g) rocket.aimAt(c.g, { instant }); };
 
   // ---------------------------------------------------------------- saisie
   const monTour = () => phase === 'turn' && tour && tour.holder === myId;
@@ -696,6 +702,7 @@
       Sons.play('impact');
       Sons.play('explosion');
     };
+    viseId = m.id;
     rocket.boom(c && c.g, impact);
     setTimeout(impact, 1300);
     const qui = nomDe(m.id) + (m.id === myId ? ' (toi)' : '');
