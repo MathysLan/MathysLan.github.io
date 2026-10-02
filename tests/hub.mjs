@@ -245,12 +245,12 @@ try {
     JSON.stringify(sB2.hist.slice(-3).map((h) => h.session.players.map((p) => p.id.slice(2, 6) + (p.connected ? '+' : '-')).join(' '))) + ' statut Adead=' + Adead.status);
   t('sans reprise possible : le client A dit « terminé »', await suivi(Adead).until(() => Adead.status === 'ended', 3000) || Adead.status === 'ended');
 
-  // SESSION_FULL : 12 maximum.
+  // SESSION_FULL : 16 maximum (session.js MAX_PLAYERS).
   const D = client(); const rD = await D.create({ id: 'p_full00', name: 'Hôte', avatar: { kind: 'emoji', emoji: '🎯' } });
   const extras = [];
-  for (let i = 1; i < 12; i++) { const x = client(); extras.push(x); await x.join(rD.session.code, { id: 'p_full' + String(i).padStart(2, '0'), name: 'J' + i, avatar: { kind: 'emoji', emoji: '🎧' } }); }
-  let e4 = null; try { await client().join(rD.session.code, { id: 'p_full12', name: 'J12', avatar: { kind: 'emoji', emoji: '🍕' } }); } catch (e) { e4 = e; }
-  t('SESSION_FULL : le 13e est refusé, en phrase', e4 && e4.code === 'SESSION_FULL' && /complète/.test(e4.message), e4 && e4.message);
+  for (let i = 1; i < 16; i++) { const x = client(); extras.push(x); await x.join(rD.session.code, { id: 'p_full' + String(i).padStart(2, '0'), name: 'J' + i, avatar: { kind: 'emoji', emoji: '🎧' } }); }
+  let e4 = null; try { await client().join(rD.session.code, { id: 'p_full16', name: 'J16', avatar: { kind: 'emoji', emoji: '🍕' } }); } catch (e) { e4 = e; }
+  t('SESSION_FULL : le 17e est refusé, en phrase (16 joueurs maximum)', e4 && e4.code === 'SESSION_FULL' && /complète/.test(e4.message) && /16 joueurs maximum/.test(e4.message), e4 && e4.message);
   D.leave(); extras.forEach((x) => x.leave());
 
   // ── Le tirage, par les méthodes du client (une session à part : E hôte, F).

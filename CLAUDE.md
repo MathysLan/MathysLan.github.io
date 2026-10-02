@@ -515,8 +515,11 @@ remplace. Protocole relu dans `game-hub-server/src` : `create` / `join` /
 codes d'erreur sont ceux du serveur (`SESSION_NOT_FOUND`, `SESSION_FULL`,
 `SESSION_CLOSED`, `BAD_CODE`, `BAD_PLAYER`, `REPLACED`…), traduits par
 `errorText()` ; un code **inconnu** est affiché avec son code (jamais noyé dans
-une phrase générique). Une session compte au plus 12 joueurs (le
-`MAX_PLAYERS` de `precision-server`, le plus permissif).
+une phrase générique). Une session compte au plus 16 joueurs (le
+`MAX_PLAYERS` de `roquette-server`, le plus permissif ; `session.js` côté
+serveur, repli `maxPlayers` de `game-hub.js` côté page). Chaque jeu garde son
+propre plafond dans le manifest : le tirage écarte seul un jeu trop petit
+(`TOO_MANY`).
 
 ### Le manifest des jeux
 

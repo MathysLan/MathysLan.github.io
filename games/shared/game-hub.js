@@ -305,7 +305,7 @@
       code: s.code,
       state: typeof s.state === 'string' ? s.state : 'lobby',
       hostId: typeof s.hostId === 'string' ? s.hostId : null,
-      maxPlayers: typeof s.maxPlayers === 'number' ? s.maxPlayers : 12,
+      maxPlayers: typeof s.maxPlayers === 'number' ? s.maxPlayers : 16,     // le plafond du Hub (session.js MAX_PLAYERS)
       players: players
         .filter(function (p) { return p && typeof p.id === 'string'; })
         .map(function (p) {
@@ -387,7 +387,7 @@
   // Codes du serveur → phrases lisibles. Jamais d'erreur brute à l'écran.
   var TEXTES = {
     SESSION_NOT_FOUND: 'Aucune session avec ce code. Vérifie-le avec la personne qui l\'a créée.',
-    SESSION_FULL: 'Cette session est complète (12 joueurs maximum).',
+    SESSION_FULL: 'Cette session est complète (16 joueurs maximum).',
     SESSION_CLOSED: 'Cette session est terminée.',
     BAD_CODE: 'Ce code n\'a pas le bon format : 5 caractères, sans I, L, O, 0 ni 1.',
     BAD_PLAYER: 'Ton profil a été refusé par le Hub.',

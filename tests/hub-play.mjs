@@ -426,27 +426,53 @@ try {
     const b = await B.eval(ACT);
     t('12 joueurs, aucune partie : toujours une seule ligne de score, pas douze zéros', b.scoreVide && b.lignesVues === 0 && b.lignes === 6 && b.scoreH <= 110, JSON.stringify({ h: b.scoreH, l: b.lignes }));
   }
-  for (const [w, h] of [[390, 780], [768, 1024], [1920, 1080]]) {
-    await B.size(w, h); await sleep(250);
-    const m = await B.eval(`(() => { const cards = [...document.querySelectorAll('#hub-players .hub-card')];
-      const boxes = cards.map((c) => c.getBoundingClientRect());
-      let chev = 0; for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
-        const a = boxes[i], b = boxes[j]; if (a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1) chev++; }
-      const code = document.getElementById('hub-code').getBoundingClientRect();
-      const leave = document.getElementById('hub-leave').getBoundingClientRect();
-      const act = document.getElementById('hub-act').getBoundingClientRect(), der = boxes.reduce((m, b) => Math.max(m, b.bottom), 0);
-      return { over: document.documentElement.scrollWidth - innerWidth, chev, cols: new Set(boxes.map((b) => Math.round(b.left))).size,
-        code: code.width > 0 && code.right <= innerWidth && code.left >= 0, leave: leave.width > 0 && leave.right <= innerWidth,
-        act: act.top >= der - 1, tirer: !document.getElementById('hub-draw-btn').hidden && document.getElementById('hub-draw-btn').getBoundingClientRect().top >= der,
-        av: [...document.querySelectorAll('#hub-players .g-av')].every((a) => a.getBoundingClientRect().width >= 44) }; })()`);
-    t(`${w}×${h} : 12 joueurs, aucun débordement ni chevauchement (${m.cols} colonnes)`, m.over <= 0 && m.chev === 0, JSON.stringify(m));
-    t(`${w}×${h} : code visible, bouton « Quitter » accessible, PP ≥ 44 px`, m.code && m.leave && m.av);
-    t(`${w}×${h} : 12 joueurs — « Tirer » (B, hôte) reste juste après la DERNIÈRE carte`, m.act && m.tirer, JSON.stringify({ act: m.act, tirer: m.tirer }));
-    await B.shot(`4-salon-12-${w}`);
+  // La grille du salon, aux 3 tailles : à 12 joueurs, puis plein (16, le
+  // plafond du Hub, session.js MAX_PLAYERS).
+  async function grille(n) {
+    for (const [w, h] of [[390, 780], [768, 1024], [1920, 1080]]) {
+      await B.size(w, h); await sleep(250);
+      const m = await B.eval(`(() => { const cards = [...document.querySelectorAll('#hub-players .hub-card')];
+        const boxes = cards.map((c) => c.getBoundingClientRect());
+        let chev = 0; for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+          const a = boxes[i], b = boxes[j]; if (a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1) chev++; }
+        const code = document.getElementById('hub-code').getBoundingClientRect();
+        const leave = document.getElementById('hub-leave').getBoundingClientRect();
+        const act = document.getElementById('hub-act').getBoundingClientRect(), der = boxes.reduce((m, b) => Math.max(m, b.bottom), 0);
+        return { over: document.documentElement.scrollWidth - innerWidth, chev, cols: new Set(boxes.map((b) => Math.round(b.left))).size,
+          code: code.width > 0 && code.right <= innerWidth && code.left >= 0, leave: leave.width > 0 && leave.right <= innerWidth,
+          act: act.top >= der - 1, tirer: !document.getElementById('hub-draw-btn').hidden && document.getElementById('hub-draw-btn').getBoundingClientRect().top >= der,
+          av: [...document.querySelectorAll('#hub-players .g-av')].every((a) => a.getBoundingClientRect().width >= 44),
+          noms: [...document.querySelectorAll('#hub-players .hub-card')].every((c) => c.textContent.trim().length > 0 && c.getBoundingClientRect().width >= 140) }; })()`);
+      t(`${w}×${h} : ${n} joueurs, aucun débordement ni chevauchement (${m.cols} colonnes)`, m.over <= 0 && m.chev === 0, JSON.stringify(m));
+      t(`${w}×${h} : ${n} joueurs — code visible, « Quitter » accessible, PP ≥ 44 px, cartes lisibles`, m.code && m.leave && m.av && m.noms);
+      t(`${w}×${h} : ${n} joueurs — « Tirer » (B, hôte) reste juste après la DERNIÈRE carte`, m.act && m.tirer, JSON.stringify({ act: m.act, tirer: m.tirer }));
+      await B.shot(`4-salon-${n}-${w}`);
+    }
+  }
+  await grille(12);
+  // … puis 16 : quatre de plus.
+  for (let i = 10; i < 14; i++) {
+    const x = H.createClient({ url: HUB, retryDelays: [] });
+    extras.push(x);
+    await x.join(code, { id: 'p_bot' + String(i).padStart(3, '0'), name: ['Lou', 'Marius-Alexandre', 'Nour', 'Oscar'][i - 10],
+      avatar: { kind: 'emoji', emoji: ['🐙', '🦄', '🌵', '🎲'][i - 10] } });
+  }
+  await B.until(`document.querySelectorAll('#hub-players .hub-card').length === 16`, 10000, '16 cartes');
+  t('16 joueurs : le salon annonce « 16 max »', /16 max/.test(await B.eval(`document.getElementById('hub-count-sub').textContent`)));
+  await grille(16);
+  // Le 17e : refusé, avec le message du Hub (16 joueurs maximum).
+  {
+    const x = H.createClient({ url: HUB, retryDelays: [] });
+    let err = null;
+    try { await x.join(code, { id: 'p_bot017', name: 'Dix-sept', avatar: { kind: 'emoji', emoji: '🙃' } }); } catch (e) { err = e; }
+    t('17e joueur : refusé (SESSION_FULL)', !!err && (err.code === 'SESSION_FULL' || /16 joueurs maximum/.test(err.message)), err ? `${err.code} — ${err.message}` : 'accepté !');
+    t('17e joueur : le message dit « 16 joueurs maximum »', /16 joueurs maximum/.test(H.errorText('SESSION_FULL')), H.errorText('SESSION_FULL'));
+    try { x.leave(); } catch (_) {}
+    t('17e refusé : le salon reste à 16', await B.until(`document.querySelectorAll('#hub-players .hub-card').length === 16`, 3000, 'toujours 16'));
   }
   await B.size(1100, 1000);
   extras.forEach((x) => x.leave());
-  await B.until(`document.querySelectorAll('#hub-players .hub-card').length === 2`, 10000, 'départ des 10');
+  await B.until(`document.querySelectorAll('#hub-players .hub-card').length === 2`, 10000, 'départ des 14');
 
   // ═══ 7. A fait un LEAVE explicite : B le voit disparaître tout de suite, et reste
   const t7 = Date.now();
