@@ -26,6 +26,11 @@
 //   lancement, games/shared/hub-handoff.js). Sans lui, le Hub tire le jeu mais
 //   ne le lance pas. false veut donc dire « non supporté ou pas encore
 //   vérifié » : dans les deux cas le Hub s'en passe.
+//
+//   hub: false (et non un bloc) = jeu jouable VOLONTAIREMENT tenu hors du Game
+//   Hub : il est dans la section Jeux, pas dans le manifest, donc jamais tiré.
+//   C'est un choix écrit, pas un oubli — un jeu « live » sans `hub` du tout
+//   fait toujours échouer le build.
 // arch : points d'architecture affichés dans la fiche « Architecture ». Des
 //        faits vérifiables sur le code, pas du discours.
 const GAMES = [
@@ -367,6 +372,38 @@ const GAMES = [
       replay: true,                       // action: 'lobby' vérifiée dans server.js
       handoff: true,                      // branché au Game Hub (games/shared/hub-handoff.js)
     },
+  },
+  {
+    id: 'roquette',
+    emoji: '🚀',
+    accent: 'amber',
+    title: 'Roquette Party',
+    title_en: 'Roquette Party',
+    tagline: "Un mot avant qu'elle parte",
+    tagline_en: 'One word before it blows',
+    desc: "Jeu de mots en temps réel : deux ou trois lettres s'affichent, trouve un mot qui les contient avant que la roquette n'explose. Chaque mot valide l'envoie vers le joueur suivant ; chaque explosion coûte une vie.",
+    desc_en: "A real-time word game: two or three letters appear, find a word that contains them before the rocket blows. Every valid word sends it to the next player; every explosion costs a life.",
+    tags: ['en ligne', 'multi', 'mots'],
+    tags_en: ['online', 'multi', 'words'],
+    stack: ['WebSocket', 'Node.js', 'Moteur pur'],
+    code: 'https://github.com/MathysLan/roquette-server',
+    arch: [
+      "Serveur Node.js (ws) seul arbitre : le client n'envoie que ce qu'il tape et le mot qu'il propose",
+      "L'instant de l'explosion ne quitte jamais le serveur : le danger affiché ne dépend que du temps écoulé depuis le début du tour",
+      "Le dictionnaire reste côté serveur : aucun message ne contient plus que le mot qui vient d'être validé",
+      "Règles isolées dans un moteur pur (engine.js) : horloge et hasard injectés, aucun réseau",
+      "De 2 à 16 joueurs, parties privées par code à 4 lettres",
+    ],
+    arch_en: [
+      "A Node.js (ws) server is the only referee: the client only sends what it types and the word it submits",
+      "The moment of the explosion never leaves the server: the danger shown only depends on the time elapsed since the turn began",
+      "The dictionary stays on the server: no message ever holds more than the word just validated",
+      "Rules isolated in a pure engine (engine.js): clock and randomness injected, no networking",
+      "From 2 to 16 players, private games through a 4-letter code",
+    ],
+    href: 'games/roquette/',
+    status: 'live',
+    hub: false,                           // volontairement HORS du Game Hub (pas de handoff) : absent du manifest
   },
   {
     id: 'soon',

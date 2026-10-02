@@ -140,7 +140,8 @@ function checkPagesPaths() {
 //      l'historique de contenu ; il ne l'interprète ni ne le fabrique, et le
 //      serveur du jeu reste seul maître de ce qu'il a consommé.
 //   2. Un jeu « live » SANS bloc `hub` fait échouer le build. Ajouter un jeu au
-//      carousel sans le déclarer au Hub devient donc impossible.
+//      carousel sans le déclarer au Hub devient donc impossible — sauf choix
+//      écrit : `hub: false` le tient hors du manifest (Roquette Party).
 //   3. Vocabulaires fermés pour `needs` et `categories` : une faute de frappe
 //      (« micro » au lieu de « mic ») créerait un filtre que rien ne satisfait,
 //      en silence. C'est le genre de panne qu'on ne découvre qu'en soirée.
@@ -158,7 +159,12 @@ const CATEGORIES = ['classique', 'solo', 'reflexe', 'observation', 'bluff',
 function checkHub(g) {
   const err = (m) => { throw new Error(`data/games.js — ${g.id} : ${m}`); };
   const h = g.hub;
-  if (g.status === 'live' && !h) err('jeu « live » sans bloc hub (le Hub ne peut pas le proposer)');
+  // `hub: false` : jeu jouable tenu hors du Hub, par choix écrit (data/games.js).
+  if (h === false) {
+    if (g.status !== 'live') err('hub: false sur un jeu qui n\'est pas « live »');
+    return;
+  }
+  if (g.status === 'live' && !h) err('jeu « live » sans bloc hub (le Hub ne peut pas le proposer) — ou hub: false s\'il doit rester hors du Hub');
   if (!h) return;
   if (g.status !== 'live') err('bloc hub sur un jeu qui n\'est pas « live »');
 

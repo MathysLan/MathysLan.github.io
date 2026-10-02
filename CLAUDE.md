@@ -521,9 +521,16 @@ une phrase générique). Une session compte au plus 12 joueurs (le
 ### Le manifest des jeux
 
 - **`data/games.js` est la source de vérité** (bloc `hub` par jeu jouable, 8 sur
-  9 — « La suite » n'en a pas). **`data/games.manifest.json` est GÉNÉRÉ** par
-  `tools/build.mjs` ; le Hub le relit sur GitHub Pages (cache 5 min) : ajouter
-  un jeu au portfolio l'ajoute au tirage sans redéployer le Hub.
+  10 — « La suite » n'en a pas, Roquette Party a `hub: false`).
+  **`data/games.manifest.json` est GÉNÉRÉ** par `tools/build.mjs` ; le Hub le
+  relit sur GitHub Pages (cache 5 min) : ajouter un jeu au portfolio l'ajoute au
+  tirage sans redéployer le Hub.
+- **`hub: false`** = jeu jouable tenu VOLONTAIREMENT hors du Hub (dans la
+  section Jeux, absent du manifest, jamais tiré). Choix écrit, pas un oubli :
+  un jeu « live » sans `hub` du tout fait toujours échouer le build.
+  `tests/manifest.mjs` vérifie qu'il n'entre pas au manifest. Seul cas :
+  **Roquette Party** (`games/roquette/`, `roquette-server`, 2 à 16 joueurs),
+  sans handoff tant qu'il n'est pas branché au Hub.
 - ⚠️ **Schéma FERMÉ** (clés `CLES`, vocabulaires fermés `needs` = `mic` /
   `cam` / `consent`, `categories`) : aucun identifiant de contenu n'entre dans
   le manifest, et une faute de frappe fait échouer le build au lieu de créer un

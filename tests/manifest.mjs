@@ -49,9 +49,13 @@ t('schéma versionné', M.version === 1, `version=${M.version}`);
 t('la base des durées est écrite noir sur blanc',
   typeof M.minutesBasis === 'string' && /max/.test(M.minutesBasis));
 
-const live = GAMES.filter((g) => g.status === 'live');
-t('tous les jeux jouables sont au manifest',
+// `hub: false` : jouable mais tenu hors du Hub par choix écrit (data/games.js).
+const live = GAMES.filter((g) => g.status === 'live' && g.hub !== false);
+const horsHub = GAMES.filter((g) => g.status === 'live' && g.hub === false);
+t('tous les jeux jouables sont au manifest (sauf hub: false)',
   M.games.length === live.length, `${M.games.length} / ${live.length}`);
+t(`jeux tenus hors du Hub absents du manifest (${horsHub.map((g) => g.id).join(', ') || 'aucun'})`,
+  horsHub.every((g) => !M.games.some((x) => x.id === g.id)));
 t('même ordre que le carousel',
   M.games.map((g) => g.id).join(',') === live.map((g) => g.id).join(','));
 t('aucun jeu « bientôt » au manifest',
