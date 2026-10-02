@@ -31,6 +31,17 @@
   var FLAMME = 'M0,-12 C-9,-21 -27,-19 -28,-9 L-41,-12 L-36,-3.5 L-68,2 L-36,6 L-42,13.5 L-25,10.5 C-17,19 -3,17 0,12 Z';
   var FLAMME_MI = 'M0,-8 C-6,-14 -18,-13 -19,-6 L-28,-7 L-25,-2 L-46,2 L-25,4.5 L-29,9 L-17,7 C-11,13 -2,11.5 0,8 Z';
   var FLAMME_CO = 'M0,-4.5 C-4,-7 -10,-6.5 -11,-3 L-22,1 L-11,3 C-9,6.5 -3,6.5 0,4.5 Z';
+  var FLAMME_K = 0.8;
+
+  // L'EMPRISE : jusqu'où la roquette s'étend DERRIÈRE son pivot, flamme au
+  // plus fort (danger 3 : --f = 1.12 dans index.html) et contour noir (3,5)
+  // compris, en unités du dessin : tuyère à -56, flamme de 68 de long.
+  // C'est la flamme qui touchait les avatars et la bannière : la visée la
+  // tourne à l'opposé de la cible, donc vers n'importe quel autre joueur.
+  var EMPRISE = (56 + 68 * FLAMME_K * 1.12 + 3.5) / 250;
+  var TAILLE_MAX = 0.9;          // en fraction du disque (--rk) : jamais plus
+  var TAILLE_MIN = 0.6;          // ni moins — en dessous, elle cesse de se lire
+  var MARGE = 6;                 // px, pour le balancement et la vibration
 
   var SVG = ''
     + '<svg class="r-svg" viewBox="-128 -46 250 92" aria-hidden="true" focusable="false">'
@@ -53,13 +64,15 @@
     + '<radialGradient id="r-chaleur"><stop offset="0" stop-color="#ff5a1f" stop-opacity=".75"/><stop offset="1" stop-color="#ff5a1f" stop-opacity="0"/></radialGradient>'
     + '<filter id="r-flou" x="-50%" y="-200%" width="200%" height="500%"><feGaussianBlur stdDeviation="1.6"/></filter>'
     + '</defs>'
-    // fumée (danger) et chaleur, derrière tout
+    // fumée (danger) et chaleur, derrière tout. La fumée reste DANS la portée
+    // de la flamme (voir EMPRISE) : elle ne doit rien allonger.
     + '<g class="r-fumee">'
-    + '<circle cx="-84" cy="-8" r="10"/><circle cx="-100" cy="5" r="13"/><circle cx="-118" cy="-5" r="11"/>'
+    + '<circle cx="-78" cy="-8" r="9"/><circle cx="-92" cy="5" r="11"/><circle cx="-105" cy="-4" r="9"/>'
     + '</g>'
     + '<ellipse class="r-chaleur" cx="6" cy="0" rx="80" ry="40" fill="url(#r-chaleur)"/>'
-    // flamme : contour, puis trois couches
-    + '<g transform="translate(-56 0)"><g class="r-flamme">'
+    // flamme : contour, puis trois couches — à 80 % de son dessin d'origine
+    // (FLAMME_K), même forme, pour raccourcir l'arrière sans toucher au corps.
+    + '<g transform="translate(-56 0) scale(' + FLAMME_K + ')"><g class="r-flamme">'
     + '<path class="r-ink" d="' + FLAMME + '"/>'
     + '<path d="' + FLAMME + '" fill="#fd8a0a"/>'
     + '<path d="' + FLAMME_MI + '" fill="#ffd28f"/>'
@@ -135,6 +148,25 @@
       poser(angle, opts && opts.instant);
       return angle;
     }
+    // La taille : la plus grande (jusqu'à TAILLE_MAX du disque) dont l'arrière
+    // ne touche AUCUN des obstacles donnés (avatars, bannière), quelle que
+    // soit la visée — un cercle autour du pivot, de rayon EMPRISE × largeur.
+    // Le disque, lui, ne change pas : prompt et cartes restent où ils sont.
+    function fit(obstacles) {
+      var d = host.parentNode.getBoundingClientRect();
+      if (!d.width) return;
+      var px = d.left + d.width / 2, py = d.top + d.height / 2;
+      var place = Infinity;
+      (obstacles || []).forEach(function (el) {
+        if (!el) return;
+        var r = el.getBoundingClientRect();
+        if (!r.width && !r.height) return;
+        var dx = Math.max(r.left - px, 0, px - r.right), dy = Math.max(r.top - py, 0, py - r.bottom);
+        place = Math.min(place, Math.hypot(dx, dy));
+      });
+      var w = Math.min(d.width * TAILLE_MAX, (place - MARGE) / EMPRISE);
+      host.style.width = Math.round(Math.max(d.width * TAILLE_MIN, w)) + 'px';
+    }
     // Après un redimensionnement : même cible, nouvel angle, sans animation.
     function refit() { if (cible) aimAt(cible, { instant: true }); }
 
@@ -208,11 +240,11 @@
 
     host.dataset.danger = '0';
     return {
-      aimAt: aimAt, refit: refit, setDanger: setDanger, validate: validate, boom: boom, annuler: annuler,
+      aimAt: aimAt, fit: fit, refit: refit, setDanger: setDanger, validate: validate, boom: boom, annuler: annuler,
       get angle() { return angle; },
       get cible() { return cible; },
     };
   }
 
-  window.Rocket = { create: create, ecart: ecart, PIVOT: PIVOT, NEZ: NEZ };
+  window.Rocket = { create: create, ecart: ecart, PIVOT: PIVOT, NEZ: NEZ, EMPRISE: EMPRISE };
 })();

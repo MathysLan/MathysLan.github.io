@@ -67,7 +67,9 @@
   #ring { list-style: none; margin: 0; padding: 0; position: absolute; inset: 0; }
   .card {
     position: absolute; left: var(--x); top: var(--y); width: var(--cw, 96px);
-    transform: translate(-50%, -50%);
+    /* Le point de l'anneau (--x, --y) est le centre de l'AVATAR, pas de la carte :
+       --ay = hauteur du centre de l'avatar dans la carte, posée par app.js. */
+    transform: translate(-50%, calc(-1 * var(--ay, 50%)));
     display: flex; flex-direction: column; align-items: center; gap: .12rem;
     text-align: center; z-index: 1;
   }
@@ -124,12 +126,16 @@
   /* Le centre : le disque de la roquette (elle tourne dedans sans rien
      recouvrir), puis la cible, le prompt et la saisie en direct. */
   #centre {
-    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2;
+    /* Ancré par le DISQUE, pas en bloc : son centre (le pivot de la roquette) est à
+       .32 × --rk du haut de la colonne (marge haute de -.18) ; il tombe ainsi au
+       centre de l'arène, et le texte se range dessous. */
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, calc(var(--rk, 260px) * -.32)); z-index: 2;
     display: flex; flex-direction: column; align-items: center; gap: .15rem; pointer-events: none;
     width: calc(var(--rk, 260px) * 1.25);
   }
   #disque { width: var(--rk, 260px); height: var(--rk, 260px); display: grid; place-items: center; margin-bottom: calc(var(--rk, 260px) * -.18); margin-top: calc(var(--rk, 260px) * -.18); }
-  #rocket { width: var(--rk, 260px); aspect-ratio: 250 / 92; }
+  /* Largeur posée par Rocket.fit() (la place libre autour du pivot) ; sans elle, 90 % du disque. */
+  #rocket { width: calc(var(--rk, 260px) * .9); aspect-ratio: 250 / 92; }
   .r-aim, .r-fly, .r-bob { width: 100%; height: 100%; }
   .r-aim { transform-origin: 51.2% 50%; transition: transform .3s cubic-bezier(.3, 1.35, .5, 1); }
   .r-aim.is-instant { transition: none; }
@@ -139,20 +145,22 @@
   .r-traits path { stroke: #000; stroke-width: 2.2; fill: none; }
   .r-fumee circle { fill: #8f857a; opacity: 0; transition: opacity .4s; }
   .r-chaleur { opacity: 0; transition: opacity .5s; }
-  .r-flamme { transform-box: fill-box; transform-origin: right center; --f: 1; animation: flamme .14s steps(2) infinite alternate; }
+  .r-flamme { transform-box: fill-box; transform-origin: right center; --f: 1; --fy: 1; animation: flamme .14s steps(2) infinite alternate; }
   .r-bob { animation: bob 2.6s ease-in-out infinite; }
-  @keyframes flamme { from { transform: scale(var(--f), 1); } to { transform: scale(calc(var(--f) * .86), .92); } }
+  @keyframes flamme { from { transform: scale(var(--f), var(--fy)); } to { transform: scale(calc(var(--f) * .86), calc(var(--fy) * .92)); } }
   @keyframes bob { 50% { transform: translateY(-2.5%); } }
   @keyframes trem1 { 0%, 100% { transform: none; } 50% { transform: translate(.6%, -1.2%) rotate(.6deg); } }
   @keyframes trem2 { 0%, 100% { transform: none; } 25% { transform: translate(-1.2%, 1.6%) rotate(-1.2deg); } 75% { transform: translate(1.2%, -1.6%) rotate(1.2deg); } }
   @keyframes fumee { from { transform: translateX(0); } to { transform: translateX(-6px); } }
-  .rocket[data-danger="1"] .r-flamme { --f: 1.18; }
+  /* Le danger gonfle la flamme surtout en ÉPAISSEUR : sa LONGUEUR (--f) est
+     l'emprise de la roquette, comptée dans rocket.js (EMPRISE, au max 1.12). */
+  .rocket[data-danger="1"] .r-flamme { --f: 1.04; --fy: 1.12; }
   .rocket[data-danger="1"] .r-chaleur { opacity: .25; }
-  .rocket[data-danger="2"] .r-flamme { --f: 1.38; }
+  .rocket[data-danger="2"] .r-flamme { --f: 1.08; --fy: 1.24; }
   .rocket[data-danger="2"] .r-chaleur { opacity: .5; }
   .rocket[data-danger="2"] .r-fumee circle { opacity: .55; }
   .rocket[data-danger="2"] .r-svg { animation: trem1 .22s linear infinite; }
-  .rocket[data-danger="3"] .r-flamme { --f: 1.6; }
+  .rocket[data-danger="3"] .r-flamme { --f: 1.12; --fy: 1.36; }
   .rocket[data-danger="3"] .r-chaleur { opacity: .8; }
   .rocket[data-danger="3"] .r-fumee circle { opacity: .8; }
   .rocket[data-danger="3"] .r-fumee { animation: fumee .5s ease-in-out infinite alternate; }
@@ -160,6 +168,9 @@
   .rocket.is-locked .r-svg { filter: drop-shadow(0 0 5px #ff3b1f) drop-shadow(0 0 2px #ff3b1f); }
   .rocket.is-gone .r-fly { opacity: 0; }
 
+  /* La pile de texte se range SOUS le pivot : sans la marge de 1em que le
+     navigateur donne à un <p> (77 px de vide), elle ne tient pas sans écraser --rk. */
+  #cible, #live { margin: 0; }
   #cible { font: 700 clamp(.85rem, 2.4vw, 1.05rem)/1.2 'TF2 Build', 'Arial Narrow', sans-serif; letter-spacing: .05em; color: var(--qi-strange); text-align: center; min-height: 1.2em; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #cible.is-me { color: var(--q-unique); }
   #prompt {
@@ -233,6 +244,10 @@
   @media (prefers-reduced-motion: reduce) {
     .rocket .r-svg, .rocket .r-bob, .rocket .r-flamme, .rocket .r-fumee, .card .viseur, .card .av { animation: none !important; }
     .r-aim { transition: none !important; }
+    /* Le socle ramène les transitions à .01ms SANS couper leur propriété (all) :
+       une taille ou une position changée ne s'appliquerait qu'à l'image
+       suivante, et layout() / aimAt() mesureraient l'ancienne arène. */
+    #arena, #arena * { transition: none !important; }
   }
 </style>
 </head>
@@ -336,8 +351,8 @@
   <script src="../shared/game-avatar.js"></script>
   <script src="../shared/game-net.js?v=1"></script>
   <script src="net.js?v=2"></script>
-  <script src="rocket.js?v=1"></script>
+  <script src="rocket.js?v=2"></script>
   <script src="sound.js?v=1"></script>
-  <script src="app.js?v=2"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>

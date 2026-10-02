@@ -202,8 +202,13 @@
     const premiere = cards.values().next().value;
     const ch = premiere ? premiere.li.offsetHeight || (compact ? 58 : 86) : 80;
     // Marges : le viseur déborde un peu de la carte ; en compact, le nom de la
-    // carte du bas (soi) s'écrit dessous.
-    const rx = a - cw / 2 - 6, ry = b - ch / 2 - (compact ? 14 : 6);
+    // carte du bas (soi) s'écrit dessous. La carte s'accroche par son avatar
+    // (--ay, plus bas) : elle s'étend de ay au-dessus du point de l'anneau et de
+    // ch − ay en dessous — c'est le plus grand des deux qui borne ry (compact :
+    // ay = ch / 2, rien ne change).
+    const g1 = premiere && premiere.g;
+    const ay = g1 && g1.offsetHeight ? premiere.av.offsetTop + g1.offsetTop + g1.offsetHeight / 2 : ch / 2;
+    const rx = a - cw / 2 - 6, ry = b - Math.max(ay, ch - ay) - (compact ? 14 : 6);
     const base = Math.max(0, order.indexOf(myId));          // soi en bas, près de la saisie
     order.forEach((id, i) => {
       const th = (90 + (i - base) * 360 / N) * Math.PI / 180;
@@ -211,13 +216,34 @@
       c.li.style.setProperty('--cw', cw + 'px');
       c.li.style.setProperty('--x', (a + rx * Math.cos(th)).toFixed(1) + 'px');
       c.li.style.setProperty('--y', (b + ry * Math.sin(th)).toFixed(1) + 'px');
+      // Le point de l'anneau est le centre de l'AVATAR (la cible visée) : la
+      // carte s'accroche par lui (offsets : insensibles aux animations).
+      if (c.g && c.g.offsetHeight) c.li.style.setProperty('--ay', (c.av.offsetTop + c.g.offsetTop + c.g.offsetHeight / 2).toFixed(1) + 'px');
     });
     // Le centre : la roquette et le prompt, dans l'ellipse intérieure.
     const innerW = 2 * (rx - cw / 2), innerH = 2 * (ry - ch / 2);
-    const rk = Math.round(Math.max(110, Math.min(330, innerW * 0.8, (innerH - 52) / 0.9)));
-    const pf = Math.round(Math.max(28, Math.min(62, rk * 0.21)));
-    arena.style.setProperty('--rk', rk + 'px');
-    arena.style.setProperty('--pf', pf + 'px');
+    let rk = Math.round(Math.max(110, Math.min(330, innerW * 0.8, (innerH - 52) / 0.9)));
+    const poser = () => {
+      arena.style.setProperty('--rk', rk + 'px');
+      arena.style.setProperty('--pf', Math.round(Math.max(28, Math.min(62, rk * 0.21))) + 'px');
+    };
+    poser();
+    // Le pivot est au centre de l'arène et le texte (bannière, prompt, saisie
+    // en direct) se range dessous : il doit finir avant l'avatar du bas (son
+    // viseur compris : 5 de marge intérieure + 7 de respiration). Mesuré, pas
+    // estimé. Le texte rétrécit avec --rk (le prompt en suit 0,21) : le
+    // débord baisse de 0,32 à 0,62 px par px de --rk ; un pas de débord / 0,62
+    // n'en fait donc jamais trop, et converge en quelques passes.
+    const g0 = premiere && premiere.g;
+    const bas = ry - (g0 && g0.offsetHeight ? g0.offsetHeight / 2 : 24) - 12;
+    for (let k = 0; k < 5 && rk > 110 && $('centre').offsetHeight; k++) {
+      const deborde = 0.32 * rk + ($('centre').offsetHeight - 0.64 * rk) - bas;
+      if (deborde <= 0) break;
+      rk = Math.max(110, Math.floor(rk - Math.max(1, deborde / 0.62)));
+      poser();
+    }
+    // La roquette se règle sur la place réelle : avatars et bannière hors de sa flamme.
+    rocket.fit([...[...cards.values()].map((c) => c.g), $('cible')]);
     rocket.refit();
   }
   // La mise en page lit la place disponible (arène, zone visible, formulaire) :
