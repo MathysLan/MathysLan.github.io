@@ -638,3 +638,31 @@ salon, ils portent le même pseudo. Sans conséquence sur ce qui est testé.
 Bug trouvé par le doigt : sans `preventDefault()` sur `touchstart`/`touchmove`
 de la feuille, le premier appui sur un outil après un trait ne produisait aucun
 `click` (Chromium voyait un défilement lancé) — gardé par `croquis-atelier.mjs`.
+
+## Croquis, lot gameplay 1 — un tour jouable (2026-10-03)
+
+Choix du mot (3 boutons sur la feuille, au seul dessinateur ; tirage auto à
+l'échéance), gabarit et indices (une case par lettre, lettres révélées en
+évidence ; lecture en clair en `.sr-only`), devinettes (champ de 40, fil du
+tour : mauvaises réponses publiques, « a trouvé » sans le mot, « presque » et
+refus à l'auteur seul, mot entre trouveurs), chrono (`remainingMs`, décompté
+ici), fin du tour (motif, mot donné). Pas encore : score affiché, classement,
+écran de fin, Hub. `jeu.js` seul porte ce lot (+ balisage et CSS).
+
+    node tests/croquis-tour.mjs                    ~30 s, VRAI croquis-server (choix 4 s, dessin 12 s) + Edge + 1 robot
+    node tests/croquis-tour.mjs --shots <d>
+
+Harnais partagé : `tests/croquis-harnais.mjs` (serveur, Edge, onglets,
+robots ; `croquis-network.mjs` garde sa copie). Trois joueurs, la 1re manche :
+chaque tour est joué selon QUI dessine (ordre tiré par le serveur) — choix
+manuel + devinettes, choix auto + indices + chrono, tour du robot. Contre-
+épreuves : sans le filtre `duTour` sur `chat`, 2 échecs ([18]) ; champ jamais
+éteint, 7 échecs.
+⚠️ Un contrôle de fuite sur le JSON d'un message doit écarter `type` : « chat »
+est un mot de la fixture ET un type de message. ⚠️ `innerText` compte le texte
+d'un `.sr-only` (masqué par découpe) : lire le texte hors `.sr-only`.
+⚠️ Un `<input>` en flex garde sa largeur intrinsèque (~207 px) dans le calcul
+de largeur minimale, même en `min-width: 0` : `width: 0; flex: 1`, et
+`.cote` en `minmax(0, 1fr)` (le panneau débordait de sa colonne, mesuré).
+⚠️ `scrollIntoView({ block: 'center' })` dans un harnais fait défiler la page
+au toucher d'un outil et sort la feuille de l'écran : `nearest`.

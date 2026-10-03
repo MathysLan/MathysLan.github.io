@@ -132,15 +132,58 @@
     font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 1rem; letter-spacing: .03em; color: var(--ink);
     background: var(--bg-deep); box-shadow: inset 0 0 0 1px var(--panel-edge), inset 3px 0 0 var(--g-accent);
   }
+  .bandeau .chrono { margin-left: .6rem; font-family: 'JetBrains Mono', monospace; font-size: .95rem; color: var(--qi-unique); }
+  .bandeau .chrono:empty { display: none; }
+  .bandeau .chrono.vite { color: var(--red-ink); }
   #fin { width: min(100%, 30rem); box-sizing: border-box; padding: .8rem; text-align: center; }
   /* Spectateur : la feuille se regarde, elle ne se dessine pas. */
   body.spectateur #vivant { cursor: default; }
 
+  /* --- le choix du mot : sur la feuille (encore vide), sans rien décaler --- */
+  .cadre { position: relative; }
+  .choix {
+    position: absolute; inset: 6px; z-index: 2; display: grid; place-content: center; gap: .9rem; padding: 1rem;
+    text-align: center; background: rgba(247, 243, 232, .95); color: #241608;
+  }
+  .choix .titre { margin: 0; font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 1.15rem; letter-spacing: .04em; }
+  .choix .aide { margin: 0; font-size: .82rem; color: #4a3f33; }
+  .choix-mots { display: flex; flex-wrap: wrap; gap: .6rem; justify-content: center; }
+  .choix-mots button { display: grid; gap: .15rem; padding: .6rem 1.1rem; text-transform: none; font-size: 1.15rem; }
+  .choix-mots .niveau { font-family: 'Space Grotesk', sans-serif; font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; opacity: .85; }
+
+  /* --- la colonne : outils (dessinateur), gabarit, devinette, fil --- */
+  .cote { width: min(100%, 30rem); min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: .75rem; align-content: start; }
+  .cote .outils { width: 100%; }
+  .devinettes { box-sizing: border-box; padding: .7rem .8rem .8rem; display: grid; gap: .55rem; }
+  .gabarit { margin: 0; text-align: center; font: 700 1.45rem/1.5 'JetBrains Mono', monospace; color: var(--ink); overflow-wrap: anywhere; }
+  .gabarit .l { display: inline-block; min-width: .85em; margin: 0 .07em; border-bottom: 3px solid var(--ink-3); text-align: center; }
+  .gabarit .l.revele { color: var(--qi-unique); border-bottom-color: var(--q-unique); }
+  .gabarit .sep { display: inline-block; min-width: .5em; text-align: center; }
+  .gabarit.mot { color: var(--qi-vintage); letter-spacing: .04em; }
+  .gabarit-info { margin: 0; text-align: center; font-size: .76rem; color: var(--ink-3); }
+  .devine-form { display: flex; gap: .4rem; }
+  /* ⚠️ Le champ débordait de la colonne au bureau (« ENVO… », panneau de
+     342 px dans 272) : un <input> garde sa largeur intrinsèque (~207 px,
+     l'attribut size) dans le calcul de largeur minimale, même en min-width: 0.
+     width: 0 + flex: 1 — il prend la place qui reste, rien de plus. */
+  .devine-form input { flex: 1; width: 0; min-width: 0; box-sizing: border-box; }
+  .devine-form button { padding: .5rem .9rem; font-size: .95rem; }
+  #devine-retour { margin: 0; font-size: .8rem; color: var(--ink-2); min-height: 1.2em; }
+  .fil { list-style: none; margin: 0; padding: 0; max-height: 13rem; overflow-y: auto; display: grid; gap: .1rem; font-size: .86rem; align-content: start; }
+  .fil li { padding: .12rem .3rem; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+  .fil .qui { color: var(--ink-2); font-weight: 700; }
+  .fil .ok { color: var(--g-ok); font-weight: 700; }
+  .fil .prive { color: var(--ink-3); font-style: italic; }
+  .fil .entre { color: var(--qi-vintage); }
+  .fil .sys { color: var(--ink-3); }
+  .fil:empty { display: none; }
+
   /* Écran large en paysage : les outils à droite, la feuille prend la hauteur. */
   @media (min-width: 900px) and (orientation: landscape) {
     .atelier { grid-template-columns: minmax(0, 1fr) 17rem; justify-items: stretch; }
-    .cadre { --reserve: 10rem; justify-self: end; }
-    .outils { width: 100%; }
+    .cadre { --reserve: 10rem; justify-self: end; grid-column: 1; }
+    .cote, #fin { grid-column: 2; width: 100%; }
+    .cote { grid-row: 2 / span 2; }
     .palette { grid-template-columns: repeat(4, var(--c-pastille)); }
   }
   /* Téléphone en paysage : chaque pixel de hauteur va à la feuille. Le titre
@@ -158,8 +201,11 @@
        le statut ne prend de place que lorsqu'il dit quelque chose. */
     #outil-actuel { display: none; }
     #statut:empty { display: none; }
-    .outils, #fin { grid-column: 2; }
-    .outils { width: 100%; padding: .5rem; gap: .4rem; }
+    .cote, #fin { grid-column: 2; width: 100%; }
+    .cote { gap: .5rem; }
+    .outils { padding: .5rem; gap: .4rem; }
+    .gabarit { font-size: 1.1rem; }
+    .fil { max-height: 8rem; }
     .palette { grid-template-columns: repeat(4, var(--c-pastille)); gap: 4px; }
     .etiquette { display: none; }
     /* La gomme en icône seule (son nom reste dans aria-label) : elle tient
@@ -214,16 +260,24 @@
       <a id="lost-hub" class="ghost" href="../" hidden>↩ Retour au Game Hub</a>
     </section>
 
-    <!-- LA PARTIE : le bandeau du tour, la feuille, les outils (au seul dessinateur) -->
+    <!-- LA PARTIE : le bandeau du tour (et son chrono), la feuille (et le choix
+         du mot par-dessus), puis la colonne : outils (au seul dessinateur),
+         gabarit, devinette, fil. -->
     <section id="play" class="atelier" aria-label="Partie de Croquis" hidden>
-      <p id="bandeau" class="bandeau" role="status"></p>
+      <div class="bandeau"><span id="bandeau" role="status"></span><span id="chrono" class="chrono" aria-hidden="true"></span></div>
       <div class="cadre">
         <div id="feuille" class="feuille">
           <canvas id="base" aria-hidden="true"></canvas>
           <canvas id="vivant" role="img" aria-label="Feuille de dessin"></canvas>
         </div>
+        <div id="choix" class="choix" hidden>
+          <p class="titre" id="choix-titre">Choisis ton mot</p>
+          <div id="choix-mots" class="choix-mots" role="group" aria-labelledby="choix-titre"></div>
+          <p class="aide">Sans choix, un mot est tiré au sort.</p>
+        </div>
       </div>
 
+      <div class="cote">
       <div id="outils" class="panel outils">
         <div>
           <p class="etiquette" id="lib-couleur">Couleur</p>
@@ -247,6 +301,19 @@
         <p id="statut" class="g-status" role="status" aria-live="polite"></p>
       </div>
 
+      <div id="devinettes" class="panel devinettes" hidden>
+        <p id="gabarit" class="gabarit" aria-hidden="true"></p>
+        <p id="gabarit-info" class="gabarit-info"></p>
+        <form id="devine-form" class="devine-form" autocomplete="off" novalidate>
+          <input id="devine" type="text" maxlength="40" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"
+                 enterkeyhint="send" placeholder="ta réponse" aria-label="Ta réponse" aria-describedby="devine-retour">
+          <button id="devine-envoyer" type="submit">Envoyer</button>
+        </form>
+        <p id="devine-retour" role="status"></p>
+        <ol id="fil" class="fil" role="log" aria-label="Réponses et événements du tour"></ol>
+      </div>
+      </div>
+
       <div id="fin" class="panel" hidden>
         <p class="meta">Fin de partie</p>
         <button type="button" id="retour-salon" hidden>Retour au salon</button>
@@ -264,6 +331,6 @@
   <script src="dessin.js?v=1"></script>
   <script src="sync.js?v=1"></script>
   <script src="app.js?v=2"></script>
-  <script src="jeu.js?v=1"></script>
+  <script src="jeu.js?v=2"></script>
 </body>
 </html>

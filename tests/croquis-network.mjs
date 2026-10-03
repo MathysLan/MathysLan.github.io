@@ -130,7 +130,7 @@ async function onglet(nom, { w, h, mobile }) {
     },
     async until(expr, ms = 8000) { const f = Date.now() + ms; while (Date.now() < f) { if (await p.ev(expr)) return true; await sleep(40); } return false; },
     async clic(sel) {
-      const q = await p.ev(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); e.scrollIntoView({ block: 'center', behavior: 'instant' }); const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+      const q = await p.ev(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); e.scrollIntoView({ block: 'nearest', behavior: 'instant' }); const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
       if (mobile) {
         await c.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: q.x, y: q.y }] });
         await c.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
@@ -144,6 +144,13 @@ async function onglet(nom, { w, h, mobile }) {
     async taper(sel, texte) { await p.ev(`document.querySelector(${JSON.stringify(sel)}).focus()`); await c.send('Input.insertText', { text: texte }); },
     // Un geste sur la feuille, en fractions (fx, fy) : souris ou doigt selon l'onglet.
     async geste(fracs, { pas = 12 } = {}) {
+      // Comme un joueur : la feuille doit être à l'écran avant d'y poser le doigt
+      // (un toucher hors de l'écran n'arrive jamais à la page).
+      const avant = await p.feuille();
+      if (avant.top < 0 || avant.top + avant.height > (await p.ev('innerHeight'))) {
+        p.defilements = (p.defilements || 0) + 1;
+        await p.ev("document.getElementById('feuille').scrollIntoView({ block: 'nearest', behavior: 'instant' }); true");
+      }
       const r = await p.feuille();
       const pts = [];
       for (let i = 0; i < fracs.length - 1; i++) for (let k = 0; k < pas; k++) {
@@ -407,6 +414,7 @@ t('[15] 16 clients : le mot ne fuit chez aucun spectateur', (() => {
 })() && (drawerBot ? !(await A.ev('JSON.stringify(window.__recu)')).includes(drawerBot.msgs.find((m) => m.type === 'drawing' && m.word).word) : true));
 await spect[0].shot('partie-16');
 
+console.log(`(feuille ramenée à l'écran avant un geste : A ${A.defilements || 0} fois, B ${B.defilements || 0} fois)`);
 console.log(`\n${ok} OK, ${ko} KO`);
 fin();
 process.exit(ko ? 1 : 0);
