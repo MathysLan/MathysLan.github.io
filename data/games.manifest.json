@@ -210,6 +210,32 @@
       "content": false,
       "replay": true,
       "handoff": true
+    },
+    {
+      "id": "roquette",
+      "title": "Roquette Party",
+      "emoji": "🚀",
+      "url": "games/roquette/",
+      "mode": "online",
+      "players": {
+        "min": 2,
+        "max": 16
+      },
+      "minutes": {
+        "min": 2,
+        "max": 10
+      },
+      "needs": [],
+      "categories": [
+        "reflexe",
+        "ambiance"
+      ],
+      "server": "wss://roquette-server.onrender.com",
+      "health": "https://roquette-server.onrender.com/",
+      "join": "v1",
+      "content": false,
+      "replay": true,
+      "handoff": true
     }
   ]
 }

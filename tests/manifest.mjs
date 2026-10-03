@@ -108,6 +108,15 @@ t('Morpion reste un duel strict',
   (() => { const g = M.games.find((x) => x.id === 'morpion'); return g.players.min === 2 && g.players.max === 2; })());
 t('Le Passeur plafonne à 8 (MAX_PLAYERS)',
   M.games.find((g) => g.id === 'passeur').players.max === 8);
+// Roquette Party : entrée au Hub (handoff branché), 2 à 16 joueurs
+// (MIN_PLAYERS / MAX_PLAYERS de roquette-server/engine.js), dernière du catalogue.
+{
+  const g = M.games.find((x) => x.id === 'roquette');
+  t('Roquette Party est au manifest, lançable par le Hub (handoff: true)', !!g && g.handoff === true && g.mode === 'online' && g.join === 'v1');
+  t('Roquette Party : 2 à 16 joueurs (MIN_PLAYERS / MAX_PLAYERS)', !!g && g.players.min === 2 && g.players.max === 16);
+  t('Roquette Party : revanche déclarée (action lobby du serveur), aucun contenu, aucun besoin',
+    !!g && g.replay === true && g.content === false && g.needs.length === 0);
+}
 
 // ------------------------------------------------ la sémantique de `minutes`
 // Le filtre de durée compare le MAX, jamais le min : un « ≤ 10 min » ne doit

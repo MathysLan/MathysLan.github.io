@@ -335,7 +335,7 @@ try {
     return { href: a.getAttribute('href'), texte: a.innerText, visible: r.width > 100 && r.height > 60, jeux: document.querySelectorAll('#games-track .game-cta[href^="games/"]').length }; })()`);
   t('home : l\'entrée Game Hub est visible dans la section Jeux', lien.visible && /Game Hub/i.test(lien.texte) && /amis/i.test(lien.texte), lien.texte.replace(/\s+/g, ' '));
   t('home : lien relatif « games/ » (GitHub Pages)', lien.href === 'games/');
-  t('home : les liens directs vers les 7 jeux sont toujours là', lien.jeux === 7, String(lien.jeux));
+  t('home : les liens directs vers les 8 jeux en ligne sont toujours là', lien.jeux === 8, String(lien.jeux));
   await A.box('#hub-link');           // amène l'entrée à l'écran pour la capture
   await sleep(300);
   await A.shot('0-home-entree');
@@ -364,7 +364,7 @@ try {
     await J.type('#hub-code-input', code);
     await J.click('#hub-join');
   }
-  for (const J of [A, B, C]) await J.until(`document.querySelectorAll('#hub-players .hub-card').length === 3 && document.querySelectorAll('#hub-games .hub-game').length === 8`, 20000, `${J.nom} voit 3 joueurs et le catalogue`);
+  for (const J of [A, B, C]) await J.until(`document.querySelectorAll('#hub-players .hub-card').length === 3 && document.querySelectorAll('#hub-games .hub-game').length === 9`, 20000, `${J.nom} voit 3 joueurs et le catalogue`);
   const idB = await B.eval(`GameProfile.load().id`), idC = await C.eval(`GameProfile.load().id`);
   for (const J of [A, B, C]) {
     const v = await J.eval(`(() => { const c = document.querySelector('#hub-players .hub-card[data-player=${JSON.stringify(idA)}]'); const i = c && c.querySelector('.g-av img');
@@ -405,8 +405,8 @@ try {
   t('bloqué par nombre : Morpion (2 max) et Qui Ment ? possible à 3',
     /2 joueurs maximum, vous êtes 3/.test(vA.games.find((g) => g.id === 'morpion').etat) && vA.eligibles.includes('quiment'));
   t('jeu local : Puissance 4 « se joue seul »', /seul/.test(vA.games.find((g) => g.id === 'puissance4').etat));
-  const ELIG = ['imitation', 'demicercle', 'ban', 'passeur', 'quiment'];
-  t('éligibles, identiques chez les trois : Imitation, Demi-Cercle, Ban, Passeur, Qui Ment ?',
+  const ELIG = ['imitation', 'demicercle', 'ban', 'passeur', 'quiment', 'roquette'];
+  t('éligibles, identiques chez les trois : Imitation, Demi-Cercle, Ban, Passeur, Qui Ment ?, Roquette Party',
     [vA, vB, vC].every((v) => JSON.stringify(v.eligibles) === JSON.stringify(ELIG)), vA.eligibles.join(','));
   t('les chances affichées suivent le cœur de C (Passeur plus probable)',
     (() => { const pct = (id) => +vA.games.find((g) => g.id === id).etat.match(/(\d+) %/)[1]; return pct('passeur') > pct('demicercle') && pct('demicercle') === pct('quiment'); })());
@@ -425,8 +425,8 @@ try {
   const same = (x, y) => JSON.stringify(x) === JSON.stringify(y);
   const cA = await A.eval(CAT), cB = await B.eval(CAT);
   const HORS = vA.games.filter((g) => !g.ok).map((g) => g.id);
-  t('catalogue : les possibles d\'abord, dans l\'ordre du catalogue ; #hub-games garde les 8 fiches',
-    same(cA.ok, ELIG) && cA.okElig && cA.tous === 8, JSON.stringify(cA.ok));
+  t('catalogue : les possibles d\'abord, dans l\'ordre du catalogue ; #hub-games garde les 9 fiches',
+    same(cA.ok, ELIG) && cA.okElig && cA.tous === 9, JSON.stringify(cA.ok));
   t(`catalogue : les ${HORS.length} indisponibles sont repliés sous « ${HORS.length} jeux indisponibles ce soir — pourquoi ? »`,
     same(cA.out, HORS) && !cA.outElig && !cA.cache && !cA.ouvert && cA.sum.startsWith(`${HORS.length} jeux indisponibles ce soir — pourquoi ?`)
     && cA.raisonsVues.every((r) => !r.vu), cA.sum);
@@ -665,18 +665,18 @@ try {
   await A.until(`!document.getElementById('hub-ready').hidden`, 8000);
 
   // ═══ 8. aucun jeu possible : le salon explique, le bouton se tait
-  for (const id of ['imitation', 'demicercle', 'ban', 'passeur', 'quiment']) await B.click(`#hub-games [data-pref=veto][data-game=${id}]`);
+  for (const id of ['imitation', 'demicercle', 'ban', 'passeur', 'quiment', 'roquette']) await B.click(`#hub-games [data-pref=veto][data-game=${id}]`);
   await A.until(`(${VUE}).eligibles.length === 0`, 8000, 'plus aucun éligible');
   const v8 = await A.eval(VUE), v8c = await C.eval(VUE);
   t('aucun jeu possible : le salon le dit, chez tout le monde', v8.none && v8c.none && /Aucun jeu possible/.test(v8.noneTxt));
   t('aucun jeu possible : le bouton de tirage est désactivé chez l\'hôte', v8.drawBtn && v8.drawBtnOff);
-  t('aucun jeu possible : chaque jeu garde sa raison (les vetos nomment Bruno)', v8.games.filter((g) => /veto de Bruno/.test(g.etat)).length === 6);
+  t('aucun jeu possible : chaque jeu garde sa raison (les vetos nomment Bruno)', v8.games.filter((g) => /veto de Bruno/.test(g.etat)).length === 7);
   const c8 = await B.eval(`({ ok: document.querySelectorAll('#hub-games-ok .hub-game').length, ouvert: document.getElementById('hub-out').open,
     none: document.getElementById('hub-none').textContent })`);
   t('aucun jeu possible : la liste des indisponibles s\'ouvre d\'elle-même (les raisons deviennent l\'essentiel)',
     c8.ok === 0 && c8.ouvert && /liste des indisponibles/.test(c8.none), JSON.stringify(c8));
   await A.shot('5-aucun-jeu');
-  for (const id of ['imitation', 'demicercle', 'ban', 'passeur', 'quiment']) await B.click(`#hub-games [data-pref=veto][data-game=${id}]`);
+  for (const id of ['imitation', 'demicercle', 'ban', 'passeur', 'quiment', 'roquette']) await B.click(`#hub-games [data-pref=veto][data-game=${id}]`);
   await A.until(`(${VUE}).eligibles.length === ${ELIG.length}`, 8000, 'vetos levés');
   t('B lève SES vetos : les jeux reviennent', true);
 
@@ -712,7 +712,7 @@ try {
     await E.type('#name-input', 'Eve');
     await E.click('#identity-done');
     await E.click('#hub-create');
-    await E.until(`!document.getElementById('lobby').hidden && document.querySelectorAll('#hub-games .hub-game').length === 8`, 20000, 'salon de E');
+    await E.until(`!document.getElementById('lobby').hidden && document.querySelectorAll('#hub-games .hub-game').length === 9`, 20000, 'salon de E');
     // Seule à bord : on ne laisse qu'UN jeu possible, pour que le résultat soit
     // connu d'avance — c'est le test « 1 joueur, Passeur seul éligible ».
     // ⚠️ Avant de réduire : à 1 joueur, Imitation et le Ban doivent être bloqués

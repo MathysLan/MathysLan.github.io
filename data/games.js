@@ -403,7 +403,23 @@ const GAMES = [
     ],
     href: 'games/roquette/',
     status: 'live',
-    hub: false,                           // volontairement HORS du Game Hub (pas de handoff) : absent du manifest
+    hub: {
+      mode: 'online',
+      players: { min: 2, max: 16 },       // MIN_PLAYERS / MAX_PLAYERS vérifiés dans engine.js
+      // Réglage par défaut (3 vies, rythme normal) : ~20 s par vie perdue
+      // (mèche de 12 à 24 s + 2,2 s d'explosion), au moins 3 × (joueurs − 1)
+      // vies à perdre → ~2 min à 2, ~4 à 4, ~8 à 8, ~10 à 10. Au-delà de 10
+      // joueurs, une partie peut dépasser le max annoncé.
+      minutes: { min: 2, max: 10 },
+      needs: [],
+      categories: ['reflexe', 'ambiance'],
+      server: 'wss://roquette-server.onrender.com',
+      health: 'https://roquette-server.onrender.com/',
+      join: 'v1',
+      content: false,
+      replay: true,                       // action: 'lobby' vérifiée dans server.js
+      handoff: true,                      // branché au Game Hub (games/shared/hub-handoff.js)
+    },
   },
   {
     id: 'soon',

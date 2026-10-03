@@ -227,14 +227,14 @@ try {
     await J.type('#hub-code-input', code);
     await J.click('#hub-join');
   }
-  for (const J of [A, B, C]) await J.until(`document.querySelectorAll('#hub-players .hub-card').length === 3 && document.querySelectorAll('#hub-games .hub-game').length === 8`, 20000, `${J.nom} au salon`);
+  for (const J of [A, B, C]) await J.until(`document.querySelectorAll('#hub-players .hub-card').length === 3 && document.querySelectorAll('#hub-games .hub-game').length === 9`, 20000, `${J.nom} au salon`);
   const idB = await B.eval(`GameProfile.load().id`);
   t('A crée, B et C rejoignent : trois joueurs au salon', true, code);
 
   // B ne laisse que Le Passeur : ses vetos, par les vrais boutons.
   // ⚠️ Imitation et le Ban sont désormais possibles à 3 joueurs : micro et
   // avertissement sont acquis d'office, il n'y a plus rien à déclarer.
-  for (const id of ['imitation', 'demicercle', 'ban', 'precision', 'quiment']) await B.click(`#hub-games [data-pref=veto][data-game=${id}]`);
+  for (const id of ['imitation', 'demicercle', 'ban', 'precision', 'quiment', 'roquette']) await B.click(`#hub-games [data-pref=veto][data-game=${id}]`);
   await A.until(`[...document.querySelectorAll('#hub-games .hub-game[data-eligible=true]')].map((x) => x.dataset.game).join() === 'passeur'`, 8000, 'seul Passeur');
   t('seul Le Passeur reste possible (vetos de Bruno)', true);
 

@@ -1,4 +1,4 @@
-// Contrat « score de soirée » des sept jeux, vérifié STATIQUEMENT : aucun
+// Contrat « score de soirée » des huit jeux, vérifié STATIQUEMENT : aucun
 // navigateur, aucun serveur. C'est le garde-fou rapide ; les vraies parties
 // sont jouées par tests/hub-score-*.mjs.
 //
@@ -36,7 +36,7 @@ const t = (nom, cond, detail = '') => {
 };
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
-// Les sept jeux : fichier du raccord, expression de SA place, helper de fin.
+// Les huit jeux : fichier du raccord, expression de SA place, helper de fin.
 //   `place`  : ce que le jeu passe en second argument de roomReady ;
 //   `helper` : la fonction qui construit le classement envoyé à results ;
 //   `source` : le champ du message de fin qui porte le classement.
@@ -48,6 +48,7 @@ const JEUX = [
   { id: 'precision',  fichier: 'games/precision/app.js',  place: 'msg.you',   helper: 'rangs',      source: 'msg.podium' },
   { id: 'quiment',    fichier: 'games/quiment/app.js',    place: 'msg.id',    helper: 'rangs',      source: 'msg.ranking' },
   { id: 'morpion',    fichier: 'games/morpion/net.js',    place: 'state.you', helper: 'classement', source: 'state.winner' },
+  { id: 'roquette',   fichier: 'games/roquette/app.js',   place: 'm.id',      helper: 'rangs',      source: 'm.ranking' },
 ];
 
 // Extrait `function nom(...) { ... }` par comptage d'accolades (pas de regex
@@ -130,6 +131,16 @@ for (const J of JEUX) {
     t('morpion : results seulement sur un vainqueur connu (X, O, draw)', /\[\s*'X',\s*'O',\s*'draw'\s*\]\.includes\(state\.winner\)/.test(code));
     continue;
   }
+  if (J.id === 'roquette') {
+    // Roquette ne compte pas de points : le SERVEUR envoie le rang (ordre
+    // d'élimination). Le helper le recopie tel quel, sans le recalculer.
+    const R = (rangs) => f(rangs.map((rank, i) => ({ id: 'r' + i, name: 'n' + i, avatar: '🙂', rank, lives: 0, words: 3 })));
+    const parPlace = (l) => Object.fromEntries(l.map((x) => [x.gamePlayerId, x.rank]).sort());
+    t('roquette : rangs du serveur recopiés (3 / 1 / 2 → 3 / 1 / 2, rien de recalculé)', same(parPlace(R([3, 1, 2])), { r0: 3, r1: 1, r2: 2 }));
+    t('roquette : seul → rang 1', same(parPlace(R([1])), { r0: 1 }));
+    t('roquette : points du jeu = 0, lignes { gamePlayerId, rank, points }', R([2, 1]).every((l) => l.points === 0 && same(Object.keys(l).sort(), cles)));
+    continue;
+  }
   const L = (scores) => scores.map((score, i) => ({ id: 'p' + i, name: 'n' + i, avatar: '🙂', score, avg: 1, title: 't' }));
   // Rangs par place, triés par place : un jeu peut réordonner ses lignes (Le
   // Passeur trie d'abord), seul le rang de chaque place compte.
@@ -153,7 +164,7 @@ t('results : seulement l\'hôte du lancement, sur le bon tirage', /l\.hostId !==
 t('ended : une seule fois, et consomme le billet', /if \(fini\) return/.test(bloc('ended')) && /fini = true/.test(bloc('ended')) && /clear\(\)/.test(bloc('ended')));
 t('roomReady : transmet la place au Hub (launched / entered)', /hub\.launched\(t\.drawId, code, place\)/.test(bloc('roomReady')) && /hub\.entered\(t\.drawId, code, place\)/.test(bloc('roomReady')));
 t('failed : pas de nouvel essai pendant la partie (`stage !== \'playing\'`)', /if \(!l \|\| l\.stage !== 'playing'\) joint = false/.test(bloc('failed')));
-t('les sept pages chargent la même version de hub-handoff.js',
+t('les huit pages chargent la même version de hub-handoff.js',
   new Set(JEUX.map((J) => (lire(`games/${J.id}/index.html`).match(/src="[^"]*hub-handoff\.js(\?v=\d+)?"/) || ['?'])[0])).size === 1);
 
 console.log(`\n${ko ? 'DES TESTS ÉCHOUENT' : 'TOUT PASSE'} — ${ok + ko} vérifications, ${ko} échec(s)`);

@@ -227,7 +227,7 @@ try {
   await B.type('#name-input', 'Rep-Bruno'); await B.click('#identity-done');
   await B.type('#hub-code-input', code); await B.click('#hub-join');
   for (const J of tous) await J.until(`document.querySelectorAll('#hub-players .hub-card').length === 2 && document.querySelectorAll('#hub-games .hub-game').length >= 8`, 20000 * LENT, `${J.nom} au salon`);
-  for (const g of ['passeur', 'imitation', 'ban', 'precision', 'demicercle']) await B.click(`#hub-games [data-pref=veto][data-game=${g}]`);
+  for (const g of ['passeur', 'imitation', 'ban', 'precision', 'demicercle', 'roquette']) await B.click(`#hub-games [data-pref=veto][data-game=${g}]`);
   await A.until(`[...document.querySelectorAll('#hub-games .hub-game[data-eligible=true]')].map((x) => x.dataset.game).join() === 'morpion'`, 8000 * LENT, 'seul le Morpion');
   const ids = await Promise.all(tous.map((J) => J.eval('GameProfile.load().id')));
   t('session à deux, seul le Morpion possible', true, code);

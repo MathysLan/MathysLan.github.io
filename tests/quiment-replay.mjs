@@ -39,7 +39,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const R = () => Math.floor(Math.random() * 300);
 const HUB_PORT = 8300 + R(), QM_PORT = 8900 + R(), HEALTH_PORT = 6100 + R(), HTTP_PORT = 8700 + R(), CDP_PORT = 9700 + R();
 const HUB = `ws://127.0.0.1:${HUB_PORT}`, QM = `ws://127.0.0.1:${QM_PORT}`;
-const AUTRES = ['morpion', 'imitation', 'demicercle', 'ban', 'precision', 'passeur'];
+const AUTRES = ['morpion', 'imitation', 'demicercle', 'ban', 'precision', 'passeur', 'roquette'];
 
 let out = [], ko = 0;
 const t = (nom, ok, detail = '') => {

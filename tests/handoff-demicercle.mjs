@@ -143,7 +143,7 @@ try {
   const code = (await A.create(pA)).session.code;
   await B.join(code, pB);
   await sA.until((s) => s.pool && s.pool.catalog === 'ready' && s.players.length === 2);
-  B.setPrefs([], ['morpion', 'imitation', 'ban', 'precision', 'passeur']);
+  B.setPrefs([], ['morpion', 'imitation', 'ban', 'precision', 'passeur', 'roquette']);
   const seul = await sA.until((s) => JSON.stringify(s.pool.eligible) === '["demicercle"]');
   t('le groupe (2) : seul Demi-Cercle est éligible (vetos de B)', !!seul, JSON.stringify(sA.last.pool.eligible));
   t('le manifest annonce le handoff de Demi-Cercle', JSON.parse(fs.readFileSync(path.join(ROOT, 'data/games.manifest.json'), 'utf8')).games.find((g) => g.id === 'demicercle').handoff === true);
@@ -477,7 +477,7 @@ try {
   t('navigateurs : A crée la session du Hub, B et C la rejoignent', true, code);
   const idC = await C.eval(`GameProfile.load().id`);
 
-  for (const id of ['imitation', 'ban', 'precision', 'passeur', 'quiment']) await B.click(`#hub-games [data-pref=veto][data-game=${id}]`);
+  for (const id of ['imitation', 'ban', 'precision', 'passeur', 'quiment', 'roquette']) await B.click(`#hub-games [data-pref=veto][data-game=${id}]`);
   await A.until(`[...document.querySelectorAll('#hub-games .hub-game[data-eligible=true]')].map((x) => x.dataset.game).join() === 'demicercle'`, 8000, 'seul Demi-Cercle');
   await A.click('#hub-draw-btn');
   for (const J of [A, B, C]) await J.until(`document.getElementById('hub-result').dataset.game === 'demicercle' && !document.getElementById('hub-result').hidden`, 15000, `révélation ${J.nom}`);

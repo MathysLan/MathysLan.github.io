@@ -59,7 +59,7 @@ const HUB_PORT = 8300 + R(), MORP_PORT = 8900 + R(), HEALTH_PORT = 6100 + R(), H
 // Les seules clés qu'une page a le droit d'envoyer à morpion-server.
 const CLES_MORPION = ['action', 'code', 'index', 'n', 'remplace'];
 // Tout ce qui n'est pas le Morpion est écarté par B : il ne reste que lui.
-const AUTRES = ['imitation', 'demicercle', 'ban', 'precision', 'passeur', 'quiment'];
+const AUTRES = ['imitation', 'demicercle', 'ban', 'precision', 'passeur', 'quiment', 'roquette'];
 
 let out = [], ko = 0;
 const t = (nom, ok, detail = '') => {

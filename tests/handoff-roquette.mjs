@@ -6,10 +6,8 @@
 //   node tests/handoff-roquette.mjs --reduced       mouvement réduit
 //   node tests/handoff-roquette.mjs --shots <dir>   une capture par étape
 //
-// ⚠️ Roquette Party est encore `hub: false` dans data/games.js : le Hub de
-// production ne le tire pas. Ce test donne au Hub LOCAL un manifest qui l'ajoute
-// (handoff: true), pour vérifier que la PAGE sait être lancée par le Hub —
-// sans rien changer au manifest du dépôt.
+// Roquette Party est au manifest du dépôt (handoff: true) : le Hub LOCAL relit
+// ce manifest, seule la santé de Roquette pointe sur le roquette-server local.
 //
 //   1. le billet, sans réseau ni navigateur ;
 //   2. trois navigateurs : A crée la session du Hub, B et C la rejoignent → seul
@@ -60,7 +58,11 @@ t('billet d\'un AUTRE jeu : refusé par la page de Roquette', !HH.readTicket({ .
 t('billet périmé (plus de 3 h) : refusé', !HH.readTicket({ ...BON, at: Date.now() - HH.MAX_AGE_MS - 1000 }, 'roquette'));
 t('les deux rôles sont acceptés', !!HH.readTicket({ ...BON, role: 'guest' }, 'roquette'));
 const MAN_DEPOT = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/games.manifest.json'), 'utf8'));
-t('manifest du DÉPÔT : Roquette n\'y est pas (hub: false, jamais tiré en production)', !MAN_DEPOT.games.some((g) => g.id === 'roquette'));
+{
+  const g = MAN_DEPOT.games.find((x) => x.id === 'roquette');
+  t('manifest du DÉPÔT : Roquette y est, lançable (handoff: true, 2 à 16 joueurs)',
+    !!g && g.handoff === true && g.players.min === 2 && g.players.max === 16, JSON.stringify(g && { handoff: g.handoff, players: g.players }));
+}
 
 // ═══════════════════════════════ 2. les vrais serveurs
 const procs = [];
@@ -71,16 +73,8 @@ const lance = (cwd, file, port, env = {}) => {
 async function attends(url) { for (let i = 0; i < 100; i++) { try { const r = await fetch(url); if (r.ok) return; } catch (_) {} await sleep(100); } throw new Error('injoignable : ' + url); }
 
 const sante = await fakeHealth(HEALTH_PORT);
-// Le manifest du Hub LOCAL : celui du dépôt, plus Roquette lançable.
-const MANIFEST = localManifest(ROOT, HEALTH_PORT);
-{
-  const m = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
-  m.games.push({ id: 'roquette', title: 'Roquette Party', emoji: '🚀', url: 'games/roquette/', mode: 'online',
-    players: { min: 2, max: 16 }, minutes: { min: 3, max: 10 }, needs: [], categories: ['reflexe'],
-    server: 'wss://roquette-server.onrender.com', health: `http://127.0.0.1:${ROQ_PORT}/`, join: 'v1',
-    content: false, replay: true, handoff: true });
-  fs.writeFileSync(MANIFEST, JSON.stringify(m));
-}
+// Le manifest du Hub LOCAL : celui du dépôt, santé de Roquette sur le serveur local.
+const MANIFEST = localManifest(ROOT, HEALTH_PORT, { roquette: `http://127.0.0.1:${ROQ_PORT}/` });
 const AUTRES = JSON.parse(fs.readFileSync(MANIFEST, 'utf8')).games.map((g) => g.id).filter((id) => id !== 'roquette');
 // Délais de test de roquette-server : une menace courte (1 vie, personne ne
 // tape → explosion rapide), un décompte bref.

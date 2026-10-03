@@ -526,10 +526,10 @@ async function main() {
   console.log('\nRaccords\n');
   const hp = lire('games/hub-page.js');
   t('hub-page.js branche HubHandoff.attach sur son client du Hub', /HubHandoff\.attach\(hub\)/.test(hp));
-  const pages = ['index.html', ...['ban', 'demicercle', 'imitation', 'morpion', 'passeur', 'precision', 'quiment'].map((j) => j + '/index.html')];
+  const pages = ['index.html', ...['ban', 'demicercle', 'imitation', 'morpion', 'passeur', 'precision', 'quiment', 'roquette'].map((j) => j + '/index.html')];
   const version = (f) => pages.map((p) => (lire('games/' + p).match(new RegExp(`src="[^"]*${f}(\\?v=\\d+)?"`)) || ['?'])[0].replace(/^src="(\.\.\/)?/, ''));
-  t('les huit pages chargent la MÊME version de game-hub.js', new Set(version('game-hub\\.js')).size === 1, [...new Set(version('game-hub\\.js'))].join(' | '));
-  t('les huit pages chargent la MÊME version de hub-handoff.js', new Set(version('hub-handoff\\.js')).size === 1, [...new Set(version('hub-handoff\\.js'))].join(' | '));
+  t('les neuf pages chargent la MÊME version de game-hub.js', new Set(version('game-hub\\.js')).size === 1, [...new Set(version('game-hub\\.js'))].join(' | '));
+  t('les neuf pages chargent la MÊME version de hub-handoff.js', new Set(version('hub-handoff\\.js')).size === 1, [...new Set(version('hub-handoff\\.js'))].join(' | '));
 }
 
 // ─── montage ─────────────────────────────────────────────────────────────
