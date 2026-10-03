@@ -20,7 +20,9 @@
   const $ = (id) => document.getElementById(id);
   const AVATARS = ['🎨', '🦊', '🐼', '😎', '🤖', '👻', '🔥', '⚡', '🎭', '🍕', '🐙', '🪖'];
   const DEFAUT = '🙂';
-  const SCREENS = ['home', 'lobby', 'play', 'lost'];
+  const SCREENS = ['home', 'lobby', 'play', 'end', 'lost'];
+  const MEDAILLES = ['🥇', '🥈', '🥉'];
+  const place = (rank) => (rank >= 1 && rank <= 3 ? MEDAILLES[rank - 1] : rank + 'e');
   const show = (id) => { SCREENS.forEach((s) => { $(s).hidden = s !== id; }); };
   const showError = (m) => { $('error').textContent = m ? '> ' + m : ''; };
   const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
@@ -47,6 +49,12 @@
   let motif = null;            // raison de la fin du tour (`stop`)
   let motFinal = null;         // le mot, public à `turn-end`
   let finLocale = 0;           // échéance de la phase, en temps LOCAL (remainingMs + maintenant)
+  let ordre = [];              // l'ordre de passage (snapshot) : l'ordre d'affichage à égalité
+  // Les totaux de la partie, TELS QUE LE SERVEUR LES ENVOIE (turn, turn-end,
+  // left) : aucun point n'est calculé ici. id → { score, left }
+  let scores = new Map();
+  let trouveurs = new Set();   // qui a trouvé CE tour (pour le tableau)
+  let dernierFin = null;       // le dernier `turn-end` du tour en cours (la révélation)
   const nomDe = (id) => (roster.get(id) || {}).name || 'quelqu’un';
   const estDessinateur = () => !!tour && tour.drawer === myId;
   const jeDessine = () => estDessinateur() && phase === 'drawing' && NET.connected();
@@ -80,14 +88,16 @@
   function majPlay() {
     const moi = estDessinateur();
     document.body.classList.toggle('spectateur', !moi);
-    $('outils').hidden = !moi || phase === 'end';
-    // Pendant son choix, le dessinateur n'a rien à lire ici (panneau vide).
-    $('devinettes').hidden = phase === 'end' || !tour || (moi && phase === 'choosing');
-    $('fin').hidden = phase !== 'end';
-    $('retour-salon').hidden = !(phase === 'end' && isHost);
+    $('outils').hidden = !moi || phase === 'end' || phase === 'reveal';
+    // Pendant son choix, le dessinateur n'a rien à lire ici (panneau vide) ;
+    // pendant la révélation, le panneau des points prend la place.
+    $('devinettes').hidden = phase === 'end' || !tour || (moi && phase === 'choosing') || phase === 'reveal';
+    $('revele').hidden = phase !== 'reveal' || !dernierFin;
+    $('tableau-panneau').hidden = !tour || phase === 'end';
     $('choix').hidden = !(moi && phase === 'choosing');
     majGabarit();
     majDevine();
+    majTableau();
     if (phase === 'end') return bandeau('Partie terminée.');
     if (!tour) return bandeau('La partie commence…');
     const manche = `Manche ${tour.round}/${tour.rounds} · `;
@@ -153,6 +163,101 @@
   }
   const ligne = (cls, ...parts) => { const li = el('li', cls); li.append(...parts); return li; };
 
+  // ---------------------------------------------------------------- scores
+  // Une ligne de joueur : avatar, nom, puis ce qu'on veut à droite. La donnée
+  // du réseau ne passe jamais par innerHTML (textContent, GameAvatar.node).
+  function ligneJoueur(id, ...droite) {
+    const r = roster.get(id) || {};
+    const li = el('li', 'ligne-joueur');
+    li.dataset.id = id;
+    if (id === myId) li.classList.add('is-moi');
+    if (r.left || (scores.get(id) || {}).left) li.classList.add('is-parti');
+    li.append(GameAvatar.node(r.avatar, DEFAUT, 'sm'), el('span', 'nom', (r.name || '?') + (id === myId ? ' (toi)' : '')), ...droite);
+    return li;
+  }
+  // Meilleurs d'abord ; à égalité, l'ordre de passage (aucun départage inventé).
+  const parScore = (a, b) => (scores.get(b) || {}).score - (scores.get(a) || {}).score || ordre.indexOf(a) - ordre.indexOf(b);
+
+  function majScores(liste) {
+    for (const p of liste || []) {
+      const s = scores.get(p.id) || { score: 0, left: false };
+      if (Number.isFinite(p.score)) s.score = p.score;
+      if (typeof p.left === 'boolean') s.left = p.left;
+      scores.set(p.id, s);
+    }
+  }
+
+  // Le tableau de la partie : totaux, qui dessine, qui a trouvé, qui est parti.
+  function majTableau() {
+    const ol = $('tableau');
+    ol.replaceChildren();
+    for (const id of [...scores.keys()].sort(parScore)) {
+      const s = scores.get(id);
+      const etat = s.left ? 'parti' : tour && id === tour.drawer && phase !== 'end' ? '✏️' : trouveurs.has(id) ? '✓' : '';
+      ol.append(ligneJoueur(id, el('span', 'etat', etat), el('span', 'total', `${s.score} pts`)));
+    }
+  }
+
+  // La révélation : le mot, le motif, les gains de CHAQUE joueur présent (0
+  // pour qui n'a pas trouvé), le dessinateur repéré, et les nouveaux totaux.
+  // Valeurs du serveur, telles quelles (`gains`, `scores` du turn-end).
+  function afficherRevele(m) {
+    $('revele-mot').textContent = `Le mot était « ${m.word} »`;
+    $('revele-motif').textContent = MOTIFS[m.reason] ? MOTIFS[m.reason]() : 'Tour terminé.';
+    const gains = new Map(m.gains.map((g) => [g.id, g]));
+    const ol = $('revele-gains');
+    ol.replaceChildren();
+    const ids = [...new Set([...m.gains.map((g) => g.id), ...[...scores.keys()].filter((id) => !(scores.get(id) || {}).left)])];
+    ids.sort((a, b) => ((gains.get(b) || {}).points || 0) - ((gains.get(a) || {}).points || 0) || ordre.indexOf(a) - ordre.indexOf(b));
+    for (const id of ids) {
+      const g = gains.get(id);
+      const pts = g ? g.points : 0;
+      const dessinateur = (g && g.drawer) || (tour && id === tour.drawer);
+      const li = ligneJoueur(id,
+        el('span', 'gain' + (pts ? '' : ' zero'), `+${pts}`),
+        el('span', 'total', `${(scores.get(id) || {}).score || 0} pts`));
+      if (dessinateur) {
+        const role = el('span', 'role', ' ✏️');
+        role.setAttribute('aria-hidden', 'true');
+        li.querySelector('.nom').append(role, el('span', 'sr-only', ', dessinateur'));
+      }
+      ol.append(li);
+    }
+  }
+
+  // La fin de partie : le classement du serveur (rang, score, mots trouvés),
+  // tel quel. Revanche et retour au salon : à l'hôte.
+  let classementFinal = null;
+  function afficherFin(m) {
+    classementFinal = m;
+    const ol = $('classement');
+    ol.replaceChildren();
+    for (const r of m.ranking) {
+      const li = el('li', 'ligne-joueur' + (r.rank <= 3 && r.score > 0 ? ' is-podium' : '') + (r.id === myId ? ' is-moi' : '') + (r.left ? ' is-parti' : ''));
+      li.dataset.id = r.id;
+      const nom = el('span', 'nom', r.name + (r.id === myId ? ' (toi)' : ''));
+      nom.append(el('span', 'detail', `${r.found} mot${r.found > 1 ? 's' : ''} trouvé${r.found > 1 ? 's' : ''} · ${r.drawn} dessin${r.drawn > 1 ? 's' : ''}${r.left ? ' · parti' : ''}`));
+      const rang = el('span', 'rang', place(r.rank));
+      rang.setAttribute('aria-label', r.rank === 1 ? '1er' : `${r.rank}e`);
+      li.append(rang, GameAvatar.node(r.avatar, DEFAUT, 'sm'), nom, el('span', 'score', `${r.score} pts`));
+      li.setAttribute('aria-label', `${r.rank === 1 ? '1er' : r.rank + 'e'} : ${r.name}, ${r.score} points, ${r.found} mots trouvés`);
+      ol.append(li);
+    }
+    const premiers = m.ranking.filter((r) => r.rank === 1);
+    $('end-meta').textContent = m.complete ? 'Fin de partie' : 'Partie interrompue';
+    $('end-title').textContent = !m.complete ? 'Pas assez de joueurs pour continuer.'
+      : premiers.length > 1 ? `Égalité : ${premiers.map((r) => r.name).join(' et ')} !`
+        : `${premiers[0].name} gagne !`;
+    majFin();
+    show('end');
+    $('end-title').focus();
+  }
+  function majFin() {
+    $('revanche').hidden = !isHost;
+    $('vers-salon').hidden = !isHost;
+    $('attente-hote').hidden = isHost;
+  }
+
   // --------------------------------------------------------------- chrono
   // Le serveur donne un TEMPS RESTANT (jamais une heure) ; on le décompte ici.
   let horloge = 0;
@@ -164,7 +269,7 @@
   function tic() {
     const c = $('chrono');
     const s = finLocale ? Math.max(0, Math.ceil((finLocale - performance.now()) / 1000)) : null;
-    const actif = s !== null && (phase === 'choosing' || phase === 'drawing');
+    const actif = s !== null && (phase === 'choosing' || phase === 'drawing' || phase === 'reveal');
     c.textContent = actif ? `${s} s` : '';
     c.classList.toggle('vite', actif && s <= 10);
   }
@@ -223,7 +328,10 @@
 
   // ------------------------------------------------------------------ salon
   $('start').addEventListener('click', () => NET.send({ action: 'start' }));
-  $('retour-salon').addEventListener('click', () => NET.send({ action: 'lobby' }));
+  // Fin de partie (hôte) : la revanche relance une partie dans la même room ;
+  // le retour au salon y ramène tout le monde.
+  $('revanche').addEventListener('click', () => NET.send({ action: 'start' }));
+  $('vers-salon').addEventListener('click', () => NET.send({ action: 'lobby' }));
 
   function renderLobby(players) {
     const ul = $('players');
@@ -295,7 +403,7 @@
 
   NET.on('lobby', (m) => {
     isHost = m.players.some((p) => p.id === myId && p.host);
-    if (m.phase === 'end') { majPlay(); return; }   // écran de fin : seul l'hôte a pu changer
+    if (m.phase === 'end') { majFin(); return; }   // écran de fin : seul l'hôte a pu changer
     phase = 'lobby';
     tour = null;
     envoi.oublier();
@@ -316,6 +424,8 @@
     $('fil').replaceChildren();
     $('devine-retour').textContent = '';
     $('devine').value = '';
+    trouveurs = new Set();
+    dernierFin = null;
   }
 
   // L'état complet : au lancement, ou à la demande (resynchronisation). Il
@@ -332,6 +442,11 @@
     lettres = m.letters || 0;
     trouve = Array.isArray(m.found) && m.found.includes(myId);
     if (m.phase === 'reveal') { motif = m.reason; motFinal = m.word; }
+    ordre = m.order || ordre;
+    scores = new Map();
+    majScores(m.players);
+    trouveurs = new Set(m.found || []);
+    if (m.phase === 'reveal' && m.gains) { dernierFin = { word: m.word, reason: m.reason, gains: m.gains }; afficherRevele(dernierFin); }
     envoi.oublier();
     recevoir(m);
     show('play');
@@ -339,6 +454,7 @@
     armerChrono(m.remainingMs);
     majPlay();
     atelier.dimensionner();
+    if (m.phase === 'end' && m.ranking) afficherFin({ complete: m.complete, host: m.host, ranking: m.ranking });
   });
 
   NET.on('turn', (m) => {
@@ -349,6 +465,7 @@
     $('choix-mots').replaceChildren();
     envoi.oublier();
     atelier.arreter();
+    majScores(m.players);            // les totaux du serveur, gardés d'un tour à l'autre
     recevoir(m);                     // un autre tour : la feuille repart de zéro
     show('play');
     armerChrono(m.remainingMs);
@@ -409,6 +526,7 @@
 
   NET.on('found', (m) => {
     if (!duTour(m)) return;
+    trouveurs.add(m.id);
     if (m.id === myId) {
       trouve = true;
       fil(ligne('ok', `✓ Tu as trouvé : « ${monEssai} »`));
@@ -441,6 +559,9 @@
     phase = 'reveal';
     motif = m.reason;
     motFinal = m.word;
+    majScores(m.scores);             // les nouveaux totaux, ceux du serveur
+    dernierFin = m;
+    afficherRevele(m);
     armerChrono(m.remainingMs);
     majPlay();
   });
@@ -453,6 +574,7 @@
     const r = roster.get(m.id);
     if (r) r.left = true;
     isHost = m.host === myId;
+    majScores(m.players);
     if (tour) fil(ligne('sys', `${nomDe(m.id)} a quitté la partie.`));
     majPlay();
   });
@@ -463,6 +585,7 @@
     envoi.oublier();
     atelier.arreter();
     majPlay();
+    afficherFin(m);
   });
 
   // Un refus, à moi seul. Un trait refusé : la feuille du dessinateur ne

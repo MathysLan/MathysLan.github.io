@@ -1,5 +1,6 @@
 // Croquis — UN TOUR JOUABLE, dans de vrais navigateurs, contre le VRAI
-// croquis-server (choix 4 s, dessin 12 s : indices à 6 et 9 s).
+// croquis-server (choix 4 s, dessin 12 s : indices à 6 et 9 s ; révélation 4 s,
+// le temps pour le harnais de vérifier la fin d’un tour AVANT le suivant).
 //
 //   node tests/croquis-tour.mjs
 //   node tests/croquis-tour.mjs --shots <dossier>
@@ -22,7 +23,7 @@ import { compteur, sleep, arg, lancerServeur, lancerEdge, pageCroquis, robot, fi
 
 const t = compteur();
 const SHOTS = arg('--shots');
-const { url } = await lancerServeur({ TEST_CHOOSE_MS: '4000', TEST_DRAW_MS: '12000', TEST_PAUSE_MS: '300', TEST_REVEAL_MS: '1500' });
+const { url } = await lancerServeur({ TEST_CHOOSE_MS: '4000', TEST_DRAW_MS: '12000', TEST_PAUSE_MS: '300', TEST_REVEAL_MS: '4000' });
 const { onglet } = await lancerEdge({ shots: SHOTS });
 const PAGE = pageCroquis(url);
 const A = await onglet('A', { w: 1100, h: 800, page: PAGE });
@@ -49,7 +50,9 @@ const pageDe = { [youA.id]: A, [youB.id]: B };
 const nomDe = { [youA.id]: 'Alice', [youB.id]: 'Bruno', [R.id]: 'Robot' };
 // Un message reçu par la page mentionne-t-il ce mot ? (hors fin de tour, où il est public)
 // (le champ `type` est écarté : « chat » est un mot de la fixture ET un type de message)
-const fuite = (msgs, mot) => msgs.filter((m) => m.type !== 'turn-end')
+// Seulement les messages du tour regardé (`turnId`) : un mot peut en contenir
+// un autre d'un tour précédent (« pomme » / « pomme de terre » dans la fixture).
+const fuite = (msgs, mot, turnId) => msgs.filter((m) => m.type !== 'turn-end' && (turnId == null || m.turnId === turnId))
   .some((m) => JSON.stringify({ ...m, type: undefined }).toLowerCase().includes(mot.toLowerCase()));
 const visibleDans = (p, mot) => p.ev(`document.body.innerText.toLowerCase().includes(${JSON.stringify(mot.toLowerCase())})`);
 const filTexte = (p) => p.ev(`[...document.querySelectorAll('#fil li')].map((li) => li.textContent)`);
@@ -74,7 +77,7 @@ for (let n = 0; n < 3; n++) {
   // ---- 18. l'ancien tour ne pollue pas le nouveau
   if (tourPrecedent) {
     const Q = spect[0];
-    t(`[18] tour ${turnId} : le fil repart de zéro`, (await filTexte(Q)).every((l) => !/a trouvé|zzz|Mot tiré/.test(l)));
+    t(`[18] tour ${turnId} : le fil repart de zéro`, (await filTexte(Q)).every((l) => !/a trouvé|zzz|bien joué/.test(l)));
     const avantFil = await filTexte(Q), avantBandeau = await Q.texte('#bandeau'), avantGab = await Q.texte('#gabarit');
     await Q.ev(`(() => { const v = ${tourPrecedent.turnId};
       NET.dispatch({ type: 'chat', turnId: v, id: 'zz', text: 'VIEUX MESSAGE', scope: 'all' });
@@ -97,7 +100,7 @@ for (let n = 0; n < 3; n++) {
     await A.until(`window.__recu.some((m) => m.type === 'drawing' && m.turnId === ${turnId})`);
     await B.until(`window.__recu.some((m) => m.type === 'drawing' && m.turnId === ${turnId})`);
     const mot = choix.words[0].word;
-    t(`[tour ${turnId}, robot] les deux navigateurs ont le gabarit, pas le mot`, (await Promise.all([A, B].map(async (p) => !(await visibleDans(p, mot)) && !fuite(await p.recu(), mot)
+    t(`[tour ${turnId}, robot] les deux navigateurs ont le gabarit, pas le mot`, (await Promise.all([A, B].map(async (p) => !(await visibleDans(p, mot)) && !fuite(await p.recu(), mot, turnId)
       && await p.ev('document.querySelectorAll("#gabarit .l").length') > 0))).every(Boolean));
     R.send({ action: 'guess', turnId, text: mot });
     await sleep(300);
@@ -123,7 +126,7 @@ for (let n = 0; n < 3; n++) {
       await Q.ev('document.getElementById("choix").hidden') && new RegExp(`${nomDe[tr.drawer]} choisit un mot`).test(await Q.texte('#bandeau'))
       && /^\d+ s$/.test(await Q.texte('#chrono')));
     t(`[4] tour ${turnId} : aucun des 3 mots chez l autre (ni à l écran, ni sur le fil), ni chez le robot`,
-      (await Promise.all(mots.map(async (m) => !(await visibleDans(Q, m)) && !fuite(await Q.recu(), m) && !fuite(R.msgs, m)))).every(Boolean)
+      (await Promise.all(mots.map(async (m) => !(await visibleDans(Q, m)) && !fuite(await Q.recu(), m, turnId) && !fuite(R.msgs, m, turnId)))).every(Boolean)
       && (await Q.recu('choices')).length === 0 && !R.msgs.some((m) => m.type === 'choices' && m.turnId === turnId));
     await P.shot(`t${turnId}-choix`);
     await P.clic('#choix-mots button:nth-child(2)');
@@ -138,7 +141,7 @@ for (let n = 0; n < 3; n++) {
     const nbLettres = (await Q.recu('drawing')).find((m) => m.turnId === turnId).letters;
     t(`[8] tour ${turnId} : l autre a le gabarit (${nbLettres} cases vides), pas le mot`,
       await Q.ev('document.querySelectorAll("#gabarit .l").length') === nbLettres && await Q.ev('document.querySelectorAll("#gabarit .l.revele").length') === 0
-      && !(await visibleDans(Q, mot)) && !fuite(await Q.recu(), mot));
+      && !(await visibleDans(Q, mot)) && !fuite(await Q.recu(), mot, turnId));
     t(`[8] tour ${turnId} : compte à rebours du dessin`, /^\d+ s$/.test(await Q.texte('#chrono')));
     // Mesuré, pas supposé : au bureau, le champ (width: 100 % sans border-box) débordait de la colonne.
     const deborde = (p) => p.ev(`(() => { const d = document.getElementById('devinettes').getBoundingClientRect(), b = document.getElementById('devine-envoyer').getBoundingClientRect();
@@ -168,7 +171,7 @@ for (let n = 0; n < 3; n++) {
       && (await filTexte(Q)).some((l) => /Tu as trouvé/.test(l)));
     t(`[11] tour ${turnId} : la bonne réponse n a fui nulle part (ni chez le dessinateur, ni chez le robot)`,
       !(await P.recu('chat')).some((m) => m.text.toLowerCase().includes(mot.toLowerCase()))
-      && !R.msgs.some((m) => m.type === 'chat' && m.text.toLowerCase().includes(mot.toLowerCase())) && !fuite(R.msgs, mot));
+      && !R.msgs.some((m) => m.type === 'chat' && m.text.toLowerCase().includes(mot.toLowerCase())) && !fuite(R.msgs, mot, turnId));
     t(`[12] tour ${turnId} : le trouveur voit « Tu as trouvé ! », son champ sert à parler aux trouveurs`,
       /Tu as trouvé/.test(await Q.texte('#bandeau')) && /trouveurs/.test(await Q.ev('document.getElementById("devine").placeholder')));
     await deviner(Q, mot);
@@ -195,7 +198,12 @@ for (let n = 0; n < 3; n++) {
     const avantEnvois = (await P.envoye('stroke')).length;
     await P.geste([[0.1, 0.9], [0.9, 0.9]]);
     await sleep(150);
-    t(`[16] tour ${turnId} : le dessinateur ne dessine plus après la fin (rien tracé, rien envoyé)`, await P.traits() === avantTraits && (await P.envoye('stroke')).length === avantEnvois);
+    // Le geste doit tomber PENDANT la révélation de ce tour : si le tour
+    // suivant a déjà commencé, la mesure ne dit plus rien (la feuille a été vidée).
+    const suivantDeja = (await P.recu('turn')).some((m) => m.turnId > turnId);
+    t(`[16] tour ${turnId} : le dessinateur ne dessine plus après la fin (rien tracé, rien envoyé)`,
+      !suivantDeja && await P.traits() === avantTraits && (await P.envoye('stroke')).length === avantEnvois,
+      suivantDeja ? 'mesure invalide : le tour suivant avait déjà commencé (révélation trop courte pour le harnais)' : '');
     await Q.shot(`t${turnId}-fin`);
     manuelFait = true;
 
@@ -208,7 +216,7 @@ for (let n = 0; n < 3; n++) {
       && await P.until('document.getElementById("choix").hidden') && (await filTexte(Q)).some((l) => /tiré au sort/.test(l)));
     const mot = (await P.recu('drawing')).find((m) => m.turnId === turnId).word;
     const nb = (await Q.recu('drawing')).find((m) => m.turnId === turnId).letters;
-    t(`[7] tour ${turnId} : le mot tiré (« ${mot} ») est chez le dessinateur seul`, (await P.texte('#bandeau')).includes(mot) && !(await visibleDans(Q, mot)) && !fuite(await Q.recu(), mot));
+    t(`[7] tour ${turnId} : le mot tiré (« ${mot} ») est chez le dessinateur seul`, (await P.texte('#bandeau')).includes(mot) && !(await visibleDans(Q, mot)) && !fuite(await Q.recu(), mot, turnId));
     // indice à 50 % (6 s), et à 75 % (9 s) pour un mot de 6 lettres ou plus
     t(`[14] tour ${turnId} : 1er indice (50 %) — une case révélée, la bonne lettre à la bonne place`,
       await Q.until('document.querySelectorAll("#gabarit .l.revele").length === 1', 9000)

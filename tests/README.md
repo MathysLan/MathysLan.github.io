@@ -666,3 +666,34 @@ de largeur minimale, même en `min-width: 0` : `width: 0; flex: 1`, et
 `.cote` en `minmax(0, 1fr)` (le panneau débordait de sa colonne, mesuré).
 ⚠️ `scrollIntoView({ block: 'center' })` dans un harnais fait défiler la page
 au toucher d'un outil et sort la feuille de l'écran : `nearest`.
+
+## Croquis, lot gameplay 2 — une partie complète (2026-10-03)
+
+Révélation au `turn-end` (le mot, le motif, le gain de CHAQUE joueur présent —
++0 pour qui n'a pas trouvé, ✏️ le dessinateur — et les nouveaux totaux,
+pendant les 6 s du serveur ; aucune saisie), tableau des scores toute la
+partie (totaux du serveur : `turn`, `turn-end`, `left` ; trié, « parti »),
+manches enchaînées sans écran intermédiaire, écran de fin (`results` tel
+quel : médailles 🥇🥈🥉 puis « 4e », ex æquo partagés, mots trouvés, dessins,
+« parti » ; « Égalité » ; « Partie interrompue » si `complete: false`) avec
+↻ Revanche et ↩ Retour au salon à l'hôte, AVANT le classement (16 joueurs).
+Aucun point calculé côté page. Pas encore de Hub.
+
+    node tests/croquis-partie.mjs                  ~3 min, VRAI croquis-server (choix 1,5 s, dessin 7 s, révélation 1,5 s) + Edge + robots
+    node tests/croquis-partie.mjs --shots <d>
+
+Un chef d'orchestre joue chaque tour selon un plan (qui devine, quand) et
+relit l'écran après chaque tour : révélation et tableau = le `turn-end` ; à la
+fin, l'écran = le `results`, et le classement = la somme des gains annoncés.
+Parties : 2 joueurs (égalité forcée — à deux, devineur et dessinateur marquent
+pareil — puis revanche), 3 joueurs / 3 manches (deux trouveurs à 1,5 s
+d'écart, un tour sans trouveur, ancien turnId), 5 joueurs / 2 manches (départ
+entre deux tours, dessinateur qui part, retour au salon), 6 joueurs / 1
+manche, 16 joueurs, partie incomplète. Contre-épreuve : sans la mise à jour
+des totaux au `turn-end`, 3 échecs (totaux à 0 ≠ ceux du serveur).
+⚠️ `croquis-tour.mjs` vérifie la fin d'un tour PENDANT sa révélation : à 1,5 s,
+le tour suivant commençait parfois avant le dernier contrôle (feuille vidée,
+fil d'un autre tour) et tout cascadait. Révélation à 4 s dans cette suite, et
+le contrôle « ne dessine plus » échoue en le disant si le tour a déjà changé.
+`croquis-partie.mjs` accepte le tirage automatique quand le harnais arrive
+après la fenêtre de choix (1,5 s).

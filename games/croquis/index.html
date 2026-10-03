@@ -135,7 +135,6 @@
   .bandeau .chrono { margin-left: .6rem; font-family: 'JetBrains Mono', monospace; font-size: .95rem; color: var(--qi-unique); }
   .bandeau .chrono:empty { display: none; }
   .bandeau .chrono.vite { color: var(--red-ink); }
-  #fin { width: min(100%, 30rem); box-sizing: border-box; padding: .8rem; text-align: center; }
   /* Spectateur : la feuille se regarde, elle ne se dessine pas. */
   body.spectateur #vivant { cursor: default; }
 
@@ -178,11 +177,39 @@
   .fil .sys { color: var(--ink-3); }
   .fil:empty { display: none; }
 
+  /* --- révélation : le mot, le motif, les gains du tour --- */
+  .revele { box-sizing: border-box; padding: .8rem; display: grid; gap: .45rem; text-align: center; }
+  .revele-mot { margin: 0; font: 700 1.35rem/1.3 'JetBrains Mono', monospace; color: var(--qi-unique); overflow-wrap: anywhere; }
+  .revele-mot:focus { outline: none; }
+  .revele-motif { margin: 0; font-size: .85rem; color: var(--ink-2); }
+  .revele-gains, .tableau, .classement { list-style: none; margin: 0; padding: 0; display: grid; gap: .15rem; text-align: left; }
+  .ligne-joueur { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: .5rem; padding: .2rem .3rem; border-bottom: 1px solid var(--line); font-size: .88rem; }
+  .ligne-joueur .nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ligne-joueur .gain { font-family: 'JetBrains Mono', monospace; color: var(--g-ok); font-weight: 700; }
+  .ligne-joueur .gain.zero { color: var(--ink-3); font-weight: 400; }
+  .ligne-joueur .total { font-family: 'JetBrains Mono', monospace; color: var(--ink); min-width: 4.5ch; text-align: right; }
+  .ligne-joueur .role { font-size: .7rem; color: var(--ink-3); }
+  .ligne-joueur.is-parti { opacity: .55; }
+  .ligne-joueur.is-moi .nom { color: var(--ink); font-weight: 700; }
+  .tableau-panneau { box-sizing: border-box; padding: .6rem .8rem .7rem; }
+  .tableau-panneau .etiquette { margin-bottom: .25rem; }
+  .tableau .etat { font-size: .78rem; }
+
+  /* --- fin de partie : le classement, comme le récap du Game Hub --- */
+  #end { width: min(560px, 100%); margin: 0 auto; box-sizing: border-box; }
+  #end h2 { margin: .2rem 0 .8rem; }
+  #end h2:focus { outline: none; }
+  .classement .ligne-joueur { grid-template-columns: 2.6rem auto minmax(0, 1fr) auto; font-size: .95rem; padding: .35rem .3rem; }
+  .classement .rang { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 1.05rem; text-align: center; }
+  .classement .detail { display: block; font-size: .72rem; color: var(--ink-3); }
+  .classement .score { font-family: 'JetBrains Mono', monospace; font-weight: 700; text-align: right; }
+  .classement .is-podium .score { color: var(--qi-unique); }
+
   /* Écran large en paysage : les outils à droite, la feuille prend la hauteur. */
   @media (min-width: 900px) and (orientation: landscape) {
     .atelier { grid-template-columns: minmax(0, 1fr) 17rem; justify-items: stretch; }
     .cadre { --reserve: 10rem; justify-self: end; grid-column: 1; }
-    .cote, #fin { grid-column: 2; width: 100%; }
+    .cote { grid-column: 2; width: 100%; }
     .cote { grid-row: 2 / span 2; }
     .palette { grid-template-columns: repeat(4, var(--c-pastille)); }
   }
@@ -201,7 +228,7 @@
        le statut ne prend de place que lorsqu'il dit quelque chose. */
     #outil-actuel { display: none; }
     #statut:empty { display: none; }
-    .cote, #fin { grid-column: 2; width: 100%; }
+    .cote { grid-column: 2; width: 100%; }
     .cote { gap: .5rem; }
     .outils { padding: .5rem; gap: .4rem; }
     .gabarit { font-size: 1.1rem; }
@@ -312,12 +339,35 @@
         <p id="devine-retour" role="status"></p>
         <ol id="fil" class="fil" role="log" aria-label="Réponses et événements du tour"></ol>
       </div>
+
+      <!-- La révélation (turn-end) : le mot, le motif, les gains du tour et
+           les nouveaux totaux — tels que le serveur les a comptés. -->
+      <div id="revele" class="panel revele" hidden>
+        <p class="revele-mot" id="revele-mot" tabindex="-1"></p>
+        <p class="revele-motif" id="revele-motif"></p>
+        <ol id="revele-gains" class="revele-gains" aria-label="Points du tour"></ol>
       </div>
 
-      <div id="fin" class="panel" hidden>
-        <p class="meta">Fin de partie</p>
-        <button type="button" id="retour-salon" hidden>Retour au salon</button>
+      <!-- Les joueurs et leurs totaux, toute la partie. -->
+      <div id="tableau-panneau" class="panel tableau-panneau" hidden>
+        <p class="etiquette">Scores</p>
+        <ol id="tableau" class="tableau" aria-label="Scores de la partie"></ol>
       </div>
+      </div>
+    </section>
+
+    <!-- FIN DE PARTIE (results) : le classement du serveur, tel quel. -->
+    <section id="end" class="panel g-screen center" hidden>
+      <p class="meta" id="end-meta">Fin de partie</p>
+      <h2 id="end-title" tabindex="-1"></h2>
+      <!-- Les actions AVANT le classement (comme Roquette) : à 16 joueurs, il
+           ferait défiler l'hôte pour relancer. -->
+      <div class="actions" style="margin:0 0 1rem">
+        <button type="button" id="revanche" hidden>↻ Revanche</button>
+        <button type="button" id="vers-salon" class="ghost" hidden>↩ Retour au salon</button>
+        <p id="attente-hote" class="wait" hidden>En attente de l’hôte…</p>
+      </div>
+      <ol id="classement" class="classement" aria-label="Classement final"></ol>
     </section>
 
     <p id="error" class="g-error" role="alert"></p>
@@ -331,6 +381,6 @@
   <script src="dessin.js?v=1"></script>
   <script src="sync.js?v=1"></script>
   <script src="app.js?v=2"></script>
-  <script src="jeu.js?v=2"></script>
+  <script src="jeu.js?v=3"></script>
 </body>
 </html>
