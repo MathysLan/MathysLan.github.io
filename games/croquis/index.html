@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Croquis — atelier de dessin · Mathys Langiny</title>
+<!-- Lot front 1 : l'ATELIER seulement (dessiner en local). Pas encore de
+     partie, de réseau ni de Hub : la page n'est liée nulle part et reste hors
+     index tant que le jeu n'existe pas. Nom provisoire. -->
+<meta name="robots" content="noindex">
+<meta name="description" content="Croquis : l'atelier de dessin du futur jeu de dessin multijoueur.">
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#241c14">
+<!-- Socle TF2 complet (palette, polices, primitives), puis socle commun des
+     pages de jeux (focus clavier, mouvement réduit, cibles tactiles), puis ce
+     qui est propre à ce jeu dans le <style> ci-dessous. -->
+<link rel="stylesheet" href="../../css/tf2.css?v=9">
+<link rel="stylesheet" href="../shared/game-ui.css?v=6">
+<style>
+  /* L'accent : le bleu Vintage — la teinte pour les fonds et bordures, son
+     encre pour le texte (teinte ≠ encre, voir tf2.css). */
+  :root { --g-accent: var(--q-vintage); --g-accent-ink: #f0e7d2; --c-pastille: 44px; }
+  /* Pas de rebond ni de « tirer pour rafraîchir » sous le doigt qui dessine. */
+  html, body { overscroll-behavior: none; }
+  body { min-height: 100vh; box-sizing: border-box; margin: 0; padding: .75rem .75rem 1.25rem; }
+  main { width: min(1180px, 100%); margin: 0 auto; }
+  [hidden] { display: none !important; }
+  .center { text-align: center; }
+
+  .tete { text-align: center; margin-bottom: .7rem; }
+  .tete h1 { margin: 0; }
+  .tete h1 .a { color: var(--qi-vintage); }
+  .tete .sub { margin: .1rem 0 0; }
+
+  /* =====================================================================
+     L'ATELIER : la feuille, puis les outils (dessous au téléphone en
+     portrait, à droite dès qu'il y a de la largeur).
+     ===================================================================== */
+  .atelier { display: grid; gap: .75rem; justify-items: center; align-items: start; }
+
+  /* Le cadre : un creux biseauté à coins coupés (le Mann Co. ne connaît pas
+     l'arrondi). Sa largeur est plafonnée par la HAUTEUR de l'écran (moins ce
+     qu'il faut garder pour le reste) : c'est la largeur qui cède, jamais le
+     ratio 4:3 de la feuille. */
+  .cadre {
+    --reserve: 17rem;
+    width: min(100%, calc((100svh - var(--reserve)) * 4 / 3));
+    min-width: 240px;
+    padding: 6px;
+    background: var(--bg-deep);
+    box-shadow: inset 2px 2px 0 var(--bevel-lo), inset -2px -2px 0 var(--bevel-hi), inset 0 0 0 1px var(--panel-edge);
+    clip-path: polygon(var(--g-cut) 0, 100% 0, 100% calc(100% - var(--g-cut)), calc(100% - var(--g-cut)) 100%, 0 100%, 0 var(--g-cut));
+    box-sizing: border-box;
+  }
+  /* ⚠️ Aucune bordure ni marge sur la feuille ou ses canvas : leur boîte est
+     celle qui convertit l'écran en coordonnées logiques (un bord de 2 px y
+     décalerait le trait sous le doigt). */
+  .feuille {
+    position: relative; width: 100%; aspect-ratio: 4 / 3;
+    background: #f7f3e8;                 /* = dessin.js FOND */
+    touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  }
+  .feuille canvas {
+    position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+    touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  }
+  #vivant { cursor: crosshair; }
+
+  .outils { width: min(100%, 30rem); box-sizing: border-box; padding: .75rem .8rem .8rem; display: grid; gap: .65rem; }
+  .outils .groupe { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  .etiquette { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 .3rem; text-align: center; }
+  .palette { display: grid; grid-template-columns: repeat(6, var(--c-pastille)); gap: 6px; justify-content: center; }
+
+  /* Les boutons d'outil : carrés de 44 px au moins (cible tactile), coins
+     coupés, biseau en ombre interne (clip-path rogne les ombres portées). */
+  .pastille, .outil {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;   /* le voile bleu natif passerait pour un état */
+    min-width: var(--c-pastille); height: var(--c-pastille); padding: 0;
+    clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+    text-transform: none; letter-spacing: 0;
+  }
+  .pastille {
+    position: relative; width: var(--c-pastille);
+    background: var(--sw);
+    box-shadow: inset 2px 2px 0 rgba(255, 255, 255, .28), inset -2px -2px 0 rgba(0, 0, 0, .4), inset 0 0 0 1px rgba(0, 0, 0, .45);
+  }
+  .pastille:active { transform: none; }
+  /* Choisie : un cadre doré ET une coche — jamais la seule couleur. */
+  .pastille[aria-pressed="true"] { box-shadow: inset 0 0 0 3px var(--q-unique), inset 0 0 0 5px rgba(0, 0, 0, .7); }
+  .pastille[aria-pressed="true"]::after {
+    content: '✓'; position: absolute; inset: 0; display: grid; place-items: center;
+    font: 700 1.25rem/1 'Space Grotesk', sans-serif; color: #fff; text-shadow: 0 0 3px #000;
+  }
+  .pastille.is-clair[aria-pressed="true"]::after { color: #1d1a17; text-shadow: 0 0 3px #fff; }
+
+  .outil {
+    display: inline-flex; align-items: center; justify-content: center; gap: .35rem;
+    padding: 0 .7rem; font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: .9rem;
+    color: var(--ink); background: var(--btn);
+    box-shadow: inset 2px 2px 0 var(--bevel-hi), inset -2px -2px 0 var(--bevel-lo);
+  }
+  .outil[aria-pressed="true"] { background: var(--g-accent); color: var(--g-accent-ink); box-shadow: inset 0 0 0 3px var(--q-unique), inset 0 0 0 5px rgba(0, 0, 0, .55); }
+  .outil .ico { font-size: 1.1rem; line-height: 1; }
+  .taille { width: var(--c-pastille); padding: 0; }
+  .taille .rond { width: var(--d); height: var(--d); background: currentColor; border-radius: 50%; }
+  #effacer.is-arme { background: var(--red); color: #fff; }
+  /* L'anneau de focus doit rester visible même sur un outil choisi (sa règle
+     est plus forte que le button:focus-visible du socle). */
+  .pastille:focus-visible, .outil:focus-visible { box-shadow: inset 0 0 0 3px var(--g-focus), inset 0 0 0 6px rgba(0, 0, 0, .75); }
+
+  .infos { display: flex; justify-content: space-between; gap: .6rem; flex-wrap: wrap; font-size: .8rem; color: var(--ink-2); }
+  #compte { font-family: 'JetBrains Mono', monospace; font-size: .76rem; color: var(--ink-3); }
+  #compte.is-plein { color: var(--red-ink); }
+  #statut { margin: 0; font-size: .8rem; color: var(--ink-2); min-height: 1.3em; text-align: center; }
+
+  /* Écran large en paysage : les outils à droite, la feuille prend la hauteur. */
+  @media (min-width: 900px) and (orientation: landscape) {
+    .atelier { grid-template-columns: minmax(0, 1fr) 17rem; justify-items: stretch; }
+    .cadre { --reserve: 7.5rem; justify-self: end; }
+    .outils { width: 100%; }
+    .palette { grid-template-columns: repeat(4, var(--c-pastille)); }
+  }
+  /* Téléphone en paysage : chaque pixel de hauteur va à la feuille. Le titre
+     reste pour les lecteurs d'écran, la boîte d'outils se serre à droite. */
+  @media (orientation: landscape) and (max-height: 540px) {
+    body { padding: .4rem .6rem; }
+    .tete { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    /* ⚠️ La colonne de la feuille est minmax(0, 1fr), pas auto : en auto, le
+       min(100%, …) de .cadre se mord la queue et la feuille tombait à 240 px. */
+    .atelier { grid-template-columns: minmax(0, 1fr) 15.5rem; justify-items: stretch; gap: .5rem; }
+    .cadre { --reserve: 1.9rem; justify-self: end; }
+    .outils { width: 100%; padding: .5rem; gap: .4rem; }
+    .palette { grid-template-columns: repeat(4, var(--c-pastille)); gap: 4px; }
+    .etiquette { display: none; }
+    /* La gomme en icône seule (son nom reste dans aria-label) : elle tient
+       sur la ligne des tailles, et la boîte d'outils dans la hauteur. */
+    #gomme { width: var(--c-pastille); padding: 0; }
+    #gomme .lib { display: none; }
+    .infos { font-size: .74rem; }
+    .back { margin-top: .6rem; }
+  }
+</style>
+</head>
+<body>
+  <main>
+    <header class="tete">
+      <h1>Cro<span class="a">quis</span></h1>
+      <p class="sub">Atelier · dessine librement, rien n'est envoyé</p>
+    </header>
+
+    <noscript><p class="center">L'atelier de dessin a besoin de JavaScript.</p></noscript>
+
+    <section class="atelier" aria-label="Atelier de dessin">
+      <div class="cadre">
+        <div id="feuille" class="feuille">
+          <canvas id="base" aria-hidden="true"></canvas>
+          <canvas id="vivant" role="img" aria-label="Feuille de dessin"></canvas>
+        </div>
+      </div>
+
+      <div class="panel outils">
+        <div>
+          <p class="etiquette" id="lib-couleur">Couleur</p>
+          <div id="palette" class="palette" role="group" aria-labelledby="lib-couleur"></div>
+        </div>
+        <div>
+          <p class="etiquette" id="lib-outils">Trait</p>
+          <div class="groupe" role="group" aria-labelledby="lib-outils">
+            <span id="tailles" class="groupe"></span>
+            <button type="button" id="gomme" class="outil" aria-pressed="false" title="gomme" aria-label="gomme"><span class="ico" aria-hidden="true">⌫</span><span class="lib">Gomme</span></button>
+          </div>
+        </div>
+        <div class="groupe">
+          <button type="button" id="annuler" class="outil" title="annuler le dernier trait (Ctrl+Z)" aria-label="annuler le dernier trait"><span class="ico" aria-hidden="true">↶</span><span class="lib">Annuler</span></button>
+          <button type="button" id="effacer" class="outil" aria-label="tout effacer"><span class="ico" aria-hidden="true">✕</span><span class="lib">Effacer</span></button>
+        </div>
+        <div class="infos">
+          <span id="outil-actuel"></span>
+          <span id="compte"></span>
+        </div>
+        <p id="statut" class="g-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <p class="center"><a class="back" href="../../">← retour au portfolio</a></p>
+  </main>
+
+  <script src="dessin.js?v=1"></script>
+  <script src="app.js?v=1"></script>
+</body>
+</html>

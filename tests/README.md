@@ -591,3 +591,23 @@ de la cible, 4 échecs (Mallory lit les stats de Dan) ; `departed[id]` sans
 Entrée sur un `<button>` natif par CDP : `keyDown` AVEC `text: ''` (comme
 `hub-stats.mjs`) ; un `rawKeyDown` sans texte n'active pas le bouton. Les
 titres de section sont en majuscules CSS : `innerText` rend « SUCCÈS ».
+
+## Croquis, lot front 1 — l'atelier de dessin (2026-10-03)
+
+Dessin LOCAL seulement (`games/croquis/`, pas de réseau, page en `noindex`
+liée nulle part). La règle du trait est dans `games/croquis/dessin.js`
+(module pur, page + Node) : index du protocole de `croquis-server`
+(couleur 0–11, gomme 12, taille 0–2), 1000 × 750, 150 traits, 1 000 points.
+
+    node tests/croquis-dessin.mjs                  instantané : conversion, bornes, resize, palette, historique, lissage
+    node tests/croquis-atelier.mjs                 ~20 s, Edge headless, vraies entrées souris / doigt / stylet
+    node tests/croquis-atelier.mjs --shots <d>     bureau 1280 et 900, téléphone 390 portrait et 844 paysage
+
+`croquis-atelier.mjs` vérifie AU PIXEL de la feuille (couche `#base`) : trait
+sous le pointeur, couleurs, épaisseur, gomme, Ctrl+Z, Effacer en deux appuis,
+bords, tracé rapide, deux doigts (un seul dessine), aucun défilement au doigt,
+et le même dessin aux mêmes fractions après resize et rotation. ⚠️ Mesurer la
+TAILLE de la feuille, pas seulement sa visibilité : en paysage, une colonne
+`auto` la réduisait à 240 px sans qu'aucun test « visible » ne bronche.
+Le surlignage d'appui natif (`-webkit-tap-highlight-color`) est coupé sur les
+outils : en émulation mobile, il passait pour un état « choisi ».
