@@ -611,3 +611,30 @@ TAILLE de la feuille, pas seulement sa visibilité : en paysage, une colonne
 `auto` la réduisait à 240 px sans qu'aucun test « visible » ne bronche.
 Le surlignage d'appui natif (`-webkit-tap-highlight-color`) est coupé sur les
 outils : en émulation mobile, il passait pour un état « choisi ».
+
+## Croquis, lot réseau 1 — le dessin synchronisé (2026-10-03)
+
+La page (`games/croquis/`) a maintenant un salon et se branche sur
+`croquis-server` : `jeu.js` (salon, messages), `net.js` (même convention d'URL
+que les autres jeux, `?server=`), `sync.js` (module pur : envoi par lots de
+~50 ms au format exact du serveur, réception, snapshot, ancien `turnId`
+ignoré). L'atelier libre est passé derrière `?atelier`. Pas encore de
+devinettes, de choix de mot (tirage auto du serveur), de score ni de Hub.
+
+    node tests/croquis-sync.mjs                    instantané : lots, undo/clear, réception, doublons, snapshot, aller-retour
+    node tests/croquis-network.mjs                 ~1 min, VRAI croquis-server local + Edge (bureau souris, téléphone doigt) + robots
+    node tests/croquis-network.mjs --shots <d>
+    node tests/croquis-network.mjs --serveur C:\perso\croquis-server   (par défaut : ../croquis-server, sinon C:\perso)
+
+`croquis-network.mjs` joue le scénario de dessin DEUX fois (tour 1, puis tour 2
+rôles inversés) : la souris et le doigt dessinent à chaque passage, quel que
+soit l'ordre tiré par le serveur. Comparaison trait pour trait (modèle) et au
+pixel ; un espion relève ce que chaque onglet envoie et reçoit.
+⚠️ Capture d'un onglet d'arrière-plan : `Page.bringToFront` d'abord, et une
+capture bornée à 5 s — sinon elle bloquait plus d'une minute, le tour expirait
+au chrono et toute la suite tombait en `STALE_TURN`.
+⚠️ Les deux onglets partagent le profil Edge (donc `localStorage`) : au second
+salon, ils portent le même pseudo. Sans conséquence sur ce qui est testé.
+Bug trouvé par le doigt : sans `preventDefault()` sur `touchstart`/`touchmove`
+de la feuille, le premier appui sur un outil après un trait ne produisait aucun
+`click` (Chromium voyait un défilement lancé) — gardé par `croquis-atelier.mjs`.

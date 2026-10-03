@@ -3,12 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Croquis — atelier de dessin · Mathys Langiny</title>
-<!-- Lot front 1 : l'ATELIER seulement (dessiner en local). Pas encore de
-     partie, de réseau ni de Hub : la page n'est liée nulle part et reste hors
-     index tant que le jeu n'existe pas. Nom provisoire. -->
+<title>Croquis — jeu de dessin · Mathys Langiny</title>
+<!-- Lot réseau 1 : salon + SYNCHRONISATION du dessin avec croquis-server
+     (pas encore de devinettes, de score ni de Hub). ?atelier : l'atelier
+     libre, sans réseau. La page n'est liée nulle part et reste hors index tant
+     que le jeu n'existe pas. Nom provisoire. -->
 <meta name="robots" content="noindex">
-<meta name="description" content="Croquis : l'atelier de dessin du futur jeu de dessin multijoueur.">
+<meta name="description" content="Croquis : un jeu de dessin multijoueur (prototype).">
 <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
 <meta name="theme-color" content="#241c14">
 <!-- Socle TF2 complet (palette, polices, primitives), puis socle commun des
@@ -43,7 +44,7 @@
      qu'il faut garder pour le reste) : c'est la largeur qui cède, jamais le
      ratio 4:3 de la feuille. */
   .cadre {
-    --reserve: 17rem;
+    --reserve: 19.5rem;
     width: min(100%, calc((100svh - var(--reserve)) * 4 / 3));
     min-width: 240px;
     padding: 6px;
@@ -114,10 +115,31 @@
   #compte.is-plein { color: var(--red-ink); }
   #statut { margin: 0; font-size: .8rem; color: var(--ink-2); min-height: 1.3em; text-align: center; }
 
+  /* --- accueil / salon : la forme des autres jeux (game-ui.css habille les
+     identifiants communs : #name-input, #host, #join, #room-code…) --- */
+  #home, #lobby, #lost { width: min(560px, 100%); margin: 0 auto; box-sizing: border-box; }
+  .field { margin-bottom: .9rem; }
+  .meta { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; letter-spacing: .06em; color: var(--ink-3); font-size: .8rem; margin: 0 0 .6rem; }
+  #room-code { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 2.4rem; letter-spacing: .4em; text-indent: .4em; color: var(--q-unique); }
+  #players { list-style: none; padding: 0; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .1rem 1rem; text-align: left; }
+  #players li { padding: .35rem .2rem; border-bottom: 1px solid var(--line); font-size: .88rem; }
+  .tag { color: var(--qi-vintage); font-size: .7rem; margin-left: auto; }
+  .lien-atelier { display: block; margin-top: 1rem; font-size: .8rem; color: var(--ink-3); text-align: center; }
+
+  /* --- la partie : le bandeau du tour au-dessus de l'atelier --- */
+  .bandeau {
+    grid-column: 1 / -1; justify-self: stretch; margin: 0; padding: .45rem .8rem; text-align: center;
+    font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 1rem; letter-spacing: .03em; color: var(--ink);
+    background: var(--bg-deep); box-shadow: inset 0 0 0 1px var(--panel-edge), inset 3px 0 0 var(--g-accent);
+  }
+  #fin { width: min(100%, 30rem); box-sizing: border-box; padding: .8rem; text-align: center; }
+  /* Spectateur : la feuille se regarde, elle ne se dessine pas. */
+  body.spectateur #vivant { cursor: default; }
+
   /* Écran large en paysage : les outils à droite, la feuille prend la hauteur. */
   @media (min-width: 900px) and (orientation: landscape) {
     .atelier { grid-template-columns: minmax(0, 1fr) 17rem; justify-items: stretch; }
-    .cadre { --reserve: 7.5rem; justify-self: end; }
+    .cadre { --reserve: 10rem; justify-self: end; }
     .outils { width: 100%; }
     .palette { grid-template-columns: repeat(4, var(--c-pastille)); }
   }
@@ -129,7 +151,14 @@
     /* ⚠️ La colonne de la feuille est minmax(0, 1fr), pas auto : en auto, le
        min(100%, …) de .cadre se mord la queue et la feuille tombait à 240 px. */
     .atelier { grid-template-columns: minmax(0, 1fr) 15.5rem; justify-items: stretch; gap: .5rem; }
-    .cadre { --reserve: 1.9rem; justify-self: end; }
+    .cadre { --reserve: 1.9rem; justify-self: end; grid-column: 1; grid-row: 1 / span 3; }
+    /* Le bandeau passe dans la colonne des outils : toute la hauteur à la feuille. */
+    .bandeau { grid-column: 2; grid-row: 1; font-size: .78rem; padding: .3rem .5rem; }
+    /* Chaque ligne compte : l'outil choisi se voit déjà sur ses boutons, et
+       le statut ne prend de place que lorsqu'il dit quelque chose. */
+    #outil-actuel { display: none; }
+    #statut:empty { display: none; }
+    .outils, #fin { grid-column: 2; }
     .outils { width: 100%; padding: .5rem; gap: .4rem; }
     .palette { grid-template-columns: repeat(4, var(--c-pastille)); gap: 4px; }
     .etiquette { display: none; }
@@ -146,12 +175,48 @@
   <main>
     <header class="tete">
       <h1>Cro<span class="a">quis</span></h1>
-      <p class="sub">Atelier · dessine librement, rien n'est envoyé</p>
+      <p class="sub">un joueur dessine, les autres regardent · prototype</p>
     </header>
 
-    <noscript><p class="center">L'atelier de dessin a besoin de JavaScript.</p></noscript>
+    <noscript><p class="center">Croquis a besoin de JavaScript.</p></noscript>
 
-    <section class="atelier" aria-label="Atelier de dessin">
+    <!-- ACCUEIL -->
+    <section id="home" class="panel g-screen">
+      <div class="field"><input id="name-input" maxlength="16" placeholder="ton pseudo" autocomplete="off" aria-label="Ton pseudo"></div>
+      <p class="center" style="color:var(--ink-3);font-size:.74rem;margin:0 0 .5rem">choisis ton icône :</p>
+      <div id="avatar-row"></div>
+      <div class="actions"><button id="host" type="button">Créer une partie</button></div>
+      <p class="or">— ou —</p>
+      <div class="join-row">
+        <input id="code-input" maxlength="4" placeholder="CODE" autocomplete="off" spellcheck="false" aria-label="Code de la partie">
+        <button id="join" type="button" style="flex:1">Rejoindre</button>
+      </div>
+      <a class="lien-atelier" href="?atelier">… ou dessiner seul, sans partie (atelier libre)</a>
+    </section>
+
+    <!-- SALON -->
+    <section id="lobby" class="panel g-screen center" hidden>
+      <p class="meta">Salon · <span id="lobby-count">1 / 16</span> joueurs</p>
+      <button type="button" id="room-code" class="g-copy" title="clique pour copier">····</button>
+      <p id="code-hint" role="status">clique sur le code pour le copier</p>
+      <ul id="players"></ul>
+      <div id="host-config" class="actions" hidden>
+        <button id="start" type="button" disabled>Lancer la partie</button>
+      </div>
+      <p id="need-players" class="wait" role="status">En attente de l’hôte…</p>
+    </section>
+
+    <!-- connexion perdue (`lost`, games/shared/game-net.js) -->
+    <section id="lost" class="panel g-screen center" hidden>
+      <p class="meta">Connexion perdue</p>
+      <p id="lost-text" role="status"></p>
+      <button type="button" id="lost-retry" hidden>Revenir dans le salon</button>
+      <a id="lost-hub" class="ghost" href="../" hidden>↩ Retour au Game Hub</a>
+    </section>
+
+    <!-- LA PARTIE : le bandeau du tour, la feuille, les outils (au seul dessinateur) -->
+    <section id="play" class="atelier" aria-label="Partie de Croquis" hidden>
+      <p id="bandeau" class="bandeau" role="status"></p>
       <div class="cadre">
         <div id="feuille" class="feuille">
           <canvas id="base" aria-hidden="true"></canvas>
@@ -159,7 +224,7 @@
         </div>
       </div>
 
-      <div class="panel outils">
+      <div id="outils" class="panel outils">
         <div>
           <p class="etiquette" id="lib-couleur">Couleur</p>
           <div id="palette" class="palette" role="group" aria-labelledby="lib-couleur"></div>
@@ -181,12 +246,24 @@
         </div>
         <p id="statut" class="g-status" role="status" aria-live="polite"></p>
       </div>
+
+      <div id="fin" class="panel" hidden>
+        <p class="meta">Fin de partie</p>
+        <button type="button" id="retour-salon" hidden>Retour au salon</button>
+      </div>
     </section>
 
+    <p id="error" class="g-error" role="alert"></p>
     <p class="center"><a class="back" href="../../">← retour au portfolio</a></p>
   </main>
 
+  <script src="../shared/game-profile.js?v=3"></script>
+  <script src="../shared/game-avatar.js"></script>
+  <script src="../shared/game-net.js?v=1"></script>
+  <script src="net.js?v=1"></script>
   <script src="dessin.js?v=1"></script>
-  <script src="app.js?v=1"></script>
+  <script src="sync.js?v=1"></script>
+  <script src="app.js?v=2"></script>
+  <script src="jeu.js?v=1"></script>
 </body>
 </html>

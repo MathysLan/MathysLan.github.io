@@ -26,7 +26,9 @@ const arg = (n) => { const i = process.argv.indexOf(n); return i > 0 ? process.a
 const EDGE = arg('--edge') || 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
 const SHOTS = arg('--shots');
 const CDP_PORT = 9400 + Math.floor(Math.random() * 400);
-const PAGE = 'file:///' + path.join(ROOT, 'games', 'croquis', 'index.html').replace(/\\/g, '/');
+// `?atelier` : l'atelier libre, sans réseau (depuis le lot réseau 1, la page
+// sans paramètre ouvre l'accueil de la partie).
+const PAGE = 'file:///' + path.join(ROOT, 'games', 'croquis', 'index.html').replace(/\\/g, '/') + '?atelier';
 const D = createRequire(import.meta.url)('../games/croquis/dessin.js');
 
 let ok = 0, ko = 0;
@@ -277,6 +279,10 @@ await ouvrir();
   const sous = await Promise.all([3, 9, 15].map((i) => pixel(geste[i].x, geste[i].y)));
   t('doigt : le trait est SOUS le doigt (pixel aux points touchés)', sous.every((px) => proche(px, D.PALETTE[0].hex)));
   t('doigt : la page n a pas défilé', await ev('scrollY') === y0);
+  // Juste après un trait, le PREMIER appui sur un outil doit compter :
+  // Chromium prenait le trait pour un défilement lancé et avalait ce click.
+  await clic('.pastille[data-couleur="9"]');
+  t('doigt : le 1er appui après un trait choisit bien la couleur (pas de click avalé)', (await modele()).etat.couleur === 9);
 
   // un geste vertical qui sort par le bas : toujours aucun défilement
   await doigt(ligne(a(r, 0.6, 0.3), a(r, 0.6, 1.6), 20));
