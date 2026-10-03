@@ -307,6 +307,7 @@
         <label for="rythme-select">Rythme</label>
         <select id="rythme-select"><option value="detendu">Détendu</option><option value="normal" selected>Normal</option><option value="nerveux">Nerveux</option></select>
         <button id="start" type="button" disabled>Lancer la partie</button>
+        <button id="start-anyway" type="button" hidden>Lancer sans attendre</button>
       </div>
       <p id="need-players" class="wait" role="status">En attente de l'hôte…</p>
     </section>
@@ -353,6 +354,7 @@
         <button id="again" type="button" hidden>Rejouer</button>
         <button id="to-lobby" type="button" class="ghost" hidden>Retour au salon</button>
         <p id="wait-host" class="wait" hidden>En attente de l'hôte…</p>
+        <a id="to-hub" href="../" hidden>↩ Retour au Game Hub</a>
         <a class="ghost" href="../../#games" style="padding:.55rem 1rem;text-decoration:none">Les autres jeux</a>
       </div>
       <ol id="ranking"></ol>
@@ -366,10 +368,13 @@
 
   <script src="../shared/game-profile.js?v=3"></script>
   <script src="../shared/game-avatar.js"></script>
+  <!-- Lancé par le Game Hub (billet dans sessionStorage) : sans billet, rien ne change. -->
+  <script src="../shared/game-hub.js?v=10"></script>
+  <script src="../shared/hub-handoff.js?v=5"></script>
   <script src="../shared/game-net.js?v=1"></script>
   <script src="net.js?v=2"></script>
   <script src="rocket.js?v=2"></script>
   <script src="sound.js?v=1"></script>
-  <script src="app.js?v=7"></script>
+  <script src="app.js?v=8"></script>
 </body>
 </html>
