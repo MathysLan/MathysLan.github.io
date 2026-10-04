@@ -44,7 +44,7 @@ dans le journal.
 | **Le Passeur** | `games/passeur/` | `passeur-server` | Une situation de volley, cinq passes, cinq secondes. Points = pertinence × vitesse. Barèmes et `why` seulement au `results`. Catalogue `situations.js` + règles `rules.js` côté serveur. |
 | **Qui Ment ?** | `games/quiment/` | `qui-ment-server` | Bluff : même mot pour tous sauf l'intrus (qui n'a que la catégorie). 2 tours d'indices en aveugle, vote, révélation, dernière chance. Le mot ne part JAMAIS en diffusion (joueur par joueur, `word: null` pour l'intrus) ; les indices sont ramassés en silence puis révélés d'un bloc ; la liste des mots de la catégorie ne part qu'à l'intrus démasqué. Le test WebSocket du serveur relit **tout le fil** chez l'intrus (seul moyen d'attraper une fuite par un message de progression). Catalogue `mots.js`. |
 | **Roquette Party** | `games/roquette/` | `roquette-server` | Jeu de mots en temps réel, 2 à 16 joueurs : des lettres s'affichent, un mot qui les contient avant l'explosion, chaque explosion coûte une vie. L'instant de l'explosion et le dictionnaire ne quittent jamais le serveur ; rang = ordre d'élimination, aucun point de partie. Jeu du Hub (`handoff: true`). |
-| **Croq.ios** (technique : `croquis`) | `games/croquis/` | `croquis-server` | Jeu de dessin, 2 à 16 joueurs : un dessinateur choisit un mot parmi trois (1 facile, 1 moyen, 1 difficile, catalogue V1 de 318 mots côté serveur), les autres devinent. Le mot ne part qu'au dessinateur jusqu'au `turn-end` ; traits validés et bornés par le serveur. Nom AFFICHÉ « Croq.ios » ; dossier, id, modules JS et serveur restent `croquis` (ne pas renommer). Au portfolio, **hors du Hub** (`hub: false`). |
+| **Croq.ios** (technique : `croquis`) | `games/croquis/` | `croquis-server` | Jeu de dessin, 2 à 16 joueurs : un dessinateur choisit un mot parmi trois (1 facile, 1 moyen, 1 difficile, catalogue V1 de 318 mots côté serveur), les autres devinent. Le mot ne part qu'au dessinateur jusqu'au `turn-end` ; traits validés et bornés par le serveur. Nom AFFICHÉ « Croq.ios » ; dossier, id, modules JS et serveur restent `croquis` (ne pas renommer). Au portfolio, **hors du Hub** (`hub: false`). Handoff PRÊT mais pas activé : même montage que Roquette (`gameId: 'croquis'`, `roomReady` au `you`, `started` au premier `turn`, `results` (rang + score du serveur) puis `ended` à `results` — `ended` seul pour une partie interrompue —, « Lancer sans attendre », `#to-hub`) ; `tests/handoff-croquis.mjs` l'éprouve avec une entrée `croquis` ajoutée au SEUL manifest temporaire du test. Activer = passer `hub` à un bloc. |
 | **Puissance 4** | `js/connect4.js` (`launchConnect4`) | aucun | 100 % navigateur, canvas, bot gagner > bloquer > centre. Lancé par le carousel, INSERT COIN, Ctrl+K, Konami. |
 
 - Dépôts serveurs sur le poste de Mathys : `C:\perso\<nom>` (les sept
@@ -686,7 +686,8 @@ le build échoue. ⚠️ Il écrit vraiment dans le fichier puis restaure dans u
 Les sept jeux en ligne (Morpion, Imitation, Demi-Cercle, Ban, Précision, Le
 Passeur, Qui Ment ?) ont le **même montage**, et **Roquette Party** aussi
 (handoff, `results` par le rang du serveur avec `points: 0`, « Lancer sans
-attendre », `surPerte` ; test `tests/handoff-roquette.mjs`). Puissance 4, local, n'en a pas
+attendre », `surPerte` ; test `tests/handoff-roquette.mjs`). **Croq.ios** a le même
+montage, prêt mais pas activé (`hub: false`, `tests/handoff-croquis.mjs`). Puissance 4, local, n'en a pas
 besoin. Aucun serveur de jeu ne connaît le Hub.
 
 ### Le principe : le Hub ne parle jamais au serveur du jeu

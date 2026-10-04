@@ -285,6 +285,7 @@
       <ul id="players"></ul>
       <div id="host-config" class="actions" hidden>
         <button id="start" type="button" disabled>Lancer la partie</button>
+        <button id="start-anyway" type="button" hidden>Lancer sans attendre</button>
       </div>
       <p id="need-players" class="wait" role="status">En attente de l’hôte…</p>
     </section>
@@ -376,6 +377,7 @@
         <button type="button" id="revanche" hidden>↻ Revanche</button>
         <button type="button" id="vers-salon" class="ghost" hidden>↩ Retour au salon</button>
         <p id="attente-hote" class="wait" hidden>En attente de l’hôte…</p>
+        <a id="to-hub" href="../" hidden>↩ Retour au Game Hub</a>
       </div>
       <ol id="classement" class="classement" aria-label="Classement final"></ol>
     </section>
@@ -386,11 +388,13 @@
 
   <script src="../shared/game-profile.js?v=3"></script>
   <script src="../shared/game-avatar.js"></script>
+  <script src="../shared/game-hub.js?v=10"></script>
+  <script src="../shared/hub-handoff.js?v=5"></script>
   <script src="../shared/game-net.js?v=1"></script>
   <script src="net.js?v=1"></script>
   <script src="dessin.js?v=1"></script>
   <script src="sync.js?v=1"></script>
   <script src="app.js?v=2"></script>
-  <script src="jeu.js?v=3"></script>
+  <script src="jeu.js?v=4"></script>
 </body>
 </html>

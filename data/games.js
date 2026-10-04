@@ -453,7 +453,7 @@ const GAMES = [
     ],
     href: 'games/croquis/',
     status: 'live',
-    hub: false,                           // volontairement HORS du Game Hub (pas de handoff) : absent du manifest
+    hub: false,                           // volontairement HORS du Game Hub (handoff prêt, pas activé) : absent du manifest
   },
   {
     id: 'soon',

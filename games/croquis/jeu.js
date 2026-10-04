@@ -9,7 +9,8 @@
 //   l'échéance) → dessin (mot au dessinateur, gabarit aux autres) →
 //   devinettes (fil : mauvaises réponses publiques, « a trouvé » sans le mot,
 //   « presque » / refus à l'auteur seul) → indices → fin du tour (motif).
-// Pas encore : score affiché, classement, écran de fin, Hub.
+// Game Hub : le handoff de Roquette Party (games/shared/hub-handoff.js),
+// « lancé par le Hub » plus bas ; sans billet, rien ne change.
 //
 // Pipeline du dessin (lot réseau 1, inchangé) : Pointer Event → dessin local
 // immédiat (app.js) → `stroke` (sync.js) → serveur → les autres.
@@ -300,11 +301,46 @@
     } catch (err) {
       showError(err.message);
       perte.refus(err.message);
+      // Lancé par le Hub et serveur injoignable : le Hub est prévenu.
+      if (lien && viaHub && !myId) { viaHub = false; lien.failed('UNREACHABLE', err.message); }
     }
   }
   $('host').addEventListener('click', () => enter());
   $('join').addEventListener('click', () => enter($('code-input').value));
   $('code-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') enter($('code-input').value); });
+
+  // ------------------------------------------------------- lancé par le Hub
+  // Même montage que Roquette Party. Ouverte par le Game Hub, la page a un
+  // billet (games/shared/hub-handoff.js) qui dit si l'on CRÉE la partie (l'hôte
+  // du lancement) ou si l'on REJOINT le code du groupe. Dans les deux cas on
+  // passe par `enter()`, le join normal de cette page : aucun second système de
+  // room, aucun message de plus vers croquis-server. Sans billet (ou billet
+  // d'un autre jeu, périmé, mal formé), `lien` vaut null et la page marche
+  // exactement comme avant.
+  let viaHub = false;          // le join en cours vient du Hub
+  let partirSansAttendre = false;
+  let nbJoueurs = 0;
+  const lien = window.HubHandoff ? HubHandoff.start({
+    gameId: 'croquis',
+    join: (code) => {
+      viaHub = true;
+      if (!$('name-input').value.trim()) $('name-input').value = GameProfile.load().name || '';
+      enter(code || undefined);
+    },
+    onUpdate: (i) => attente(i),
+  }) : null;
+
+  // L'hôte ne lance pas tant que le groupe n'est pas dans la room :
+  // croquis-server refuse un join hors du salon (« partie déjà commencée »),
+  // donc un invité en retard resterait dehors. Il peut partir sans eux —
+  // explicitement. Hors Hub, seule la règle habituelle : au moins 2 joueurs.
+  function attente(i) {
+    const n = i && i.launch.stage === 'join' ? i.waitingIds.length : 0;
+    const bloque = isHost && n > 0 && !partirSansAttendre;
+    $('start').disabled = bloque || nbJoueurs < 2;
+    $('start').textContent = bloque ? `En attente de ${i.waiting}…` : 'Lancer la partie';
+    $('start-anyway').hidden = !bloque;
+  }
 
   // --- connexion perdue (games/shared/game-net.js) -------------------------
   // Pas de reprise en pleine partie (V1) : au salon, on revient par le join
@@ -313,9 +349,9 @@
     dansRoom: () => !!myId,
     enPartie: () => !$('play').hidden,
     code: () => $('room-code').textContent.trim(),
-    quitter: () => { myId = null; tour = null; phase = 'home'; envoi.oublier(); atelier.arreter(); showError(''); },
-    revenir: (code) => enter(code),
-    show, hub: false,
+    quitter: () => { myId = null; tour = null; phase = 'home'; envoi.oublier(); atelier.arreter(); $('to-hub').hidden = true; showError(''); },
+    revenir: (code) => { if (lien) viaHub = true; enter(code); },
+    show, hub: !!lien,
   });
   NET.on('lost', () => { majDevine(); });
 
@@ -328,6 +364,7 @@
 
   // ------------------------------------------------------------------ salon
   $('start').addEventListener('click', () => NET.send({ action: 'start' }));
+  $('start-anyway').addEventListener('click', () => { partirSansAttendre = true; NET.send({ action: 'start' }); });
   // Fin de partie (hôte) : la revanche relance une partie dans la même room ;
   // le retour au salon y ramène tout le monde.
   $('revanche').addEventListener('click', () => NET.send({ action: 'start' }));
@@ -344,7 +381,8 @@
     }
     $('lobby-count').textContent = `${players.length} / 16`;
     $('host-config').hidden = !isHost;
-    $('start').disabled = players.length < 2;
+    nbJoueurs = players.length;
+    attente(lien && lien.info());
     $('need-players').textContent = isHost
       ? (players.length < 2 ? 'Il faut au moins 2 joueurs.' : '')
       : 'En attente de l’hôte…';
@@ -399,6 +437,11 @@
     perte.retour();
     $('room-code').textContent = m.code;
     show('lobby');
+    // Lancé par le Hub : on lui dit dans quelle room on est. L'hôte y déclare
+    // le code (le seul qu'il croira) ; les invités confirment y être entrés.
+    // Avec SA place dans la room (m.id, l'id Croq.ios — jamais celui du Hub) :
+    // c'est elle qui relie le classement final à son joueur du Hub.
+    if (lien) { viaHub = false; lien.roomReady(m.code, m.id); attente(lien.info()); }
   });
 
   NET.on('lobby', (m) => {
@@ -458,6 +501,9 @@
   });
 
   NET.on('turn', (m) => {
+    // Le premier tour = la partie démarre : l'hôte le dit au Hub. Une revanche
+    // dans la même room ne compte pas (hub-handoff.js filtre).
+    if (lien && isHost && m.turnId === 1) lien.started();
     phase = 'choosing';
     tour = { turnId: m.turnId, drawer: m.drawer, round: m.round, rounds: m.rounds };
     monMot = null;
@@ -586,7 +632,27 @@
     atelier.arreter();
     majPlay();
     afficherFin(m);
+    if (lien) {
+      // Score de soirée : le classement du SERVEUR, transmis au Hub (l'hôte du
+      // lancement seulement, une fois — hub-handoff.js filtre). Toujours AVANT
+      // ended(). Une partie interrompue (pas assez de joueurs) n'est pas
+      // classée : ended() seul, comme l'abandon du Morpion.
+      // (garde : un hub-handoff.js resté en cache n'a pas results)
+      if (m.complete && lien.results) lien.results(rangs(m.ranking));
+      lien.ended();
+      // Mode Hub : le retour au Hub devient l'action PRINCIPALE, la revanche
+      // passe au second plan (hub-handoff.js, endActions).
+      if (HubHandoff.endActions) HubHandoff.endActions($('to-hub'), $('revanche'));
+      else $('to-hub').hidden = false;
+    }
   });
+
+  // Le classement de fin → le contrat du Hub ({ gamePlayerId, rank, points }).
+  // Rang et score sont ceux du serveur, sans recalcul (ex æquo = même rang) ;
+  // le Hub ne lit que le rang pour le score de soirée.
+  function rangs(ranking) {
+    return ranking.map((r) => ({ gamePlayerId: r.id, rank: r.rank, points: r.score }));
+  }
 
   // Un refus, à moi seul. Un trait refusé : la feuille du dessinateur ne
   // correspond plus à celle du serveur, qui est l'autorité : on lui redemande
@@ -607,6 +673,9 @@
   NET.on('error', (m) => {
     showError(m.message);
     perte.refus(m.message);
+    // Le serveur refuse d'entrer (code inconnu, partie pleine ou déjà
+    // commencée) : le Hub est prévenu, pour que le groupe le sache.
+    if (lien && viaHub && !myId) { viaHub = false; lien.failed('JOIN', m.message); }
   });
 
   // Le profil : préremplir le pseudo.
