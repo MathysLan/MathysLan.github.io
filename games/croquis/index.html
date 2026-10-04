@@ -3,13 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Croquis — jeu de dessin · Mathys Langiny</title>
-<!-- Lot réseau 1 : salon + SYNCHRONISATION du dessin avec croquis-server
-     (pas encore de devinettes, de score ni de Hub). ?atelier : l'atelier
-     libre, sans réseau. La page n'est liée nulle part et reste hors index tant
-     que le jeu n'existe pas. Nom provisoire. -->
-<meta name="robots" content="noindex">
-<meta name="description" content="Croquis : un jeu de dessin multijoueur (prototype).">
+<title>Croq.ios — jeu de dessin multijoueur · Mathys Langiny</title>
+<!-- Au portfolio (section Jeux), volontairement hors du Game Hub : hub: false
+     dans data/games.js. Nom affiché « Croq.ios » ; le dossier, les modules JS
+     et le serveur gardent le nom technique « croquis ». ?atelier : l'atelier
+     libre, sans réseau. -->
+<meta name="description" content="Croq.ios : chacun son tour, un joueur dessine un mot, les autres le devinent. Dessine. Devine. Gagne.">
+<link rel="canonical" href="https://mathyslan.github.io/games/croquis/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Mathys Langiny">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Croq.ios — jeu de dessin multijoueur">
+<meta property="og:description" content="Dessine. Devine. Gagne. Un joueur dessine un mot, les autres le devinent.">
+<meta property="og:url" content="https://mathyslan.github.io/games/croquis/">
+<meta property="og:image" content="https://mathyslan.github.io/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
 <meta name="theme-color" content="#241c14">
 <!-- Socle TF2 complet (palette, polices, primitives), puis socle commun des
@@ -247,11 +257,11 @@
 <body>
   <main>
     <header class="tete">
-      <h1>Cro<span class="a">quis</span></h1>
-      <p class="sub">un joueur dessine, les autres regardent · prototype</p>
+      <h1>Croq<span class="a">.ios</span></h1>
+      <p class="sub">Dessine. Devine. Gagne.</p>
     </header>
 
-    <noscript><p class="center">Croquis a besoin de JavaScript.</p></noscript>
+    <noscript><p class="center">Croq.ios a besoin de JavaScript.</p></noscript>
 
     <!-- ACCUEIL -->
     <section id="home" class="panel g-screen">
@@ -290,7 +300,7 @@
     <!-- LA PARTIE : le bandeau du tour (et son chrono), la feuille (et le choix
          du mot par-dessus), puis la colonne : outils (au seul dessinateur),
          gabarit, devinette, fil. -->
-    <section id="play" class="atelier" aria-label="Partie de Croquis" hidden>
+    <section id="play" class="atelier" aria-label="Partie de Croq.ios" hidden>
       <div class="bandeau"><span id="bandeau" role="status"></span><span id="chrono" class="chrono" aria-hidden="true"></span></div>
       <div class="cadre">
         <div id="feuille" class="feuille">
