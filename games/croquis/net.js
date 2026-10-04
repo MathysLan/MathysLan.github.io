@@ -5,11 +5,9 @@
 // Quel serveur ? Même convention que les autres jeux (?server= d'abord, sinon
 // la production) : une page ouverte EN LOCAL (fichier, ou servie par
 // localhost / 127.0.0.1) vise le serveur local ; servie par le portfolio
-// (GitHub Pages), elle viserait Render.
+// (GitHub Pages), elle vise Render (wss://croquis-server.onrender.com,
+// déployé et vérifié le 2026-10-04 : join, partie, catalogue V1).
 //   ?server=ws://localhost:8095   force un serveur, partout
-// ⚠️ croquis-server n'est PAS encore déployé : l'URL de production ci-dessous
-// est celle que Render donnera au service `croquis-server` (render.yaml du
-// dépôt) ; à recouper le jour du déploiement.
 //
 // Le transport lui-même — connexion, présence du joueur, perte de connexion
 // (`lost`) — est commun aux jeux : games/shared/game-net.js.
