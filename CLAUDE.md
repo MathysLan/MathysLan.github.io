@@ -44,7 +44,7 @@ dans le journal.
 | **Le Passeur** | `games/passeur/` | `passeur-server` | Une situation de volley, cinq passes, cinq secondes. Points = pertinence × vitesse. Barèmes et `why` seulement au `results`. Catalogue `situations.js` + règles `rules.js` côté serveur. |
 | **Qui Ment ?** | `games/quiment/` | `qui-ment-server` | Bluff : même mot pour tous sauf l'intrus (qui n'a que la catégorie). 2 tours d'indices en aveugle, vote, révélation, dernière chance. Le mot ne part JAMAIS en diffusion (joueur par joueur, `word: null` pour l'intrus) ; les indices sont ramassés en silence puis révélés d'un bloc ; la liste des mots de la catégorie ne part qu'à l'intrus démasqué. Le test WebSocket du serveur relit **tout le fil** chez l'intrus (seul moyen d'attraper une fuite par un message de progression). Catalogue `mots.js`. |
 | **Roquette Party** | `games/roquette/` | `roquette-server` | Jeu de mots en temps réel, 2 à 16 joueurs : des lettres s'affichent, un mot qui les contient avant l'explosion, chaque explosion coûte une vie. L'instant de l'explosion et le dictionnaire ne quittent jamais le serveur ; rang = ordre d'élimination, aucun point de partie. Jeu du Hub (`handoff: true`). |
-| **Croq.ios** (technique : `croquis`) | `games/croquis/` | `croquis-server` | Jeu de dessin, 2 à 16 joueurs : un dessinateur choisit un mot parmi trois (1 facile, 1 moyen, 1 difficile, catalogue V1 de 318 mots côté serveur), les autres devinent. Le mot ne part qu'au dessinateur jusqu'au `turn-end` ; traits validés et bornés par le serveur. Nom AFFICHÉ « Croq.ios » ; dossier, id, modules JS et serveur restent `croquis` (ne pas renommer). Au portfolio, **hors du Hub** (`hub: false`). Handoff PRÊT mais pas activé : même montage que Roquette (`gameId: 'croquis'`, `roomReady` au `you`, `started` au premier `turn`, `results` (rang + score du serveur) puis `ended` à `results` — `ended` seul pour une partie interrompue —, « Lancer sans attendre », `#to-hub`) ; `tests/handoff-croquis.mjs` l'éprouve avec une entrée `croquis` ajoutée au SEUL manifest temporaire du test. Activer = passer `hub` à un bloc. |
+| **Croq.ios** (technique : `croquis`) | `games/croquis/` | `croquis-server` | Jeu de dessin, 2 à 16 joueurs : un dessinateur choisit un mot parmi trois (1 facile, 1 moyen, 1 difficile, catalogue V1 de 318 mots côté serveur), les autres devinent. Le mot ne part qu'au dessinateur jusqu'au `turn-end` ; traits validés et bornés par le serveur. Nom AFFICHÉ « Croq.ios » ; dossier, id, modules JS et serveur restent `croquis` (ne pas renommer). Jeu du Hub (`handoff: true`, 2 à 16 joueurs, 5–18 min, `creatif` + `ambiance`) : même montage que Roquette (`gameId: 'croquis'`, `roomReady` au `you`, `started` au premier `turn`, `results` (rang + score du serveur) puis `ended` à `results` — `ended` seul pour une partie interrompue —, « Lancer sans attendre », `#to-hub`) ; test `tests/handoff-croquis.mjs`. |
 | **Puissance 4** | `js/connect4.js` (`launchConnect4`) | aucun | 100 % navigateur, canvas, bot gagner > bloquer > centre. Lancé par le carousel, INSERT COIN, Ctrl+K, Konami. |
 
 - Dépôts serveurs sur le poste de Mathys : `C:\perso\<nom>` (les sept
@@ -525,31 +525,30 @@ propre plafond dans le manifest : le tirage écarte seul un jeu trop petit
 
 ### Le manifest des jeux
 
-- **`data/games.js` est la source de vérité** (bloc `hub` par jeu jouable, 9 sur
-  10 — « La suite » n'en a pas).
+- **`data/games.js` est la source de vérité** (bloc `hub` par jeu jouable, 10 sur
+  11 — « La suite » n'en a pas).
   **`data/games.manifest.json` est GÉNÉRÉ** par `tools/build.mjs` ; le Hub le
   relit sur GitHub Pages (cache 5 min) : ajouter un jeu au portfolio l'ajoute au
   tirage sans redéployer le Hub.
 - **`hub: false`** = jeu jouable tenu VOLONTAIREMENT hors du Hub (dans la
   section Jeux, absent du manifest, jamais tiré). Choix écrit, pas un oubli :
   un jeu « live » sans `hub` du tout fait toujours échouer le build.
-  `tests/manifest.mjs` vérifie qu'il n'entre pas au manifest. Aujourd'hui :
-  **Croq.ios** (`games/croquis/`, `croquis-server`), en attendant son lot
-  Hub. **Roquette Party** (`games/roquette/`,
-  `roquette-server`, 2 à 16 joueurs) l'a été jusqu'à son handoff, il est
-  désormais un jeu du Hub (`hub.handoff: true`).
+  `tests/manifest.mjs` vérifie qu'il n'entre pas au manifest. Aucun jeu ne
+  l'utilise aujourd'hui : **Roquette Party** puis **Croq.ios** l'ont été
+  jusqu'à leur handoff, ils sont désormais des jeux du Hub
+  (`hub.handoff: true`).
 - ⚠️ **Schéma FERMÉ** (clés `CLES`, vocabulaires fermés `needs` = `mic` /
   `cam` / `consent`, `categories`) : aucun identifiant de contenu n'entre dans
   le manifest, et une faute de frappe fait échouer le build au lieu de créer un
   filtre que rien ne satisfait.
 - `minutes` = `{ min, max }` au réglage par défaut ; le filtre de durée compare
   le `max`. `content` / `replay` à `false` = « non supporté OU pas vérifié »
-  (`replay` est à `true` pour Le Passeur, Qui Ment ? et Roquette Party — retour
+  (`replay` est à `true` pour Le Passeur, Qui Ment ?, Roquette Party et Croq.ios — retour
   au salon par `action: 'lobby'`, vérifié dans chaque `server.js`). Le Hub transporte
   l'historique de contenu sans l'interpréter ; limite connue : les serveurs
   rappellent `E.deal()` à chaque `start`, donc « rejouer » efface
   l'anti-répétition de contenu.
-  `handoff: true` pour les huit jeux en ligne (Puissance 4 : `false`) ; le test
+  `handoff: true` pour les neuf jeux en ligne (Puissance 4 : `false`) ; le test
   vérifie que la page charge vraiment `hub-handoff.js`.
 - ⚠️ **Le Hub ne teste JAMAIS une capacité** (aucun `getUserMedia`) : c'est le
   jeu qui demande le micro à l'entrée.
@@ -564,6 +563,7 @@ propre plafond dans le manifest : le tirage écarte seul un jeu trop petit
 | Le Passeur | 1 | 8 | `MAX_PLAYERS` dans server.js |
 | Qui Ment ? | **3** | 8 | `E.MIN_PLAYERS` — sous 3 le vote n'a aucun sens |
 | Roquette Party | 2 | **16** | `MIN_PLAYERS` / `MAX_PLAYERS` dans `engine.js` ; `minutes` 2–10 (au-delà de 10 joueurs une partie peut dépasser) |
+| Croq.ios | 2 | 16 | `MIN_PLAYERS` / `MAX_PLAYERS` dans `engine.js` de `croquis-server` ; `minutes` 5–18 |
 | Puissance 4 | 1 | 1 | local, sans serveur |
 
 `tests/manifest.mjs` compare l'URL `wss://` annoncée à celle du `net.js` du jeu,
@@ -687,7 +687,7 @@ Les sept jeux en ligne (Morpion, Imitation, Demi-Cercle, Ban, Précision, Le
 Passeur, Qui Ment ?) ont le **même montage**, et **Roquette Party** aussi
 (handoff, `results` par le rang du serveur avec `points: 0`, « Lancer sans
 attendre », `surPerte` ; test `tests/handoff-roquette.mjs`). **Croq.ios** a le même
-montage, prêt mais pas activé (`hub: false`, `tests/handoff-croquis.mjs`). Puissance 4, local, n'en a pas
+montage (`results` avec le rang ET le score du serveur ; test `tests/handoff-croquis.mjs`). Puissance 4, local, n'en a pas
 besoin. Aucun serveur de jeu ne connaît le Hub.
 
 ### Le principe : le Hub ne parle jamais au serveur du jeu
@@ -989,7 +989,7 @@ indisponibles → Quitter / Terminer.**
   d'anneau sur ces titres. `showRecap` met de même le focus sur `#recap-title`.
 - **Score vide** : `#hub-score.is-empty`, une ligne ; les lignes restent
   calculées, masquées.
-- **Catalogue** : `#hub-games` contient TOUJOURS les 9 fiches : `#hub-games-ok`
+- **Catalogue** : `#hub-games` contient TOUJOURS les 10 fiches : `#hub-games-ok`
   puis `<details id="hub-out">` (`#hub-games-out`) avec les raisons et les ❤️ /
   🚫 (c'est là qu'on
   lève son veto) ; ouvert d'office s'il n'y a plus aucun jeu possible.

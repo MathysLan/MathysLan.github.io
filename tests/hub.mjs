@@ -97,9 +97,9 @@ t('raison : veto d\'un pseudo en consonne → « de »', R({ code: 'VETO', playe
   const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'games.manifest.json'), 'utf8'));
   const titres = Object.fromEntries(manifest.games.map((g) => [g.id, g.title]));
   const attendus = { morpion: 'de Morpion', imitation: 'd\'Imitation', demicercle: 'de Demi-Cercle', puissance4: 'de Puissance 4',
-    ban: 'du Jeu du Ban', precision: 'de Précision', passeur: 'du Passeur', quiment: 'de Qui Ment ?', roquette: 'de Roquette Party' };
+    ban: 'du Jeu du Ban', precision: 'de Précision', passeur: 'du Passeur', quiment: 'de Qui Ment ?', roquette: 'de Roquette Party', croquis: 'de Croq.ios' };
   const vus = Object.entries(titres).map(([id, titre]) => [id, H.de(titre)]);
-  t('de() : chaque titre du manifest (9) a sa forme naturelle', vus.length === 9 && vus.every(([id, v]) => v === attendus[id]),
+  t('de() : chaque titre du manifest (10) a sa forme naturelle', vus.length === 10 && vus.every(([id, v]) => v === attendus[id]),
     JSON.stringify(vus.filter(([id, v]) => v !== attendus[id])));
   const pseudos = { Alice: 'd\'Alice', Bruno: 'de Bruno', 'Ève': 'd\'Ève', 'Émile': 'd\'Émile', Olga: 'd\'Olga', Ugo: 'd\'Ugo',
     'Œdipe': 'd\'Œdipe', alice: 'd\'alice', Inès: 'd\'Inès', Yanis: 'de Yanis', Hugo: 'de Hugo', Chloé: 'de Chloé',

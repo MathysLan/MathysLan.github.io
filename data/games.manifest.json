@@ -236,6 +236,32 @@
       "content": false,
       "replay": true,
       "handoff": true
+    },
+    {
+      "id": "croquis",
+      "title": "Croq.ios",
+      "emoji": "🎨",
+      "url": "games/croquis/",
+      "mode": "online",
+      "players": {
+        "min": 2,
+        "max": 16
+      },
+      "minutes": {
+        "min": 5,
+        "max": 18
+      },
+      "needs": [],
+      "categories": [
+        "creatif",
+        "ambiance"
+      ],
+      "server": "wss://croquis-server.onrender.com",
+      "health": "https://croquis-server.onrender.com/",
+      "join": "v1",
+      "content": false,
+      "replay": true,
+      "handoff": true
     }
   ]
 }

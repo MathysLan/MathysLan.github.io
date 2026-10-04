@@ -299,7 +299,7 @@ try {
     await J.type('#hub-code-input', code); await J.click('#hub-join');
   }
   for (const J of tous) await J.until(`document.querySelectorAll('#hub-players .hub-card').length === 3 && document.querySelectorAll('#hub-games .hub-game').length >= 8`, 20000 * LENT, `${J.nom} au salon`);
-  for (const g of ['passeur', 'imitation', 'ban', 'precision', 'demicercle', 'roquette']) await B.click(`#hub-games [data-pref=veto][data-game=${g}]`);
+  for (const g of ['passeur', 'imitation', 'ban', 'precision', 'demicercle', 'roquette', 'croquis']) await B.click(`#hub-games [data-pref=veto][data-game=${g}]`);
   await A.until(`[...document.querySelectorAll('#hub-games .hub-game[data-eligible=true]')].map((x) => x.dataset.game).join() === 'quiment'`, 8000, 'seul Qui Ment ?');
   const avant = Object.assign({}, A.hub().scores);
   t('session à trois, seul Qui Ment ? possible', true, code);

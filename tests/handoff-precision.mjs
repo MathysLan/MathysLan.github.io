@@ -140,7 +140,7 @@ try {
   const code = (await A.create(pA)).session.code;
   await B.join(code, pB);
   await sA.until((s) => s.pool && s.pool.catalog === 'ready' && s.players.length === 2);
-  B.setPrefs([], ['morpion', 'imitation', 'demicercle', 'ban', 'passeur', 'roquette']);
+  B.setPrefs([], ['morpion', 'imitation', 'demicercle', 'ban', 'passeur', 'roquette', 'croquis']);
   const seul = await sA.until((s) => JSON.stringify(s.pool.eligible) === '["precision"]');
   t('le groupe (2) : seule Précision est éligible (vetos de B)', !!seul, JSON.stringify(sA.last.pool.eligible));
   const entree = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/games.manifest.json'), 'utf8')).games.find((g) => g.id === 'precision');
@@ -486,7 +486,7 @@ try {
   for (const J of [A, B, C]) await J.until(`document.querySelectorAll('#hub-players .hub-card').length === 3`, 20000, `${J.nom} au salon`);
   t('navigateurs : A crée la session du Hub, B et C la rejoignent', true, code);
   const idC = await C.eval(`GameProfile.load().id`);
-  for (const id of ['imitation', 'demicercle', 'ban', 'passeur', 'quiment', 'roquette']) await B.click(`#hub-games [data-pref=veto][data-game=${id}]`);
+  for (const id of ['imitation', 'demicercle', 'ban', 'passeur', 'quiment', 'roquette', 'croquis']) await B.click(`#hub-games [data-pref=veto][data-game=${id}]`);
   await A.until(`[...document.querySelectorAll('#hub-games .hub-game[data-eligible=true]')].map((x) => x.dataset.game).join() === 'precision'`, 8000, 'seule Précision');
   await A.click('#hub-draw-btn');
   for (const J of [A, B, C]) await J.until(`document.getElementById('hub-result').dataset.game === 'precision' && !document.getElementById('hub-result').hidden`, 15000, `révélation ${J.nom}`);

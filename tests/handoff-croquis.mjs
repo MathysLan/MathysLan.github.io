@@ -7,10 +7,8 @@
 //   node tests/handoff-croquis.mjs --reduced       mouvement réduit
 //   node tests/handoff-croquis.mjs --shots <dir>   une capture par étape
 //
-// ⚠️ Croq.ios est HORS du Hub (hub: false dans data/games.js) : il n'est PAS au
-// manifest du dépôt, et ce test le vérifie. Pour éprouver le handoff quand
-// même, l'entrée `croquis` n'est ajoutée qu'au manifest TEMPORAIRE du Hub local
-// (hub-fixture.mjs l'écrit dans le dossier temporaire du système).
+// Croq.ios est au manifest du dépôt (handoff: true) : le Hub LOCAL relit ce
+// manifest, seule la santé de Croq.ios pointe sur le croquis-server local.
 //
 //   1. le billet, sans réseau ni navigateur (valide, autre jeu, périmé, mal formé) ;
 //   2. trois navigateurs : A crée la session du Hub, B et C la rejoignent → seul
@@ -70,12 +68,11 @@ t('billet illisible ou incomplet : refusé', !HH.readTicket('{pas du json', 'cro
 t('aucun secret dans le billet : les mêmes champs que pour les autres jeux',
   JSON.stringify(Object.keys(HH.readTicket(BON, 'croquis')).sort()) === JSON.stringify(['at', 'drawId', 'gameId', 'hub', 'playerId', 'role', 'session', 'v']));
 const MAN_DEPOT = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/games.manifest.json'), 'utf8'));
-t('manifest du DÉPÔT : Croq.ios n\'y est PAS (hub: false, jamais tiré par le vrai Hub)', !MAN_DEPOT.games.some((g) => g.id === 'croquis'));
 {
-  const src = fs.readFileSync(path.join(ROOT, 'data/games.js'), 'utf8');
-  const G = new Function(src + ';return GAMES')();
-  const g = G.find((x) => x.id === 'croquis');
-  t('data/games.js : croquis reste hub: false', !!g && g.hub === false && g.status === 'live');
+  const g = MAN_DEPOT.games.find((x) => x.id === 'croquis');
+  t('manifest du DÉPÔT : Croq.ios y est, une fois, lançable (handoff: true, 2 à 16 joueurs)',
+    MAN_DEPOT.games.filter((x) => x.id === 'croquis').length === 1 && g.handoff === true && g.players.min === 2 && g.players.max === 16,
+    JSON.stringify(g && { handoff: g.handoff, players: g.players }));
 }
 {
   const page = fs.readFileSync(path.join(ROOT, 'games/croquis/index.html'), 'utf8');
@@ -92,16 +89,8 @@ const lance = (cwd, file, port, env = {}) => {
 async function attends(url) { for (let i = 0; i < 100; i++) { try { const r = await fetch(url); if (r.ok) return; } catch (_) {} await sleep(100); } throw new Error('injoignable : ' + url); }
 
 const sante = await fakeHealth(HEALTH_PORT);
-// Le manifest du Hub LOCAL : celui du dépôt, PLUS une entrée croquis (test
-// seulement), au même schéma que Roquette, santé sur le croquis-server local.
-const MANIFEST = localManifest(ROOT, HEALTH_PORT);
-{
-  const m = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
-  m.games.push({ id: 'croquis', title: 'Croq.ios', emoji: '🎨', url: 'games/croquis/', mode: 'online', players: { min: 2, max: 16 },
-    minutes: { min: 5, max: 15 }, needs: [], categories: ['ambiance'], server: `ws://127.0.0.1:${CRO_PORT}`,
-    health: `http://127.0.0.1:${CRO_PORT}/`, join: 'v1', content: false, replay: true, handoff: true });
-  fs.writeFileSync(MANIFEST, JSON.stringify(m));
-}
+// Le manifest du Hub LOCAL : celui du dépôt, santé de Croq.ios sur le serveur local.
+const MANIFEST = localManifest(ROOT, HEALTH_PORT, { croquis: `http://127.0.0.1:${CRO_PORT}/` });
 // Délais de test de croquis-server : 2 joueurs = 3 manches, 6 tours ; personne
 // ne dessine ni ne devine, chaque tour finit au chrono.
 lance(SERVEUR, 'server.js', CRO_PORT, { TEST_CHOOSE_MS: '500', TEST_DRAW_MS: '1200', TEST_PAUSE_MS: '100', TEST_REVEAL_MS: '300' });
@@ -258,7 +247,7 @@ try {
   await A.until(`[...document.querySelectorAll('#hub-games .hub-game[data-eligible=true]')].map((x) => x.dataset.game).join() === 'croquis'`, 8000, 'seul Croq.ios');
   await A.click('#hub-draw-btn');
   for (const J of [A, B, C]) await J.until(`document.getElementById('hub-result').dataset.game === 'croquis' && !document.getElementById('hub-result').hidden`, 15000, `révélation ${J.nom}`);
-  t('tirage (manifest de TEST) : Croq.ios, révélé chez les trois', true);
+  t('tirage : Croq.ios, révélé chez les trois', true);
 
   // ═══ 5. A ouvre le jeu : billet lu, la room se crée toute seule, roomReady
   await A.click('#hub-continue');

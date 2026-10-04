@@ -114,7 +114,7 @@ try {
   const code = (await A.create(pA)).session.code;
   await B.join(code, pB);
   await sA.until((s) => s.pool && s.pool.catalog === 'ready' && s.players.length === 2);
-  B.setPrefs([], ['morpion', 'demicercle', 'ban', 'precision', 'passeur', 'roquette']);
+  B.setPrefs([], ['morpion', 'demicercle', 'ban', 'precision', 'passeur', 'roquette', 'croquis']);
   const seul = await sA.until((s) => JSON.stringify(s.pool.eligible) === '["imitation"]');
   t('le groupe (2) : seul Imitation est éligible (vetos de B)', !!seul, JSON.stringify(sA.last.pool.eligible));
   t('le micro n\'écarte plus rien : aucune raison de capacité', !(sA.last.pool.why.imitation || []).length);

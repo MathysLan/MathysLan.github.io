@@ -52,7 +52,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const R = () => Math.floor(Math.random() * 300);
 const HUB_PORT = 8300 + R(), QM_PORT = 8900 + R(), HEALTH_PORT = 6100 + R(), HTTP_PORT = 8700 + R(), CDP_PORT = 9700 + R();
 // Tout ce qui n'est pas Qui Ment ? est écarté par B : il ne reste que lui.
-const AUTRES = ['morpion', 'imitation', 'demicercle', 'ban', 'precision', 'passeur', 'roquette'];
+const AUTRES = ['morpion', 'imitation', 'demicercle', 'ban', 'precision', 'passeur', 'roquette', 'croquis'];
 // Les messages de jeu (hors salon) : ce qui fait avancer une manche.
 const JEU = ['role', 'clues', 'vote', 'guessing', 'results', 'end'];
 

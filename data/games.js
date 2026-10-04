@@ -453,7 +453,19 @@ const GAMES = [
     ],
     href: 'games/croquis/',
     status: 'live',
-    hub: false,                           // volontairement HORS du Game Hub (handoff prêt, pas activé) : absent du manifest
+    hub: {
+      mode: 'online',
+      players: { min: 2, max: 16 },
+      minutes: { min: 5, max: 18 },
+      needs: [],
+      categories: ['creatif', 'ambiance'],
+      server: 'wss://croquis-server.onrender.com',
+      health: 'https://croquis-server.onrender.com/',
+      join: 'v1',
+      content: false,
+      replay: true,
+      handoff: true,
+    },
   },
   {
     id: 'soon',

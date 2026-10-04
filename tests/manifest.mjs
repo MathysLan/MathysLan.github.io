@@ -75,9 +75,10 @@ for (const g of M.games.filter((x) => x.mode === 'online')) {
 }
 
 // Le dialecte de connexion est vérifiable : un client « v1 » envoie name et
-// avatar dans son join, un client « anon » n'en envoie aucun.
+// avatar dans son join, un client « anon » n'en envoie aucun. Le join est dans
+// net.js ou app.js — chez Croq.ios, dans jeu.js (app.js y est l'atelier).
 for (const g of M.games.filter((x) => x.mode === 'online')) {
-  const src = read(`${g.url}net.js`) + (fs.existsSync(p(`${g.url}app.js`)) ? read(`${g.url}app.js`) : '');
+  const src = ['net.js', 'app.js', 'jeu.js'].filter((f) => fs.existsSync(p(`${g.url}${f}`))).map((f) => read(`${g.url}${f}`)).join('\n');
   const join = /action:\s*'join'[^}]*\}/.exec(src)?.[0] || '';
   const identite = /name/.test(join) && /avatar/.test(join);
   t(`${g.id} : dialecte « ${g.join} » conforme au client`,

@@ -89,7 +89,7 @@ try {
   await sA.until((s) => s.pool && s.pool.catalog === 'ready' && s.players.length === 3);
   // ⚠️ Imitation et le Ban sont possibles à 3 joueurs : micro et avertissement
   // sont acquis d'office, il n'y a plus d'écran pour les déclarer.
-  B.setPrefs([], ['imitation', 'demicercle', 'ban', 'precision', 'quiment', 'roquette']);
+  B.setPrefs([], ['imitation', 'demicercle', 'ban', 'precision', 'quiment', 'roquette', 'croquis']);
   const seul = await sA.until((s) => JSON.stringify(s.pool.eligible) === '["passeur"]');
   t('le groupe (3) : seul Le Passeur est éligible (vetos de B)', !!seul, JSON.stringify(sA.last.pool.eligible));
   A.draw();
