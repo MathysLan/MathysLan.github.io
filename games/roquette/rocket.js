@@ -123,87 +123,126 @@
     return d + 'Z';
   }
 
-  // « La Pétoire de Secours » : une cartouche de détresse, création maison dans
-  // l'esprit du pistolet de détresse du Pyro (aucun asset repris) — tube fin de
-  // carton rouge, culot de laiton, magnésium qui brûle À L'AVANT (blanc, rose),
-  // et un pochoir maison. Ses crochets : la flamme est la lueur du nez
-  // (.r-flamme, gonflée par le danger autour de son centre), la fumée rose monte
-  // du nez, les étincelles (.p-etinc) ne s'allument qu'aux crans 2 et 3, la
-  // traînée (.p-trainee) n'existe qu'en vol. Dessinée petite puis agrandie de
-  // 25 % (un tube fin se lit mal à 140 px) et reculée pour que son nez reste à
-  // +60 (NEZ) ; le contour est compensé dans le CSS (même trait que la
-  // roquette). Au plus fort, rien ne dépasse ~100 unités du pivot : en deçà
-  // d'EMPRISE (la flamme arrière de la roquette).
-  var SERTI = 'M42,-11 L50,-7 L50,7 L42,11 Z';
-  var MAGNESIUM = 'M49,-7 L56,-7 Q61,-7 61,0 Q61,7 56,7 L49,7 Z';
-  var LUEUR = etoile(9, 17, 8), LUEUR_MI = etoile(9, 11, 5.5);
-  var PETOIRE = ''
-    + '<svg class="r-svg" viewBox="-128 -46 250 92" aria-hidden="true" focusable="false">'
+  // « La Pétoire de Secours » : une ARME et son PROJECTILE, deux calques
+  // distincts (création maison dans l'esprit du pistolet de détresse du Pyro,
+  // aucun asset repris).
+  //   - l'arme (svg .p-arme) : un petit pistolet de détresse trapu — canon de
+  //     métal peint en rouge, bouche de laiton, carcasse d'acier, crosse de
+  //     carton rouge à rivets de laiton, et un pansement en croix sur le canon
+  //     (c'est une arme… de secours). Elle reste au centre : au tir, recul et
+  //     éclair de bouche (.p-eclair, .is-firing) ;
+  //   - le projectile (.r-proj > svg .p-fusee) : une petite fusée éclairante,
+  //     chargée dans le canon (son nez dépasse de la bouche, à +60 = NEZ). Sa
+  //     tête brûle (.r-flamme) et s'intensifie avec le danger, étincelles aux
+  //     crans 2 et 3 (.p-etinc). Au tir, elle part seule : flamme arrière
+  //     (.p-feu-arriere) et traînée rose-orange (.p-trainee) pendant le vol.
+  // Le projectile est SOUS l'arme (ordre du DOM) : la bouche couvre sa queue.
+  // Fumée et chaleur sortent de la bouche (calque de l'arme). Au plus fort, rien
+  // ne dépasse ~85 unités du pivot : en deçà d'EMPRISE.
+  var CROSSE = 'M-24,10 L-7,10 L-11,40 L-33,40 Z';
+  var PONTET = 'M-5,11 C-5,26 15,26 15,12';      // un trait ouvert (pas une forme : l'encre boucherait le trou)
+  var CHIEN = 'M-24,-13 L-33,-23 L-27,-26 L-18,-14 Z';
+  var ECLAIR = etoile(7, 15, 6), ECLAIR_MI = etoile(7, 8, 3.5);
+  var ARME = ''
+    + '<svg class="r-svg p-arme" viewBox="-128 -46 250 92" aria-hidden="true" focusable="false">'
     + '<defs>'
-    + '<linearGradient id="{p}-carton" x1="0" y1="-11" x2="0" y2="11" gradientUnits="userSpaceOnUse">'
-    + '<stop offset="0" stop-color="#6e1212"/><stop offset=".18" stop-color="#c22a22"/><stop offset=".4" stop-color="#ff5b45"/>'
-    + '<stop offset=".58" stop-color="#e0352b"/><stop offset=".85" stop-color="#a11c18"/><stop offset="1" stop-color="#5e0f0f"/></linearGradient>'
-    + '<linearGradient id="{p}-laiton" x1="0" y1="-14" x2="0" y2="14" gradientUnits="userSpaceOnUse">'
+    + '<linearGradient id="{p}-canon" x1="0" y1="-12" x2="0" y2="12" gradientUnits="userSpaceOnUse">'
+    + '<stop offset="0" stop-color="#6e1212"/><stop offset=".2" stop-color="#c42b22"/><stop offset=".42" stop-color="#ff6047"/>'
+    + '<stop offset=".6" stop-color="#e0352b"/><stop offset=".85" stop-color="#a11c18"/><stop offset="1" stop-color="#5a0e0e"/></linearGradient>'
+    + '<linearGradient id="{p}-laiton" x1="0" y1="-15" x2="0" y2="15" gradientUnits="userSpaceOnUse">'
     + '<stop offset="0" stop-color="#5a4114"/><stop offset=".2" stop-color="#b48c2e"/><stop offset=".42" stop-color="#f4d98c"/>'
     + '<stop offset=".62" stop-color="#c49b45"/><stop offset=".85" stop-color="#86661f"/><stop offset="1" stop-color="#4c3711"/></linearGradient>'
-    + '<linearGradient id="{p}-serti" x1="0" y1="-11" x2="0" y2="11" gradientUnits="userSpaceOnUse">'
-    + '<stop offset="0" stop-color="#4f0c0c"/><stop offset=".5" stop-color="#9c1b17"/><stop offset="1" stop-color="#430a0a"/></linearGradient>'
+    + '<linearGradient id="{p}-acier" x1="0" y1="-14" x2="0" y2="26" gradientUnits="userSpaceOnUse">'
+    + '<stop offset="0" stop-color="#3a3a3a"/><stop offset=".25" stop-color="#8a8a8a"/><stop offset=".45" stop-color="#b5b5b5"/>'
+    + '<stop offset=".75" stop-color="#5e5e5e"/><stop offset="1" stop-color="#2c2c2c"/></linearGradient>'
+    + '<linearGradient id="{p}-crosse" x1="-34" y1="0" x2="-6" y2="0" gradientUnits="userSpaceOnUse">'
+    + '<stop offset="0" stop-color="#5e0f0f"/><stop offset=".4" stop-color="#b8261f"/><stop offset=".7" stop-color="#d9402f"/><stop offset="1" stop-color="#8e1b17"/></linearGradient>'
     + '<radialGradient id="{p}-chaleur"><stop offset="0" stop-color="#ff7ab5" stop-opacity=".8"/><stop offset="1" stop-color="#ff4f9a" stop-opacity="0"/></radialGradient>'
-    + '<linearGradient id="{p}-trainee" x1="-210" y1="0" x2="-52" y2="0" gradientUnits="userSpaceOnUse">'
-    + '<stop offset="0" stop-color="#f7bfd3" stop-opacity="0"/><stop offset="1" stop-color="#f7bfd3" stop-opacity=".9"/></linearGradient>'
     + '<filter id="{p}-flou" x="-50%" y="-200%" width="200%" height="500%"><feGaussianBlur stdDeviation="1.6"/></filter>'
     + '</defs>'
-    + '<g transform="translate(-14 0) scale(1.25)">'
-    // la traînée de fumée rose : en vol seulement (.is-flying), derrière tout
-    + '<g class="p-trainee">'
-    + '<path d="M-52,-8 C-90,-15 -122,2 -152,-6 C-174,-12 -192,-3 -210,-5 L-210,6 C-188,10 -168,1 -146,10 C-116,17 -86,4 -52,9 Z" fill="url(#{p}-trainee)"/>'
-    + '<circle cx="-96" cy="1" r="9" fill="#f7bfd3" opacity=".55"/><circle cx="-136" cy="4" r="11" fill="#f7bfd3" opacity=".4"/>'
-    + '<circle cx="-176" cy="-1" r="9" fill="#f7bfd3" opacity=".25"/>'
-    + '</g>'
-    // fumée (danger) : elle monte du nez ; chaleur : la lueur rose autour du nez
-    + '<g class="r-fumee"><circle cx="36" cy="-24" r="6"/><circle cx="22" cy="-31" r="7"/><circle cx="6" cy="-27" r="6"/></g>'
-    + '<ellipse class="r-chaleur" cx="48" cy="0" rx="36" ry="26" fill="url(#{p}-chaleur)"/>'
-    // le contour noir de toute la cartouche
+    // fumée (danger) et chaleur : à la bouche du canon
+    + '<g class="r-fumee"><circle cx="52" cy="-22" r="6"/><circle cx="40" cy="-30" r="7"/><circle cx="27" cy="-25" r="5"/></g>'
+    + '<ellipse class="r-chaleur" cx="50" cy="0" rx="34" ry="26" fill="url(#{p}-chaleur)"/>'
+    // le contour noir de toute l'arme
     + '<g class="r-ink">'
-    + '<rect x="-53" y="-14" width="10" height="28"/><rect x="-44" y="-11.5" width="15" height="23"/>'
-    + '<rect x="-30" y="-11" width="73" height="22"/><path d="' + SERTI + '"/><path d="' + MAGNESIUM + '"/>'
+    + '<path d="' + CROSSE + '"/><rect x="-34" y="40" width="24" height="4"/><path d="' + CHIEN + '"/>'
+    + '<rect x="-26" y="-14" width="20" height="26"/><rect x="-8" y="-12" width="46" height="24"/><rect x="36" y="-15" width="9" height="30"/>'
     + '</g>'
-    // culot (bourrelet, corps), tube, reflet, étiquette, sertissage, magnésium
-    + '<rect x="-53" y="-14" width="10" height="28" fill="url(#{p}-laiton)"/>'
-    + '<rect x="-44" y="-11.5" width="15" height="23" fill="url(#{p}-laiton)"/>'
-    + '<rect x="-30" y="-11" width="73" height="22" fill="url(#{p}-carton)"/>'
-    + '<rect x="-28" y="-8.5" width="69" height="2.6" fill="#fff" opacity=".45" filter="url(#{p}-flou)"/>'
-    + '<rect x="-21" y="-6.5" width="54" height="13" fill="#efe0bf"/>'
-    + '<path d="M-21,-6.5 H33 M-21,6.5 H33" stroke="#2a1a10" stroke-width="1"/>'
-    + '<text x="6" y="3" text-anchor="middle" font-family="\'TF2 Build\', \'Arial Narrow\', sans-serif" font-size="7.5" fill="#2a1a10"'
-    + ' textLength="48" lengthAdjust="spacingAndGlyphs">PAS UN JOUET</text>'
-    + '<path d="' + SERTI + '" fill="url(#{p}-serti)"/>'
-    + '<path d="' + MAGNESIUM + '" fill="#ffe8f1"/>'
-    // traits intérieurs : culot, sertissage, et la gorge du bourrelet
-    + '<g class="r-traits">'
-    + '<path d="M-44,-11.5 V11.5 M-30,-11 V11 M42,-11 V11 M50,-7 V7"/>'
-    + '<path d="M44,-8 L48,-5.5 M44,8 L48,5.5 M44.5,0 H48.5" opacity=".6"/>'
-    + '<path d="M-48,-14 V14" opacity=".45"/>'
+    // crosse et son culot, pontet, chien, carcasse, canon (reflet), bouche
+    + '<path class="p-crosse" d="' + CROSSE + '" fill="url(#{p}-crosse)"/>'
+    + '<rect x="-34" y="40" width="24" height="4" fill="url(#{p}-laiton)"/>'
+    + '<path d="' + PONTET + '" fill="none" stroke="#000" stroke-width="8" stroke-linecap="round"/>'
+    + '<path d="' + PONTET + '" fill="none" stroke="#9a9a9a" stroke-width="3" stroke-linecap="round"/>'
+    + '<path d="' + CHIEN + '" fill="#3a3a3a"/>'
+    + '<rect x="-26" y="-14" width="20" height="26" fill="url(#{p}-acier)"/>'
+    + '<rect x="-8" y="-12" width="46" height="24" fill="url(#{p}-canon)"/>'
+    + '<rect x="-6" y="-9" width="40" height="2.6" fill="#fff" opacity=".45" filter="url(#{p}-flou)"/>'
+    + '<rect x="36" y="-15" width="9" height="30" fill="url(#{p}-laiton)"/>'
+    // rivets de la crosse, axe de bascule, détente
+    + '<circle cx="-20" cy="20" r="2" fill="#f4d98c"/><circle cx="-23" cy="32" r="2" fill="#f4d98c"/>'
+    + '<circle cx="-14" cy="0" r="3.2" fill="url(#{p}-laiton)" stroke="#000" stroke-width="1.5"/>'
+    + '<path d="M-1,12 Q0,17 4,18" fill="none" stroke="#000" stroke-width="2.4" stroke-linecap="round"/>'
+    // le détail maison : un pansement en croix sur le canon
+    + '<g transform="translate(16 0)">'
+    + '<rect x="-11" y="-3.5" width="22" height="7" rx="3" fill="#e8c39a" stroke="#6b4a2a" stroke-width="1" transform="rotate(35)"/>'
+    + '<rect x="-11" y="-3.5" width="22" height="7" rx="3" fill="#efcfa8" stroke="#6b4a2a" stroke-width="1" transform="rotate(-35)"/>'
+    + '<rect x="-3" y="-2.5" width="6" height="5" fill="#f6e2c4"/>'
     + '</g>'
-    // le feu À L'AVANT : la lueur du magnésium (contour, rose, rose pâle, cœur blanc)
-    + '<g transform="translate(62 0)"><g class="r-flamme">'
-    + '<path class="r-ink" d="' + LUEUR + '"/>'
-    + '<path d="' + LUEUR + '" fill="#ff4f9a"/>'
-    + '<path d="' + LUEUR_MI + '" fill="#ffc6de"/>'
-    + '<circle r="4.5" fill="#fff"/>'
+    // traits intérieurs : carcasse / canon, bouche, crosse
+    + '<g class="r-traits"><path d="M-8,-12 V12 M36,-12 V12 M-26,2 H-8"/></g>'
+    // l'éclair de bouche (au tir seulement : .is-firing)
+    + '<g class="p-eclair" transform="translate(56 0)"><path class="r-ink" d="' + ECLAIR + '"/>'
+    + '<path d="' + ECLAIR + '" fill="#ffe65a"/><path d="' + ECLAIR_MI + '" fill="#fff"/></g>'
+    + '</svg>';
+
+  var NEZ_FUSEE = 'M56,-6 L57,-6 Q61,-6 61,0 Q61,6 57,6 L56,6 Z';
+  var TETE_FUSEE = etoile(8, 11, 5), TETE_FUSEE_MI = etoile(8, 7, 3.5);
+  var FUSEE = ''
+    + '<svg class="r-svg p-fusee" viewBox="-128 -46 250 92" aria-hidden="true" focusable="false">'
+    + '<defs>'
+    + '<linearGradient id="{p}-trainee" x1="-120" y1="0" x2="42" y2="0" gradientUnits="userSpaceOnUse">'
+    + '<stop offset="0" stop-color="#f7bfd3" stop-opacity="0"/><stop offset=".55" stop-color="#f7a6c4" stop-opacity=".6"/>'
+    + '<stop offset="1" stop-color="#ffb070" stop-opacity=".95"/></linearGradient>'
+    + '<linearGradient id="{p}-tube" x1="0" y1="-6" x2="0" y2="6" gradientUnits="userSpaceOnUse">'
+    + '<stop offset="0" stop-color="#7a1236"/><stop offset=".3" stop-color="#e2477e"/><stop offset=".5" stop-color="#ff7aa8"/>'
+    + '<stop offset=".75" stop-color="#c2306a"/><stop offset="1" stop-color="#6a0f2e"/></linearGradient>'
+    + '</defs>'
+    // la traînée rose-orange : en vol seulement (.is-flying)
+    + '<g class="p-trainee">'
+    + '<path d="M42,-5 C20,-10 -10,2 -40,-4 C-70,-10 -95,-2 -120,-4 L-120,5 C-95,9 -70,1 -40,8 C-10,13 20,4 42,5 Z" fill="url(#{p}-trainee)"/>'
+    + '<circle cx="-10" cy="1" r="7" fill="#ffc29a" opacity=".5"/><circle cx="-60" cy="3" r="8" fill="#f7bfd3" opacity=".35"/>'
+    + '</g>'
+    // la flamme ARRIÈRE : en vol seulement
+    + '<g transform="translate(42 0) scale(.42)"><g class="p-feu-arriere">'
+    + '<path class="r-ink" d="' + FLAMME + '"/><path d="' + FLAMME + '" fill="#fd8a0a"/>'
+    + '<path d="' + FLAMME_MI + '" fill="#ffd28f"/><path d="' + FLAMME_CO + '" fill="#ffff3a"/>'
+    + '</g></g>'
+    // le tube (bague de laiton) et le nez
+    + '<g class="r-ink"><rect x="42" y="-6" width="14" height="12"/><path d="' + NEZ_FUSEE + '"/></g>'
+    + '<rect x="42" y="-6" width="14" height="12" fill="url(#{p}-tube)"/>'
+    + '<rect x="42" y="-6" width="3" height="12" fill="#c9a14a"/>'
+    + '<path d="' + NEZ_FUSEE + '" fill="#ffe8f1"/>'
+    // la tête qui brûle (le crochet du danger)
+    + '<g transform="translate(61 0)"><g class="r-flamme">'
+    + '<path class="r-ink" d="' + TETE_FUSEE + '"/><path d="' + TETE_FUSEE + '" fill="#ff4f9a"/>'
+    + '<path d="' + TETE_FUSEE_MI + '" fill="#ffc6de"/><circle r="3" fill="#fff"/>'
     + '</g></g>'
     // les étincelles (danger 2 et 3)
-    + '<g class="p-etinc" fill="#fff4b0"><circle cx="82" cy="-14" r="1.8"/><circle cx="88" cy="5" r="1.5"/>'
-    + '<circle cx="76" cy="16" r="1.6"/><circle cx="91" cy="-4" r="1.3"/><circle cx="70" cy="-19" r="1.4"/></g>'
-    + '</g>'
+    + '<g class="p-etinc" fill="#fff4b0"><circle cx="74" cy="-11" r="1.6"/><circle cx="79" cy="4" r="1.4"/>'
+    + '<circle cx="70" cy="12" r="1.5"/><circle cx="82" cy="-3" r="1.2"/><circle cx="66" cy="-15" r="1.3"/></g>'
     + '</svg>';
+
+  // Le dessin de la Pétoire : le projectile d'abord (dessous), l'arme par-dessus.
+  var PETOIRE = '<div class="r-proj">' + FUSEE + '</div>' + ARME;
 
   // La table des armes. `depart` / `impact` : leurs sons propres (sound.js) —
   // tic, validation et explosion restent communs. `feu` : l'impact met le feu
-  // à la carte touchée avant l'étoile commune (app.js).
+  // à la carte touchée avant l'étoile commune (app.js). `projectile` : l'arme
+  // reste au centre et c'est son projectile (.r-proj) qui part (tirer()) ;
+  // sans, c'est toute l'arme qui vole (la roquette).
   var SKINS = {
     roquette: { nom: 'La Roquette', court: 'Roquette', dessin: ROQUETTE, depart: 'whoosh', impact: 'impact', feu: false },
-    petoire: { nom: 'La Pétoire de Secours', court: 'Pétoire', dessin: PETOIRE, depart: 'fusee', impact: 'crepitement', feu: true },
+    petoire: { nom: 'La Pétoire de Secours', court: 'Pétoire', dessin: PETOIRE, depart: 'fusee', impact: 'crepitement', feu: true, projectile: true },
   };
   var DEFAUT = 'roquette';
   // Le seul filtre côté page : un id inconnu, absent ou mal formé → la roquette.
@@ -250,6 +289,12 @@
     function poser(a, instant) {
       aim.classList.toggle('is-instant', !!instant || reduit());
       aim.style.transform = 'rotate(' + a.toFixed(2) + 'deg)';
+      // Visée vers la GAUCHE : une arme qui n'est pas symétrique (la Pétoire)
+      // se retourne pour garder la crosse en bas (CSS, `scale` : il se compose
+      // avec les transform du balancement, du recul et du vol). La roquette,
+      // symétrique, n'a pas de règle pour cette classe.
+      var n = ((a % 360) + 360) % 360;
+      host.classList.toggle('is-gauche', n > 90 && n < 270);
     }
 
     // Vise le CENTRE de l'élément (l'avatar de la cible).
@@ -299,7 +344,12 @@
     function annuler() {
       gen++;
       fly.getAnimations().forEach(function (a) { a.cancel(); });
-      host.classList.remove('is-locked', 'is-gone', 'is-flying');
+      // Le tir d'une arme à projectile : ses animations à elle (recul, vol,
+      // rechargement) — pas celles du CSS (flamme, vibration du danger).
+      bob.querySelectorAll('.p-arme, .r-proj').forEach(function (e) {
+        e.getAnimations().forEach(function (a) { if (!(a instanceof CSSAnimation) && !(a instanceof CSSTransition)) a.cancel(); });
+      });
+      host.classList.remove('is-locked', 'is-gone', 'is-flying', 'is-firing', 'is-shot');
       fly.style.transform = '';
     }
 
@@ -314,6 +364,54 @@
       ], { duration: 320, easing: 'ease-out' });
     }
 
+    // Le tir d'une arme à PROJECTILE (la Pétoire). L'arme reste au centre ;
+    // seul le projectile (.r-proj, calque à part) part, droit sur la cible, dans
+    // le MÊME minutage que la roquette — l'impact tombe au même instant :
+    //   1. verrouillage (160 ms) ;  2. l'arme se cale (260 ms) ;
+    //   3. le tir : son, éclair de bouche (.is-firing, 140 ms), recul de l'arme ;
+    //   4. le vol du projectile (340 ms, flamme arrière et traînée : .is-flying) ;
+    //   5. l'impact : le projectile disparaît (.is-shot), l'arme reste ;
+    //   6. 420 ms plus tard, une nouvelle fusée apparaît dans le canon.
+    function tirer(el, onImpact, g) {
+      var arme = bob.querySelector('.p-arme'), proj = bob.querySelector('.r-proj');
+      aimAt(el, { instant: false });
+      host.classList.add('is-locked');                                    // 1. verrouillage
+      var p = pivot(host), q = centre(el);
+      var portee = Math.hypot(q.x - p.x, q.y - p.y);
+      var largeur = host.getBoundingClientRect().width || 1;      // boîte NON tournée
+      // Le calque du projectile a la largeur de l'arme : même calcul que la
+      // roquette, son nez (+60) arrive sur l'avatar (un peu dedans).
+      var pct = Math.max(0, (portee - largeur * NEZ + largeur * .04) / largeur * 100);
+      var CALEE = 'translateX(-3%) rotate(2deg)';
+      var prep = arme.animate([{ transform: 'none' }, { transform: CALEE }],     // 2. l'arme se cale
+        { duration: 260, delay: 160, easing: 'ease-out', fill: 'forwards' });
+      return prep.finished.then(function () {
+        if (g !== gen) return;
+        host.dispatchEvent(new CustomEvent('rocket:whoosh'));            // 3. le tir
+        host.classList.add('is-firing', 'is-flying');
+        setTimeout(function () { if (g === gen) host.classList.remove('is-firing'); }, 140);
+        arme.animate([{ transform: CALEE }, { transform: 'translateX(-11%) rotate(-9deg)', offset: .3 }, { transform: 'none' }],
+          { duration: 420, easing: 'ease-out' });
+        prep.cancel();
+        var vol = proj.animate([                                           // 4. le vol du projectile
+          { transform: 'translateX(0)' }, { transform: 'translateX(' + pct.toFixed(1) + '%)' },
+        ], { duration: 340, easing: 'cubic-bezier(.55, 0, .9, .35)', fill: 'forwards' });
+        return vol.finished.then(function () {
+          if (g !== gen) return;
+          host.classList.add('is-shot');                                   // 5. impact
+          host.classList.remove('is-locked', 'is-flying');
+          if (onImpact) onImpact();
+          vol.cancel();
+          return new Promise(function (res) { setTimeout(res, 420); });
+        }).then(function () {
+          if (g !== gen) return;
+          host.classList.remove('is-shot');                                // 6. rechargement
+          proj.animate([{ transform: 'scale(.4)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 }],
+            { duration: 260, easing: 'ease-out' });
+        });
+      }).catch(function () { /* tir annulé par un nouveau tour */ });
+    }
+
     // L'explosion sur `el`. Rend une promesse résolue à l'IMPACT (pour l'effet
     // sur la carte), puis la roquette revient au centre d'elle-même.
     function boom(el, onImpact) {
@@ -326,6 +424,7 @@
         if (onImpact) onImpact();
         return Promise.resolve();
       }
+      if (SKINS[skin].projectile) return tirer(el, onImpact, g);
       aimAt(el, { instant: false });
       host.classList.add('is-locked');                                    // 1. verrouillage
       var p = pivot(host), q = centre(el);

@@ -480,3 +480,19 @@ l'historique.
   sous-arbre `display: none` ne s'affiche pas → id préfixés par dessin ; la
   largeur en jeu suit aussi la bannière, on ne la compare pas entre tours ;
   la dernière explosion arrive avec `end`, qui coupe son vol (déjà le cas).
+
+## 2026-10-05 — Pétoire : l'arme et son projectile séparés
+
+- Retour de Mathys : la Pétoire était dessinée comme le projectile lui-même.
+  Refaite en ARME (petit pistolet de détresse : canon rouge, bouche de
+  laiton, carcasse d'acier, crosse de carton rouge, pansement en croix sur le
+  canon) + PROJECTILE (fusée éclairante chargée, tête qui brûle avec le
+  danger, flamme arrière et traînée rose-orange en vol). Deux calques
+  distincts ; `tirer()` ne fait voler que le projectile, dans le minutage de
+  la roquette (impact au même instant, mesuré : ~800-850 ms après `boom`
+  pour les deux).
+- Vu à la capture : le pontet dessiné en forme pleine devenait une tache
+  (l'encre bouchait le trou) → trait ouvert ; le pistolet visait à gauche
+  crosse en l'air → retourné (`.is-gauche`, propriété `scale`, qui ne se bat
+  pas avec les `transform` animés). Roquette inchangée (dessin identique
+  octet pour octet, `boom()` + une ligne d'aiguillage).

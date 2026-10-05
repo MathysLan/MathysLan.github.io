@@ -1228,10 +1228,22 @@ Pétoire de Secours ») ; V1 prévue : + `marmite`, `disrupteur`.
   `boom.id` à l'explosion), lue dans le roster tel que le SERVEUR l'a relayé ;
   tout id inconnu → la roquette (`Rocket.skinId`, avec `hasOwnProperty`).
 - **Table** `Rocket.SKINS` (`rocket.js`) : dessin, nom, sons propres
-  (`depart` / `impact`, `sound.js`), `feu` (couche d'impact). Tic, validation,
-  verrouillage (lueur rouge) et explosion restent COMMUNS ; l'étoile orange
-  aussi, une arme ajoute sa couche (la Pétoire : la carte prend feu, puis
-  l'étoile 150 ms après).
+  (`depart` / `impact`, `sound.js`), `feu` (couche d'impact), `projectile`.
+  Tic, validation, verrouillage (lueur rouge) et explosion restent COMMUNS ;
+  l'étoile orange aussi, une arme ajoute sa couche (la Pétoire : la carte prend
+  feu, puis l'étoile 150 ms après).
+- ⚠️ **Arme ≠ projectile** (`projectile: true`, la Pétoire) : le dessin est
+  DEUX calques superposés dans la même boîte, `.r-proj > svg.p-fusee` (le
+  projectile, AVANT dans le DOM, donc dessous : la bouche du canon couvre sa
+  queue) puis `svg.p-arme`. `boom()` passe alors par `tirer()` : l'arme reste
+  au centre (se cale, éclair `.is-firing`, recul), seul `.r-proj` vole (même
+  formule de course, même minutage 160 + 260 + 340 ms : l'impact tombe au même
+  instant que la roquette), `.is-shot` le cache à l'impact, une nouvelle fusée
+  réapparaît dans le canon 420 ms plus tard. La roquette garde son chemin :
+  c'est `.r-fly` (toute l'arme) qui vole. Une arme non symétrique se
+  retourne quand elle vise à gauche (`.is-gauche`, propriété CSS `scale` sur
+  `.r-bob` : elle se compose avec les `transform` du balancement et des
+  animations au lieu de les écraser).
 - ⚠️ **L'enveloppe** : même viewBox, même pivot (0, 0), nez à +60 (`NEZ`),
   rien plus loin du pivot que la flamme arrière de la roquette (`EMPRISE`) —
   `fit()` ne connaît qu'elle, la taille ne dépend jamais de l'arme.

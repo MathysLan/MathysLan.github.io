@@ -736,3 +736,16 @@ Hub avec sa préférence Pétoire, A sans préférence ; skins des join, sélect
 dans le salon du jeu (aucun écran de plus), changements vus par l'autre,
 l'explosion montre l'arme du touché, et AUCUN message vers le Hub ne parle
 d'arme.
+
+Pétoire refondue en ARME + PROJECTILE (2026-10-05, même suite, 67
+vérifications) : les deux calques sont des éléments distincts (`svg.p-arme`,
+`.r-proj > svg.p-fusee`, aucun ne contient l'autre, projectile dessous, même
+boîte ; la roquette n'en a aucun) ; la crosse reste en bas quelle que soit la
+visée (retournée à gauche) ; en partie, la sonde suit chaque vol IMAGE PAR
+IMAGE (écart au repère `.r-aim`) : Pétoire = éclair au départ, le projectile
+parcourt au moins la moitié de la course (pivot → avatar − NEZ), l'arme ne
+recule que de ~15 px, `.r-fly` ne bouge pas, et à l'impact le projectile est
+caché, l'arme visible ; roquette = c'est `.r-fly` qui vole, ni éclair ni
+projectile ; impact au même instant pour les deux (±120 ms après `boom`) ;
+mouvement réduit : aucun tir animé. Contre-épreuves : sans `projectile: true`
+(la Pétoire vole tout entière) → 6 échecs ; sans le retournement → 1 échec.

@@ -126,7 +126,7 @@ async function json(p) { for (let i = 0; i < 80; i++) { try { return await (awai
 // montre et sa taille. Plus : les éclats posés dans #fx, les vols (.is-flying),
 // les sons demandés, les erreurs JS.
 const SONDE = `(() => {
-  window.__recu = []; window.__envoye = []; window.__vu = []; window.__fx = []; window.__vol = []; window.__sons = []; window.__err = [];
+  window.__recu = []; window.__envoye = []; window.__vu = []; window.__fx = []; window.__vol = []; window.__tirs = []; window.__sons = []; window.__err = [];
   addEventListener('error', (e) => window.__err.push(String(e.message)));
   const W = window.WebSocket;
   window.WebSocket = function (u, p) {
@@ -152,9 +152,42 @@ const SONDE = `(() => {
   addEventListener('DOMContentLoaded', () => {
     new MutationObserver((l) => l.forEach((x) => x.addedNodes.forEach((n) => { if (n.className) window.__fx.push({ cls: String(n.className), t: performance.now() }); })))
       .observe(document.getElementById('fx'), { childList: true });
+    // Chaque VOL (.is-flying) : image par image, jusqu'où se sont éloignés du
+    // repère (.r-aim, qui ne bouge pas pendant le vol) le calque qui vole
+    // (.r-fly : toute la roquette), le projectile (.r-proj) et l'arme (.p-arme) ;
+    // la course attendue (pivot → avatar visé, moins NEZ) ; l'éclair au départ.
+    // Et chaque IMPACT d'une arme à projectile (.is-shot) : qui reste visible.
     const r = document.getElementById('rocket');
-    new MutationObserver(() => { if (r.classList.contains('is-flying')) window.__vol.push({ skin: r.dataset.skin, t: performance.now() }); })
-      .observe(r, { attributes: true, attributeFilter: ['class'] });
+    const ctr = (e) => { const b = e.getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; };
+    const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+    let vole = false, tire = false;
+    new MutationObserver(() => {
+      const v = r.classList.contains('is-flying');
+      if (v && !vole) {
+        const h = r.getBoundingClientRect(), pivot = [h.left + h.width * Rocket.PIVOT, h.top + h.height / 2];
+        const av = document.querySelector('.card.is-target .g-av');
+        const rec = { skin: r.dataset.skin, t: performance.now(), eclair: r.classList.contains('is-firing'), w: h.width,
+          course: av ? dist(ctr(av), pivot) - h.width * Rocket.NEZ : 0, fly: 0, proj: 0, arme: 0, projSousArme: false };
+        const p = r.querySelector('.r-proj'), a = r.querySelector('.p-arme');
+        rec.projSousArme = !!(p && a && (p.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING));
+        window.__vol.push(rec);
+        const pas = () => {
+          if (!r.classList.contains('is-flying')) return;
+          const base = ctr(r.querySelector('.r-aim')), pr = r.querySelector('.r-proj'), ar = r.querySelector('.p-arme');
+          rec.fly = Math.max(rec.fly, dist(ctr(r.querySelector('.r-fly')), base));
+          if (pr) rec.proj = Math.max(rec.proj, dist(ctr(pr), base));
+          if (ar) rec.arme = Math.max(rec.arme, dist(ctr(ar), base));
+          requestAnimationFrame(pas);
+        };
+        requestAnimationFrame(pas);
+      }
+      vole = v;
+      const s = r.classList.contains('is-shot');
+      if (s && !tire) window.__tirs.push({ skin: r.dataset.skin, t: performance.now(),
+        proj: getComputedStyle(r.querySelector('.r-proj')).opacity, arme: getComputedStyle(r.querySelector('.p-arme')).opacity,
+        fly: getComputedStyle(r.querySelector('.r-fly')).opacity, gone: r.classList.contains('is-gone') });
+      tire = s;
+    }).observe(r, { attributes: true, attributeFilter: ['class'] });
   });
   addEventListener('load', () => {
     const p = window.Sons.play;
@@ -248,6 +281,47 @@ try {
     await A.ev(`['marmite', 'Petoire', ' petoire', '__proto__', 'constructor', 'toString', 42, null, undefined, {}, ['petoire']].every((v) => Rocket.skinId(v) === 'roquette') && Rocket.skinId('petoire') === 'petoire'`));
   t('Rocket.info d un id inconnu : la roquette (nom, sons, pas de feu)',
     await A.ev(`(() => { const i = Rocket.info('marmite'); return i.id === 'roquette' && i.depart === 'whoosh' && i.impact === 'impact' && i.feu === false; })()`));
+  // La Pétoire = une ARME + un PROJECTILE : deux éléments distincts, aucun ne
+  // contient l'autre ; le projectile (.r-proj) est AVANT l'arme dans le DOM
+  // (dessous à l'écran) ; la tête qui brûle est dans le projectile, l'éclair de
+  // bouche dans l'arme. La roquette n'a ni l'un ni l'autre.
+  t('Pétoire : l arme et le projectile sont deux éléments distincts (arme svg.p-arme, projectile .r-proj > svg.p-fusee)', await A.ev(`(() => {
+    const h = document.createElement('div'); h.style.cssText = 'position:fixed;left:0;top:0;width:250px;aspect-ratio:250/92'; document.body.append(h);
+    const r = Rocket.create(h); r.setSkin('petoire');
+    const arme = h.querySelectorAll('svg.p-arme'), proj = h.querySelectorAll('.r-proj'), fusee = h.querySelectorAll('.r-proj > svg.p-fusee');
+    const a = arme[0], p = proj[0];
+    const ok = arme.length === 1 && proj.length === 1 && fusee.length === 1 && a !== fusee[0]
+      && !a.contains(p) && !p.contains(a) && a.parentNode === p.parentNode
+      && !!(p.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING)
+      && !!p.querySelector('.r-flamme, .p-feu-arriere, .p-trainee') && !a.querySelector('.r-flamme, .p-feu-arriere, .p-trainee')
+      && !!a.querySelector('.p-eclair') && !p.querySelector('.p-eclair')
+      && getComputedStyle(p).position === 'absolute' && getComputedStyle(a).position === 'absolute';
+    const b1 = a.getBoundingClientRect(), b2 = p.getBoundingClientRect();
+    const memeBoite = [b1.left, b1.top, b1.width, b1.height].join() === [b2.left, b2.top, b2.width, b2.height].join();
+    r.setSkin('roquette'); const roquette = !h.querySelector('.r-proj, .p-arme, .p-fusee') && h.querySelectorAll('svg.r-svg').length === 1;
+    h.remove(); return ok && memeBoite && roquette;
+  })()`));
+  // Une arme non symétrique se retourne quand elle vise à gauche : la crosse
+  // reste en BAS quelle que soit la direction (droite, gauche, bas, haut-gauche).
+  const crosse = await A.ev(`(async () => {
+    const h = document.createElement('div'); h.style.cssText = 'position:fixed;left:400px;top:300px;width:250px;aspect-ratio:250/92'; document.body.append(h);
+    const r = Rocket.create(h); r.setSkin('petoire');
+    const out = {};
+    for (const [nom, dx, dy] of [['droite', 300, 0], ['gauche', -300, 0], ['bas-gauche', -200, 150], ['haut-gauche', -200, -150], ['bas-droite', 200, 150]]) {
+      const c = document.createElement('div'); const b = h.getBoundingClientRect(), px = b.left + b.width * Rocket.PIVOT, py = b.top + b.height / 2;
+      c.style.cssText = 'position:fixed;width:10px;height:10px;left:' + (px + dx - 5) + 'px;top:' + (py + dy - 5) + 'px'; document.body.append(c);
+      r.aimAt(c, { instant: true }); await new Promise((f) => setTimeout(f, 250));
+      const g = h.querySelector('.p-crosse').getBoundingClientRect(), gy = g.top + g.height / 2;
+      // « en bas » dans le repère de l'arme : du côté où la normale de l'axe pointe vers le bas de l'écran
+      const ang = Math.atan2(dy, dx), nx = -Math.sin(ang), ny = Math.cos(ang), sens = ny >= 0 ? 1 : -1;
+      const gx = g.left + g.width / 2;
+      out[nom] = { bas: ((gx - px) * nx + (gy - py) * ny) * sens > 0, gauche: h.classList.contains('is-gauche') };
+      c.remove();
+    }
+    h.remove(); return out;
+  })()`);
+  t(`Pétoire : crosse toujours vers le bas, retournée quand elle vise à gauche (${Object.entries(crosse).map(([k, v]) => k + (v.bas ? ' ✓' : ' ✗') + (v.gauche ? ' (retournée)' : '')).join(', ')})`,
+    Object.values(crosse).every((v) => v.bas) && crosse.gauche.gauche && !crosse.droite.gauche, JSON.stringify(crosse));
   const portee = await A.ev(PORTEE);
   t(`enveloppe : la Pétoire ne va pas plus loin du pivot que la roquette (danger 3 : ${portee.petoire3} ≤ ${portee.roquette3} ; danger 0 : ${portee.petoire0})`,
     portee.petoire3 <= portee.roquette3 && portee.petoire0 <= portee.roquette3 && portee.petoire3 > 50, JSON.stringify(portee));
@@ -397,6 +471,8 @@ try {
 
   // L'impact, en mouvement normal (A) : la Pétoire met le feu PUIS l'étoile commune ; la roquette, l'étoile seule.
   const vuA = await A.ev('window.__vu'), fxA = await A.ev('window.__fx'), sonsA = await A.ev('window.__sons'), volA = await A.ev('window.__vol');
+  const tirsA = await A.ev('window.__tirs');
+  const impacts = { petoire: [], roquette: [] };
   const boomsA = vuA.filter((v) => v.type === 'boom');
   // Les trois premières (la 4e, celle de R3, finit la partie : `end` coupe son vol, comme avant ce lot).
   t('A : trois explosions étudiées, dont celles des deux Pétoire', boomsA.length === 4 && boomsA.slice(0, 3).filter((b) => b.skin === 'petoire').length === 2);
@@ -411,13 +487,28 @@ try {
       t(`A, explosion Pétoire : sons fusee, crepitement, explosion (${sons.join(' ')})`,
         ['fusee', 'crepitement', 'explosion'].every((n) => sons.includes(n)) && !sons.includes('whoosh') && !sons.includes('impact')
         && sons.indexOf('crepitement') < sons.indexOf('explosion'));
-      t('A, explosion Pétoire : vol avec traînée (.is-flying sur la Pétoire)', volA.some((v) => v.t >= b.t && v.t < finFenetre && v.skin === 'petoire'));
+      // Le cycle arme → tir → projectile → impact, mesuré pendant le vol.
+      const vol = volA.find((v) => v.t >= b.t && v.t < finFenetre);
+      const tir = tirsA.find((x) => x.t >= b.t && x.t < finFenetre);
+      t(`A, tir Pétoire : éclair de bouche au départ, projectile SOUS l arme (${vol ? 'vu' : 'pas de vol'})`,
+        !!vol && vol.skin === 'petoire' && vol.eclair && vol.projSousArme, JSON.stringify(vol));
+      t(`A, tir Pétoire : le PROJECTILE part vers la cible (${vol ? Math.round(vol.proj) : '?'} px sur ${vol ? Math.round(vol.course) : '?'} de course), l ARME reste au centre (recul max ${vol ? Math.round(vol.arme) : '?'} px)`,
+        !!vol && vol.course > 40 && vol.proj >= 0.5 * vol.course && vol.arme <= 0.15 * vol.w && vol.fly < 1, JSON.stringify(vol));
+      t('A, impact Pétoire : le projectile disparaît, l arme reste visible au centre',
+        !!tir && tir.proj === '0' && tir.arme === '1' && tir.fly === '1' && !tir.gone, JSON.stringify(tir));
+      if (feu) impacts.petoire.push(feu.t - b.t);
     } else {
       t('A, explosion roquette : l étoile commune, sans feu', !!etoile && !feu, JSON.stringify(fx));
       t(`A, explosion roquette : ses sons d avant (${sons.join(' ')})`,
         ['whoosh', 'impact', 'explosion'].every((n) => sons.includes(n)) && !sons.includes('fusee') && !sons.includes('crepitement'));
+      const vol = volA.find((v) => v.t >= b.t && v.t < finFenetre);
+      t(`A, vol roquette : comme avant, c est TOUTE la roquette qui part (${vol ? Math.round(vol.fly) : '?'} px), sans éclair ni projectile`,
+        !!vol && !vol.eclair && vol.fly >= 0.5 * vol.course && vol.proj === 0 && vol.arme === 0 && !tirsA.some((x) => x.t >= b.t && x.t < finFenetre), JSON.stringify(vol));
+      if (etoile) impacts.roquette.push(etoile.t - b.t);
     }
   });
+  t(`A : même instant d impact pour les deux armes (Pétoire ${impacts.petoire.map(Math.round).join(' / ')} ms, roquette ${impacts.roquette.map(Math.round).join(' / ')} ms après boom)`,
+    impacts.petoire.length === 2 && impacts.roquette.length === 1 && impacts.petoire.every((x) => Math.abs(x - impacts.roquette[0]) < 120));
   t('A : sons communs gardés (validation du mot de R2)', sonsA.some((s) => s.n === 'valide'));
 
   // Mouvement réduit (B) : version fixe — ni vol, ni traînée, ni éclat ; les sons restent.
@@ -426,7 +517,9 @@ try {
   t('B (mouvement réduit) : aucun vol, donc aucune traînée', volB.length === 0);
   t('B (mouvement réduit) : les sons d impact restent (crepitement et impact)', sonsB.some((s) => s.n === 'crepitement') && sonsB.some((s) => s.n === 'impact'));
   t('B (mouvement réduit) : la flamme de la Pétoire est figée', await B.ev(`(() => { const h = document.createElement('div'); h.style.width = '250px'; document.body.append(h);
-    const r = Rocket.create(h); r.setSkin('petoire'); h.dataset.danger = '3'; const n = h.querySelector('.r-flamme').getAnimations().length + h.querySelector('.p-etinc').getAnimations().length; h.remove(); return n === 0; })()`));
+    const r = Rocket.create(h); r.setSkin('petoire'); h.dataset.danger = '3'; h.classList.add('is-flying');
+    const n = ['.r-flamme', '.p-etinc', '.p-feu-arriere'].reduce((s, q) => s + h.querySelector(q).getAnimations().length, 0); h.remove(); return n === 0; })()`));
+  t('B (mouvement réduit) : arme fixe — jamais de tir animé (ni .is-firing, ni .is-shot)', (await B.ev('window.__tirs')).length === 0);
 
   // Le fil : aucun message nouveau hors du contrat.
   for (const P of [A, B]) {
