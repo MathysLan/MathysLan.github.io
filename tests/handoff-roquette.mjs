@@ -252,6 +252,9 @@ try {
 
   // ═══ 6. B rejoint par le Hub ; C attend dehors
   await B.until(`!document.getElementById('launch-go').hidden && /Rejoindre/.test(document.getElementById('launch-go').textContent)`, 10000, 'Rejoindre chez B');
+  // L'arme (skin) : Bruno a choisi la Pétoire lors d'une visite précédente
+  // (préférence du navigateur, même origine que /games/) ; Alice n'a rien choisi.
+  await B.eval(`localStorage.setItem('roquette_skin', 'petoire')`);
   await B.immobile('#launch-go');
   await B.click('#launch-go');
   await B.until(surRoquette, 15000, 'B sur Roquette');
@@ -262,6 +265,22 @@ try {
   t('B : aucun « launched » (seul l\'hôte déclare le code)', B.hubEnvoye('launched').length === 0);
   await A.until(`/Chloé/.test(document.getElementById('start').textContent) && !/Bruno/.test(document.getElementById('start').textContent)`, 8000, 'attente de Chloé seule');
   t('A : « Lancer » n\'attend plus que Chloé', true, await texte(A, 'start'));
+
+  // ═══ 6 bis. l'arme (skin) en mode Hub : le même salon, rien vers le Hub
+  const joinRoq = (J) => J.envoyes.find((m) => m.url && m.url.startsWith(ROQ) && m.action === 'join');
+  t('skin : A (aucune préférence) entre avec la roquette, B avec sa Pétoire (join du jeu)',
+    joinRoq(A) && joinRoq(A).skin === 'roquette' && joinRoq(B) && joinRoq(B).skin === 'petoire', JSON.stringify([joinRoq(A) && joinRoq(A).skin, joinRoq(B) && joinRoq(B).skin]));
+  t('skin : le sélecteur est dans le salon du jeu lancé par le Hub (aucun autre écran), la roquette choisie chez A',
+    await A.until(`!document.getElementById('skin-choix').hidden && document.querySelector('.skin-pick[data-skin="roquette"]').getAttribute('aria-pressed') === 'true'`, 5000, 'sélecteur A'));
+  t('skin : A voit Bruno avec la Pétoire',
+    await A.until(`((document.querySelector('#players li[data-id="${youB.id}"] .tag-skin') || {}).textContent || '') === 'Pétoire'`, 5000, 'tag B'));
+  await A.click('.skin-pick[data-skin="petoire"]');
+  await B.until(`((document.querySelector('#players li[data-id="${youA.id}"] .tag-skin') || {}).textContent || '') === 'Pétoire'`, 5000, 'A en Pétoire chez B');
+  await sleep(300);
+  await A.click('.skin-pick[data-skin="roquette"]');
+  await B.until(`((document.querySelector('#players li[data-id="${youA.id}"] .tag-skin') || {}).textContent || '') === 'Roquette'`, 5000, 'A de retour en roquette chez B');
+  t('skin : A change d\'arme au salon (Pétoire puis roquette), B le voit — action `skin` vers le jeu seulement',
+    A.envoyes.filter((m) => m.url && m.url.startsWith(ROQ) && m.action === 'skin').map((m) => m.skin).join() === 'petoire,roquette');
 
   // ═══ 7. A lance SANS attendre (1 vie) → started, au décompte, une fois
   await A.eval(`document.getElementById('vies-select').value = '1'`);
@@ -319,6 +338,14 @@ try {
   t('score de soirée : le 1er (rang du serveur) marque 20, le 2e 10', !!partie && partie.gameId === 'roquette'
     && partie.results.find((r) => r.rank === 1).name === nomGagnant && partie.results.find((r) => r.rank === 1).points === 20 && partie.results.find((r) => r.rank === 2).points === 10,
     partie && JSON.stringify(partie.results.map((r) => `${r.name}:${r.rank}:${r.points}`)));
+
+  // L'explosion a montré l'arme du joueur touché (A roquette, B Pétoire).
+  const touche = A.roq('boom')[0];
+  const armeAttendue = touche && touche.id === youB.id ? 'petoire' : 'roquette';
+  t(`skin : l'explosion montre l'arme du joueur touché (${armeAttendue}), chez A et chez B`,
+    !!touche && (await A.eval(`document.getElementById('rocket').dataset.skin`)) === armeAttendue && (await B.eval(`document.getElementById('rocket').dataset.skin`)) === armeAttendue);
+  t('skin : aucun message vers le Hub ne parle d\'arme (contrat Hub inchangé)',
+    [A, B, C].every((J) => J.envoyes.filter((m) => m.url && m.url.startsWith(HUB)).every((m) => !JSON.stringify(m).includes('skin'))));
 
   // ═══ 10. l'écran de fin, en mode Hub
   const finA = await A.eval(`({ hub: !document.getElementById('to-hub').hidden && document.getElementById('to-hub').classList.contains('g-hub-home'),

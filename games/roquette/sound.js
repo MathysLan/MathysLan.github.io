@@ -1,8 +1,9 @@
 // Les sons : tout est SYNTHÉTISÉ par Web Audio (aucun fichier), comme
-// l'Imitation et Précision. Six sons, pas un de plus : le tic d'attente, le
-// tic de danger (plus rapide, plus aigu), la validation, le whoosh, l'impact
-// et l'explosion. Bouton muet mémorisé ; le mouvement réduit ne coupe PAS le
-// son (ce n'est pas la même préférence).
+// l'Imitation et Précision. Les sons communs : le tic d'attente, le tic de
+// danger (plus rapide, plus aigu), la validation et l'explosion. Ceux d'une
+// arme (départ, impact — voir Rocket.info) : le whoosh et l'impact de la
+// roquette, le tir et le crépitement de la Pétoire. Bouton muet mémorisé ; le
+// mouvement réduit ne coupe PAS le son (ce n'est pas la même préférence).
 //
 // Le contexte audio ne naît qu'après un geste (Créer / Rejoindre) : sans geste,
 // un navigateur le laisse suspendu.
@@ -49,6 +50,12 @@
     whoosh: function (t) { bruit(t, 0.38, 0.35, 400, 4200); },
     impact: function (t) { osc('sine', 160, t, 0.25, 0.5, 40); },
     explosion: function (t) { bruit(t, 0.7, 0.6, 1800, 120, 'lowpass'); osc('sawtooth', 90, t, 0.45, 0.25, 30); },
+    // La Pétoire : le coup sec du pistolet, puis le sifflement aigu de la fusée…
+    fusee: function (t) { osc('sine', 260, t, 0.07, 0.3, 90); bruit(t + 0.03, 0.45, 0.28, 2400, 7000, 'highpass'); },
+    // … et, à l'impact, le crépitement du feu : des grésillements serrés, au hasard.
+    crepitement: function (t) {
+      for (var i = 0; i < 9; i++) bruit(t + i * 0.055 + Math.random() * 0.03, 0.035, 0.22, 3200 + Math.random() * 1500, 1800, 'bandpass');
+    },
   };
 
   function play(nom) {

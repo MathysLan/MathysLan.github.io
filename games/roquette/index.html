@@ -62,11 +62,22 @@
   #room-code { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; font-size: 2.4rem; letter-spacing: .4em; text-indent: .4em; color: var(--q-unique); }
   #code-hint { color: var(--ink-3); font-size: .72rem; margin: .2rem 0 .8rem; }
   .meta { font-family: 'TF2 Build', 'Arial Narrow', sans-serif; letter-spacing: .06em; color: var(--ink-3); font-size: .8rem; margin: 0 0 .6rem; }
-  #players { list-style: none; padding: 0; margin: 0 auto; max-width: 560px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .1rem 1rem; text-align: left; }
+  #players { list-style: none; padding: 0; margin: 0 auto; max-width: 640px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .1rem 1rem; text-align: left; }
   #players li { padding: .35rem .2rem; border-bottom: 1px solid var(--line); font-size: .88rem; }
   .tag { color: var(--qi-unique); font-size: .7rem; margin-left: auto; }
   #host-config label { color: var(--ink-3); font-size: .85rem; }
   #host-config select { width: auto; }
+  /* Le choix de l'arme : la sélection des .avatar-pick du socle (liseré de
+     l'accent), avec un aperçu et le nom. */
+  #skin-choix { margin: .9rem 0 .3rem; }
+  #skin-choix .meta { margin-bottom: .45rem; }
+  #skin-row { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; }
+  .skin-pick { display: flex; flex-direction: column; align-items: center; gap: .3rem; width: 9.5rem; padding: .5rem .5rem .45rem;
+    font-size: .8rem; line-height: 1.15; cursor: pointer; }
+  .skin-apercu { display: block; width: 8rem; aspect-ratio: 250 / 92; pointer-events: none; }
+  .skin-nom { color: var(--ink-2); }
+  .skin-pick.picked .skin-nom { color: var(--ink); font-weight: 700; }
+  .tag-skin { color: var(--ink-3); font-size: .7rem; margin-left: .4rem; white-space: nowrap; }
 
   /* =====================================================================
      L'ARÈNE : la roquette au centre, les joueurs en ellipse autour. Les
@@ -179,6 +190,21 @@
   .rocket.is-locked .r-svg { filter: drop-shadow(0 0 5px #ff3b1f) drop-shadow(0 0 2px #ff3b1f); }
   .rocket.is-gone .r-fly { opacity: 0; }
 
+  /* La Pétoire de Secours (rocket.js) : le feu est À L'AVANT, il gonfle autour
+     de son centre ; fumée rose ; étincelles aux crans 2 et 3 ; traînée rose en
+     vol seulement. Les crochets du danger (--f, --fy, chaleur, vibration) sont
+     ceux de la roquette, et rien ne sort de son enveloppe (EMPRISE). */
+  .r-svg .p-trainee { opacity: 0; transform-box: fill-box; transform-origin: right center; transform: scaleX(0); }
+  .r-svg .p-etinc { opacity: 0; }
+  /* (sans .rocket : l'aperçu du salon porte aussi data-skin) */
+  [data-skin="petoire"] .r-flamme { transform-origin: center; animation-duration: .1s; }
+  [data-skin="petoire"] .r-fumee circle { fill: #e7a1bd; }
+  [data-skin="petoire"] .r-ink { stroke-width: 5.6; }          /* dessin agrandi de 25 % : le même trait (7) que la roquette */
+  .rocket[data-skin="petoire"]:is([data-danger="2"], [data-danger="3"]) .p-etinc { opacity: 1; animation: etinc .24s steps(2) infinite; }
+  .rocket[data-skin="petoire"][data-danger="3"] .p-etinc { animation-duration: .14s; }
+  .rocket.is-flying .p-trainee { opacity: .9; transform: scaleX(1); transition: transform .34s cubic-bezier(.55, 0, .9, .35), opacity .08s; }
+  @keyframes etinc { 50% { transform: translate(3px, -2px); opacity: .35; } }
+
   /* La pile de texte se range SOUS le pivot : sans la marge de 1em que le
      navigateur donne à un <p> (77 px de vide), elle ne tient pas sans écraser --rk. */
   #cible, #live { margin: 0; }
@@ -202,6 +228,15 @@
   .boum { position: absolute; width: 110px; height: 110px; transform: translate(-50%, -50%); animation: boum .55s ease-out forwards; }
   .boum svg { width: 100%; height: 100%; overflow: visible; }
   @keyframes boum { 0% { transform: translate(-50%, -50%) scale(.2); opacity: 1; } 60% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1.25); opacity: 0; } }
+  /* La couche de la Pétoire, AVANT l'étoile commune : la carte prend feu. */
+  .feu { position: absolute; width: 96px; height: 96px; transform: translate(-50%, -50%); animation: feu .95s ease-out forwards; }
+  .feu svg { width: 100%; height: 100%; overflow: visible; }
+  .feu .flash { opacity: 0; animation: flash .2s ease-out; }
+  .feu .fl { transform-box: fill-box; transform-origin: center bottom; --f: 1; --fy: 1; animation: flamme .11s steps(2) infinite alternate; }
+  .feu .braise { animation: braise .8s ease-out both; }
+  @keyframes feu { 0% { transform: translate(-50%, -50%) scale(.4); opacity: 0; } 15% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 75% { opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1.05); opacity: 0; } }
+  @keyframes flash { from { opacity: .85; } to { opacity: 0; } }
+  @keyframes braise { from { transform: none; opacity: 1; } to { transform: translateY(-34px); opacity: 0; } }
 
   /* La saisie : toujours là, jamais désactivée (un champ désactivé ferme le
      clavier du téléphone) — hors de son tour, éteinte visuellement et muette. */
@@ -259,7 +294,8 @@
      retire en plus la vibration et le viseur qui « respire ». Rien n'est
      caché : la cible et la vie perdue sont écrites (bannière, carte). */
   @media (prefers-reduced-motion: reduce) {
-    .rocket .r-svg, .rocket .r-bob, .rocket .r-flamme, .rocket .r-fumee, .card .viseur, .card .av { animation: none !important; }
+    .rocket .r-svg, .rocket .r-bob, .rocket .r-flamme, .rocket .r-fumee, .rocket .p-etinc, .card .viseur, .card .av { animation: none !important; }
+    .r-svg .p-trainee { transition: none !important; }
     .r-aim { transition: none !important; }
     /* Le socle ramène les transitions à .01ms SANS couper leur propriété (all) :
        une taille ou une position changée ne s'appliquerait qu'à l'image
@@ -301,6 +337,11 @@
       <button type="button" id="room-code" class="g-copy" title="clique pour copier">····</button>
       <p id="code-hint" role="status">clique sur le code pour le copier</p>
       <ul id="players"></ul>
+      <!-- L'arme (cosmétique) : au salon seulement ; cachée si le serveur ne relaie pas les armes. -->
+      <div id="skin-choix" hidden>
+        <p class="meta" id="skin-titre">Ton arme</p>
+        <div id="skin-row" role="group" aria-labelledby="skin-titre"></div>
+      </div>
       <div id="host-config" class="actions" hidden>
         <label for="vies-select">Vies</label>
         <select id="vies-select"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select>
@@ -373,8 +414,8 @@
   <script src="../shared/hub-handoff.js?v=5"></script>
   <script src="../shared/game-net.js?v=1"></script>
   <script src="net.js?v=2"></script>
-  <script src="rocket.js?v=2"></script>
-  <script src="sound.js?v=1"></script>
-  <script src="app.js?v=8"></script>
+  <script src="rocket.js?v=3"></script>
+  <script src="sound.js?v=2"></script>
+  <script src="app.js?v=9"></script>
 </body>
 </html>

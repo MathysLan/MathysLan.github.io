@@ -43,7 +43,7 @@ dans le journal.
 | **Morpion** | `games/morpion/` | `morpion-server` | Duel strict (X/O). Le serveur ne reçoit AUCUNE identité et ferme la room dès qu'un joueur part. `net.js` est toute l'appli. |
 | **Le Passeur** | `games/passeur/` | `passeur-server` | Une situation de volley, cinq passes, cinq secondes. Points = pertinence × vitesse. Barèmes et `why` seulement au `results`. Catalogue `situations.js` + règles `rules.js` côté serveur. |
 | **Qui Ment ?** | `games/quiment/` | `qui-ment-server` | Bluff : même mot pour tous sauf l'intrus (qui n'a que la catégorie). 2 tours d'indices en aveugle, vote, révélation, dernière chance. Le mot ne part JAMAIS en diffusion (joueur par joueur, `word: null` pour l'intrus) ; les indices sont ramassés en silence puis révélés d'un bloc ; la liste des mots de la catégorie ne part qu'à l'intrus démasqué. Le test WebSocket du serveur relit **tout le fil** chez l'intrus (seul moyen d'attraper une fuite par un message de progression). Catalogue `mots.js`. |
-| **Roquette Party** | `games/roquette/` | `roquette-server` | Jeu de mots en temps réel, 2 à 16 joueurs : des lettres s'affichent, un mot qui les contient avant l'explosion, chaque explosion coûte une vie. L'instant de l'explosion et le dictionnaire ne quittent jamais le serveur ; rang = ordre d'élimination, aucun point de partie. Jeu du Hub (`handoff: true`). |
+| **Roquette Party** | `games/roquette/` | `roquette-server` | Jeu de mots en temps réel, 2 à 16 joueurs : des lettres s'affichent, un mot qui les contient avant l'explosion, chaque explosion coûte une vie. L'instant de l'explosion et le dictionnaire ne quittent jamais le serveur ; rang = ordre d'élimination, aucun point de partie. Jeu du Hub (`handoff: true`). Armes cosmétiques (skins) : voir « Roquette Party : les armes ». |
 | **Croq.ios** (technique : `croquis`) | `games/croquis/` | `croquis-server` | Jeu de dessin, 2 à 16 joueurs : un dessinateur choisit un mot parmi trois (1 facile, 1 moyen, 1 difficile, catalogue V1 de 318 mots côté serveur), les autres devinent. Le mot ne part qu'au dessinateur jusqu'au `turn-end` ; traits validés et bornés par le serveur. Nom AFFICHÉ « Croq.ios » ; dossier, id, modules JS et serveur restent `croquis` (ne pas renommer). Jeu du Hub (`handoff: true`, 2 à 16 joueurs, 5–18 min, `creatif` + `ambiance`) : même montage que Roquette (`gameId: 'croquis'`, `roomReady` au `you`, `started` au premier `turn`, `results` (rang + score du serveur) puis `ended` à `results` — `ended` seul pour une partie interrompue —, « Lancer sans attendre », `#to-hub`) ; test `tests/handoff-croquis.mjs`. |
 | **Puissance 4** | `js/connect4.js` (`launchConnect4`) | aucun | 100 % navigateur, canvas, bot gagner > bloquer > centre. Lancé par le carousel, INSERT COIN, Ctrl+K, Konami. |
 
@@ -1202,6 +1202,51 @@ ids) :
   qu'en mode privé, `public-profile` qu'en mode public et pour la cible
   ouverte.
 
+## Roquette Party : les armes (skins)
+
+Purement cosmétiques : aucun effet sur la partie, aucun inventaire, aucun
+déblocage, rien au Hub. Aujourd'hui `roquette` (défaut) et `petoire` (« La
+Pétoire de Secours ») ; V1 prévue : + `marmite`, `disrupteur`.
+
+- **Contrat** (`roquette-server`, README) : un id FERMÉ par joueur (`SKINS`
+  dans `server.js`) ; `skin` dans `join`, dans les joueurs de `lobby` et de
+  `countdown` (figé dans le roster pour la partie, revanche comprise) ;
+  action `{ action: 'skin', skin }` au SALON seulement, relayée en
+  `{ type: 'skin', id, skin }` ; invalide, identique, hors salon ou au-delà de
+  4 changements/s → ignorée en silence. Seul l'id nettoyé repart.
+  ⚠️ **Nouvelle arme = serveur d'abord** (l'id dans `SKINS`), front ensuite.
+- **Choix** : au salon (`#skin-choix`, boutons `.avatar-pick.skin-pick`,
+  `aria-pressed`) — seul écran commun au jeu seul et au Hub (le handoff saute
+  l'accueil). Caché si le serveur ne met pas `skin` dans `lobby` (ancien
+  serveur : l'action lui ferait répondre « action inconnue »). Préférence
+  `localStorage` `roquette_skin`, propre au jeu (PAS dans `GameProfile`),
+  partie avec le join. Un envoi au plus toutes les 260 ms, le dernier choix
+  gagne. ⚠️ Le gestionnaire des avatars vise `#avatar-row .avatar-pick` :
+  les armes portent la même classe.
+- **Affichage** : l'arme montrée est celle du joueur VISÉ
+  (`rocket.setSkin(skinDe(holder))` au countdown et à chaque turn, celle de
+  `boom.id` à l'explosion), lue dans le roster tel que le SERVEUR l'a relayé ;
+  tout id inconnu → la roquette (`Rocket.skinId`, avec `hasOwnProperty`).
+- **Table** `Rocket.SKINS` (`rocket.js`) : dessin, nom, sons propres
+  (`depart` / `impact`, `sound.js`), `feu` (couche d'impact). Tic, validation,
+  verrouillage (lueur rouge) et explosion restent COMMUNS ; l'étoile orange
+  aussi, une arme ajoute sa couche (la Pétoire : la carte prend feu, puis
+  l'étoile 150 ms après).
+- ⚠️ **L'enveloppe** : même viewBox, même pivot (0, 0), nez à +60 (`NEZ`),
+  rien plus loin du pivot que la flamme arrière de la roquette (`EMPRISE`) —
+  `fit()` ne connaît qu'elle, la taille ne dépend jamais de l'arme.
+  `roquette-skins.mjs` mesure la portée de chaque arme au danger 3.
+- ⚠️ **Id de dégradés préfixés** (`{p}` dans chaque dessin : `r` dans
+  l'arène, `apercu-<id>` au salon). Un même id dans un sous-arbre
+  `display: none` (le salon pendant la partie, l'arène au salon) passerait
+  avant et le dégradé ne s'afficherait pas.
+- Crochets du danger communs (`.r-flamme`, `.r-fumee`, `.r-chaleur`,
+  `data-danger`) ; ceux d'une arme sont sous `[data-skin="…"]` (sans
+  `.rocket` : l'aperçu du salon porte aussi `data-skin`). Traînée
+  (`.p-trainee`) seulement pendant le vol (`.is-flying`, posé par
+  `rocket.js`). Mouvement réduit : ni vol, ni éclat, flamme et étincelles
+  figées.
+
 ## Défauts connus, non corrigés
 
 - `tests/manifest.mjs` : la mutation « jeu live sans bloc hub » est une regex en
@@ -1211,3 +1256,7 @@ ids) :
 - `tests/keyboard.mjs` : échec intermittent sur le Ban (« Retour au Game Hub » :
   le focus tombe sur `#tw-check`), ~1 passage sur 3 ou 4 sur ce poste, vu aux
   lots G et H, jamais reproduit sur commande.
+- `tests/roquette-play.mjs` (normal ou `--reduced`) : échec intermittent
+  « téléphone, clavier ouvert : … carte visée à l'écran » (`scrollY 101`),
+  ~1 passage sur 3 ; vu avec le front d'avant les armes (2026-10-05), donc
+  antérieur à elles.

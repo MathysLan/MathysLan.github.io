@@ -25,7 +25,7 @@
 
   // ---------------------------------------------------------- état reçu
   let myId = null, isHost = false;
-  let roster = new Map();          // id → { name, avatar } (reçu au countdown)
+  let roster = new Map();          // id → { name, avatar, skin } (salon, message `skin`, puis countdown)
   let order = [], vies = 3, rythme = 'normal';
   let etat = new Map();            // id → { lives, out, left, rank, words }
   let tour = null;                 // { turnId, holder, prompt }
@@ -38,6 +38,8 @@
   let viseId = null;          // le JOUEUR que vise la roquette (son avatar peut être remplacé par layout())
   const rocket = Rocket.create($('rocket'));
   const nomDe = (id) => (roster.get(id) || {}).name || 'quelqu’un';
+  // L'arme d'un joueur, telle que le SERVEUR l'a relayée ; inconnue → la roquette.
+  const skinDe = (id) => Rocket.skinId((roster.get(id) || {}).skin);
 
   // -------------------------------------------------------------- annonces
   // Un seul message par instant : « Bob : passion. Au tour d'Ana… » plutôt que
@@ -65,7 +67,7 @@
     b.setAttribute('aria-pressed', String(em === myAvatar));
     b.addEventListener('click', () => {
       myAvatar = em;
-      document.querySelectorAll('.avatar-pick').forEach((x) => {
+      document.querySelectorAll('#avatar-row .avatar-pick').forEach((x) => {   // pas les armes du salon (même classe)
         x.classList.toggle('picked', x === b);
         x.setAttribute('aria-pressed', String(x === b));
       });
@@ -73,12 +75,54 @@
     $('avatar-row').appendChild(b);
   }
 
+  // ------------------------------------------------------------ l'arme (skin)
+  // Purement cosmétique. Préférence de CE navigateur (pas le profil commun) :
+  // relue au chargement, écrite à chaque choix ; inconnue ou absente → la
+  // roquette. Elle part avec le join, et se change au salon seulement (action
+  // `skin`). Ce que les autres voient, c'est ce que le serveur relaie.
+  const CLE_SKIN = 'roquette_skin';
+  let monSkin = Rocket.DEFAUT;
+  try { monSkin = Rocket.skinId(localStorage.getItem(CLE_SKIN)); } catch (_) { /* stockage bloqué : la roquette */ }
+  let skinsServeur = false;        // le serveur relaie-t-il les armes ? (un ancien n'en met pas dans `lobby`)
+  for (const id of Rocket.SKINS) {
+    const b = el('button', 'avatar-pick skin-pick');
+    b.type = 'button';
+    b.dataset.skin = id;
+    const apercu = el('span', 'skin-apercu');
+    apercu.innerHTML = Rocket.dessin(id, 'apercu-' + id);   // gabarit fixe, aucune donnée réseau
+    b.append(apercu, el('span', 'skin-nom', Rocket.info(id).nom));
+    b.addEventListener('click', () => choisirSkin(id));
+    $('skin-row').append(b);
+  }
+  function majChoixSkin() {
+    for (const b of $('skin-row').children) {
+      const on = b.dataset.skin === monSkin;
+      b.classList.toggle('picked', on);
+      b.setAttribute('aria-pressed', String(on));
+    }
+  }
+  majChoixSkin();
+  // Le serveur ignore au-delà de 4 changements par seconde : on en envoie au
+  // plus un toutes les 260 ms, et c'est toujours le DERNIER choix qui part.
+  let skinEnvoye = 0, skinEnAttente = null;
+  function choisirSkin(id) {
+    monSkin = Rocket.skinId(id);
+    try { localStorage.setItem(CLE_SKIN, monSkin); } catch (_) { /* tant pis : le choix vaut pour la visite */ }
+    majChoixSkin();
+    if (!myId || !skinsServeur) return;          // hors room : il partira avec le join
+    clearTimeout(skinEnAttente);
+    skinEnAttente = setTimeout(() => {
+      skinEnvoye = Date.now();
+      if (myId && phase === 'lobby') NET.send({ action: 'skin', skin: monSkin });
+    }, Math.max(0, skinEnvoye + 260 - Date.now()));
+  }
+
   async function enter(code) {
     showError('');
     Sons.init();                              // le geste qui autorise le son
     try {
       await NET.connect();
-      NET.send({ action: 'join', name: $('name-input').value, avatar: GameProfile.joinAvatar(myAvatar), code: code || undefined });
+      NET.send({ action: 'join', name: $('name-input').value, avatar: GameProfile.joinAvatar(myAvatar), skin: monSkin, code: code || undefined });
     } catch (err) {
       showError(err.message);
       perte.refus(err.message);
@@ -148,7 +192,7 @@
   };
   $('son').addEventListener('click', () => { Sons.init(); Sons.setMuet(!Sons.muet); majSon(); });
   majSon();
-  $('rocket').addEventListener('rocket:whoosh', () => Sons.play('whoosh'));
+  $('rocket').addEventListener('rocket:whoosh', () => Sons.play(Rocket.info(rocket.skin).depart));
 
   // ----------------------------------------------------------------- salon
   const lancer = () => {
@@ -161,15 +205,20 @@
   $('again').addEventListener('click', () => NET.send({ action: 'start', vies, rythme }));
   $('to-lobby').addEventListener('click', () => NET.send({ action: 'lobby' }));
 
+  let salon = [];                  // les joueurs du dernier `lobby` (pour redessiner après un `skin`)
   function renderLobby(players) {
+    salon = players;
     const ul = $('players');
     ul.replaceChildren();
     for (const p of players) {
       const li = el('li', 'g-player');
+      li.dataset.id = p.id;
       li.append(GameAvatar.node(p.avatar, DEFAUT, 'sm'), el('span', 'g-player-name', p.name + (p.id === myId ? ' (toi)' : '')));
+      if (skinsServeur) li.append(el('span', 'tag-skin', Rocket.info(skinDe(p.id)).court));
       if (p.host) li.append(el('span', 'tag', 'hôte'));
       ul.append(li);
     }
+    $('skin-choix').hidden = !skinsServeur;
     $('lobby-count').textContent = `${players.length} / 16`;
     $('host-config').hidden = !isHost;
     nbJoueurs = players.length;
@@ -645,8 +694,18 @@
     if (m.phase === 'end') { majFinHote(); return; }   // écran de fin : seul l'hôte a pu changer
     phase = 'lobby';
     arreter();
+    skinsServeur = m.players.some((p) => 'skin' in p);
+    roster = new Map(m.players.map((p) => [p.id, { name: p.name, avatar: p.avatar, skin: Rocket.skinId(p.skin) }]));
     renderLobby(m.players);
     show('lobby');
+  });
+
+  // Un joueur a changé d'arme au salon (le serveur n'en relaie qu'au salon).
+  NET.on('skin', (m) => {
+    const r = roster.get(m.id);
+    if (!r) return;
+    r.skin = Rocket.skinId(m.skin);
+    if (phase === 'lobby') renderLobby(salon);
   });
 
   NET.on('countdown', (m) => {
@@ -655,7 +714,7 @@
     order = m.order.slice();
     vies = m.vies;
     rythme = m.rythme;
-    roster = new Map(m.players.map((p) => [p.id, { name: p.name, avatar: p.avatar }]));
+    roster = new Map(m.players.map((p) => [p.id, { name: p.name, avatar: p.avatar, skin: Rocket.skinId(p.skin) }]));   // figé pour la partie
     etat = new Map();
     appliquer(m.players);
     isHost = m.players.some((p) => p.id === myId && p.host);
@@ -668,6 +727,7 @@
     show('play');
     $('play').dataset.phase = 'countdown';
     construireAnneau();
+    rocket.setSkin(skinDe(order[0]));     // l'arme montrée est celle du joueur visé
     viser(order[0], true);
     $('cible').textContent = `Premier : ${nomDe(order[0])}`;
     $('cible').classList.toggle('is-me', order[0] === myId);
@@ -690,6 +750,7 @@
     rocket.annuler();
     majCartes();
     layout();                       // la place du moment (idempotent), AVANT de viser
+    rocket.setSkin(skinDe(m.holder));
     viser(m.holder, premier);
     $('prompt').textContent = m.prompt.toUpperCase();
     const mine = m.holder === myId;
@@ -774,6 +835,7 @@
     $('cible').textContent = `💥 ${nomDe(m.id)}`;
     $('cible').classList.toggle('is-me', m.id === myId);
     const c = cards.get(m.id);
+    const arme = Rocket.info(skinDe(m.id));     // l'arme du joueur touché
     let fait = false;
     const impact = () => {
       if (fait) return;
@@ -783,12 +845,15 @@
       if (c) {
         c.li.classList.add('is-hit');
         setTimeout(() => c.li.classList.remove('is-hit'), 1100);
-        if (!reduit()) eclat(c);
+        if (!reduit()) eclat(c, arme);
       }
-      Sons.play('impact');
-      Sons.play('explosion');
+      // Le son d'impact de l'arme, puis l'explosion commune (après la prise de feu).
+      Sons.play(arme.impact);
+      if (arme.feu) setTimeout(() => Sons.play('explosion'), FEU_AVANT);
+      else Sons.play('explosion');
     };
     viseId = m.id;
+    rocket.setSkin(arme.id);
     rocket.boom(c && c.g, impact);
     setTimeout(impact, 1300);
     const qui = nomDe(m.id) + (m.id === myId ? ' (toi)' : '');
@@ -804,16 +869,33 @@
   });
 
   // L'éclat de l'impact, posé SUR la carte touchée (pas de flash plein écran).
+  // L'étoile orange est COMMUNE à toutes les armes ; une arme peut y ajouter sa
+  // couche (la Pétoire : la carte prend feu, puis l'étoile).
   const ECLAT = '<svg viewBox="-50 -50 100 100"><path d="M0,-46 L11,-18 L40,-30 L22,-6 L47,6 L18,12 L28,40 L4,20 L-10,46 L-14,18 L-42,30 L-24,6 L-48,-8 L-20,-12 L-32,-40 L-6,-20 Z" fill="#fd8a0a" stroke="#000" stroke-width="5" stroke-linejoin="round"/><path d="M0,-26 L7,-10 L24,-16 L13,-3 L27,4 L10,7 L15,22 L2,11 L-6,25 L-8,10 L-23,16 L-13,3 L-26,-5 L-11,-7 L-18,-22 L-3,-11 Z" fill="#ffd28f"/><circle r="7" fill="#ffff3a"/></svg>';
-  function eclat(c) {
+  // La prise de feu de la Pétoire : un éclair blanc, trois flammes roses, des braises.
+  const FLAMME = 'M0,12 C-12,10 -14,-4 -6,-14 C-6,-6 -2,-6 0,-26 C4,-10 10,-8 8,-16 C16,-4 12,10 0,12 Z';
+  const FEU = '<svg viewBox="-50 -50 100 100"><circle class="flash" r="34" fill="#fff"/>'
+    + [[-16, 8, 0.7], [16, 8, 0.7], [0, 4, 1]].map(([x, y, k]) => `<g transform="translate(${x} ${y}) scale(${k})"><g class="fl">`
+      + `<path d="${FLAMME}" fill="#ff4f9a" stroke="#000" stroke-width="4" stroke-linejoin="round"/>`
+      + `<path d="${FLAMME}" transform="translate(0 4) scale(.55)" fill="#ffd6e6"/></g></g>`).join('')
+    + [[-20, -4], [-6, -16], [10, -10], [22, -2], [2, -22]].map(([x, y], i) => `<circle class="braise" style="animation-delay:${i * 70}ms" cx="${x}" cy="${y}" r="2.2" fill="#ffb347"/>`).join('')
+    + '</svg>';
+  const FEU_AVANT = 150;          // ms entre la prise de feu et l'étoile commune
+  function poserFx(c, cls, html, vie) {
+    if (!c.g) return;
     const ar = $('arena').getBoundingClientRect(), r = c.g.getBoundingClientRect();
-    const b = el('div', 'boum');
-    b.innerHTML = ECLAT;                         // gabarit fixe, aucune donnée réseau
+    const b = el('div', cls);
+    b.innerHTML = html;                          // gabarit fixe, aucune donnée réseau
     b.style.left = (r.left + r.width / 2 - ar.left) + 'px';
     b.style.top = (r.top + r.height / 2 - ar.top) + 'px';
     $('fx').append(b);
-    b.addEventListener('animationend', () => b.remove(), { once: true });
-    setTimeout(() => b.remove(), 900);
+    b.addEventListener('animationend', (e) => { if (e.target === b) b.remove(); });
+    setTimeout(() => b.remove(), vie);
+  }
+  function eclat(c, arme) {
+    if (!arme.feu) { poserFx(c, 'boum', ECLAT, 900); return; }
+    poserFx(c, 'feu', FEU, 1100);
+    setTimeout(() => poserFx(c, 'boum', ECLAT, 900), FEU_AVANT);
   }
 
   // ------------------------------------------------------------------- fin

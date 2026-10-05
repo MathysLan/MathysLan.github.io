@@ -698,3 +698,41 @@ fil d'un autre tour) et tout cascadait. Révélation à 4 s dans cette suite, et
 le contrôle « ne dessine plus » échoue en le disant si le tour a déjà changé.
 `croquis-partie.mjs` accepte le tirage automatique quand le harnais arrive
 après la fenêtre de choix (1,5 s).
+
+## Roquette, armes (skins) — sélecteur et Pétoire (2026-10-05) : `roquette-skins.mjs`
+
+Le choix de l'arme au salon (cosmétique) et la première arme, « La Pétoire de
+Secours ». VRAI `roquette-server` (contrat `skin`, `8b7d01a`), deux contextes
+Edge ISOLÉS (chacun son `localStorage` : A en mouvement normal, B en mouvement
+réduit) et trois robots WebSocket (un ancien client sans `skin`).
+
+    node tests/roquette-skins.mjs                  ~1 min
+    node tests/roquette-skins.mjs --shots <d>      salon, Pétoire en jeu, prise de feu, fin
+
+Ce qui est vérifié : la table (`Rocket.SKINS`, repli sur la roquette pour
+tout id inconnu ou mal formé, `__proto__` compris), l'ENVELOPPE (portée de la
+Pétoire mesurée au pivot ≤ celle de la roquette, danger 3 ; `setSkin` ne
+change pas la taille), aucun id de dégradé en double (aperçus préfixés) ; au
+salon, roquette par défaut, `aria-pressed`, skin du join (préférence absente,
+valide, INVALIDE relue au rechargement), action `skin` → message relayé,
+retour à la roquette, skin d'un autre reçu, id inconnu reçu → Roquette,
+rafale de 5 clics → le dernier choix part, ≤ 4 envois ; en partie, l'arme
+montrée = celle du joueur VISÉ à chaque countdown / turn / boom (sonde posée
+après le traitement de chaque message), plus de sélecteur, explosion Pétoire
+= feu PUIS étoile commune (+150 ms) avec `fusee` / `crepitement` /
+`explosion`, explosion roquette = ses sons d'avant ; en mouvement réduit, ni
+vol, ni traînée, ni éclat, flamme figée, sons gardés.
+
+⚠️ La DERNIÈRE explosion d'une partie arrive avec `end`, qui coupe son vol
+(comportement d'avant ce lot) : un robot « tape tant que les trois muets n'ont
+pas explosé » prend cette explosion-là, les trois étudiées sont complètes.
+⚠️ La largeur de l'arme en jeu varie avec la bannière (`fit()` évite aussi
+`#cible`) : on ne la compare pas d'un tour à l'autre.
+Contre-épreuves : l'arme du joueur LOCAL au lieu du visé → 2 échecs ; un
+filtre `SKINS[v]` sans `hasOwnProperty` → 1 échec.
+
+Mode Hub : `handoff-roquette.mjs` (6 vérifications de plus) — B entre par le
+Hub avec sa préférence Pétoire, A sans préférence ; skins des join, sélecteur
+dans le salon du jeu (aucun écran de plus), changements vus par l'autre,
+l'explosion montre l'arme du touché, et AUCUN message vers le Hub ne parle
+d'arme.

@@ -454,3 +454,29 @@ l'historique.
   fermé — corrigé (retour à « ton profil »), prouvé par le test qui échouait.
   Attentes de test corrigées en route (Entrée native par CDP, majuscules CSS
   dans `innerText`) ; `drawId: null` retiré des succès publics à la relecture.
+
+## 2026-10-05 — Roquette Party : les armes (skins), contrat puis Pétoire
+
+- Conception (micro-lots 0 et 0.5, sans code) : cinq armes imaginées, V1 =
+  Pétoire de Secours, Marmite, Disrupteur. Contrat : un id FERMÉ par joueur,
+  choisi au salon (le seul écran commun au jeu seul et au Hub, dont le
+  handoff saute l'accueil), préférence `localStorage` `roquette_skin`, arme
+  montrée = celle du joueur VISÉ.
+- Serveur (`roquette-server` `8b7d01a`) : `skin` dans join / lobby /
+  countdown, action `skin` au salon seulement, relayée en message léger
+  (renvoyer `lobby` aurait fait repartir les photos de profil à chaque clic),
+  4 changements/s, tout le reste ignoré en silence. 403 tests, mutations
+  vérifiées. Un KO intermittent de `roquette-play.mjs` (téléphone clavier
+  ouvert, `scrollY 101`) vu avec le front d'AVANT : antérieur au lot.
+- Front : sélecteur (`.avatar-pick` du socle ; le gestionnaire des avatars
+  visait TOUS les `.avatar-pick` de la page, restreint à `#avatar-row`),
+  table `Rocket.SKINS`, Pétoire (cartouche rouge, culot de laiton, feu à
+  l'avant, pochoir « PAS UN JOUET », traînée rose en vol, étincelles aux
+  crans 2-3, prise de feu de la carte avant l'étoile commune, sons `fusee` /
+  `crepitement`). Vue à la capture : trop petite à 140 px → dessin agrandi
+  de 25 % (nez gardé à +60, trait compensé) ; « Alice (toi) » coupé par
+  l'étiquette d'arme → liste du salon à 640 px.
+- Pièges : un dégradé SVG dont la première définition (même id) est dans un
+  sous-arbre `display: none` ne s'affiche pas → id préfixés par dessin ; la
+  largeur en jeu suit aussi la bannière, on ne la compare pas entre tours ;
+  la dernière explosion arrive avec `end`, qui coupe son vol (déjà le cas).
