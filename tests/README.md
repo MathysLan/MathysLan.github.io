@@ -762,3 +762,31 @@ corps (produit scalaire avec la direction de tir), fumée rouge ; impact
 `.scorch-impact` puis étoile ; roquette d'origine à l'empreinte `38f1849d`.
 Contre-épreuves : Pétoire qui revole entière → 10 échecs ; lueur remise à
 l'arrière (flamme arrière) → 2 échecs.
+
+Grenade Launcher (2026-10-05, même suite, 103 vérifications, `--shots` ajoute
+`4-grenade-launcher-A`, `4b-grenade-vol-A`, `4c-grenade-impact-A`). Référence
+unique : le Grenade Launcher du Demoman (Dossier Grenade Launcher validé) ;
+id `marmite` (le serveur l'accepte depuis `a1790ef`) ; dessin maison, aucun
+asset Valve. B joue avec, donc les trois armes explosent chez A. À l'arrêt,
+sur un hôte de 250 px : deux calques distincts (arme `svg.p-arme`, projectile
+`.r-proj > svg.p-grenade`, dessous, même boîte) ; les 10 marqueurs `.m-*`
+présents et MESURÉS en diamètres du canon (bouche à +60 sur l'axe, canon de
+17 u, cage plus haute que le canon dessus ET dessous, deux chambres, canon
+qui sort du haut ~3,35 D devant la cage, crosse derrière ~41 %, hausse
+~1,9 D au-dessus à ~1 D de la bouche, garde-main dessous, 10 D de long, L / H
+≈ 3,2, couleurs du dossier) ; grenade chargée INVISIBLE et DANS le canon ;
+halo, traînée, ogive et bande rouges, rien de la Pétoire ni de rose ; visée
+dans six directions (crosse en bas, hausse en haut, canon vers la cible,
+retournée à gauche seulement, même longueur partout : aucune déformation) ;
+portée ≤ celle de la roquette et ≤ EMPRISE (113,5 u mesurés). En partie, la
+sonde suit le vol image par image : étoile commune SEULE, sons `tube` /
+`impact` / `explosion`, éclair, étincelles, brume et recul court (4–12°), la
+grenade parcourt la course pendant que l'arme reste au centre (`.r-fly`
+immobile), elle part de DANS le canon et sort par la bouche, elle CULBUTE
+(rotation cumulée de `.m-tourne` ≥ 180°, ~430° mesurés), halo à pleine
+opacité, traînée qui s'allonge ; impact au même instant que les deux autres
+armes ; en mouvement réduit, culbute, traînée et halo figés. La rotation est
+une animation CSS : elle ne touche pas la course (`tirer()`).
+Contre-épreuves : sans `projectile: true` (le Grenade Launcher vole entier,
+l'arme ne reste plus au centre) → 4 échecs ; sans l'animation de culbute →
+1 échec.

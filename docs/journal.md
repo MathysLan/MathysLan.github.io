@@ -514,3 +514,27 @@ l'historique.
 - Vu au rendu : carcasse et crosse rendues en noir — la Pétoire réutilisait
   les noms de dégradés de la roquette (`acier`, `chaleur`, `flou`) sous le
   même préfixe ; noms propres `sc-…`. Roquette inchangée (empreinte du dessin).
+
+## 2026-10-05 — Deuxième arme : le Grenade Launcher (`marmite`)
+
+- Dossier de référence d'abord (artifact « Dossier Grenade Launcher ») : profil
+  du modèle 3D du wiki mesuré colonne par colonne, grenade mesurée de profil,
+  puis tir, vol et impact relevés image par image dans 4 vidéos (démo du wiki
+  à 60 i/s, « Meet the Demoman », un ralenti Replay, du gameplay à 60 i/s). À
+  retenir : la grenade CULBUTE en vol (jamais ogive en avant), halo rouge,
+  fine traînée rouge continue ; l'explosion est la standard de TF2, donc rien
+  de propre à l'arme à l'impact. Écarté en route : les « grenades » de Meet
+  the Demoman à 24 s étaient les roquettes du Soldier.
+- Serveur d'abord (`roquette-server` `a1790ef`) : `marmite` entre dans la
+  liste fermée `SKINS`, rien d'autre ne change ; son test d'id inconnu passe à
+  `disrupteur`.
+- Front : arme et grenade sur deux calques (montage de la Pétoire), canon de
+  17 u — le plafond calculé pour que le talon tienne dans EMPRISE est 17,5 u,
+  on ne déforme rien. La culbute est une animation CSS du seul groupe de la
+  grenade, démarrée 70 ms après le tir (sinon ses bouts dépassaient du canon
+  avant la sortie). Le recul devient un champ de la table (`recul`), la
+  Pétoire garde le sien à l'identique. Nom affiché provisoire choisi par
+  Mathys : « Le Grenade Launcher ».
+- Vu à la capture : les vues du Grenade Launcher manquaient dans `--shots` —
+  son explosion arrivait avant que le guetteur ne démarre (il attendait
+  d'abord la Pétoire) ; un seul guetteur pour toutes les captures.

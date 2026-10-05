@@ -18,8 +18,13 @@
 //      choix part, jamais plus de 4 par seconde) ;
 //   3. la partie : l'arme montrée est celle du joueur visé (décompte, chaque
 //      tour, chaque explosion), à taille constante ; la Pétoire met le feu à la
-//      carte AVANT l'étoile commune, avec ses sons ; la roquette garde les
-//      siens ; en mouvement réduit, ni vol, ni traînée, ni éclat.
+//      carte AVANT l'étoile commune, avec ses sons ; le Grenade Launcher tire
+//      une grenade qui CULBUTE (halo, traînée) puis l'étoile commune seule ; la
+//      roquette garde les siens ; en mouvement réduit, ni vol, ni traînée, ni éclat.
+//
+// Le Grenade Launcher (id marmite) est aussi mesuré à l'arrêt : ses marqueurs
+// (Dossier Grenade Launcher), sa grenade cachée dans le canon, sa visée dans
+// six directions, son enveloppe.
 import { spawn } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -173,7 +178,10 @@ const SONDE = `(() => {
         const av = document.querySelector('.card.is-target .g-av');
         const rec = { skin: r.dataset.skin, t: performance.now(), eclair: r.classList.contains('is-firing'), w: h.width,
           course: av ? dist(ctr(av), pivot) - h.width * Rocket.NEZ : 0, fly: 0, proj: 0, arme: 0, projSousArme: false,
-          eclairVu: false, gerbe: false, bouffee: false, rotMax: 0, projVu: false, teteDevant: null, fumee: 0, fumeeRouge: false };
+          eclairVu: false, gerbe: false, bouffee: false, rotMax: 0, projVu: false, teteDevant: null, fumee: 0, fumeeRouge: false,
+          // la grenade (Grenade Launcher) : rotation CUMULÉE du groupe qui culbute,
+          // halo et traînée au plus fort, position le long du tir (départ, plus loin)
+          grenadeVu: false, tours: 0, angPrec: null, halo: 0, trainee: 0, depart: null, loin: 0 };
         const p = r.querySelector('.r-proj'), a = r.querySelector('.p-arme');
         rec.projSousArme = !!(p && a && (p.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING));
         const dir = av ? (() => { const c = ctr(av), n = dist(c, pivot) || 1; return [(c[0] - pivot[0]) / n, (c[1] - pivot[1]) / n]; })() : [1, 0];
@@ -198,6 +206,20 @@ const SONDE = `(() => {
             const te = pr.querySelector('.p-tete'), co = pr.querySelector('.p-corps'), fu = pr.querySelector('.p-fumee-vol');
             if (te && co) { const a2 = ctr(te), b2 = ctr(co), d = (a2[0] - b2[0]) * dir[0] + (a2[1] - b2[1]) * dir[1]; rec.teteDevant = rec.teteDevant === null ? d : Math.min(rec.teteDevant, d); }
             if (fu) { rec.fumee = Math.max(rec.fumee, +getComputedStyle(fu).opacity); const c = (getComputedStyle(fu.querySelector('circle')).fill.match(/[0-9]+/g) || []).map(Number); rec.fumeeRouge = c[0] > 150 && c[1] < 80 && c[2] < 70; }
+            const mt = pr.querySelector('.m-tourne');
+            if (mt) {
+              rec.grenadeVu = true;
+              const tf2 = getComputedStyle(mt).transform, m2 = tf2 === 'none' ? new DOMMatrix() : new DOMMatrix(tf2);
+              const ang = Math.atan2(m2.b, m2.a) * 180 / Math.PI;
+              if (rec.angPrec !== null) rec.tours += Math.abs(((ang - rec.angPrec) % 360 + 540) % 360 - 180);
+              rec.angPrec = ang;
+              rec.halo = Math.max(rec.halo, +getComputedStyle(pr.querySelector('.m-halo')).opacity);
+              const tt = getComputedStyle(pr.querySelector('.m-trainee')).transform;
+              rec.trainee = Math.max(rec.trainee, tt === 'none' ? 1 : new DOMMatrix(tt).a);
+              const gc = ctr(pr.querySelector('.m-grenade')), le = (gc[0] - pivot[0]) * dir[0] + (gc[1] - pivot[1]) * dir[1];
+              if (rec.depart === null) rec.depart = le;
+              rec.loin = Math.max(rec.loin, le);
+            }
           }
           requestAnimationFrame(pas);
         };
@@ -298,11 +320,13 @@ try {
   const B = await onglet('B', { reduit: true });
 
   // ======================================================= 1. la table des armes
-  t('table des armes : roquette et petoire, roquette par défaut', await A.ev(`JSON.stringify(Rocket.SKINS) === '["roquette","petoire"]' && Rocket.DEFAUT === 'roquette'`));
-  t('id inconnu, absent ou mal formé → roquette (marmite, Petoire, __proto__, constructor, 42, null, objet)',
-    await A.ev(`['marmite', 'Petoire', ' petoire', '__proto__', 'constructor', 'toString', 42, null, undefined, {}, ['petoire']].every((v) => Rocket.skinId(v) === 'roquette') && Rocket.skinId('petoire') === 'petoire'`));
+  t('table des armes : roquette, petoire et marmite, roquette par défaut', await A.ev(`JSON.stringify(Rocket.SKINS) === '["roquette","petoire","marmite"]' && Rocket.DEFAUT === 'roquette'`));
+  t('id inconnu, absent ou mal formé → roquette (disrupteur, Marmite, Petoire, __proto__, constructor, 42, null, objet)',
+    await A.ev(`['disrupteur', 'Marmite', ' marmite', 'Petoire', ' petoire', '__proto__', 'constructor', 'toString', 42, null, undefined, {}, ['petoire'], ['marmite']].every((v) => Rocket.skinId(v) === 'roquette') && Rocket.skinId('petoire') === 'petoire' && Rocket.skinId('marmite') === 'marmite'`));
   t('Rocket.info d un id inconnu : la roquette (nom, sons, pas de feu)',
-    await A.ev(`(() => { const i = Rocket.info('marmite'); return i.id === 'roquette' && i.depart === 'whoosh' && i.impact === 'impact' && i.couche === null; })()`));
+    await A.ev(`(() => { const i = Rocket.info('disrupteur'); return i.id === 'roquette' && i.depart === 'whoosh' && i.impact === 'impact' && i.couche === null; })()`));
+  t('Rocket.info(marmite) : « Le Grenade Launcher », son tube au départ, impact de la roquette, AUCUNE couche d impact (étoile commune seule)',
+    await A.ev(`(() => { const i = Rocket.info('marmite'); return i.id === 'marmite' && i.nom === 'Le Grenade Launcher' && i.court === 'Grenade Launcher' && i.depart === 'tube' && i.impact === 'impact' && i.couche === null; })()`));
   // La Pétoire = une ARME + un PROJECTILE : deux éléments distincts, aucun ne
   // contient l'autre ; le projectile (.r-proj) est AVANT l'arme dans le DOM
   // (dessous à l'écran) ; la tête qui brûle est dans le projectile, l'éclair de
@@ -386,22 +410,117 @@ try {
   })()`);
   t(`Pétoire : crosse toujours vers le bas, retournée quand elle vise à gauche (${Object.entries(crosse).map(([k, v]) => k + (v.bas ? ' ✓' : ' ✗') + (v.gauche ? ' (retournée)' : '')).join(', ')})`,
     Object.values(crosse).every((v) => v.bas) && crosse.gauche.gauche && !crosse.droite.gauche, JSON.stringify(crosse));
+
+  // Le Grenade Launcher (id marmite) = le lance-grenades du Demoman, d'après le
+  // Dossier Grenade Launcher validé. Deux calques comme la Pétoire, puis ses
+  // marqueurs MESURÉS sur un hôte de 250 px (1 unité du dessin = 1 px), en
+  // diamètres du canon (D = 17 u) : bouche à +60 sur l'axe, cage plus haute que
+  // le canon des deux côtés (surtout dessous), canon qui sort du HAUT du
+  // barillet, ~3,5 D devant la cage, crosse derrière la cage (~41 % de l'arme),
+  // hausse au-dessus du canon (~1,8 D) à ~1 D de la bouche, garde-main dessous,
+  // 10 D de long, longueur / hauteur ≈ 3,2. Grenade chargée DANS le canon et
+  // invisible ; halo, traînée, ogive et bande rouges ; ni flamme ni rose.
+  const gl = await A.ev(`(() => {
+    const h = document.createElement('div'); h.style.cssText = 'position:fixed;left:300px;top:300px;width:250px;aspect-ratio:250/92'; document.body.append(h);
+    const r = Rocket.create(h); r.setSkin('marmite');
+    const a = h.querySelector('svg.p-arme'), p = h.querySelector('.r-proj'), g = h.querySelector('.r-proj > svg.p-grenade');
+    const q = (s) => a.querySelector(s), bb = (e) => e.getBoundingClientRect();
+    const hb = h.getBoundingClientRect(), px = hb.left + 128, py = hb.top + 46;
+    const out = {
+      calques: !!a && !!p && !!g && h.querySelectorAll('svg.p-arme').length === 1 && h.querySelectorAll('.r-proj').length === 1
+        && !a.contains(p) && !p.contains(a) && a.parentNode === p.parentNode && !!(p.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING)
+        && !!g.querySelector('.m-tourne .m-grenade') && !!g.querySelector('.m-halo') && !!g.querySelector('.m-trainee') && !a.querySelector('.m-grenade, .m-halo, .m-trainee')
+        && !!a.querySelector('.p-eclair') && !g.querySelector('.p-eclair')
+        && getComputedStyle(p).position === 'absolute' && getComputedStyle(a).position === 'absolute'
+        && [bb(a).left, bb(a).top, bb(a).width, bb(a).height].join() === [bb(p).left, bb(p).top, bb(p).width, bb(p).height].join(),
+      manque: ['.m-crosse', '.m-cage', '.m-barillet', '.m-canon', '.m-hausse', '.m-garde-main', '.m-pontet', '.m-chien', '.m-ferrure', '.m-collier'].filter((s) => !q(s)),
+    };
+    if (out.manque.length) { h.remove(); return out; }
+    const cro = bb(q('.m-crosse')), cag = bb(q('.m-cage')), can = bb(q('.m-canon')), hau = bb(q('.m-hausse')), gar = bb(q('.m-garde-main')), fer = bb(q('.m-ferrure')), bar = bb(q('.m-barillet'));
+    const D = can.height, corps = [cro, cag, can, gar, fer];
+    const L = Math.max(...corps.map((b) => b.right)) - Math.min(...corps.map((b) => b.left)), H = Math.max(...corps.map((b) => b.bottom)) - Math.min(...corps.map((b) => b.top));
+    const stops = (el) => { const id = ((el.getAttribute('fill') || '').match(/#([^)]+)/) || [])[1]; const gr = id && document.getElementById(id); return gr ? [...gr.querySelectorAll('stop')].map((s) => s.getAttribute('stop-color')) : []; };
+    const rouge = (c) => { const m = /^#(..)(..)(..)$/.exec(c || ''); if (!m) return false; const [R, G, B] = m.slice(1).map((x) => parseInt(x, 16)); return R > 180 && G < 90 && B < 90; };
+    Object.assign(out, {
+      D: +D.toFixed(1), bouche: +(can.right - px).toFixed(1), axe: +((can.top + can.bottom) / 2 - py).toFixed(1),
+      cageDessus: +((can.top - cag.top) / D).toFixed(2), cageDessous: +((cag.bottom - can.bottom) / D).toFixed(2),
+      canonHaut: (can.top + can.bottom) / 2 < (cag.top + cag.bottom) / 2 - 3, canonLong: +((can.right - cag.right) / D).toFixed(2),
+      crosseDerriere: cro.right <= cag.left + 1, crossePart: +(cro.width / L).toFixed(2),
+      hausseDessus: hau.bottom <= can.top + .5, hausseHaut: +((can.top - hau.top) / D).toFixed(2), hausseBouche: +((can.right - (hau.left + hau.right) / 2) / D).toFixed(2),
+      gardeSous: gar.top >= can.bottom - 1 && gar.right <= can.right && gar.left >= cag.right - 1,
+      barillet: bar.left >= cag.left && bar.right <= cag.right && bar.top >= cag.top && bar.bottom <= cag.bottom, chambres: q('.m-barillet').querySelectorAll('rect[rx]').length,
+      LH: +(L / H).toFixed(2), LD: +(L / D).toFixed(2),
+      bois: stops(q('.m-crosse')).includes('#925439'), noir: stops(q('.m-canon')).includes('#31322b'), gris: stops(q('.m-cage')).includes('#62615b'),
+    });
+    const gr = bb(g.querySelector('.m-grenade'));
+    out.chargee = { invisible: getComputedStyle(p).visibility === 'hidden',
+      dansCanon: gr.left >= can.left && gr.right <= can.right + .5 && gr.top >= can.top && gr.bottom <= can.bottom, L: +gr.width.toFixed(1), H: +gr.height.toFixed(1) };
+    out.rouges = { halo: stops(g.querySelector('.m-halo circle')).some(rouge), trainee: stops(g.querySelector('.m-trainee')).some(rouge),
+      ogive: stops(g.querySelector('.m-ogive')).some(rouge), bande: rouge(g.querySelector('.m-bande').getAttribute('fill')) };
+    out.interdits = /r-flamme|p-trainee|p-feu-arriere|p-fumee-vol|p-fusee|#ff4f9a|#f7bfd3|<text/i.test(h.innerHTML);
+    h.remove(); return out;
+  })()`);
+  t('Grenade Launcher : l arme et le projectile sont deux calques distincts (svg.p-arme, .r-proj > svg.p-grenade), projectile dessous, même boîte', gl.calques, JSON.stringify(gl));
+  t(`Grenade Launcher : les 10 marqueurs dessinés (crosse, cage, barillet, canon, hausse, garde-main, pontet, chien, ferrure, collier)`, gl.manque.length === 0, gl.manque.join());
+  t(`Grenade Launcher : bouche à +60 sur l axe du pivot (${gl.bouche} ; axe ${gl.axe}), canon de 17 u (${gl.D})`, Math.abs(gl.bouche - 60) <= 1.5 && Math.abs(gl.axe) <= 1 && Math.abs(gl.D - 17) <= 1);
+  t(`Grenade Launcher : barillet massif, cage plus haute que le canon (dessus ${gl.cageDessus} D, dessous ${gl.cageDessous} D), deux chambres dans la cage`,
+    gl.cageDessus >= .5 && gl.cageDessous >= 1.2 && gl.barillet && gl.chambres === 2);
+  t(`Grenade Launcher : long canon qui sort du HAUT du barillet (${gl.canonLong} D devant la cage)`, gl.canonHaut && gl.canonLong >= 3 && gl.canonLong <= 3.8);
+  t(`Grenade Launcher : crosse de fusil derrière la cage (${Math.round(gl.crossePart * 100)} % de l arme), en bois #925439`, gl.crosseDerriere && gl.crossePart >= .36 && gl.crossePart <= .46 && gl.bois);
+  t(`Grenade Launcher : hausse au-dessus du canon (${gl.hausseHaut} D), près de la bouche (${gl.hausseBouche} D), garde-main sous le canon`,
+    gl.hausseDessus && gl.hausseHaut >= 1.5 && gl.hausseHaut <= 2.2 && gl.hausseBouche >= .5 && gl.hausseBouche <= 1.4 && gl.gardeSous);
+  t(`Grenade Launcher : proportions du dossier, ${gl.LD} D de long, longueur / hauteur ${gl.LH} (~3,2) ; canon noir #31322b, cage grise #62615b`,
+    gl.LD >= 9.5 && gl.LD <= 10.5 && gl.LH >= 2.9 && gl.LH <= 3.5 && gl.noir && gl.gris);
+  t(`Grenade Launcher : chargée, la grenade est INVISIBLE et tient DANS le canon (${gl.chargee && gl.chargee.L} × ${gl.chargee && gl.chargee.H} px)`,
+    gl.chargee.invisible && gl.chargee.dansCanon && gl.chargee.L >= 22 && gl.chargee.L <= 26 && gl.chargee.H < gl.D, JSON.stringify(gl.chargee));
+  t('Grenade Launcher : halo, traînée, ogive et bande ROUGES ; ni flamme, ni traînée rose, ni rien de la Pétoire', Object.values(gl.rouges).every(Boolean) && !gl.interdits, JSON.stringify(gl.rouges));
+
+  // La visée : à droite comme à gauche, la crosse reste en BAS et la hausse en
+  // HAUT, la bouche est du côté de la cible, et l'arme n'est jamais déformée
+  // (même distance bouche → talon dans toutes les directions).
+  const viseeGL = await A.ev(`(async () => {
+    const h = document.createElement('div'); h.style.cssText = 'position:fixed;left:400px;top:300px;width:250px;aspect-ratio:250/92'; document.body.append(h);
+    const r = Rocket.create(h); r.setSkin('marmite');
+    const out = {};
+    const ctr = (s) => { const b = h.querySelector(s).getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; };
+    for (const [nom, dx, dy] of [['droite', 300, 0], ['gauche', -300, 0], ['bas-gauche', -200, 150], ['haut-gauche', -200, -150], ['bas-droite', 200, 150], ['haut-droite', 200, -150]]) {
+      const c = document.createElement('div'); const b = h.getBoundingClientRect(), px = b.left + b.width * Rocket.PIVOT, py = b.top + b.height / 2;
+      c.style.cssText = 'position:fixed;width:10px;height:10px;left:' + (px + dx - 5) + 'px;top:' + (py + dy - 5) + 'px'; document.body.append(c);
+      r.aimAt(c, { instant: true }); await new Promise((f) => setTimeout(f, 250));
+      const ang = Math.atan2(dy, dx), nx = -Math.sin(ang), ny = Math.cos(ang), sens = ny >= 0 ? 1 : -1;
+      const cote = (p) => ((p[0] - px) * nx + (p[1] - py) * ny) * sens;      // > 0 : vers le bas de l'écran
+      const cr = ctr('.m-crosse'), ha = ctr('.m-hausse'), ca = ctr('.m-canon');
+      out[nom] = { crosseBas: cote(cr) > 0, hausseHaut: cote(ha) < 0, canonVers: (ca[0] - px) * Math.cos(ang) + (ca[1] - py) * Math.sin(ang) > 0,
+        gauche: h.classList.contains('is-gauche'), longueur: Math.round(Math.hypot(ca[0] - cr[0], ca[1] - cr[1]) * 10) / 10 };
+      c.remove();
+    }
+    h.remove(); return out;
+  })()`);
+  const longueurs = Object.values(viseeGL).map((v) => v.longueur);
+  t(`Grenade Launcher, visée : crosse en bas, hausse en haut, canon vers la cible dans les 6 directions (${Object.entries(viseeGL).map(([k, v]) => k + (v.crosseBas && v.hausseHaut && v.canonVers ? ' ✓' : ' ✗') + (v.gauche ? ' (retournée)' : '')).join(', ')})`,
+    Object.values(viseeGL).every((v) => v.crosseBas && v.hausseHaut && v.canonVers), JSON.stringify(viseeGL));
+  t('Grenade Launcher, visée : retournée à gauche seulement', viseeGL.gauche.gauche && viseeGL['bas-gauche'].gauche && viseeGL['haut-gauche'].gauche && !viseeGL.droite.gauche && !viseeGL['bas-droite'].gauche && !viseeGL['haut-droite'].gauche);
+  t(`Grenade Launcher, visée : aucune déformation (canon → crosse : ${[...new Set(longueurs)].join(' / ')} px)`, Math.max(...longueurs) - Math.min(...longueurs) <= 1, JSON.stringify(longueurs));
+
   const portee = await A.ev(PORTEE);
   t(`enveloppe : la Pétoire ne va pas plus loin du pivot que la roquette (danger 3 : ${portee.petoire3} ≤ ${portee.roquette3} ; danger 0 : ${portee.petoire0})`,
     portee.petoire3 <= portee.roquette3 && portee.petoire0 <= portee.roquette3 && portee.petoire3 > 50, JSON.stringify(portee));
+  t(`enveloppe : le Grenade Launcher tient dans la place que fit() réserve (danger 3 : ${portee.marmite3} ≤ ${portee.roquette3} ; danger 0 : ${portee.marmite0} ; EMPRISE ${await A.ev('Math.round(Rocket.EMPRISE * 2500) / 10')})`,
+    portee.marmite3 <= portee.roquette3 && portee.marmite0 <= portee.roquette3 && portee.marmite3 <= await A.ev('Rocket.EMPRISE * 250') && portee.marmite3 > 100, JSON.stringify(portee));
   t('changer d arme ne change pas la taille posée (largeur, hauteur)', await A.ev(`(() => {
     const h = document.createElement('div'); h.style.cssText = 'position:fixed;left:0;top:0;width:213px;aspect-ratio:250/92;';
     document.body.append(h);
     const r = Rocket.create(h), mesure = () => { const b = h.getBoundingClientRect(); return [b.width, b.height, h.style.width].join(); };
-    const avant = mesure(); r.setSkin('petoire'); const apres = mesure(); const skin = h.dataset.skin; r.setSkin('roquette'); const retour = mesure();
-    h.remove(); return avant === apres && apres === retour && skin === 'petoire' && h.dataset.skin === 'roquette';
+    const avant = mesure(); r.setSkin('petoire'); const apres = mesure(); const skin = h.dataset.skin;
+    r.setSkin('marmite'); const gl = mesure(); const skin2 = h.dataset.skin; r.setSkin('roquette'); const retour = mesure();
+    h.remove(); return avant === apres && apres === gl && gl === retour && skin === 'petoire' && skin2 === 'marmite' && h.dataset.skin === 'roquette';
   })()`));
   t('enveloppe : la roquette tient dans EMPRISE (le rayon que fit() lui réserve)',
     await A.ev(`${portee.roquette3} <= Rocket.EMPRISE * 250 + 4`), `${portee.roquette3} vs ${await A.ev('Rocket.EMPRISE * 250')}`);
 
   // ============================================================== 2. le salon
   t('A, sans préférence : la roquette est choisie (aria-pressed), seule',
-    await A.ev(`localStorage.getItem('roquette_skin') === null && ${choixEst('roquette')} && document.querySelectorAll('.skin-pick').length === 2`));
+    await A.ev(`localStorage.getItem('roquette_skin') === null && ${choixEst('roquette')} && document.querySelectorAll('.skin-pick').length === 3`));
   await A.clic('#name-input'); await A.taper('Alice');
   await A.clic('#host');
   await A.until(`!document.getElementById('lobby').hidden && /^[A-Z]{4}$/.test(document.getElementById('room-code').textContent)`);
@@ -409,9 +528,9 @@ try {
   const idA = await A.ev(`window.__recu.find((m) => m.type === 'you').id`);
   const joinA = (await envoyes(A, 'join'))[0];
   t('join de A : skin « roquette » (aucune préférence)', joinA && joinA.skin === 'roquette', JSON.stringify(joinA));
-  t('salon : le sélecteur est visible, deux armes avec aperçu et nom',
+  t('salon : le sélecteur est visible, trois armes avec aperçu et nom',
     await A.ev(`document.getElementById('skin-choix').checkVisibility() && [...document.querySelectorAll('.skin-pick')].every((b) => b.querySelector('svg.r-svg') && b.textContent.trim().length > 4)`)
-    && await A.ev(`[...document.querySelectorAll('.skin-pick')].map((b) => b.querySelector('.skin-nom').textContent).join('|') === 'La Roquette|La Pétoire de Secours'`)
+    && await A.ev(`[...document.querySelectorAll('.skin-pick')].map((b) => b.querySelector('.skin-nom').textContent).join('|') === 'La Roquette|La Pétoire de Secours|Le Grenade Launcher'`)
     && await A.ev(`[...document.querySelectorAll('.skin-apercu svg')].every((s) => s.getAttribute('aria-hidden') === 'true')`));
   t('salon : chaque arme est un bouton à bascule (aria-pressed), nommé par son texte',
     await A.ev(`[...document.querySelectorAll('#skin-row > button')].every((b) => b.type === 'button' && b.hasAttribute('aria-pressed'))`));
@@ -447,15 +566,15 @@ try {
   R1.send({ action: 'skin', skin: 'petoire' });
   t('réception du message skin d un autre joueur : sa ligne dit « Pétoire »', await A.until(`${tagDe(R1.id)} === 'Pétoire'`, 3000));
   // Un id que la page ne connaît pas (serveur en avance sur le front) → la roquette.
-  await A.ev(`NET.dispatch({ type: 'skin', id: ${JSON.stringify(R1.id)}, skin: 'marmite' })`);
-  t('id inconnu reçu (marmite) → affiché comme la roquette', (await A.ev(tagDe(R1.id))) === 'Roquette');
+  await A.ev(`NET.dispatch({ type: 'skin', id: ${JSON.stringify(R1.id)}, skin: 'disrupteur' })`);
+  t('id inconnu reçu (disrupteur) → affiché comme la roquette', (await A.ev(tagDe(R1.id))) === 'Roquette');
   R1.send({ action: 'skin', skin: 'roquette' });        // le serveur repasse R1 en roquette (et le relaie)
   await A.until(`window.__recu.some((m) => m.type === 'skin' && m.id === ${JSON.stringify(R1.id)} && m.skin === 'roquette')`, 3000);
 
   // B : la préférence locale, relue au chargement.
-  await B.ev(`localStorage.setItem('roquette_skin', 'marmite')`);
+  await B.ev(`localStorage.setItem('roquette_skin', 'disrupteur')`);
   await B.recharger();
-  t('B, préférence locale INVALIDE (marmite) → la roquette est choisie', await B.ev(choixEst('roquette')));
+  t('B, préférence locale INVALIDE (disrupteur) → la roquette est choisie', await B.ev(choixEst('roquette')));
   await B.ev(`localStorage.setItem('roquette_skin', 'petoire')`);
   await B.recharger();
   t('B, préférence locale valide (petoire) → la Pétoire est choisie', await B.ev(choixEst('petoire')));
@@ -476,8 +595,10 @@ try {
   t(`rafale de 5 clics : ${rafale.length} envoi(s), le dernier = roquette, et A voit B en Roquette`,
     rafale.length >= 1 && rafale.length <= 4 && rafale[rafale.length - 1].skin === 'roquette' && await A.until(`${tagDe(idB)} === 'Roquette'`, 3000),
     JSON.stringify(rafale.map((m) => m.skin)));
-  await B.clic('.skin-pick[data-skin="petoire"]');
-  await A.until(`${tagDe(idB)} === 'Pétoire'`, 3000);
+  // B passe au Grenade Launcher : c'est son arme pour la partie.
+  await B.clic('.skin-pick[data-skin="marmite"]');
+  t('B choisit le Grenade Launcher : relayé, A voit B en « Grenade Launcher »', await A.until(`${tagDe(idB)} === 'Grenade Launcher'`, 3000)
+    && (await envoyes(B, 'skin')).some((m) => m.skin === 'marmite'));
 
   // R2 : nouveau client, roquette explicite ; il tape à chaque tour (il gagne).
   const R2 = robot('Robot2', code, { mode: 'answer', skin: 'roquette' });
@@ -488,28 +609,35 @@ try {
   const R3 = robot('Robot3', code, { skin: 'roquette', mode: (b) => b.msgs.filter((m) => m.type === 'boom').length < 3 });
   await R3.attend((m) => m.type === 'you');
   await A.until(`document.getElementById('lobby-count').textContent === '5 / 16'`);
-  t('salon à 5 : A Pétoire, R1 Roquette, B Pétoire, R2 et R3 Roquette (chez A)',
-    (await A.ev(`[${[idA, R1.id, idB, R2.id, R3.id].map(tagDe).join(',')}].join()`)) === 'Pétoire,Roquette,Pétoire,Roquette,Roquette');
+  t('salon à 5 : A Pétoire, R1 Roquette, B Grenade Launcher, R2 et R3 Roquette (chez A)',
+    (await A.ev(`[${[idA, R1.id, idB, R2.id, R3.id].map(tagDe).join(',')}].join()`)) === 'Pétoire,Roquette,Grenade Launcher,Roquette,Roquette');
   await A.shot('1-salon-A');
 
   // ============================================================= 3. la partie
-  const attendu = { [idA]: 'petoire', [R1.id]: 'roquette', [idB]: 'petoire', [R2.id]: 'roquette', [R3.id]: 'roquette' };
+  const attendu = { [idA]: 'petoire', [R1.id]: 'roquette', [idB]: 'marmite', [R2.id]: 'roquette', [R3.id]: 'roquette' };
   await A.ev(`document.getElementById('vies-select').value = '1'`);
   await A.clic('#start');
   t('lancement : plus de sélecteur pendant la partie',
     await A.until(`document.getElementById('play').dataset.phase === 'countdown' || document.getElementById('play').dataset.phase === 'turn'`)
     && await A.ev(`!document.getElementById('skin-choix').checkVisibility()`));
-  // Une capture de la Pétoire en jeu (--shots).
-  if (SHOTS && await A.until(`document.getElementById('rocket').dataset.skin === 'petoire' && document.getElementById('play').dataset.phase === 'turn'`, 20000)) {
-    await sleep(400); await A.shot('2-petoire-A');
-  }
-  // … et de l'impact du Scorch Shot sur une carte (--shots), dès qu'il apparaît.
-  let feuCapture = !SHOTS;
+  // Les captures (--shots), dès que chaque moment apparaît, dans l'ordre où la
+  // partie les amène : la Pétoire en jeu et l'impact du Scorch Shot ; le
+  // Grenade Launcher en jeu, en vol (la grenade à mi-course) et à l'impact.
+  let petJeu = !SHOTS, feuCapture = !SHOTS, glJeu = !SHOTS, glVol = !SHOTS, glImpact = !SHOTS, glVise = false;
   const guetteur = (async () => {
-    while (!feuCapture) {
-      if (await A.ev(`!!document.querySelector('#fx .scorch-impact') && !document.getElementById('play').hidden`)) { await sleep(40); await A.shot('2b-impact-A'); feuCapture = true; }
-      else if (await A.ev(`!document.getElementById('end').hidden`)) break;
-      await sleep(20);
+    while (!petJeu || !feuCapture || !glJeu || !glVol || !glImpact) {
+      if (!petJeu && await A.ev(`document.getElementById('rocket').dataset.skin === 'petoire' && document.getElementById('play').dataset.phase === 'turn'`)) {
+        await sleep(200); await A.shot('2-petoire-A'); petJeu = true;
+      }
+      const e = await A.ev(`(() => { const r = document.getElementById('rocket'), p = r.querySelector('.r-proj'), a = p && p.getAnimations().find((x) => !(x instanceof CSSAnimation));
+        return { feu: !!document.querySelector('#fx .scorch-impact'), fin: !document.getElementById('end').hidden, phase: document.getElementById('play').dataset.phase,
+          gl: r.dataset.skin === 'marmite', vol: r.classList.contains('is-flying'), t: a ? a.currentTime : 0, boum: !!document.querySelector('#fx .boum') }; })()`);
+      if (e.fin) break;
+      if (!feuCapture && e.feu) { await sleep(40); await A.shot('2b-impact-A'); feuCapture = true; }
+      if (!glJeu && e.gl && e.phase === 'turn') { await sleep(300); await A.shot('4-grenade-launcher-A'); glJeu = true; }
+      if (!glVol && e.gl && e.vol && e.t > 150) { await A.shot('4b-grenade-vol-A'); glVol = true; glVise = true; }
+      if (!glImpact && glVise && e.boum) { await A.shot('4c-grenade-impact-A'); glImpact = true; }
+      await sleep(15);
     }
   })();
   const fini = await A.until(`!document.getElementById('end').hidden`, 90000);
@@ -525,23 +653,23 @@ try {
     t(`${P.nom} : l arme montrée est celle du joueur visé, à chaque countdown / turn / boom (${JSON.stringify(types)})`,
       faux.length === 0 && types.countdown === 1 && types.turn >= 4 && types.boom === 4, JSON.stringify(faux.slice(0, 3)));
     const skinsVus = new Set(vu.map((v) => v.skin));
-    t(`${P.nom} : les deux armes ont été montrées`, skinsVus.has('petoire') && skinsVus.has('roquette'));
+    t(`${P.nom} : les trois armes ont été montrées`, skinsVus.has('petoire') && skinsVus.has('roquette') && skinsVus.has('marmite'));
     t(`${P.nom} : la fumée de vol n existe que dans la Pétoire, l ancien dessin (traînée rose, flamme arrière, pochoir) nulle part`,
       vu.every((v) => v.fumeeVol === (v.skin === 'petoire') && !v.anciens));
-    t(`${P.nom} : chargée, la fusée est INVISIBLE (à chaque décompte et chaque tour)`, vu.filter((v) => v.type !== 'boom').every((v) => !v.projVisible));
+    t(`${P.nom} : chargé, le projectile (fusée, grenade) est INVISIBLE (à chaque décompte et chaque tour)`, vu.filter((v) => v.type !== 'boom').every((v) => !v.projVisible));
     t(`${P.nom} : aucun sélecteur pendant la partie`, vu.every((v) => !v.choix));
     const booms = vu.filter((v) => v.type === 'boom');
     t(`${P.nom} : les explosions utilisent l arme du joueur touché (${booms.map((b) => b.skin).join(', ')})`,
-      booms.length === 4 && booms.every((b) => b.skin === attendu[b.cible]) && booms.filter((b) => b.skin === 'petoire').length === 2);
+      booms.length === 4 && booms.every((b) => b.skin === attendu[b.cible]) && booms.filter((b) => b.skin === 'petoire').length === 1 && booms.filter((b) => b.skin === 'marmite').length === 1);
   }
 
   // L'impact, en mouvement normal (A) : la Pétoire pose l'impact du Scorch Shot PUIS l'étoile commune ; la roquette, l'étoile seule.
   const vuA = await A.ev('window.__vu'), fxA = await A.ev('window.__fx'), sonsA = await A.ev('window.__sons'), volA = await A.ev('window.__vol');
   const tirsA = await A.ev('window.__tirs');
-  const impacts = { petoire: [], roquette: [] };
+  const impacts = { petoire: [], marmite: [], roquette: [] };
   const boomsA = vuA.filter((v) => v.type === 'boom');
   // Les trois premières (la 4e, celle de R3, finit la partie : `end` coupe son vol, comme avant ce lot).
-  t('A : trois explosions étudiées, dont celles des deux Pétoire', boomsA.length === 4 && boomsA.slice(0, 3).filter((b) => b.skin === 'petoire').length === 2);
+  t('A : trois explosions étudiées, une par arme (Pétoire, Grenade Launcher, roquette)', boomsA.length === 4 && ['petoire', 'marmite', 'roquette'].every((k) => boomsA.slice(0, 3).filter((b) => b.skin === k).length === 1), boomsA.map((b) => b.skin).join());
   boomsA.slice(0, 3).forEach((b, i) => {
     const finFenetre = boomsA[i + 1].t;
     const fx = fxA.filter((f) => f.t >= b.t && f.t < finFenetre);
@@ -568,18 +696,43 @@ try {
       t('A, impact Pétoire : le projectile disparaît, l arme reste visible au centre',
         !!tir && tir.proj === 'hidden' && tir.arme === '1' && tir.fly === '1' && !tir.gone, JSON.stringify(tir));
       if (feu) impacts.petoire.push(feu.t - b.t);
+    } else if (b.skin === 'marmite') {
+      // Le Grenade Launcher : même cycle arme → tir → projectile → impact, mais la
+      // grenade CULBUTE en vol (rotation cumulée du groupe .m-tourne, image par
+      // image), dans son halo rouge, avec sa traînée ; aucune couche d'impact.
+      const vol = volA.find((v) => v.t >= b.t && v.t < finFenetre);
+      const tir = tirsA.find((x) => x.t >= b.t && x.t < finFenetre);
+      const j = vol ? JSON.stringify(vol) : 'pas de vol';
+      t('A, explosion Grenade Launcher : l étoile commune SEULE (aucune couche d impact propre)', !!etoile && !feu && fx.every((f) => f.cls === 'boum'), JSON.stringify(fx));
+      t(`A, explosion Grenade Launcher : sons tube, impact, explosion (${sons.join(' ')})`,
+        ['tube', 'impact', 'explosion'].every((n) => sons.includes(n)) && !['whoosh', 'fusee', 'crepitement'].some((n) => sons.includes(n)));
+      t('A, tir Grenade Launcher : éclair de bouche visible au départ, étincelles et brume animées, grenade SOUS l arme',
+        !!vol && vol.skin === 'marmite' && vol.eclair && vol.eclairVu && vol.gerbe && vol.bouffee && vol.projSousArme, j);
+      t(`A, tir Grenade Launcher : recul visuel (rotation max ${vol ? Math.round(vol.rotMax) : '?'}°, court)`, !!vol && vol.rotMax >= 4 && vol.rotMax <= 12, j);
+      t(`A, vol Grenade Launcher : la GRENADE parcourt la trajectoire (${vol ? Math.round(vol.proj) : '?'} px sur ${vol ? Math.round(vol.course) : '?'}), l ARME reste au centre (${vol ? Math.round(vol.arme) : '?'} px), .r-fly immobile`,
+        !!vol && vol.course > 40 && vol.proj >= 0.5 * vol.course && vol.arme <= 0.25 * vol.w && vol.fly < 1, j);
+      t(`A, vol Grenade Launcher : la grenade part de DANS le canon (${vol && vol.depart !== null ? Math.round(vol.depart) : '?'} px du pivot, bouche à ${vol ? Math.round(vol.w * 60 / 250) : '?'}) et sort par la bouche (jusqu à ${vol ? Math.round(vol.loin) : '?'} px)`,
+        !!vol && vol.grenadeVu && vol.depart !== null && vol.depart > vol.w * 0.1 && vol.depart <= vol.w * 60 / 250 + 2 && vol.loin >= 0.5 * vol.course, j);
+      t(`A, vol Grenade Launcher : la grenade CULBUTE pendant le vol (${vol ? Math.round(vol.tours) : '?'}° cumulés)`, !!vol && vol.tours >= 180, j);
+      t(`A, vol Grenade Launcher : halo rouge (opacité ${vol ? vol.halo : '?'}) et fine traînée rouge qui s allonge (échelle ${vol ? vol.trainee.toFixed(2) : '?'})`,
+        !!vol && vol.halo >= 0.9 && vol.trainee >= 0.5, j);
+      t('A, vol Grenade Launcher : ni tête de fusée ni fumée de la Pétoire', !!vol && vol.teteDevant === null && vol.fumee === 0, j);
+      t('A, impact Grenade Launcher : la grenade disparaît, l arme reste visible au centre',
+        !!tir && tir.proj === 'hidden' && tir.arme === '1' && tir.fly === '1' && !tir.gone, JSON.stringify(tir));
+      if (etoile) impacts.marmite.push(etoile.t - b.t);
     } else {
       t('A, explosion roquette : l étoile commune seule, sans l impact du Scorch Shot', !!etoile && !feu, JSON.stringify(fx));
       t(`A, explosion roquette : ses sons d avant (${sons.join(' ')})`,
-        ['whoosh', 'impact', 'explosion'].every((n) => sons.includes(n)) && !sons.includes('fusee') && !sons.includes('crepitement'));
+        ['whoosh', 'impact', 'explosion'].every((n) => sons.includes(n)) && !sons.includes('fusee') && !sons.includes('crepitement') && !sons.includes('tube'));
       const vol = volA.find((v) => v.t >= b.t && v.t < finFenetre);
       t(`A, vol roquette : comme avant, c est TOUTE la roquette qui part (${vol ? Math.round(vol.fly) : '?'} px), sans éclair ni projectile`,
         !!vol && !vol.eclair && vol.fly >= 0.5 * vol.course && vol.proj === 0 && vol.arme === 0 && !tirsA.some((x) => x.t >= b.t && x.t < finFenetre), JSON.stringify(vol));
       if (etoile) impacts.roquette.push(etoile.t - b.t);
     }
   });
-  t(`A : même instant d impact pour les deux armes (Pétoire ${impacts.petoire.map(Math.round).join(' / ')} ms, roquette ${impacts.roquette.map(Math.round).join(' / ')} ms après boom)`,
-    impacts.petoire.length === 2 && impacts.roquette.length === 1 && impacts.petoire.every((x) => Math.abs(x - impacts.roquette[0]) < 120));
+  t(`A : même instant d impact pour les trois armes (Pétoire ${impacts.petoire.map(Math.round).join(' / ')} ms, Grenade Launcher ${impacts.marmite.map(Math.round).join(' / ')} ms, roquette ${impacts.roquette.map(Math.round).join(' / ')} ms après boom)`,
+    impacts.petoire.length === 1 && impacts.marmite.length === 1 && impacts.roquette.length === 1
+    && [...impacts.petoire, ...impacts.marmite].every((x) => Math.abs(x - impacts.roquette[0]) < 120));
   t('A : sons communs gardés (validation du mot de R2)', sonsA.some((s) => s.n === 'valide'));
 
   // Mouvement réduit (B) : version fixe — ni vol, ni traînée, ni éclat ; les sons restent.
@@ -590,6 +743,9 @@ try {
   t('B (mouvement réduit) : la Pétoire est figée (étincelles de danger, fumée de vol)', await B.ev(`(() => { const h = document.createElement('div'); h.style.width = '250px'; document.body.append(h);
     const r = Rocket.create(h); r.setSkin('petoire'); h.dataset.danger = '3'; h.classList.add('is-flying');
     const n = ['.p-etinc', '.p-fumee-vol'].reduce((s, q) => s + h.querySelector(q).getAnimations().length, 0); h.remove(); return n === 0; })()`));
+  t('B (mouvement réduit) : le Grenade Launcher est figé — même « en vol », ni culbute, ni traînée, ni halo animés', await B.ev(`(() => { const h = document.createElement('div'); h.style.width = '250px'; document.body.append(h);
+    const r = Rocket.create(h); r.setSkin('marmite'); h.dataset.danger = '3'; h.classList.add('is-flying');
+    const n = ['.m-tourne', '.m-trainee', '.m-halo'].reduce((s, q) => s + h.querySelector(q).getAnimations().length, 0); h.remove(); return n === 0; })()`));
   t('B (mouvement réduit) : arme fixe — jamais de tir animé (ni .is-firing, ni .is-shot)', (await B.ev('window.__tirs')).length === 0);
 
   // Le fil : aucun message nouveau hors du contrat.

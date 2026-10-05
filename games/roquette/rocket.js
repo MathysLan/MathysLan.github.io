@@ -267,15 +267,183 @@
   // Le dessin de la Pétoire : le projectile d'abord (dessous), l'arme par-dessus.
   var PETOIRE = '<div class="r-proj">' + FUSEE + '</div>' + ARME;
 
+  // « Le Grenade Launcher » (id marmite) : le lance-grenades du DEMOMAN (référence
+  // unique, Dossier Grenade Launcher validé : profil du modèle mesuré colonne par
+  // colonne, puis ramené au repère du jeu). Dessin maison : aucun asset, aucune
+  // géométrie de modèle reprise, des aplats et le contour du jeu. Canon de 17 u
+  // (D) sur l'axe du pivot, bouche à +60 (NEZ), talon à -110,7 : 10 D de long,
+  // longueur / hauteur ≈ 3,2 ; crosse 41 % · cage 24 % · canon 35 %. Deux calques :
+  //   - l'ARME (svg .p-arme), de profil : la CAGE grise du barillet (.m-cage, 4
+  //     vis, sangle haute, ferrure basse .m-ferrure), plus haute que le canon des
+  //     deux côtés et surtout dessous, ses deux chambres en tubes (.m-barillet) ;
+  //     le long CANON noir (.m-canon) qui sort du HAUT du barillet ; le collier
+  //     gris (.m-collier) et la HAUSSE à échelle (.m-hausse), ~1 D derrière la
+  //     bouche, 1,8 D au-dessus du canon ; le GARDE-MAIN en bois sous le canon
+  //     (.m-garde-main) ; la CROSSE de fusil en bois orangé (.m-crosse) à
+  //     poignée pistolet et plaque de couche noire ; pontet (.m-pontet), chien
+  //     (.m-chien). Hausse et pontet ont un contour fin : celui de 7 en ferait un
+  //     poteau et boucherait l'anneau.
+  //     Au tir : éclair orange-jaune ROND (~2 D, .p-eclair), quelques étincelles
+  //     (.p-gerbe), une brume claire (.p-bouffee), recul court autour de la main.
+  //   - le PROJECTILE (.r-proj > svg .p-grenade) : la grenade, une pilule de 24 u
+  //     (culot à rebord, bande et ogive rouges lumineuses, corps sombre), chargée
+  //     DANS le canon (culot à +34, ogive à +58) et INVISIBLE tant qu'elle y est.
+  //     En vol (CSS, .is-flying) : elle CULBUTE bout par-dessus bout (.m-tourne,
+  //     animation CSS : purement visuelle, la trajectoire reste celle de tirer()),
+  //     dans un halo rouge cerné d'un anneau (.m-halo), suivie d'une fine traînée
+  //     rouge continue (.m-trainee). Ni flamme, ni bouffées, ni traînée rose.
+  // Impact : l'explosion standard de TF2, rien de propre à l'arme — l'étoile
+  // commune seule (couche: null). Au plus loin, le talon : 114,5 u du pivot
+  // contour compris, sous EMPRISE (120,4) ; rien ne sort de la boîte du dessin.
+  var GL_CROSSE = 'M-110.7,3 L-80,3.6 C-75,4.2 -72,8.4 -69,8.2 C-65,8 -60,2.5 -55.5,1 L-40,-2 L-40,11.8 L-48,10.5 C-53,11.5 -56,13 -58,13.5 C-62,15 -66,22 -70,25 C-73,25.6 -76,22.5 -80,21.2 C-88,20.2 -97,23 -106.7,24.5 L-108.7,18.6 L-110.7,8.8 Z';
+  var GL_PLAQUE = 'M-110.7,3 L-107.6,3 L-105.4,24.6 L-106.7,24.5 L-108.7,18.6 L-110.7,8.8 Z';
+  var GL_CHIEN = 'M-55.5,1 L-53.8,-2.3 L-51.8,-4.2 L-45.9,-5.6 L-42,-8.8 L-40,-14.1 L-40,-2 Z';
+  var GL_CAGE = 'M-40,-14.1 L-36.1,-19.3 L-20.4,-18.6 L-18.5,-16 L-16.5,-14.7 L1.2,-13.4 L3.1,-8.5 L3.1,10.1 L1.2,30.4 L-0.8,31.7 L-2.8,34.3 L-12.6,34.3 L-16.5,32.4 L-20.4,30.4 L-36.1,30.4 L-40,29.8 Z';
+  var GL_FERRURE = 'M-21.7,27 H3 L1.2,30.4 L-0.8,31.7 L-2.8,34.3 L-12.6,34.3 L-16.5,32.4 L-20.4,30.4 Z';
+  var GL_CANON = 'M1.2,-8.5 H60 V8.5 H1.2 Z';
+  var GL_GARDE = 'M5.1,8.5 L50.2,8.5 L48.2,12.1 L46.3,19.3 L5.1,19.6 Z';
+  var GL_PONTET = 'M-54.7,16.3 a6.5,6.5 0 1,0 13,0 a6.5,6.5 0 1,0 -13,0 Z M-52.2,16.3 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z';
+  var GL_ECLAIR = etoile(10, 17, 11), GL_ECLAIR_MI = etoile(10, 10, 6.5);
+  var GL_ARME = ''
+    + '<svg class="r-svg p-arme" viewBox="-128 -46 250 92" aria-hidden="true" focusable="false">'
+    + '<defs>'
+    + '<linearGradient id="{p}-gl-bois" x1="0" y1="-6" x2="0" y2="26" gradientUnits="userSpaceOnUse">'
+    + '<stop offset="0" stop-color="#6e3c22"/><stop offset=".2" stop-color="#a8643f"/><stop offset=".45" stop-color="#925439"/>'
+    + '<stop offset=".75" stop-color="#7a4430"/><stop offset="1" stop-color="#5a311d"/></linearGradient>'
+    + '<linearGradient id="{p}-gl-garde" x1="0" y1="8.5" x2="0" y2="19.6" gradientUnits="userSpaceOnUse">'
+    + '<stop offset="0" stop-color="#4f3523"/><stop offset=".3" stop-color="#7c4a2f"/><stop offset=".6" stop-color="#65462e"/><stop offset="1" stop-color="#4a3020"/></linearGradient>'
+    + '<linearGradient id="{p}-gl-canon" x1="0" y1="-8.5" x2="0" y2="8.5" gradientUnits="userSpaceOnUse">'
+    + '<stop offset="0" stop-color="#141510"/><stop offset=".2" stop-color="#3f4038"/><stop offset=".36" stop-color="#4f5047"/>'
+    + '<stop offset=".6" stop-color="#31322b"/><stop offset=".85" stop-color="#23241e"/><stop offset="1" stop-color="#121310"/></linearGradient>'
+    + '<linearGradient id="{p}-gl-acier" x1="0" y1="-19" x2="0" y2="34" gradientUnits="userSpaceOnUse">'
+    + '<stop offset="0" stop-color="#43423e"/><stop offset=".18" stop-color="#7a7972"/><stop offset=".45" stop-color="#6a6963"/>'
+    + '<stop offset=".7" stop-color="#62615b"/><stop offset="1" stop-color="#44433f"/></linearGradient>'
+    + '<linearGradient id="{p}-gl-clair" x1="0" y1="0" x2="0" y2="1">'
+    + '<stop offset="0" stop-color="#5b5a54"/><stop offset=".25" stop-color="#9a998f"/><stop offset=".55" stop-color="#7f7f76"/><stop offset="1" stop-color="#56554f"/></linearGradient>'
+    + '<linearGradient id="{p}-gl-tube" x1="0" y1="0" x2="0" y2="1">'
+    + '<stop offset="0" stop-color="#1c1d18"/><stop offset=".3" stop-color="#55564f"/><stop offset=".55" stop-color="#3a3b36"/><stop offset="1" stop-color="#16170f"/></linearGradient>'
+    + '<linearGradient id="{p}-gl-argent" x1="0" y1="0" x2="0" y2="1">'
+    + '<stop offset="0" stop-color="#8d8d8d"/><stop offset=".4" stop-color="#e2e2e2"/><stop offset=".7" stop-color="#b5b5b5"/><stop offset="1" stop-color="#6f6f6f"/></linearGradient>'
+    + '<radialGradient id="{p}-gl-chaleur"><stop offset="0" stop-color="#ff6a3a" stop-opacity=".75"/><stop offset="1" stop-color="#e0301e" stop-opacity="0"/></radialGradient>'
+    + '<filter id="{p}-gl-flou" x="-50%" y="-200%" width="200%" height="500%"><feGaussianBlur stdDeviation="1.4"/></filter>'
+    + '</defs>'
+    // danger : fumée et lueur à la bouche (la grenade chargée reste invisible)
+    + '<g class="r-fumee"><circle cx="70" cy="-16" r="6"/><circle cx="64" cy="-25" r="7"/><circle cx="56" cy="-31" r="5"/></g>'
+    + '<ellipse class="r-chaleur" cx="62" cy="0" rx="26" ry="20" fill="url(#{p}-gl-chaleur)"/>'
+    // le contour noir de toute l'arme ; hausse et pontet au trait fin (le trou du pontet reste ouvert)
+    + '<g class="r-ink" fill-rule="evenodd">'
+    + '<path d="' + GL_CROSSE + '"/><path d="' + GL_CHIEN + '"/><path d="' + GL_CAGE + '"/>'
+    + '<path d="' + GL_GARDE + '"/><path d="' + GL_CANON + '"/><rect x="38" y="-11" width="9" height="20.2"/>'
+    + '<rect x="42.8" y="-39.6" width="3.6" height="28.8" stroke-width="3"/><rect x="41.6" y="-41.6" width="6" height="2.6" stroke-width="2.4"/>'
+    + '<rect x="39.2" y="-27.4" width="3.6" height="3.6" stroke-width="2"/>'
+    + '<path d="' + GL_PONTET + '" stroke-width="2.5"/>'
+    + '</g>'
+    // la crosse de fusil en bois, sa plaque de couche noire, le chien
+    + '<path class="m-crosse" d="' + GL_CROSSE + '" fill="url(#{p}-gl-bois)"/>'
+    + '<path d="M-107,6.4 L-81,6.9 C-76,7.4 -73,10.6 -69.6,10.5" fill="none" stroke="#c98a5e" stroke-width="1.6" stroke-linecap="round" opacity=".7"/>'
+    + '<path d="' + GL_PLAQUE + '" fill="#24221e"/>'
+    + '<path class="m-chien" d="' + GL_CHIEN + '" fill="url(#{p}-gl-acier)"/>'
+    // le pontet et sa détente
+    + '<path class="m-pontet" d="' + GL_PONTET + '" fill="url(#{p}-gl-argent)" fill-rule="evenodd"/>'
+    + '<path d="M-49.6,11.6 Q-49.4,15.6 -46.6,17.2" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round"/>'
+    + '<path d="M-49.6,11.6 Q-49.4,15.6 -46.6,17.2" fill="none" stroke="#cfcfcf" stroke-width="1.4" stroke-linecap="round"/>'
+    // la cage grise du barillet : plaques, sangle, ferrure, et ses deux chambres en tubes
+    + '<path class="m-cage" d="' + GL_CAGE + '" fill="url(#{p}-gl-acier)"/>'
+    + '<g class="m-barillet">'
+    + '<rect x="-35.1" y="-8.8" width="28.4" height="17.6" rx="3" fill="url(#{p}-gl-tube)"/>'
+    + '<rect x="-35.1" y="9.2" width="28.4" height="17.6" rx="3" fill="url(#{p}-gl-tube)"/>'
+    + '<rect x="-33" y="-5.6" width="24" height="2.2" fill="#8a8b82" opacity=".45" filter="url(#{p}-gl-flou)"/>'
+    + '<rect x="-33" y="12.4" width="24" height="2.2" fill="#8a8b82" opacity=".45" filter="url(#{p}-gl-flou)"/>'
+    + '</g>'
+    + '<rect x="-6.7" y="-13.6" width="9.8" height="43.6" fill="url(#{p}-gl-clair)"/>'
+    + '<rect x="-37.4" y="-19" width="18.6" height="4.3" fill="url(#{p}-gl-clair)"/>'
+    + '<path class="m-ferrure" d="' + GL_FERRURE + '" fill="#55544e"/>'
+    + '<g fill="url(#{p}-gl-argent)" stroke="#000" stroke-width=".8">'
+    + '<circle cx="-37.6" cy="-11.6" r="1.7"/><circle cx="-37.6" cy="27.4" r="1.7"/><circle cx="-1.8" cy="-10.4" r="1.7"/><circle cx="-1.8" cy="27.8" r="1.7"/></g>'
+    // le long canon noir (reflet), le garde-main en bois dessous
+    + '<path class="m-canon" d="' + GL_CANON + '" fill="url(#{p}-gl-canon)"/>'
+    + '<rect x="4" y="-5.6" width="54" height="2.2" fill="#fff" opacity=".22" filter="url(#{p}-gl-flou)"/>'
+    + '<path class="m-garde-main" d="' + GL_GARDE + '" fill="url(#{p}-gl-garde)"/>'
+    // le collier gris et la hausse à échelle (molette sur le côté)
+    + '<rect class="m-collier" x="38" y="-11" width="9" height="20.2" fill="url(#{p}-gl-clair)"/>'
+    + '<circle cx="42.5" cy="4.6" r="1.3" fill="url(#{p}-gl-argent)" stroke="#000" stroke-width=".7"/>'
+    + '<g class="m-hausse" fill="#6a6963">'
+    + '<rect x="42.8" y="-39.6" width="3.6" height="28.8"/><rect x="41.6" y="-41.6" width="6" height="2.6"/>'
+    + '<rect x="39.2" y="-27.4" width="3.6" height="3.6" fill="url(#{p}-gl-argent)"/>'
+    + '<path d="M44,-38 V-13" stroke="#9a998f" stroke-width=".9"/></g>'
+    // traits intérieurs : plaques de la cage, sangle, chambres, bouche, garde-main
+    + '<g class="r-traits"><path d="M-35.1,-14.4 V28 M-6.7,-13.6 V27 M-37.4,-14.7 H-18.8 M-35.1,9 H-6.7 M60,-8.5 V8.5 M5.1,8.5 H50.2 M3.1,-8.5 V8.5"/>'
+    + '<path d="M-13.2,-8.8 V26.8" stroke-width="1.2" opacity=".55"/></g>'
+    // au tir : la brume claire, les étincelles, l'éclair rond
+    + '<g class="p-bouffee" fill="#dcd8cf"><circle cx="72" cy="-2" r="8" opacity=".75"/><circle cx="80" cy="3" r="6" opacity=".6"/><circle cx="66" cy="6" r="5" opacity=".65"/></g>'
+    + '<g class="p-gerbe" fill="none" stroke="#ffd84a" stroke-width="1.4" stroke-linecap="round">'
+    + '<path d="M66,-3 L76,-9 M67,2 L80,4 M65,5 L73,13 M64,-6 L69,-14"/>'
+    + '<circle cx="83" cy="-5" r="1.1" fill="#ffd84a" stroke="none"/><circle cx="78" cy="12" r="1" fill="#ffd84a" stroke="none"/></g>'
+    + '<g class="p-eclair" transform="translate(70 0)"><path class="r-ink" d="' + GL_ECLAIR + '"/>'
+    + '<path d="' + GL_ECLAIR + '" fill="#ffb43c"/><path d="' + GL_ECLAIR_MI + '" fill="#ffe680"/><circle r="3.6" fill="#fff"/></g>'
+    + '</svg>';
+
+  // La grenade : culot à +34, ogive à +58 (cachée dans le canon, qui va de +1 à
+  // +60 et fait 17 u de haut pour 13 u de grenade). Le halo et la traînée sont
+  // HORS du groupe qui culbute : seul le corps de la grenade tourne.
+  var GRENADE = ''
+    + '<svg class="r-svg p-grenade" viewBox="-128 -46 250 92" aria-hidden="true" focusable="false">'
+    + '<defs>'
+    + '<linearGradient id="{p}-gl-trainee" x1="-96" y1="0" x2="34" y2="0" gradientUnits="userSpaceOnUse">'
+    + '<stop offset="0" stop-color="#d0201a" stop-opacity="0"/><stop offset="1" stop-color="#e0281c" stop-opacity=".75"/></linearGradient>'
+    + '<radialGradient id="{p}-gl-halo"><stop offset="0" stop-color="#ff3b2a" stop-opacity=".6"/><stop offset=".72" stop-color="#e0201a" stop-opacity=".32"/>'
+    + '<stop offset="1" stop-color="#e0201a" stop-opacity="0"/></radialGradient>'
+    + '<linearGradient id="{p}-gl-corps" x1="0" y1="-6.2" x2="0" y2="6.2" gradientUnits="userSpaceOnUse">'
+    + '<stop offset="0" stop-color="#1f1d19"/><stop offset=".35" stop-color="#4a463e"/><stop offset=".6" stop-color="#35322c"/><stop offset="1" stop-color="#1a1815"/></linearGradient>'
+    + '<radialGradient id="{p}-gl-ogive" cx=".3" cy=".4" r=".8"><stop offset="0" stop-color="#ff7a5a"/><stop offset=".45" stop-color="#ff2a18"/><stop offset="1" stop-color="#c40000"/></radialGradient>'
+    + '</defs>'
+    // en vol : la fine traînée rouge continue, derrière la grenade (.is-flying)
+    + '<rect class="m-trainee" x="-96" y="-1.6" width="130" height="3.2" fill="url(#{p}-gl-trainee)"/>'
+    // le halo rouge et son anneau, autour de la grenade
+    + '<g class="m-halo"><circle cx="46" cy="0" r="16" fill="url(#{p}-gl-halo)"/>'
+    + '<circle cx="46" cy="0" r="13.5" fill="none" stroke="#ff9a7a" stroke-width="1.2" opacity=".8"/></g>'
+    // la grenade, qui culbute : contour, culot, bande, corps, ogive
+    + '<g class="m-tourne"><g class="m-grenade">'
+    + '<g fill="#000" stroke="#000" stroke-width="2.5" stroke-linejoin="round">'
+    + '<path d="M34,-4.7 L34.3,-6.3 L34.6,-6.5 L36.1,-6.5 L36.4,-6.2 L36.4,6.2 L36.1,6.5 L34.6,6.5 L34.3,6.3 L34,4.7 Z"/>'
+    + '<path d="M36.4,-5.8 H40.65 V5.8 H36.4 Z M40.65,-6.2 L54.2,-5.1 L54.2,5.1 L40.65,6.2 Z"/>'
+    + '<path d="M54.2,-5.1 C56.2,-4.8 57.8,-3.4 58.1,-1.2 L58.1,1.2 C57.8,3.4 56.2,4.8 54.2,5.1 Z"/></g>'
+    + '<path d="M34,-4.7 L34.3,-6.3 L34.6,-6.5 L36.1,-6.5 L36.4,-6.2 L36.4,6.2 L36.1,6.5 L34.6,6.5 L34.3,6.3 L34,4.7 Z" fill="#35342c"/>'
+    + '<path class="m-bande" d="M36.4,-5.8 H40.65 V5.8 H36.4 Z" fill="#d0100c"/>'
+    + '<path d="M40.65,-6.2 L54.2,-5.1 L54.2,5.1 L40.65,6.2 Z" fill="url(#{p}-gl-corps)"/>'
+    + '<path d="M41.5,-2.4 L53.6,-2 M41.5,2.6 L53.6,2.2" stroke="#000" stroke-width=".5" opacity=".45"/>'
+    + '<path class="m-ogive" d="M54.2,-5.1 C56.2,-4.8 57.8,-3.4 58.1,-1.2 L58.1,1.2 C57.8,3.4 56.2,4.8 54.2,5.1 Z" fill="url(#{p}-gl-ogive)"/>'
+    + '</g></g>'
+    + '</svg>';
+
+  // Le dessin du Grenade Launcher : la grenade d'abord (dessous), l'arme par-dessus.
+  var MARMITE = '<div class="r-proj">' + GRENADE + '</div>' + GL_ARME;
+
+  // Le recul au tir d'une arme à projectile (depuis la position calée) : la
+  // Pétoire part en arrière et relève franchement le canon ; le Grenade
+  // Launcher, plus lourd, recule court et ne se relève que de quelques degrés
+  // (le dossier ne le montre qu'à la première personne).
+  var RECUL_PETOIRE = { ms: 650, images: [
+    { transform: 'translateX(-8%) rotate(-24deg)', offset: .22 },
+    { transform: 'translateX(-2%) rotate(-10deg)', offset: .6 },
+  ] };
+  var RECUL_MARMITE = { ms: 460, images: [
+    { transform: 'translateX(-4%) rotate(-7deg)', offset: .18 },
+    { transform: 'translateX(-1%) rotate(-2deg)', offset: .55 },
+  ] };
+
   // La table des armes. `depart` / `impact` : leurs sons propres (sound.js) —
   // tic, validation et explosion restent communs. `couche` : la classe de la
   // couche d'impact propre à l'arme, posée sur la carte touchée AVANT l'étoile
   // commune (app.js) ; null = l'étoile seule. `projectile` : l'arme
   // reste au centre et c'est son projectile (.r-proj) qui part (tirer()) ;
-  // sans, c'est toute l'arme qui vole (la roquette).
+  // sans, c'est toute l'arme qui vole (la roquette). `recul` : le recul de
+  // l'arme au tir (une arme à projectile).
   var SKINS = {
     roquette: { nom: 'La Roquette', court: 'Roquette', dessin: ROQUETTE, depart: 'whoosh', impact: 'impact', couche: null },
-    petoire: { nom: 'La Pétoire de Secours', court: 'Pétoire', dessin: PETOIRE, depart: 'fusee', impact: 'crepitement', couche: 'scorch-impact', projectile: true },
+    petoire: { nom: 'La Pétoire de Secours', court: 'Pétoire', dessin: PETOIRE, depart: 'fusee', impact: 'crepitement', couche: 'scorch-impact', projectile: true, recul: RECUL_PETOIRE },
+    // Nom affiché PROVISOIRE, choisi par Mathys (2026-10-05).
+    marmite: { nom: 'Le Grenade Launcher', court: 'Grenade Launcher', dessin: MARMITE, depart: 'tube', impact: 'impact', couche: null, projectile: true, recul: RECUL_MARMITE },
   };
   var DEFAUT = 'roquette';
   // Le seul filtre côté page : un id inconnu, absent ou mal formé → la roquette.
@@ -397,18 +565,22 @@
       ], { duration: 320, easing: 'ease-out' });
     }
 
-    // Le tir d'une arme à PROJECTILE (la Pétoire). L'arme reste au centre ;
-    // seul le projectile (.r-proj, calque à part) part, droit sur la cible, dans
-    // le MÊME minutage que la roquette — l'impact tombe au même instant :
+    // Le tir d'une arme à PROJECTILE (la Pétoire, le Grenade Launcher). L'arme
+    // reste au centre ; seul le projectile (.r-proj, calque à part) part, droit
+    // sur la cible, dans le MÊME minutage que la roquette — l'impact tombe au
+    // même instant :
     //   1. verrouillage (160 ms) ;  2. l'arme se cale (260 ms) ;
     //   3. le tir : son, éclair de bouche (.is-firing, 140 ms), gerbe
-    //      d'étincelles, bouffée de fumée rouge, recul qui relève le canon ;
+    //      d'étincelles, bouffée (fumée rouge, brume claire), recul de l'arme
+    //      (SKINS[].recul) ;
     //   4. le vol du projectile (340 ms) : il n'est VISIBLE que pendant
-    //      .is-flying — tête incandescente devant, fumée rouge derrière ;
+    //      .is-flying (la fusée : tête devant, fumée rouge ; la grenade :
+    //      elle culbute, halo et traînée rouges — CSS seulement) ;
     //   5. l'impact : le projectile disparaît (.is-shot), l'arme reste ;
-    //   6. 420 ms plus tard, l'arme est de nouveau chargée (fusée invisible).
+    //   6. 420 ms plus tard, l'arme est de nouveau chargée (projectile invisible).
     function tirer(el, onImpact, g) {
       var arme = bob.querySelector('.p-arme'), proj = bob.querySelector('.r-proj');
+      var recul = SKINS[skin].recul || RECUL_PETOIRE;
       aimAt(el, { instant: false });
       host.classList.add('is-locked');                                    // 1. verrouillage
       var p = pivot(host), q = centre(el);
@@ -425,14 +597,11 @@
         host.dispatchEvent(new CustomEvent('rocket:whoosh'));            // 3. le tir
         host.classList.add('is-firing', 'is-flying');
         setTimeout(function () { if (g === gen) host.classList.remove('is-firing'); }, 140);
-        // Recul franc : l'arme part en arrière et le canon se relève (rotation
-        // autour de la main, voir le CSS), puis revient en ~0,65 s.
-        arme.animate([
-          { transform: CALEE }, { transform: 'translateX(-8%) rotate(-24deg)', offset: .22 },
-          { transform: 'translateX(-2%) rotate(-10deg)', offset: .6 }, { transform: 'none' },
-        ], { duration: 650, easing: 'ease-out' });
+        // Le recul : l'arme part en arrière et le canon se relève (rotation
+        // autour de la main, voir le CSS), puis revient.
+        arme.animate([{ transform: CALEE }].concat(recul.images, [{ transform: 'none' }]), { duration: recul.ms, easing: 'ease-out' });
         prep.cancel();
-        // La gerbe d'étincelles et la bouffée de fumée rouge, à la bouche.
+        // La gerbe d'étincelles et la bouffée (de fumée, de brume), à la bouche.
         var gerbe = arme.querySelector('.p-gerbe'), bouffee = arme.querySelector('.p-bouffee');
         if (gerbe) gerbe.animate([{ opacity: 1, transform: 'translateX(0)' }, { opacity: 0, transform: 'translateX(8px)' }], { duration: 300, easing: 'ease-out' });
         if (bouffee) bouffee.animate([

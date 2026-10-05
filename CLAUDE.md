@@ -1205,9 +1205,9 @@ ids) :
 ## Roquette Party : les armes (skins)
 
 Purement cosmétiques : aucun effet sur la partie, aucun inventaire, aucun
-déblocage, rien au Hub. Aujourd'hui `roquette` (défaut) et `petoire` (« La
-Pétoire de Secours », le Scorch Shot du Pyro) ; V1 prévue : + `marmite`,
-`disrupteur`.
+déblocage, rien au Hub. Aujourd'hui `roquette` (défaut), `petoire` (« La
+Pétoire de Secours », le Scorch Shot du Pyro) et `marmite` (« Le Grenade
+Launcher », le lance-grenades du Demoman) ; V1 prévue : + `disrupteur`.
 
 - ⚠️⚠️ **Règle de DA : FIDÉLITÉ TF2 > ORIGINALITÉ > BLAGUE** (depuis le
   2026-10-05). Chaque skin adapte UNE arme de TF2 précise (référence unique,
@@ -1217,9 +1217,10 @@ Pétoire de Secours », le Scorch Shot du Pyro) ; V1 prévue : + `marmite`,
   projectile observé EN MOUVEMENT, ce qui reste propre à Roquette). Dessin
   **maison** en SVG/CSS : aucun asset de Valve (modèle, texture, sprite,
   icône), aucune géométrie de modèle reprise. Le nom affiché reste celui de
-  Roquette Party (jamais le nom TF2 dans le jeu). Les blagues passent après
-  la reconnaissance. Dossier du Scorch Shot : artifact « Dossier Scorch Shot »
-  (sources wiki et vidéos horodatées).
+  Roquette Party (jamais le nom TF2 dans le jeu) — exception décidée par
+  Mathys : « Le Grenade Launcher », nom PROVISOIRE (2026-10-05). Les blagues
+  passent après la reconnaissance. Dossiers : artifacts « Dossier Scorch Shot »
+  et « Dossier Grenade Launcher » (sources wiki et vidéos horodatées).
 
 - **Contrat** (`roquette-server`, README) : un id FERMÉ par joueur (`SKINS`
   dans `server.js`) ; `skin` dans `join`, dans les joueurs de `lobby` et de
@@ -1247,11 +1248,12 @@ Pétoire de Secours », le Scorch Shot du Pyro) ; V1 prévue : + `marmite`,
   aussi, une arme la fait précéder de sa couche (la Pétoire :
   `.scorch-impact`, éclair orange à rayons puis boule rouge qui s'éteint,
   l'étoile 150 ms après).
-- ⚠️ **Arme ≠ projectile** (`projectile: true`, la Pétoire) : le dessin est
-  DEUX calques superposés dans la même boîte, `.r-proj > svg.p-fusee` (le
+- ⚠️ **Arme ≠ projectile** (`projectile: true`, la Pétoire et le Grenade
+  Launcher) : le dessin est DEUX calques superposés dans la même boîte,
+  `.r-proj > svg.p-fusee` (`svg.p-grenade` pour le Grenade Launcher ; le
   projectile, AVANT dans le DOM, donc dessous : la bouche du canon couvre sa
   queue) puis `svg.p-arme`. `boom()` passe alors par `tirer()` : l'arme reste
-  au centre (se cale, éclair `.is-firing`, recul), seul `.r-proj` vole (même
+  au centre (se cale, éclair `.is-firing`, recul `SKINS[].recul`), seul `.r-proj` vole (même
   formule de course, même minutage 160 + 260 + 340 ms : l'impact tombe au même
   instant que la roquette), `.is-shot` le cache à l'impact. ⚠️ Chargée, la
   fusée est INVISIBLE (`.r-proj` en `visibility: hidden` hors `.is-flying`) :
@@ -1264,7 +1266,26 @@ Pétoire de Secours », le Scorch Shot du Pyro) ; V1 prévue : + `marmite`,
   c'est `.r-fly` (toute l'arme) qui vole. Une arme non symétrique se
   retourne quand elle vise à gauche (`.is-gauche`, propriété CSS `scale` sur
   `.r-bob` : elle se compose avec les `transform` du balancement et des
-  animations au lieu de les écraser).
+  animations au lieu de les écraser). ⚠️ Le montage en calques et le
+  retournement sont des règles CSS qui LISTENT les armes à projectile
+  (`:is([data-skin="petoire"], [data-skin="marmite"])`) : une nouvelle arme à
+  projectile s'y ajoute, sinon ses calques s'empilent l'un sous l'autre.
+- **Le Grenade Launcher** (`marmite`, référence unique : le Grenade Launcher
+  du Demoman ; dossier validé) : profil du modèle mesuré colonne par colonne
+  puis ramené au repère du jeu — canon de 17 u sur l'axe, bouche à +60, talon
+  à −110,7 (114,5 u du pivot contour compris, sous EMPRISE 120,4 ; plafond du
+  canon : 17,5 u), 10 D de long, L / H ≈ 3,2. Marqueurs dessinés et MESURÉS
+  par le test (classes `.m-*`) : cage grise du barillet plus haute que le
+  canon (surtout dessous), deux chambres, canon noir qui sort du HAUT, hausse
+  à ~1 D de la bouche, garde-main et crosse de fusil en bois orangé. Grenade
+  (`svg.p-grenade`, pilule de 24 × 13 u, culot à +34) cachée DANS le canon ;
+  en vol elle CULBUTE (`.m-tourne`, animation CSS ~4,5 tr/s après 70 ms —
+  rotation PUREMENT cosmétique, la course reste celle de `tirer()`), dans son
+  halo rouge (`.m-halo`), avec une fine traînée rouge (`.m-trainee`). Tir :
+  éclair ROND, étincelles, brume claire, recul court autour de la poignée.
+  Impact : l'explosion standard de TF2, donc `couche: null` (étoile commune
+  seule) ; sons `tube` puis l'`impact` de la roquette. Contre-épreuves :
+  arme qui vole entière → 4 échecs ; plus de rotation → 1 échec.
 - ⚠️ **L'enveloppe** : même viewBox, même pivot (0, 0), nez à +60 (`NEZ`),
   rien plus loin du pivot que la flamme arrière de la roquette (`EMPRISE`) —
   `fit()` ne connaît qu'elle, la taille ne dépend jamais de l'arme.
@@ -1296,4 +1317,7 @@ Pétoire de Secours », le Scorch Shot du Pyro) ; V1 prévue : + `marmite`,
 - `tests/roquette-play.mjs` (normal ou `--reduced`) : échec intermittent
   « téléphone, clavier ouvert : … carte visée à l'écran » (`scrollY 101`),
   ~1 passage sur 3 ; vu avec le front d'avant les armes (2026-10-05), donc
-  antérieur à elles.
+  antérieur à elles. Revu au lot du Grenade Launcher : plus fréquent ce
+  jour-là (3 sur 3 après le lot, 1 sur 2 sur le code d'avant), même géométrie
+  au pixel près des deux côtés (`scrollY` 0, 13 ou 101 selon le passage) — le
+  téléphone de cette suite ne montre que la roquette.

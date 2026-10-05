@@ -200,8 +200,8 @@
      MAIN qui relève le canon. Danger : lueur et fumée à la bouche, étincelles
      aux crans 2 et 3, vibration commune. Rien ne sort de l'enveloppe (EMPRISE).
      Sans .rocket : l'aperçu du salon porte aussi data-skin. */
-  [data-skin="petoire"] :is(.r-bob, .skin-apercu) { position: relative; }
-  [data-skin="petoire"] :is(.r-proj, .p-arme) { position: absolute; inset: 0; }
+  :is([data-skin="petoire"], [data-skin="marmite"]) :is(.r-bob, .skin-apercu) { position: relative; }
+  :is([data-skin="petoire"], [data-skin="marmite"]) :is(.r-proj, .p-arme) { position: absolute; inset: 0; }
   .r-proj { visibility: hidden; }
   .rocket.is-flying .r-proj { visibility: visible; }
   .rocket.is-shot .r-proj { visibility: hidden; }
@@ -216,13 +216,33 @@
   .rocket.is-flying .p-fumee-vol { opacity: 1; transform: scaleX(1); transition: transform .34s cubic-bezier(.55, 0, .9, .35), opacity .06s; }
   /* Visée vers la gauche (rocket.js, .is-gauche) : le pistolet se retourne autour
      de son axe (y = 0, le milieu de la boîte), crosse toujours en bas. */
-  .rocket[data-skin="petoire"] .r-bob { transition: scale .15s; }
-  .rocket[data-skin="petoire"].is-gauche .r-bob { scale: 1 -1; }
+  .rocket:is([data-skin="petoire"], [data-skin="marmite"]) .r-bob { transition: scale .15s; }
+  .rocket:is([data-skin="petoire"], [data-skin="marmite"]).is-gauche .r-bob { scale: 1 -1; }
   /* L'aperçu du salon : le pistolet est plus court que la boîte du dessin et sa
      crosse pend sous l'axe — on le recentre et on le grossit ICI seulement (en
      jeu, sa taille reste celle de fit()). */
   .skin-pick[data-skin="petoire"] .skin-apercu { transform: translateY(-11%) scale(1.25); }
   @keyframes etinc { 50% { transform: translate(3px, -2px); opacity: .35; } }
+
+  /* Le Grenade Launcher (rocket.js, id marmite) : le lance-grenades du Demoman,
+     redessiné. Même montage que la Pétoire (arme .p-arme + projectile .r-proj >
+     svg .p-grenade, même boîte). Chargée, la grenade est INVISIBLE (dans le
+     canon) ; en vol (.is-flying) elle CULBUTE (.m-tourne, ~4,5 tours/s, après
+     70 ms pour sortir d'abord du canon), dans son halo rouge (.m-halo), suivie
+     d'une fine traînée rouge qui s'allonge avec le vol (.m-trainee). Rotation
+     purement visuelle : la course est celle de tirer(). Recul autour de la
+     main, sur la poignée de la crosse (x = -60, y = 15). */
+  [data-skin="marmite"] .p-arme { transform-origin: 27.2% 66.3%; }
+  .r-svg .m-trainee { opacity: 0; transform-box: fill-box; transform-origin: right center; transform: scaleX(0); }
+  .r-svg .m-halo { opacity: 0; }
+  .r-svg .m-tourne { transform-box: fill-box; transform-origin: center; }
+  .rocket.is-flying .m-trainee { opacity: 1; transform: scaleX(1); transition: transform .34s cubic-bezier(.55, 0, .9, .35), opacity .06s; }
+  .rocket.is-flying .m-halo { opacity: 1; transition: opacity .1s .04s; }
+  .rocket.is-flying .m-tourne { animation: m-tourne .22s linear .07s infinite; }
+  @keyframes m-tourne { to { transform: rotate(-360deg); } }
+  /* Aperçu du salon : l'arme est décalée vers l'arrière de la boîte (crosse
+     longue) — recentrée et grossie ici seulement. */
+  .skin-pick[data-skin="marmite"] .skin-apercu { transform: translateX(10%) scale(1.15); }
 
   /* La pile de texte se range SOUS le pivot : sans la marge de 1em que le
      navigateur donne à un <p> (77 px de vide), elle ne tient pas sans écraser --rk. */
@@ -318,8 +338,8 @@
      retire en plus la vibration et le viseur qui « respire ». Rien n'est
      caché : la cible et la vie perdue sont écrites (bannière, carte). */
   @media (prefers-reduced-motion: reduce) {
-    .rocket .r-svg, .rocket .r-bob, .rocket .r-flamme, .rocket .r-fumee, .rocket .p-etinc, .card .viseur, .card .av { animation: none !important; }
-    .r-svg .p-fumee-vol { transition: none !important; }
+    .rocket .r-svg, .rocket .r-bob, .rocket .r-flamme, .rocket .r-fumee, .rocket .p-etinc, .rocket .m-tourne, .card .viseur, .card .av { animation: none !important; }
+    .r-svg :is(.p-fumee-vol, .m-trainee, .m-halo) { transition: none !important; }
     .r-aim { transition: none !important; }
     /* Le socle ramène les transitions à .01ms SANS couper leur propriété (all) :
        une taille ou une position changée ne s'appliquerait qu'à l'image
@@ -438,8 +458,8 @@
   <script src="../shared/hub-handoff.js?v=5"></script>
   <script src="../shared/game-net.js?v=1"></script>
   <script src="net.js?v=2"></script>
-  <script src="rocket.js?v=5"></script>
-  <script src="sound.js?v=2"></script>
+  <script src="rocket.js?v=6"></script>
+  <script src="sound.js?v=3"></script>
   <script src="app.js?v=10"></script>
 </body>
 </html>

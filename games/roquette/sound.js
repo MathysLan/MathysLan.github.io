@@ -2,7 +2,8 @@
 // l'Imitation et Précision. Les sons communs : le tic d'attente, le tic de
 // danger (plus rapide, plus aigu), la validation et l'explosion. Ceux d'une
 // arme (départ, impact — voir Rocket.info) : le whoosh et l'impact de la
-// roquette, le tir et le crépitement de la Pétoire. Bouton muet mémorisé ; le
+// roquette, le tir et le crépitement de la Pétoire, le « bloup » du Grenade
+// Launcher (qui reprend l'impact de la roquette). Bouton muet mémorisé ; le
 // mouvement réduit ne coupe PAS le son (ce n'est pas la même préférence).
 //
 // Le contexte audio ne naît qu'après un geste (Créer / Rejoindre) : sans geste,
@@ -56,6 +57,9 @@
     crepitement: function (t) {
       for (var i = 0; i < 9; i++) bruit(t + i * 0.055 + Math.random() * 0.03, 0.035, 0.22, 3200 + Math.random() * 1500, 1800, 'bandpass');
     },
+    // Le Grenade Launcher : le « bloup » creux du tube qui chasse la grenade
+    // (son impact est celui de la roquette : son explosion n'a rien de propre).
+    tube: function (t) { osc('sine', 150, t, 0.16, 0.5, 55); bruit(t, 0.1, 0.3, 1200, 300, 'lowpass'); osc('triangle', 420, t + 0.02, 0.05, 0.08, 200); },
   };
 
   function play(nom) {
