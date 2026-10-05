@@ -1206,7 +1206,20 @@ ids) :
 
 Purement cosmétiques : aucun effet sur la partie, aucun inventaire, aucun
 déblocage, rien au Hub. Aujourd'hui `roquette` (défaut) et `petoire` (« La
-Pétoire de Secours ») ; V1 prévue : + `marmite`, `disrupteur`.
+Pétoire de Secours », le Scorch Shot du Pyro) ; V1 prévue : + `marmite`,
+`disrupteur`.
+
+- ⚠️⚠️ **Règle de DA : FIDÉLITÉ TF2 > ORIGINALITÉ > BLAGUE** (depuis le
+  2026-10-05). Chaque skin adapte UNE arme de TF2 précise (référence unique,
+  jamais un mélange) qu'un joueur doit reconnaître à la silhouette et à ses
+  éléments caractéristiques. Avant tout code : un **dossier de référence
+  validé** par Mathys (5 à 10 marqueurs sourcés, silhouette en noir uni,
+  projectile observé EN MOUVEMENT, ce qui reste propre à Roquette). Dessin
+  **maison** en SVG/CSS : aucun asset de Valve (modèle, texture, sprite,
+  icône), aucune géométrie de modèle reprise. Le nom affiché reste celui de
+  Roquette Party (jamais le nom TF2 dans le jeu). Les blagues passent après
+  la reconnaissance. Dossier du Scorch Shot : artifact « Dossier Scorch Shot »
+  (sources wiki et vidéos horodatées).
 
 - **Contrat** (`roquette-server`, README) : un id FERMÉ par joueur (`SKINS`
   dans `server.js`) ; `skin` dans `join`, dans les joueurs de `lobby` et de
@@ -1228,18 +1241,26 @@ Pétoire de Secours ») ; V1 prévue : + `marmite`, `disrupteur`.
   `boom.id` à l'explosion), lue dans le roster tel que le SERVEUR l'a relayé ;
   tout id inconnu → la roquette (`Rocket.skinId`, avec `hasOwnProperty`).
 - **Table** `Rocket.SKINS` (`rocket.js`) : dessin, nom, sons propres
-  (`depart` / `impact`, `sound.js`), `feu` (couche d'impact), `projectile`.
-  Tic, validation, verrouillage (lueur rouge) et explosion restent COMMUNS ;
-  l'étoile orange aussi, une arme ajoute sa couche (la Pétoire : la carte prend
-  feu, puis l'étoile 150 ms après).
+  (`depart` / `impact`, `sound.js`), `couche` (classe de sa couche d'impact,
+  `COUCHES` dans `app.js`, ou `null`), `projectile`. Tic, validation,
+  verrouillage (lueur rouge) et explosion restent COMMUNS ; l'étoile orange
+  aussi, une arme la fait précéder de sa couche (la Pétoire :
+  `.scorch-impact`, éclair orange à rayons puis boule rouge qui s'éteint,
+  l'étoile 150 ms après).
 - ⚠️ **Arme ≠ projectile** (`projectile: true`, la Pétoire) : le dessin est
   DEUX calques superposés dans la même boîte, `.r-proj > svg.p-fusee` (le
   projectile, AVANT dans le DOM, donc dessous : la bouche du canon couvre sa
   queue) puis `svg.p-arme`. `boom()` passe alors par `tirer()` : l'arme reste
   au centre (se cale, éclair `.is-firing`, recul), seul `.r-proj` vole (même
   formule de course, même minutage 160 + 260 + 340 ms : l'impact tombe au même
-  instant que la roquette), `.is-shot` le cache à l'impact, une nouvelle fusée
-  réapparaît dans le canon 420 ms plus tard. La roquette garde son chemin :
+  instant que la roquette), `.is-shot` le cache à l'impact. ⚠️ Chargée, la
+  fusée est INVISIBLE (`.r-proj` en `visibility: hidden` hors `.is-flying`) :
+  rien ne dépasse de la bouche, le danger se lit à la bouche (lueur, fumée,
+  étincelles). Au tir : éclair, gerbe (`.p-gerbe`) et bouffée de fumée rouge
+  (`.p-bouffee`), recul autour de la MAIN (`transform-origin` de `.p-arme`)
+  qui relève le canon. En vol : tête incandescente (`.p-tete`) DEVANT le corps
+  (`.p-corps`), fumée rouge (`.p-fumee-vol`) ; plus de flamme arrière ni de
+  traînée rose (le test le vérifie). La roquette garde son chemin :
   c'est `.r-fly` (toute l'arme) qui vole. Une arme non symétrique se
   retourne quand elle vise à gauche (`.is-gauche`, propriété CSS `scale` sur
   `.r-bob` : elle se compose avec les `transform` du balancement et des
@@ -1251,13 +1272,17 @@ Pétoire de Secours ») ; V1 prévue : + `marmite`, `disrupteur`.
 - ⚠️ **Id de dégradés préfixés** (`{p}` dans chaque dessin : `r` dans
   l'arène, `apercu-<id>` au salon). Un même id dans un sous-arbre
   `display: none` (le salon pendant la partie, l'arène au salon) passerait
-  avant et le dégradé ne s'afficherait pas.
+  avant et le dégradé ne s'afficherait pas. Et chaque arme a ses PROPRES noms
+  (la Pétoire : `{p}-sc-…`) : deux dessins qui partagent un nom (`acier`,
+  `chaleur`…) sous le même préfixe se volent leurs dégradés (vu : carcasse et
+  crosse du Scorch Shot rendues en noir).
 - Crochets du danger communs (`.r-flamme`, `.r-fumee`, `.r-chaleur`,
   `data-danger`) ; ceux d'une arme sont sous `[data-skin="…"]` (sans
-  `.rocket` : l'aperçu du salon porte aussi `data-skin`). Traînée
-  (`.p-trainee`) seulement pendant le vol (`.is-flying`, posé par
-  `rocket.js`). Mouvement réduit : ni vol, ni éclat, flamme et étincelles
-  figées.
+  `.rocket` : l'aperçu du salon porte aussi `data-skin` ; celui de la
+  Pétoire est recentré et grossi par CSS, au salon seulement). Fumée de vol
+  seulement pendant `.is-flying` (posé par `rocket.js`). Mouvement réduit : ni
+  tir animé, ni vol, ni éclat, étincelles figées ; le texte et les sons
+  portent l'information.
 
 ## Défauts connus, non corrigés
 

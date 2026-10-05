@@ -190,35 +190,38 @@
   .rocket.is-locked .r-svg { filter: drop-shadow(0 0 5px #ff3b1f) drop-shadow(0 0 2px #ff3b1f); }
   .rocket.is-gone .r-fly { opacity: 0; }
 
-  /* La Pétoire de Secours (rocket.js) : une ARME (svg .p-arme) et son
-     PROJECTILE (.r-proj > svg .p-fusee), deux calques superposés dans la même
-     boîte — le projectile dessous, l'arme dessus. L'arme reste au centre ; au
-     tir, éclair de bouche (.is-firing) et recul (rocket.js) ; le projectile
-     part seul (flamme arrière et traînée : .is-flying), disparaît à l'impact
-     (.is-shot), puis une nouvelle fusée apparaît dans le canon. La tête de la
-     fusée gonfle avec le danger autour de son centre ; fumée rose ;
-     étincelles aux crans 2 et 3. Les crochets du danger (--f, --fy, chaleur,
-     vibration) sont ceux de la roquette, et rien ne sort de son enveloppe
-     (EMPRISE). Sans .rocket : l'aperçu du salon porte aussi data-skin. */
+  /* La Pétoire de Secours (rocket.js) : le Scorch Shot de TF2, redessiné. Une
+     ARME (svg .p-arme) et son PROJECTILE (.r-proj > svg .p-fusee), deux calques
+     superposés dans la même boîte — le projectile dessous, l'arme dessus.
+     Chargée, la fusée est INVISIBLE : elle n'apparaît que pendant le vol
+     (.is-flying) — tête incandescente devant, fumée rouge derrière — et
+     disparaît à l'impact (.is-shot). Au tir : éclair (.is-firing), gerbe
+     d'étincelles et bouffée de fumée rouge (rocket.js), recul autour de la
+     MAIN qui relève le canon. Danger : lueur et fumée à la bouche, étincelles
+     aux crans 2 et 3, vibration commune. Rien ne sort de l'enveloppe (EMPRISE).
+     Sans .rocket : l'aperçu du salon porte aussi data-skin. */
   [data-skin="petoire"] :is(.r-bob, .skin-apercu) { position: relative; }
   [data-skin="petoire"] :is(.r-proj, .p-arme) { position: absolute; inset: 0; }
-  .r-proj { transform-origin: 67.2% 50%; }        /* la bouche du canon (x = 40) : la fusée y réapparaît */
-  .p-arme { transform-origin: 51.2% 50%; }        /* le pivot : recul et relevé du canon */
-  .r-svg .p-trainee { opacity: 0; transform-box: fill-box; transform-origin: right center; transform: scaleX(0); }
-  .r-svg :is(.p-etinc, .p-eclair, .p-feu-arriere) { opacity: 0; }
-  .r-svg .p-feu-arriere { transform-box: fill-box; transform-origin: right center; --f: 1; --fy: 1; animation: flamme .1s steps(2) infinite alternate; }
-  [data-skin="petoire"] .r-flamme { transform-origin: center; animation-duration: .1s; }
-  [data-skin="petoire"] .r-fumee circle { fill: #e7a1bd; }
+  .r-proj { visibility: hidden; }
+  .rocket.is-flying .r-proj { visibility: visible; }
+  .rocket.is-shot .r-proj { visibility: hidden; }
+  .p-arme { transform-origin: 31.2% 71.7%; }      /* la main (x = -50, y = 20) : recul et canon qui se relève */
+  .r-svg .p-fumee-vol { opacity: 0; transform-box: fill-box; transform-origin: right center; transform: scaleX(0); }
+  .r-svg :is(.p-etinc, .p-eclair, .p-gerbe, .p-bouffee) { opacity: 0; }
+  .r-svg :is(.p-gerbe, .p-bouffee) { transform-box: fill-box; transform-origin: 15% 50%; }
+  [data-skin="petoire"] .r-fumee circle { fill: #8f625a; }
   .rocket[data-skin="petoire"]:is([data-danger="2"], [data-danger="3"]) .p-etinc { opacity: 1; animation: etinc .24s steps(2) infinite; }
   .rocket[data-skin="petoire"][data-danger="3"] .p-etinc { animation-duration: .14s; }
   .rocket.is-firing .p-eclair { opacity: 1; }
-  .rocket.is-flying .p-feu-arriere { opacity: 1; }
-  .rocket.is-flying .p-trainee { opacity: .9; transform: scaleX(1); transition: transform .34s cubic-bezier(.55, 0, .9, .35), opacity .08s; }
-  .rocket.is-shot .r-proj { opacity: 0; }
+  .rocket.is-flying .p-fumee-vol { opacity: 1; transform: scaleX(1); transition: transform .34s cubic-bezier(.55, 0, .9, .35), opacity .06s; }
   /* Visée vers la gauche (rocket.js, .is-gauche) : le pistolet se retourne autour
      de son axe (y = 0, le milieu de la boîte), crosse toujours en bas. */
   .rocket[data-skin="petoire"] .r-bob { transition: scale .15s; }
   .rocket[data-skin="petoire"].is-gauche .r-bob { scale: 1 -1; }
+  /* L'aperçu du salon : le pistolet est plus court que la boîte du dessin et sa
+     crosse pend sous l'axe — on le recentre et on le grossit ICI seulement (en
+     jeu, sa taille reste celle de fit()). */
+  .skin-pick[data-skin="petoire"] .skin-apercu { transform: translateY(-11%) scale(1.25); }
   @keyframes etinc { 50% { transform: translate(3px, -2px); opacity: .35; } }
 
   /* La pile de texte se range SOUS le pivot : sans la marge de 1em que le
@@ -245,14 +248,19 @@
   .boum svg { width: 100%; height: 100%; overflow: visible; }
   @keyframes boum { 0% { transform: translate(-50%, -50%) scale(.2); opacity: 1; } 60% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1.25); opacity: 0; } }
   /* La couche de la Pétoire, AVANT l'étoile commune : la carte prend feu. */
-  .feu { position: absolute; width: 96px; height: 96px; transform: translate(-50%, -50%); animation: feu .95s ease-out forwards; }
-  .feu svg { width: 100%; height: 100%; overflow: visible; }
-  .feu .flash { opacity: 0; animation: flash .2s ease-out; }
-  .feu .fl { transform-box: fill-box; transform-origin: center bottom; --f: 1; --fy: 1; animation: flamme .11s steps(2) infinite alternate; }
-  .feu .braise { animation: braise .8s ease-out both; }
-  @keyframes feu { 0% { transform: translate(-50%, -50%) scale(.4); opacity: 0; } 15% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 75% { opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1.05); opacity: 0; } }
-  @keyframes flash { from { opacity: .85; } to { opacity: 0; } }
-  @keyframes braise { from { transform: none; opacity: 1; } to { transform: translateY(-34px); opacity: 0; } }
+  /* La couche d'impact de la Pétoire (app.js, COUCHES), avant l'étoile commune :
+     éclair orange à rayons, éclat blanc, éclats, boule rouge qui s'éteint. */
+  .scorch-impact { position: absolute; width: 120px; height: 120px; transform: translate(-50%, -50%); }
+  .scorch-impact svg { width: 100%; height: 100%; overflow: visible; }
+  .scorch-impact :is(.si-rayons, .si-boule, .si-eclats) { transform-box: fill-box; transform-origin: center; }
+  .scorch-impact .si-rayons { animation: si-rayons .28s ease-out forwards; }
+  .scorch-impact .si-flash { animation: si-flash .18s ease-out forwards; }
+  .scorch-impact .si-eclats { animation: si-eclats .4s ease-out forwards; }
+  .scorch-impact .si-boule { animation: si-boule .45s ease-in forwards; }
+  @keyframes si-rayons { from { transform: scale(.3); opacity: 1; } to { transform: scale(1.15); opacity: 0; } }
+  @keyframes si-flash { from { opacity: 1; } to { opacity: 0; } }
+  @keyframes si-eclats { from { transform: scale(.4); opacity: 1; } to { transform: scale(1.3); opacity: 0; } }
+  @keyframes si-boule { 0% { transform: scale(.6); opacity: 1; } 60% { opacity: 1; } 100% { transform: scale(.85); opacity: 0; } }
 
   /* La saisie : toujours là, jamais désactivée (un champ désactivé ferme le
      clavier du téléphone) — hors de son tour, éteinte visuellement et muette. */
@@ -311,8 +319,7 @@
      caché : la cible et la vie perdue sont écrites (bannière, carte). */
   @media (prefers-reduced-motion: reduce) {
     .rocket .r-svg, .rocket .r-bob, .rocket .r-flamme, .rocket .r-fumee, .rocket .p-etinc, .card .viseur, .card .av { animation: none !important; }
-    .r-svg .p-trainee { transition: none !important; }
-    .r-svg .p-feu-arriere { animation: none !important; }
+    .r-svg .p-fumee-vol { transition: none !important; }
     .r-aim { transition: none !important; }
     /* Le socle ramène les transitions à .01ms SANS couper leur propriété (all) :
        une taille ou une position changée ne s'appliquerait qu'à l'image
@@ -431,8 +438,8 @@
   <script src="../shared/hub-handoff.js?v=5"></script>
   <script src="../shared/game-net.js?v=1"></script>
   <script src="net.js?v=2"></script>
-  <script src="rocket.js?v=4"></script>
+  <script src="rocket.js?v=5"></script>
   <script src="sound.js?v=2"></script>
-  <script src="app.js?v=9"></script>
+  <script src="app.js?v=10"></script>
 </body>
 </html>

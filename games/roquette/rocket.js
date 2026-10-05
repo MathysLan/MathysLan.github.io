@@ -2,8 +2,8 @@
 // jeu ici — elle ne sait ni qui joue, ni quand elle explosera : app.js lui dit
 // qui viser, et le serveur dit quand elle a explosé.
 //
-// Le dessin est une création originale, dans l'esprit de la roquette du
-// Soldier de TF2 (aucun asset, aucune coordonnée reprise) : silhouette trapue,
+// La roquette (l'arme par défaut, antérieure à la règle des skins ci-dessous) :
+// dessin maison d'après la roquette du Soldier (aucun asset) : silhouette trapue,
 // ogive massive et facettée plus large que le corps, corps d'acier brossé,
 // deux colliers brun-gris, gros contour noir, grande flamme en trois couches.
 // Pas d'ailettes (V1). Elle est dessinée À L'HORIZONTALE, nez vers la droite,
@@ -22,7 +22,13 @@
 // Mouvement réduit : aucune rotation animée, aucune vibration, aucune
 // trajectoire, aucun flash — le sens reste porté par le texte (app.js).
 //
-// LES SKINS (cosmétiques) : un dessin par arme, dans la MÊME enveloppe — même
+// LES SKINS (cosmétiques). Règle de DA : FIDÉLITÉ TF2 > ORIGINALITÉ > BLAGUE.
+// Chaque skin adapte UNE arme de TF2 précise, qu'un joueur doit reconnaître à
+// la silhouette et à ses éléments caractéristiques ; un dossier de référence
+// (marqueurs, silhouette en noir uni, projectile) est validé AVANT de coder ;
+// le dessin reste fait maison en SVG, sans aucun asset de Valve (ni modèle, ni
+// texture, ni sprite, ni icône) ; le nom affiché reste celui de Roquette Party.
+// Un dessin par arme, dans la MÊME enveloppe — même
 // viewBox, même pivot (0, 0), nez à +60, et rien plus loin du pivot que
 // l'arrière de la roquette au plus fort du danger (EMPRISE). La taille posée
 // par fit() ne dépend donc jamais de l'arme. Les crochets du danger sont
@@ -123,126 +129,153 @@
     return d + 'Z';
   }
 
-  // « La Pétoire de Secours » : une ARME et son PROJECTILE, deux calques
-  // distincts (création maison dans l'esprit du pistolet de détresse du Pyro,
-  // aucun asset repris).
-  //   - l'arme (svg .p-arme) : un petit pistolet de détresse trapu — canon de
-  //     métal peint en rouge, bouche de laiton, carcasse d'acier, crosse de
-  //     carton rouge à rivets de laiton, et un pansement en croix sur le canon
-  //     (c'est une arme… de secours). Elle reste au centre : au tir, recul et
-  //     éclair de bouche (.p-eclair, .is-firing) ;
-  //   - le projectile (.r-proj > svg .p-fusee) : une petite fusée éclairante,
-  //     chargée dans le canon (son nez dépasse de la bouche, à +60 = NEZ). Sa
-  //     tête brûle (.r-flamme) et s'intensifie avec le danger, étincelles aux
-  //     crans 2 et 3 (.p-etinc). Au tir, elle part seule : flamme arrière
-  //     (.p-feu-arriere) et traînée rose-orange (.p-trainee) pendant le vol.
-  // Le projectile est SOUS l'arme (ordre du DOM) : la bouche couvre sa queue.
-  // Fumée et chaleur sortent de la bouche (calque de l'arme). Au plus fort, rien
-  // ne dépasse ~85 unités du pivot : en deçà d'EMPRISE.
-  var CROSSE = 'M-24,10 L-7,10 L-11,40 L-33,40 Z';
-  var PONTET = 'M-5,11 C-5,26 15,26 15,12';      // un trait ouvert (pas une forme : l'encre boucherait le trou)
-  var CHIEN = 'M-24,-13 L-33,-23 L-27,-26 L-18,-14 Z';
+  // « La Pétoire de Secours » : l'adaptation du SCORCH SHOT de TF2 (référence
+  // unique, dossier validé : marqueurs, proportions et couleurs relevés sur les
+  // rendus du wiki et en vidéo). Dessin maison : aucun asset, aucune géométrie
+  // de modèle reprise, des aplats et le contour du jeu. Deux calques distincts :
+  //   - l'ARME (svg .p-arme), de profil, bouche à +60, axe du canon sur le
+  //     pivot. Canon de 26 u, ~3 diamètres, gris, droit ; son dernier tiers peint
+  //     en orange au bord déchiqueté (.p-peinture) ; poignée avant noire côtelée
+  //     sous le canon (.p-poignee-avant, 6 .p-cote) tenue par une goupille à
+  //     l'avant (.p-goupille) ; carcasse gris foncé à rivets ; chien fin
+  //     (.p-chien) ; pontet rond (.p-pontet) ; petite crosse en palette inclinée,
+  //     à plaquette noire (.p-crosse). Longueur / hauteur ≈ 1,85.
+  //     Au tir : éclair (.p-eclair, .is-firing), gerbe d'étincelles (.p-gerbe),
+  //     bouffée de fumée rouge (.p-bouffee), recul qui relève le canon. Danger :
+  //     lueur et fumée à la bouche, étincelles aux crans 2 et 3 — la fusée, elle,
+  //     reste cachée ;
+  //   - le PROJECTILE (.r-proj > svg .p-fusee) : la fusée, INVISIBLE tant
+  //     qu'elle est chargée (CSS : visible seulement pendant .is-flying). En vol :
+  //     corps anthracite (.p-corps, 17 u = 0,65 × le canon) DERRIÈRE une tête
+  //     ronde incandescente (.p-tete : halo rouge, anneau, cœur blanc-orangé,
+  //     ≈ 1,7 × le corps), suivie de bouffées de fumée rouge (.p-fumee-vol).
+  //     Pas de flamme en langue, pas de traînée rose.
+  // Le projectile est SOUS l'arme (ordre du DOM) : au départ, le canon cache le
+  // corps, la tête sort par la bouche. Au plus fort, rien ne dépasse ~101 u du
+  // pivot (le coin de la crosse) : en deçà d'EMPRISE.
+  var CANON = 'M-19,-13 H60 V13 H-19 Z';
+  var CARCASSE = 'M-55,-11 Q-55,-15 -50,-15 L-19,-15 L-19,16 L-48,17 Q-55,10 -55,0 Z';
+  var CHIEN = 'M-54,-9 C-58,-12 -63,-10 -62,-5 L-56,-2 Z';
+  var PONTET = 'M-45,15 C-47,47 -15,48 -16,15 Z M-40,18 C-41,39 -21,40 -21,18 Z';
+  var CROSSE = 'M-47,16 C-50,30 -56,45 -58,55 Q-59,60 -65,60 L-78,60 Q-83,60 -83,55 C-81,45 -70,30 -62,17 Z';
+  var PLAQUETTE = 'M-50,23 C-52,33 -56,44 -58,51 Q-59,55 -64,55 L-75,55 Q-79,55 -78,51 C-76,42 -68,32 -62,23 Z';
+  // Le bord de la peinture : des dents maison, irrégulières (pas un relevé du modèle).
+  var PEINTURE = 'M38,-13 H60 V13 H38 L36.5,9.5 L39.5,6 L36,2.5 L38.8,-1 L35.6,-4.5 L38.4,-8 L36.2,-10.5 Z';
+  var COTES = [9.5, 17, 24.5, 32, 39.5, 47].map(function (x) {
+    return '<rect class="p-cote" x="' + x + '" y="11" width="6" height="22" rx="2.5" fill="url(#{p}-sc-cotes)" stroke="#000" stroke-width="2.5"/>'
+      + '<rect x="' + (x + 1.4) + '" y="13.5" width="1.4" height="17" fill="#5a5757" opacity=".8"/>';
+  }).join('');
   var ECLAIR = etoile(7, 15, 6), ECLAIR_MI = etoile(7, 8, 3.5);
   var ARME = ''
     + '<svg class="r-svg p-arme" viewBox="-128 -46 250 92" aria-hidden="true" focusable="false">'
     + '<defs>'
-    + '<linearGradient id="{p}-canon" x1="0" y1="-12" x2="0" y2="12" gradientUnits="userSpaceOnUse">'
-    + '<stop offset="0" stop-color="#6e1212"/><stop offset=".2" stop-color="#c42b22"/><stop offset=".42" stop-color="#ff6047"/>'
-    + '<stop offset=".6" stop-color="#e0352b"/><stop offset=".85" stop-color="#a11c18"/><stop offset="1" stop-color="#5a0e0e"/></linearGradient>'
-    + '<linearGradient id="{p}-laiton" x1="0" y1="-15" x2="0" y2="15" gradientUnits="userSpaceOnUse">'
-    + '<stop offset="0" stop-color="#5a4114"/><stop offset=".2" stop-color="#b48c2e"/><stop offset=".42" stop-color="#f4d98c"/>'
-    + '<stop offset=".62" stop-color="#c49b45"/><stop offset=".85" stop-color="#86661f"/><stop offset="1" stop-color="#4c3711"/></linearGradient>'
-    + '<linearGradient id="{p}-acier" x1="0" y1="-14" x2="0" y2="26" gradientUnits="userSpaceOnUse">'
-    + '<stop offset="0" stop-color="#3a3a3a"/><stop offset=".25" stop-color="#8a8a8a"/><stop offset=".45" stop-color="#b5b5b5"/>'
-    + '<stop offset=".75" stop-color="#5e5e5e"/><stop offset="1" stop-color="#2c2c2c"/></linearGradient>'
-    + '<linearGradient id="{p}-crosse" x1="-34" y1="0" x2="-6" y2="0" gradientUnits="userSpaceOnUse">'
-    + '<stop offset="0" stop-color="#5e0f0f"/><stop offset=".4" stop-color="#b8261f"/><stop offset=".7" stop-color="#d9402f"/><stop offset="1" stop-color="#8e1b17"/></linearGradient>'
-    + '<radialGradient id="{p}-chaleur"><stop offset="0" stop-color="#ff7ab5" stop-opacity=".8"/><stop offset="1" stop-color="#ff4f9a" stop-opacity="0"/></radialGradient>'
-    + '<filter id="{p}-flou" x="-50%" y="-200%" width="200%" height="500%"><feGaussianBlur stdDeviation="1.6"/></filter>'
+    + '<linearGradient id="{p}-sc-canon" x1="0" y1="-13" x2="0" y2="13" gradientUnits="userSpaceOnUse">'
+    + '<stop offset="0" stop-color="#5d5957"/><stop offset=".18" stop-color="#9a9693"/><stop offset=".4" stop-color="#b3afab"/>'
+    + '<stop offset=".62" stop-color="#7f7b78"/><stop offset=".85" stop-color="#696564"/><stop offset="1" stop-color="#4e4a49"/></linearGradient>'
+    + '<linearGradient id="{p}-sc-peinture" x1="0" y1="-13" x2="0" y2="13" gradientUnits="userSpaceOnUse">'
+    + '<stop offset="0" stop-color="#8a4f2c"/><stop offset=".2" stop-color="#d48a55"/><stop offset=".42" stop-color="#dc955f"/>'
+    + '<stop offset=".62" stop-color="#c87d4c"/><stop offset=".85" stop-color="#a8633a"/><stop offset="1" stop-color="#7a4424"/></linearGradient>'
+    + '<linearGradient id="{p}-sc-acier" x1="0" y1="-15" x2="0" y2="20" gradientUnits="userSpaceOnUse">'
+    + '<stop offset="0" stop-color="#3b3a39"/><stop offset=".3" stop-color="#6b6a6a"/><stop offset=".5" stop-color="#7d7b7a"/>'
+    + '<stop offset=".8" stop-color="#4f4d4c"/><stop offset="1" stop-color="#2f2e2d"/></linearGradient>'
+    + '<linearGradient id="{p}-sc-cotes" x1="0" y1="11" x2="0" y2="33" gradientUnits="userSpaceOnUse">'
+    + '<stop offset="0" stop-color="#111"/><stop offset=".35" stop-color="#3a3838"/><stop offset=".55" stop-color="#262525"/><stop offset="1" stop-color="#0d0d0d"/></linearGradient>'
+    + '<linearGradient id="{p}-sc-argent" x1="0" y1="0" x2="0" y2="1">'
+    + '<stop offset="0" stop-color="#8d8d8d"/><stop offset=".4" stop-color="#e2e2e2"/><stop offset=".7" stop-color="#b5b5b5"/><stop offset="1" stop-color="#6f6f6f"/></linearGradient>'
+    + '<linearGradient id="{p}-sc-plaquette" x1="-78" y1="0" x2="-50" y2="0" gradientUnits="userSpaceOnUse">'
+    + '<stop offset="0" stop-color="#151514"/><stop offset=".45" stop-color="#2c2b2a"/><stop offset=".6" stop-color="#21201f"/><stop offset="1" stop-color="#121211"/></linearGradient>'
+    + '<radialGradient id="{p}-sc-chaleur"><stop offset="0" stop-color="#ff6a3a" stop-opacity=".8"/><stop offset="1" stop-color="#e0301e" stop-opacity="0"/></radialGradient>'
+    + '<filter id="{p}-sc-flou" x="-50%" y="-200%" width="200%" height="500%"><feGaussianBlur stdDeviation="1.6"/></filter>'
     + '</defs>'
-    // fumée (danger) et chaleur : à la bouche du canon
-    + '<g class="r-fumee"><circle cx="52" cy="-22" r="6"/><circle cx="40" cy="-30" r="7"/><circle cx="27" cy="-25" r="5"/></g>'
-    + '<ellipse class="r-chaleur" cx="50" cy="0" rx="34" ry="26" fill="url(#{p}-chaleur)"/>'
-    // le contour noir de toute l'arme
-    + '<g class="r-ink">'
-    + '<path d="' + CROSSE + '"/><rect x="-34" y="40" width="24" height="4"/><path d="' + CHIEN + '"/>'
-    + '<rect x="-26" y="-14" width="20" height="26"/><rect x="-8" y="-12" width="46" height="24"/><rect x="36" y="-15" width="9" height="30"/>'
+    // danger : fumée et lueur à la bouche (la fusée chargée reste invisible)
+    + '<g class="r-fumee"><circle cx="66" cy="-20" r="6"/><circle cx="57" cy="-28" r="7"/><circle cx="47" cy="-24" r="5"/></g>'
+    + '<ellipse class="r-chaleur" cx="62" cy="0" rx="28" ry="22" fill="url(#{p}-sc-chaleur)"/>'
+    // le contour noir de toute l'arme (le trou du pontet reste ouvert : evenodd)
+    + '<g class="r-ink" fill-rule="evenodd">'
+    + '<path d="' + CROSSE + '"/><path d="' + PONTET + '"/><path d="' + CARCASSE + '"/><path d="' + CHIEN + '"/>'
+    + '<rect x="-9" y="13" width="8" height="7"/><rect x="3" y="12" width="7" height="8"/>'
+    + '<rect x="9" y="16" width="45" height="12"/><rect x="54" y="18" width="4" height="8"/>'
+    + '<rect x="-21" y="-14.5" width="4" height="29"/><path d="' + CANON + '"/>'
     + '</g>'
-    // crosse et son culot, pontet, chien, carcasse, canon (reflet), bouche
-    + '<path class="p-crosse" d="' + CROSSE + '" fill="url(#{p}-crosse)"/>'
-    + '<rect x="-34" y="40" width="24" height="4" fill="url(#{p}-laiton)"/>'
-    + '<path d="' + PONTET + '" fill="none" stroke="#000" stroke-width="8" stroke-linecap="round"/>'
-    + '<path d="' + PONTET + '" fill="none" stroke="#9a9a9a" stroke-width="3" stroke-linecap="round"/>'
-    + '<path d="' + CHIEN + '" fill="#3a3a3a"/>'
-    + '<rect x="-26" y="-14" width="20" height="26" fill="url(#{p}-acier)"/>'
-    + '<rect x="-8" y="-12" width="46" height="24" fill="url(#{p}-canon)"/>'
-    + '<rect x="-6" y="-9" width="40" height="2.6" fill="#fff" opacity=".45" filter="url(#{p}-flou)"/>'
-    + '<rect x="36" y="-15" width="9" height="30" fill="url(#{p}-laiton)"/>'
-    // rivets de la crosse, axe de bascule, détente
-    + '<circle cx="-20" cy="20" r="2" fill="#f4d98c"/><circle cx="-23" cy="32" r="2" fill="#f4d98c"/>'
-    + '<circle cx="-14" cy="0" r="3.2" fill="url(#{p}-laiton)" stroke="#000" stroke-width="1.5"/>'
-    + '<path d="M-1,12 Q0,17 4,18" fill="none" stroke="#000" stroke-width="2.4" stroke-linecap="round"/>'
-    // le détail maison : un pansement en croix sur le canon
-    + '<g transform="translate(16 0)">'
-    + '<rect x="-11" y="-3.5" width="22" height="7" rx="3" fill="#e8c39a" stroke="#6b4a2a" stroke-width="1" transform="rotate(35)"/>'
-    + '<rect x="-11" y="-3.5" width="22" height="7" rx="3" fill="#efcfa8" stroke="#6b4a2a" stroke-width="1" transform="rotate(-35)"/>'
-    + '<rect x="-3" y="-2.5" width="6" height="5" fill="#f6e2c4"/>'
+    // la crosse et sa plaquette noire, le pontet et la détente
+    + '<path class="p-crosse" d="' + CROSSE + '" fill="url(#{p}-sc-acier)"/>'
+    + '<path d="' + PLAQUETTE + '" fill="url(#{p}-sc-plaquette)"/>'
+    + '<path d="M-53,27 C-55,36 -58,44 -60,50" fill="none" stroke="#4a4847" stroke-width="1.6" stroke-linecap="round"/>'
+    + '<path class="p-pontet" d="' + PONTET + '" fill="url(#{p}-sc-argent)" fill-rule="evenodd"/>'
+    + '<path d="M-31,18 Q-29,27 -24,29" fill="none" stroke="#000" stroke-width="4.6" stroke-linecap="round"/>'
+    + '<path d="M-31,18 Q-29,27 -24,29" fill="none" stroke="#d6d6d6" stroke-width="2.4" stroke-linecap="round"/>'
+    // l'ergot et la bride de la poignée avant
+    + '<rect x="-9" y="13" width="8" height="7" fill="#4f4d4c"/><rect x="3" y="12" width="7" height="8" fill="#4f4d4c"/>'
+    // la carcasse gris foncé, ses rivets, le chien et sa goupille
+    + '<path d="' + CARCASSE + '" fill="url(#{p}-sc-acier)"/>'
+    + '<circle cx="-46" cy="-9" r="1.8" fill="#d9d9d9" stroke="#000" stroke-width=".8"/><circle cx="-27" cy="-9" r="1.8" fill="#d9d9d9" stroke="#000" stroke-width=".8"/>'
+    + '<path class="p-chien" d="' + CHIEN + '" fill="url(#{p}-sc-argent)"/>'
+    + '<circle cx="-59" cy="-11" r="2" fill="url(#{p}-sc-argent)" stroke="#000" stroke-width="1.2"/>'
+    // la bague, puis le canon gris (reflet) et sa bouche peinte en orange, avec un éclat
+    + '<rect x="-21" y="-14.5" width="4" height="29" fill="#5a5655"/>'
+    + '<path class="p-canon" d="' + CANON + '" fill="url(#{p}-sc-canon)"/>'
+    + '<rect x="-17" y="-9.5" width="72" height="2.6" fill="#fff" opacity=".4" filter="url(#{p}-sc-flou)"/>'
+    + '<path class="p-peinture" d="' + PEINTURE + '" fill="url(#{p}-sc-peinture)"/>'
+    + '<path d="M50,-6 L53,-7.2 L54.2,-4 L51,-3.2 Z" fill="#8a8683"/>'
+    // la poignée avant noire côtelée et sa goupille argentée
+    + '<g class="p-poignee-avant">'
+    + '<rect x="9" y="16" width="45" height="12" fill="url(#{p}-sc-cotes)"/>' + COTES
+    + '<rect class="p-goupille" x="54" y="18" width="4" height="8" fill="url(#{p}-sc-argent)"/>'
+    + '<circle cx="58" cy="22" r="2" fill="url(#{p}-sc-argent)" stroke="#000" stroke-width="1"/>'
     + '</g>'
-    // traits intérieurs : carcasse / canon, bouche, crosse
-    + '<g class="r-traits"><path d="M-8,-12 V12 M36,-12 V12 M-26,2 H-8"/></g>'
-    // l'éclair de bouche (au tir seulement : .is-firing)
-    + '<g class="p-eclair" transform="translate(56 0)"><path class="r-ink" d="' + ECLAIR + '"/>'
+    // traits intérieurs : bague, jonction carcasse / canon, bouche
+    + '<g class="r-traits"><path d="M-19,-13 V13 M60,-13 V13"/></g>'
+    // danger : étincelles à la bouche (crans 2 et 3)
+    + '<g class="p-etinc" fill="#fff1a8"><circle cx="72" cy="-11" r="1.6"/><circle cx="78" cy="5" r="1.4"/>'
+    + '<circle cx="70" cy="13" r="1.5"/><circle cx="82" cy="-3" r="1.2"/><circle cx="66" cy="-16" r="1.3"/></g>'
+    // au tir : la bouffée de fumée rouge, la gerbe d'étincelles, l'éclair
+    + '<g class="p-bouffee" fill="#c8321f"><circle cx="70" cy="-3" r="9"/><circle cx="80" cy="4" r="7" opacity=".85"/><circle cx="64" cy="7" r="6" opacity=".9"/></g>'
+    + '<g class="p-gerbe" fill="none" stroke="#ffd84a" stroke-width="1.6" stroke-linecap="round">'
+    + '<path d="M64,-2 L76,-12 M66,1 L84,-2 M65,3 L79,12 M63,-4 L70,-17 M64,5 L72,18"/>'
+    + '<circle cx="86" cy="-6" r="1.2" fill="#ffd84a" stroke="none"/><circle cx="81" cy="15" r="1.1" fill="#ffd84a" stroke="none"/></g>'
+    + '<g class="p-eclair" transform="translate(70 0)"><path class="r-ink" d="' + ECLAIR + '"/>'
     + '<path d="' + ECLAIR + '" fill="#ffe65a"/><path d="' + ECLAIR_MI + '" fill="#fff"/></g>'
     + '</svg>';
 
-  var NEZ_FUSEE = 'M56,-6 L57,-6 Q61,-6 61,0 Q61,6 57,6 L56,6 Z';
-  var TETE_FUSEE = etoile(8, 11, 5), TETE_FUSEE_MI = etoile(8, 7, 3.5);
+  // La fusée : corps de 24 × 17 u de x = 22 à 46, tête centrée sur 46 (rayon
+  // 14,5 : son avant tombe sur la bouche, +60 = NEZ).
   var FUSEE = ''
     + '<svg class="r-svg p-fusee" viewBox="-128 -46 250 92" aria-hidden="true" focusable="false">'
     + '<defs>'
-    + '<linearGradient id="{p}-trainee" x1="-120" y1="0" x2="42" y2="0" gradientUnits="userSpaceOnUse">'
-    + '<stop offset="0" stop-color="#f7bfd3" stop-opacity="0"/><stop offset=".55" stop-color="#f7a6c4" stop-opacity=".6"/>'
-    + '<stop offset="1" stop-color="#ffb070" stop-opacity=".95"/></linearGradient>'
-    + '<linearGradient id="{p}-tube" x1="0" y1="-6" x2="0" y2="6" gradientUnits="userSpaceOnUse">'
-    + '<stop offset="0" stop-color="#7a1236"/><stop offset=".3" stop-color="#e2477e"/><stop offset=".5" stop-color="#ff7aa8"/>'
-    + '<stop offset=".75" stop-color="#c2306a"/><stop offset="1" stop-color="#6a0f2e"/></linearGradient>'
+    + '<linearGradient id="{p}-sc-corps" x1="0" y1="-8.5" x2="0" y2="8.5" gradientUnits="userSpaceOnUse">'
+    + '<stop offset="0" stop-color="#232324"/><stop offset=".35" stop-color="#4f4f50"/><stop offset=".6" stop-color="#3f3f40"/><stop offset="1" stop-color="#1c1c1d"/></linearGradient>'
+    + '<radialGradient id="{p}-sc-halo"><stop offset="0" stop-color="#ff6a3a" stop-opacity=".95"/><stop offset=".55" stop-color="#e0301e" stop-opacity=".75"/>'
+    + '<stop offset="1" stop-color="#b0180e" stop-opacity="0"/></radialGradient>'
+    + '<radialGradient id="{p}-sc-coeur"><stop offset="0" stop-color="#fff"/><stop offset=".45" stop-color="#fff1c2"/>'
+    + '<stop offset=".8" stop-color="#ffb04a"/><stop offset="1" stop-color="#ff7a2a"/></radialGradient>'
     + '</defs>'
-    // la traînée rose-orange : en vol seulement (.is-flying)
-    + '<g class="p-trainee">'
-    + '<path d="M42,-5 C20,-10 -10,2 -40,-4 C-70,-10 -95,-2 -120,-4 L-120,5 C-95,9 -70,1 -40,8 C-10,13 20,4 42,5 Z" fill="url(#{p}-trainee)"/>'
-    + '<circle cx="-10" cy="1" r="7" fill="#ffc29a" opacity=".5"/><circle cx="-60" cy="3" r="8" fill="#f7bfd3" opacity=".35"/>'
+    // en vol : les bouffées de fumée rouge, derrière la fusée (.is-flying)
+    + '<g class="p-fumee-vol">'
+    + '<circle cx="14" cy="0" r="8" fill="#c42a1c" opacity=".85"/><circle cx="-6" cy="2" r="10" fill="#c42a1c" opacity=".7"/>'
+    + '<circle cx="-28" cy="-1" r="11" fill="#b02418" opacity=".55"/><circle cx="-52" cy="3" r="10" fill="#a82218" opacity=".42"/>'
+    + '<circle cx="-76" cy="0" r="9" fill="#a82218" opacity=".3"/><circle cx="-98" cy="2" r="7" fill="#a82218" opacity=".2"/>'
     + '</g>'
-    // la flamme ARRIÈRE : en vol seulement
-    + '<g transform="translate(42 0) scale(.42)"><g class="p-feu-arriere">'
-    + '<path class="r-ink" d="' + FLAMME + '"/><path d="' + FLAMME + '" fill="#fd8a0a"/>'
-    + '<path d="' + FLAMME_MI + '" fill="#ffd28f"/><path d="' + FLAMME_CO + '" fill="#ffff3a"/>'
-    + '</g></g>'
-    // le tube (bague de laiton) et le nez
-    + '<g class="r-ink"><rect x="42" y="-6" width="14" height="12"/><path d="' + NEZ_FUSEE + '"/></g>'
-    + '<rect x="42" y="-6" width="14" height="12" fill="url(#{p}-tube)"/>'
-    + '<rect x="42" y="-6" width="3" height="12" fill="#c9a14a"/>'
-    + '<path d="' + NEZ_FUSEE + '" fill="#ffe8f1"/>'
-    // la tête qui brûle (le crochet du danger)
-    + '<g transform="translate(61 0)"><g class="r-flamme">'
-    + '<path class="r-ink" d="' + TETE_FUSEE + '"/><path d="' + TETE_FUSEE + '" fill="#ff4f9a"/>'
-    + '<path d="' + TETE_FUSEE_MI + '" fill="#ffc6de"/><circle r="3" fill="#fff"/>'
-    + '</g></g>'
-    // les étincelles (danger 2 et 3)
-    + '<g class="p-etinc" fill="#fff4b0"><circle cx="74" cy="-11" r="1.6"/><circle cx="79" cy="4" r="1.4"/>'
-    + '<circle cx="70" cy="12" r="1.5"/><circle cx="82" cy="-3" r="1.2"/><circle cx="66" cy="-15" r="1.3"/></g>'
+    // le corps anthracite, puis la tête incandescente devant lui
+    + '<path class="p-corps" d="M22,-7 L24,-8.5 L46,-8.5 L46,8.5 L24,8.5 L22,7 Z" fill="url(#{p}-sc-corps)" stroke="#000" stroke-width="3.5" stroke-linejoin="round"/>'
+    + '<g class="p-tete" transform="translate(46 0)">'
+    + '<circle r="14.5" fill="url(#{p}-sc-halo)"/>'
+    + '<circle r="12" fill="none" stroke="#ffc49a" stroke-width="1.4" opacity=".75"/>'
+    + '<circle r="8" fill="url(#{p}-sc-coeur)"/>'
+    + '</g>'
     + '</svg>';
 
   // Le dessin de la Pétoire : le projectile d'abord (dessous), l'arme par-dessus.
   var PETOIRE = '<div class="r-proj">' + FUSEE + '</div>' + ARME;
 
   // La table des armes. `depart` / `impact` : leurs sons propres (sound.js) —
-  // tic, validation et explosion restent communs. `feu` : l'impact met le feu
-  // à la carte touchée avant l'étoile commune (app.js). `projectile` : l'arme
+  // tic, validation et explosion restent communs. `couche` : la classe de la
+  // couche d'impact propre à l'arme, posée sur la carte touchée AVANT l'étoile
+  // commune (app.js) ; null = l'étoile seule. `projectile` : l'arme
   // reste au centre et c'est son projectile (.r-proj) qui part (tirer()) ;
   // sans, c'est toute l'arme qui vole (la roquette).
   var SKINS = {
-    roquette: { nom: 'La Roquette', court: 'Roquette', dessin: ROQUETTE, depart: 'whoosh', impact: 'impact', feu: false },
-    petoire: { nom: 'La Pétoire de Secours', court: 'Pétoire', dessin: PETOIRE, depart: 'fusee', impact: 'crepitement', feu: true, projectile: true },
+    roquette: { nom: 'La Roquette', court: 'Roquette', dessin: ROQUETTE, depart: 'whoosh', impact: 'impact', couche: null },
+    petoire: { nom: 'La Pétoire de Secours', court: 'Pétoire', dessin: PETOIRE, depart: 'fusee', impact: 'crepitement', couche: 'scorch-impact', projectile: true },
   };
   var DEFAUT = 'roquette';
   // Le seul filtre côté page : un id inconnu, absent ou mal formé → la roquette.
@@ -250,7 +283,7 @@
   var dessin = function (id, prefixe) { return SKINS[skinId(id)].dessin.replace(/\{p\}/g, prefixe); };
   var info = function (id) {
     var k = skinId(id), s = SKINS[k];
-    return { id: k, nom: s.nom, court: s.court, depart: s.depart, impact: s.impact, feu: s.feu };
+    return { id: k, nom: s.nom, court: s.court, depart: s.depart, impact: s.impact, couche: s.couche };
   };
 
   var reduit = function () {
@@ -368,10 +401,12 @@
     // seul le projectile (.r-proj, calque à part) part, droit sur la cible, dans
     // le MÊME minutage que la roquette — l'impact tombe au même instant :
     //   1. verrouillage (160 ms) ;  2. l'arme se cale (260 ms) ;
-    //   3. le tir : son, éclair de bouche (.is-firing, 140 ms), recul de l'arme ;
-    //   4. le vol du projectile (340 ms, flamme arrière et traînée : .is-flying) ;
+    //   3. le tir : son, éclair de bouche (.is-firing, 140 ms), gerbe
+    //      d'étincelles, bouffée de fumée rouge, recul qui relève le canon ;
+    //   4. le vol du projectile (340 ms) : il n'est VISIBLE que pendant
+    //      .is-flying — tête incandescente devant, fumée rouge derrière ;
     //   5. l'impact : le projectile disparaît (.is-shot), l'arme reste ;
-    //   6. 420 ms plus tard, une nouvelle fusée apparaît dans le canon.
+    //   6. 420 ms plus tard, l'arme est de nouveau chargée (fusée invisible).
     function tirer(el, onImpact, g) {
       var arme = bob.querySelector('.p-arme'), proj = bob.querySelector('.r-proj');
       aimAt(el, { instant: false });
@@ -382,7 +417,7 @@
       // Le calque du projectile a la largeur de l'arme : même calcul que la
       // roquette, son nez (+60) arrive sur l'avatar (un peu dedans).
       var pct = Math.max(0, (portee - largeur * NEZ + largeur * .04) / largeur * 100);
-      var CALEE = 'translateX(-3%) rotate(2deg)';
+      var CALEE = 'translateX(-3%) rotate(3deg)';
       var prep = arme.animate([{ transform: 'none' }, { transform: CALEE }],     // 2. l'arme se cale
         { duration: 260, delay: 160, easing: 'ease-out', fill: 'forwards' });
       return prep.finished.then(function () {
@@ -390,9 +425,19 @@
         host.dispatchEvent(new CustomEvent('rocket:whoosh'));            // 3. le tir
         host.classList.add('is-firing', 'is-flying');
         setTimeout(function () { if (g === gen) host.classList.remove('is-firing'); }, 140);
-        arme.animate([{ transform: CALEE }, { transform: 'translateX(-11%) rotate(-9deg)', offset: .3 }, { transform: 'none' }],
-          { duration: 420, easing: 'ease-out' });
+        // Recul franc : l'arme part en arrière et le canon se relève (rotation
+        // autour de la main, voir le CSS), puis revient en ~0,65 s.
+        arme.animate([
+          { transform: CALEE }, { transform: 'translateX(-8%) rotate(-24deg)', offset: .22 },
+          { transform: 'translateX(-2%) rotate(-10deg)', offset: .6 }, { transform: 'none' },
+        ], { duration: 650, easing: 'ease-out' });
         prep.cancel();
+        // La gerbe d'étincelles et la bouffée de fumée rouge, à la bouche.
+        var gerbe = arme.querySelector('.p-gerbe'), bouffee = arme.querySelector('.p-bouffee');
+        if (gerbe) gerbe.animate([{ opacity: 1, transform: 'translateX(0)' }, { opacity: 0, transform: 'translateX(8px)' }], { duration: 300, easing: 'ease-out' });
+        if (bouffee) bouffee.animate([
+          { opacity: 0, transform: 'scale(.5)' }, { opacity: .9, transform: 'scale(1)', offset: .2 }, { opacity: 0, transform: 'scale(1.6)' },
+        ], { duration: 650, easing: 'ease-out' });
         var vol = proj.animate([                                           // 4. le vol du projectile
           { transform: 'translateX(0)' }, { transform: 'translateX(' + pct.toFixed(1) + '%)' },
         ], { duration: 340, easing: 'cubic-bezier(.55, 0, .9, .35)', fill: 'forwards' });
@@ -405,9 +450,7 @@
           return new Promise(function (res) { setTimeout(res, 420); });
         }).then(function () {
           if (g !== gen) return;
-          host.classList.remove('is-shot');                                // 6. rechargement
-          proj.animate([{ transform: 'scale(.4)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 }],
-            { duration: 260, easing: 'ease-out' });
+          host.classList.remove('is-shot');                                // 6. rechargée : à nouveau invisible
         });
       }).catch(function () { /* tir annulé par un nouveau tour */ });
     }

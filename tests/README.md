@@ -749,3 +749,16 @@ caché, l'arme visible ; roquette = c'est `.r-fly` qui vole, ni éclair ni
 projectile ; impact au même instant pour les deux (±120 ms après `boom`) ;
 mouvement réduit : aucun tir animé. Contre-épreuves : sans `projectile: true`
 (la Pétoire vole tout entière) → 6 échecs ; sans le retournement → 1 échec.
+
+Pétoire = Scorch Shot (2026-10-05, même suite, 85 vérifications) : les 7
+marqueurs du dossier dessinés et MESURÉS sur un hôte de 250 px (canon ≈ 3
+diamètres, bouche orange `#c87d4c` sur ~30 % au bord déchiqueté, poignée avant
+côtelée sous le canon de 35 % à 100 % avec sa goupille devant, crosse derrière
+et dessous, longueur / hauteur 1,75–2,05) ; plus rien de l'ancien dessin
+(traînée rose, flamme arrière, pansement, pochoir) ; fusée INVISIBLE chargée
+(statique, et à chaque décompte et tour en partie) ; au tir, éclair visible,
+gerbe et bouffée animées, recul ≥ 12° ; en vol, fusée visible, tête DEVANT le
+corps (produit scalaire avec la direction de tir), fumée rouge ; impact
+`.scorch-impact` puis étoile ; roquette d'origine à l'empreinte `38f1849d`.
+Contre-épreuves : Pétoire qui revole entière → 10 échecs ; lueur remise à
+l'arrière (flamme arrière) → 2 échecs.

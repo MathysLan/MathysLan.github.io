@@ -847,9 +847,9 @@
         setTimeout(() => c.li.classList.remove('is-hit'), 1100);
         if (!reduit()) eclat(c, arme);
       }
-      // Le son d'impact de l'arme, puis l'explosion commune (après la prise de feu).
+      // Le son d'impact de l'arme, puis l'explosion commune (après sa couche d'impact).
       Sons.play(arme.impact);
-      if (arme.feu) setTimeout(() => Sons.play('explosion'), FEU_AVANT);
+      if (arme.couche) setTimeout(() => Sons.play('explosion'), AVANT_ETOILE);
       else Sons.play('explosion');
     };
     viseId = m.id;
@@ -869,18 +869,28 @@
   });
 
   // L'éclat de l'impact, posé SUR la carte touchée (pas de flash plein écran).
-  // L'étoile orange est COMMUNE à toutes les armes ; une arme peut y ajouter sa
-  // couche (la Pétoire : la carte prend feu, puis l'étoile).
+  // L'étoile orange est COMMUNE à toutes les armes ; une arme peut la faire
+  // précéder de SA couche d'impact (Rocket.info(id).couche), au même endroit.
   const ECLAT = '<svg viewBox="-50 -50 100 100"><path d="M0,-46 L11,-18 L40,-30 L22,-6 L47,6 L18,12 L28,40 L4,20 L-10,46 L-14,18 L-42,30 L-24,6 L-48,-8 L-20,-12 L-32,-40 L-6,-20 Z" fill="#fd8a0a" stroke="#000" stroke-width="5" stroke-linejoin="round"/><path d="M0,-26 L7,-10 L24,-16 L13,-3 L27,4 L10,7 L15,22 L2,11 L-6,25 L-8,10 L-23,16 L-13,3 L-26,-5 L-11,-7 L-18,-22 L-3,-11 Z" fill="#ffd28f"/><circle r="7" fill="#ffff3a"/></svg>';
-  // La prise de feu de la Pétoire : un éclair blanc, trois flammes roses, des braises.
-  const FLAMME = 'M0,12 C-12,10 -14,-4 -6,-14 C-6,-6 -2,-6 0,-26 C4,-10 10,-8 8,-16 C16,-4 12,10 0,12 Z';
-  const FEU = '<svg viewBox="-50 -50 100 100"><circle class="flash" r="34" fill="#fff"/>'
-    + [[-16, 8, 0.7], [16, 8, 0.7], [0, 4, 1]].map(([x, y, k]) => `<g transform="translate(${x} ${y}) scale(${k})"><g class="fl">`
-      + `<path d="${FLAMME}" fill="#ff4f9a" stroke="#000" stroke-width="4" stroke-linejoin="round"/>`
-      + `<path d="${FLAMME}" transform="translate(0 4) scale(.55)" fill="#ffd6e6"/></g></g>`).join('')
-    + [[-20, -4], [-6, -16], [10, -10], [22, -2], [2, -22]].map(([x, y], i) => `<circle class="braise" style="animation-delay:${i * 70}ms" cx="${x}" cy="${y}" r="2.2" fill="#ffb347"/>`).join('')
-    + '</svg>';
-  const FEU_AVANT = 150;          // ms entre la prise de feu et l'étoile commune
+  // L'impact de la Pétoire (Scorch Shot, d'après le dossier) : un grand éclair
+  // orange à rayons, un éclat blanc bref, des étincelles et des éclats sombres,
+  // puis une boule rouge à anneau qui s'éteint en ~0,3 s. Dessin maison.
+  const RAYONS = Array.from({ length: 12 }, (_, i) => {
+    const a = (i * 30 + 8) * Math.PI / 180, L = i % 2 ? 34 : 48, l = 5 * Math.PI / 180;
+    const p = (r, b) => (Math.cos(b) * r).toFixed(1) + ',' + (Math.sin(b) * r).toFixed(1);
+    return 'M0,0 L' + p(L, a - l) + ' L' + p(L, a + l) + ' Z';
+  }).join(' ');
+  const COUCHES = {
+    'scorch-impact': '<svg viewBox="-50 -50 100 100">'
+      + '<path class="si-rayons" d="' + RAYONS + '" fill="#ff9a3c" opacity=".9"/>'
+      + '<circle class="si-flash" r="20" fill="#fff4c8"/>'
+      + '<g class="si-eclats"><path d="M18,-22 L24,-20 L21,-15 Z M-26,10 L-20,14 L-25,18 Z M8,24 L13,28 L7,31 Z M-14,-26 L-9,-29 L-10,-23 Z" fill="#2a2220"/>'
+      + '<path d="M26,-6 L36,-9 M-30,-8 L-40,-12 M4,30 L6,40 M-8,-30 L-10,-40 M30,16 L38,22" stroke="#ffd84a" stroke-width="2" stroke-linecap="round"/></g>'
+      + '<g class="si-boule"><circle r="14" fill="#d8301e"/><circle r="8" fill="#ff6a3a"/>'
+      + '<circle r="17" fill="none" stroke="#ff9a6a" stroke-width="1.6" opacity=".75"/></g>'
+      + '</svg>',
+  };
+  const AVANT_ETOILE = 150;       // ms entre la couche d'impact de l'arme et l'étoile commune
   function poserFx(c, cls, html, vie) {
     if (!c.g) return;
     const ar = $('arena').getBoundingClientRect(), r = c.g.getBoundingClientRect();
@@ -893,9 +903,9 @@
     setTimeout(() => b.remove(), vie);
   }
   function eclat(c, arme) {
-    if (!arme.feu) { poserFx(c, 'boum', ECLAT, 900); return; }
-    poserFx(c, 'feu', FEU, 1100);
-    setTimeout(() => poserFx(c, 'boum', ECLAT, 900), FEU_AVANT);
+    if (!arme.couche || !COUCHES[arme.couche]) { poserFx(c, 'boum', ECLAT, 900); return; }
+    poserFx(c, arme.couche, COUCHES[arme.couche], 700);
+    setTimeout(() => poserFx(c, 'boum', ECLAT, 900), AVANT_ETOILE);
   }
 
   // ------------------------------------------------------------------- fin

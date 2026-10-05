@@ -496,3 +496,21 @@ l'historique.
   crosse en l'air → retourné (`.is-gauche`, propriété `scale`, qui ne se bat
   pas avec les `transform` animés). Roquette inchangée (dessin identique
   octet pour octet, `boom()` + une ligne d'aiguillage).
+
+## 2026-10-05 — Règle de fidélité TF2 ; la Pétoire devient le Scorch Shot
+
+- Nouvelle règle de DA des armes : fidélité TF2 > originalité > blague, une
+  référence unique par arme, dossier de référence validé avant le code, dessin
+  maison sans asset Valve. Dossier du Scorch Shot : rendus du wiki mesurés
+  (planches 3D en profil pur, couleurs échantillonnées), puis le projectile
+  relevé image par image dans 4 vidéos (dont « Meet the Pyro », seule vue de
+  profil) : en vol, tête incandescente devant un corps sombre, fumée rouge,
+  pas de flamme en langue.
+- Pétoire refaite : pistolet gris à bouche orange déchiquetée, poignée avant
+  côtelée, petite crosse inclinée ; fusée invisible chargée, éclair + gerbe +
+  bouffée rouge + recul qui relève le canon au tir, tête lumineuse devant en
+  vol, impact à rayons puis boule rouge, puis l'étoile commune. Le drapeau
+  `feu` devient `couche` (classe de la couche d'impact).
+- Vu au rendu : carcasse et crosse rendues en noir — la Pétoire réutilisait
+  les noms de dégradés de la roquette (`acier`, `chaleur`, `flou`) sous le
+  même préfixe ; noms propres `sc-…`. Roquette inchangée (empreinte du dessin).
