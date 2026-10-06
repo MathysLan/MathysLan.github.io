@@ -474,33 +474,33 @@ const GAMES = [
     accent: 'amber',
     title: 'Faux Témoin',
     title_en: 'False Witness',
-    tagline: 'Tout le monde a vu un bout du coupable',
-    tagline_en: 'Everyone saw a piece of the culprit',
-    desc: "Jeu de déduction et de bluff. Un flash de trois secondes : chacun a vu un détail du coupable, le Faux Témoin l'a vu en entier et ment. Déclarations révélées d'un bloc, tapissage à rayer, et un verrou qui rapporte plus si on ose tôt.",
-    desc_en: "A deduction and bluffing game. A three-second flash: everyone saw one detail of the culprit, the False Witness saw all of it and lies. Statements revealed all at once, a line-up to cross out, and a lock that pays more the earlier you dare.",
-    tags: ['en ligne', 'multi', 'déduction'],
-    tags_en: ['online', 'multi', 'deduction'],
+    tagline: 'Tout le monde a vu la scène. Sauf un.',
+    tagline_en: 'Everyone saw the scene. Except one.',
+    desc: "Jeu de bluff à jouer en vocal. Une scène s'affiche quelques secondes : tout le monde la voit, sauf le Faux Témoin, qui n'a que le nom du lieu. L'écran pose les questions, chacun répond à voix haute, à son tour. Débat, vote, et une dernière chance pour le menteur démasqué : retrouver la vraie scène parmi quatre.",
+    desc_en: "A bluffing game to play over voice chat. A scene shows for a few seconds: everyone sees it except the False Witness, who only gets the name of the place. The screen asks the questions, everyone answers out loud, in turn. Debate, vote, and a last chance for the unmasked liar: find the real scene among four.",
+    tags: ['en ligne', 'multi', 'bluff'],
+    tags_en: ['online', 'multi', 'bluff'],
     stack: ['WebSocket', 'Node.js', 'Moteur pur', 'SVG'],
     code: 'https://github.com/MathysLan/temoin-server',
     arch: [
-      "Serveur Node.js (ws) seul arbitre : le client n'envoie qu'une déclaration, un verrou, une désignation",
-      "Le coupable et les rôles ne partent que joueur par joueur ; aucun message de diffusion ne les contient avant l'audit",
-      "Les déclarations sont ramassées en silence puis révélées d'un bloc ; seul le NOMBRE de verrous est diffusé",
-      "Le Faux Témoin peut déclarer, verrouiller et désigner comme tout le monde : les compteurs ne trahissent jamais son rôle",
-      "Tapissage généré et vérifié côté serveur : les détails vus isolent un seul suspect, chaque leurre est plausible",
+      "Serveur Node.js (ws) seul arbitre : le client n'envoie que « j'ai répondu », « prêt », un vote, un choix",
+      "La scène part joueur par joueur pendant le flash, `null` au Faux Témoin ; les 4 versions au seul démasqué",
+      "Les votes restent secrets jusqu'à la révélation : avant, seul QUI a voté est diffusé",
+      "Questions sans bonne réponse : le serveur n'en vérifie aucune, la table juge à l'oral",
+      "Scènes tirées dans un vocabulaire fermé, dessinées en SVG maison côté navigateur",
     ],
     arch_en: [
-      "A Node.js (ws) server is the only referee: the client only sends a statement, a lock, an accusation",
-      "The culprit and the roles go out player by player; no broadcast message holds them before the audit",
-      "Statements are collected silently then revealed all at once; only the NUMBER of locks is broadcast",
-      "The False Witness can state, lock and accuse like everyone else: the counters never give their role away",
-      "The line-up is generated and checked on the server: the details seen isolate a single suspect, every decoy is plausible",
+      "A Node.js (ws) server is the only referee: the client only sends \"I answered\", \"ready\", a vote, a pick",
+      "The scene goes out player by player during the flash, `null` to the False Witness; the 4 versions to the unmasked one only",
+      "Votes stay secret until the reveal: before that, only WHO voted is broadcast",
+      "Questions have no right answer: the server checks none, the table judges out loud",
+      "Scenes drawn from a closed vocabulary, rendered in home-made SVG in the browser",
     ],
     href: 'games/temoin/',
     status: 'live',
-    // Hors du Game Hub tant que le gameplay est refondu (décision du
-    // 2026-10-06 : le gameplay actuel est un prototype). La page reste jouable
-    // par son lien. Le bloc hub reviendra avec la nouvelle version.
+    // Hors du Game Hub (décision du 2026-10-06) : la nouvelle version
+    // (« l'Interrogatoire ») y entrera quand Mathys le demandera. La page
+    // reste jouable par son lien.
     hub: false,
   },
   {

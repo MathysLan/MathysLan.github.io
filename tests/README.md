@@ -827,27 +827,30 @@ Contre-épreuves : sans `projectile: true` (l'arc vole entier) → 3 échecs ;
 flèche qui culbute (animation CSS sur `.h-fleche`) → 3 échecs ; traînée
 ajoutée au calque de la flèche → 3 échecs.
 
-## Faux Témoin, lot 2 — la page du jeu (2026-10-06)
+## Faux Témoin — « l'Interrogatoire » (lot B, 2026-10-06)
 
-`games/temoin/` contre le VRAI `temoin-server` (minutages courts : flash
-1,5 s, déclaration 6 s, délibération 3 s, dernier appel 2 s, audit 2,5 s).
-Pas encore de Hub (manifest, handoff) : c'est le lot 3.
+`games/temoin/` contre le VRAI `temoin-server` (durées raccourcies par les
+`TEST_*_MS` du serveur ; la scène, 2,5 s ici, se règle au salon en vrai).
 
-    node tests/temoin-partie.mjs                   ~1 min, Edge (bureau souris, téléphone doigt) + 1 robot
+    node tests/temoin-partie.mjs                   ~1 min 30, Edge (bureau souris, téléphone doigt) + 2 robots
     node tests/temoin-partie.mjs --shots <d>
     node tests/temoin-partie.mjs --serveur C:\perso\temoin-server   (par défaut : ../temoin-server, sinon C:\perso)
 
-Partie à trois (3 affaires) puis à deux (l'indic). Vérifie que l'écran montre
-ce que le serveur a envoyé (fragment du flash, révélations, audit, points,
-totaux, classement), que les intentions envoyées sont celles des clics
-(déclarer, se taire, verrou + désignation), que « rayer » reste local, et
-aucune erreur JS. Géométrie : au téléphone la photo du flash est à l'écran
-AVANT le tapissage, sans défiler (elle était sous les 12 cartes) ; contraste
-≥ 4.5:1 du texte des boutons pleins (orange sur orange au premier jet).
-Harnais : `croquis-harnais.mjs` (qui passe `--no-sandbox` sous Linux, pour
-l'environnement cloud : `--edge /opt/pw-browsers/chromium`).
+Une vraie partie à quatre, trois manches : chacun répond à son tour (pages :
+« J'ai répondu » ; robots : par le fil), tout le monde se dit prêt, puis vote.
+Trois scénarios : Faux Témoin démasqué (dernière chance), un témoin accusé à
+tort, égalité 2 contre 2. Le rôle tourne : une manche tombe forcément sur une
+PAGE, et c'est elle qui est démasquée (4 versions touchées au doigt ou à la
+souris). Vérifie que l'écran montre ce que le serveur a envoyé à CE joueur
+(rôle, scène dessinée emplacement par emplacement et décrite à l'identique,
+lieu seul et AUCUN dessin chez le Faux Témoin, question, qui parle, verdict,
+4 versions au seul démasqué, révélation, votes, points, totaux, classement),
+que la scène disparaît après le flash (un panneau caché garde ses enfants :
+dessins vidés à chaque manche), que les intentions sont celles des clics
+(`settings`, `answered`, `ready`, `vote`, `guess`), qu'au téléphone la scène,
+la question et les cartes de vote tiennent à l'écran sans défiler, et aucune
+erreur JS. Harnais : `croquis-harnais.mjs` (`--no-sandbox` sous Linux ; cloud :
+`--edge /opt/pw-browsers/chromium-1194/chrome-linux/chrome`).
 
-Faux Témoin est sorti du Hub (`hub: false`) le 2026-10-06 : son gameplay est
-refondu. `handoff-temoin.mjs` est retiré avec (il reste dans l'historique git)
-et sera réécrit pour la nouvelle version ; `temoin-partie.mjs` joue encore le
-prototype jusqu'à sa réécriture.
+Faux Témoin reste hors du Hub (`hub: false`) : pas de `handoff-temoin.mjs`
+tant que Mathys ne l'y remet pas.
