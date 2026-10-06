@@ -95,7 +95,9 @@ export async function lancerEdge({ shots } = {}) {
   if (shots) mkdirSync(shots, { recursive: true });
   const profil = mkdtempSync(path.join(tmpdir(), 'croquis-'));
   const edge = spawn(EDGE, ['--headless=new', '--disable-gpu', '--no-first-run', '--allow-file-access-from-files',
-    `--remote-debugging-port=${cdp}`, `--user-data-dir=${profil}`, '--window-size=1100,900', 'about:blank'], { stdio: 'ignore' });
+    `--remote-debugging-port=${cdp}`, `--user-data-dir=${profil}`, '--window-size=1100,900',
+    // Environnement cloud (Linux, root) : Chromium refuse de démarrer sans ça.
+    ...(process.platform === 'linux' ? ['--no-sandbox'] : []), 'about:blank'], { stdio: 'ignore' });
   nettoyages.push(() => {
     try { edge.kill(); } catch (_) {}
     if (process.platform === 'win32' && edge.pid) { try { spawn('taskkill', ['/PID', String(edge.pid), '/T', '/F'], { stdio: 'ignore', detached: true }).unref(); } catch (_) {} }
