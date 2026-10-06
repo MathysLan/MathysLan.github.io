@@ -617,3 +617,8 @@ l'historique.
   vrai Hub + vrai serveur). Défaut trouvé : en mode Hub, « Revanche (hors
   score) » réduite à côté d'un « Retour au salon » pleine taille, rangée
   décalée (contre-épreuve : 5,6 px d'écart de centre).
+- Le même jour, Mathys déclare le gameplay de Faux Témoin PROTOTYPE et demande
+  une refonte (game design d'abord, pas de Hub). PR #5 était déjà fusionnée :
+  Faux Témoin passe en `hub: false` (hors tirage, page toujours jouable),
+  `handoff-temoin.mjs` retiré, `hub-score-contract.mjs` vérifie son absence du
+  manifest. Direction proposée : « l'Interrogatoire » (doc de game design).
