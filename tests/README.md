@@ -826,3 +826,23 @@ autres armes ; en mouvement réduit, tension posée d'un coup, aucune animation.
 Contre-épreuves : sans `projectile: true` (l'arc vole entier) → 3 échecs ;
 flèche qui culbute (animation CSS sur `.h-fleche`) → 3 échecs ; traînée
 ajoutée au calque de la flèche → 3 échecs.
+
+## Faux Témoin, lot 2 — la page du jeu (2026-10-06)
+
+`games/temoin/` contre le VRAI `temoin-server` (minutages courts : flash
+1,5 s, déclaration 6 s, délibération 3 s, dernier appel 2 s, audit 2,5 s).
+Pas encore de Hub (manifest, handoff) : c'est le lot 3.
+
+    node tests/temoin-partie.mjs                   ~1 min, Edge (bureau souris, téléphone doigt) + 1 robot
+    node tests/temoin-partie.mjs --shots <d>
+    node tests/temoin-partie.mjs --serveur C:\perso\temoin-server   (par défaut : ../temoin-server, sinon C:\perso)
+
+Partie à trois (3 affaires) puis à deux (l'indic). Vérifie que l'écran montre
+ce que le serveur a envoyé (fragment du flash, révélations, audit, points,
+totaux, classement), que les intentions envoyées sont celles des clics
+(déclarer, se taire, verrou + désignation), que « rayer » reste local, et
+aucune erreur JS. Géométrie : au téléphone la photo du flash est à l'écran
+AVANT le tapissage, sans défiler (elle était sous les 12 cartes) ; contraste
+≥ 4.5:1 du texte des boutons pleins (orange sur orange au premier jet).
+Harnais : `croquis-harnais.mjs` (qui passe `--no-sandbox` sous Linux, pour
+l'environnement cloud : `--edge /opt/pw-browsers/chromium`).
