@@ -262,32 +262,6 @@
       "content": false,
       "replay": true,
       "handoff": true
-    },
-    {
-      "id": "temoin",
-      "title": "Faux Témoin",
-      "emoji": "🎭",
-      "url": "games/temoin/",
-      "mode": "online",
-      "players": {
-        "min": 2,
-        "max": 16
-      },
-      "minutes": {
-        "min": 4,
-        "max": 6
-      },
-      "needs": [],
-      "categories": [
-        "deduction",
-        "bluff"
-      ],
-      "server": "wss://temoin-server.onrender.com",
-      "health": "https://temoin-server.onrender.com/",
-      "join": "v1",
-      "content": false,
-      "replay": true,
-      "handoff": true
     }
   ]
 }

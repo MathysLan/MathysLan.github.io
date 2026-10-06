@@ -498,22 +498,10 @@ const GAMES = [
     ],
     href: 'games/temoin/',
     status: 'live',
-    hub: {
-      mode: 'online',
-      players: { min: 2, max: 16 },       // MIN_PLAYERS / MAX_PLAYERS vérifiés dans engine.js
-      // Réglage par défaut (5 affaires) : au plus ~62 s par affaire (flash 3,
-      // deux déclarations de 15, délibération 12, dernier appel 8, audit 9),
-      // moins quand tout le monde a déclaré ou verrouillé avant la fin.
-      minutes: { min: 4, max: 6 },
-      needs: [],
-      categories: ['deduction', 'bluff'],
-      server: 'wss://temoin-server.onrender.com',
-      health: 'https://temoin-server.onrender.com/',
-      join: 'v1',
-      content: false,
-      replay: true,                       // action: 'lobby' vérifiée dans server.js
-      handoff: true,                      // branché au Game Hub (games/shared/hub-handoff.js)
-    },
+    // Hors du Game Hub tant que le gameplay est refondu (décision du
+    // 2026-10-06 : le gameplay actuel est un prototype). La page reste jouable
+    // par son lien. Le bloc hub reviendra avec la nouvelle version.
+    hub: false,
   },
   {
     id: 'soon',
