@@ -622,3 +622,17 @@ l'historique.
   Faux Témoin passe en `hub: false` (hors tirage, page toujours jouable),
   `handoff-temoin.mjs` retiré, `hub-score-contract.mjs` vérifie son absence du
   manifest. Direction proposée : « l'Interrogatoire » (doc de game design).
+
+## 2026-10-06 — Faux Témoin, « l'Interrogatoire » (lots A et B)
+
+- Recherche documentée sur 9 jeux de référence (règles publiées), passe de
+  game design validée par Mathys : SCÈNE → INTERROGATOIRE VOCAL → DÉBAT →
+  VOTE → DERNIÈRE CHANCE → RÉVÉLATION. Questions sans bonne réponse (du
+  bluff, pas un quiz de mémoire), flash réglable 5/8/10 s.
+- Lot A (`temoin-server` PR #1) : nouveau moteur et protocole, 3 à 16 joueurs.
+- Lot B (cette PR) : page réécrite (`scene.js` dessine les 6 lieux en SVG
+  maison, `suspects.js` retiré), `tests/temoin-partie.mjs` réécrit (vraie
+  partie à 4, 86 vérifications). Défaut attrapé par le test : les dessins de
+  la révélation restaient dans le panneau caché à la manche suivante (le
+  Faux Témoin avait encore la vraie scène de la manche d'avant dans son DOM) ;
+  vidés à chaque `round`.
