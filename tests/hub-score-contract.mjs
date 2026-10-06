@@ -1,4 +1,4 @@
-// Contrat « score de soirée » des neuf jeux, vérifié STATIQUEMENT : aucun
+// Contrat « score de soirée » des dix jeux, vérifié STATIQUEMENT : aucun
 // navigateur, aucun serveur. C'est le garde-fou rapide ; les vraies parties
 // sont jouées par tests/hub-score-*.mjs.
 //
@@ -36,7 +36,7 @@ const t = (nom, cond, detail = '') => {
 };
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
-// Les neuf jeux : fichier du raccord, expression de SA place, helper de fin.
+// Les dix jeux : fichier du raccord, expression de SA place, helper de fin.
 //   `place`  : ce que le jeu passe en second argument de roomReady ;
 //   `helper` : la fonction qui construit le classement envoyé à results ;
 //   `source` : le champ du message de fin qui porte le classement ;
@@ -52,6 +52,8 @@ const JEUX = [
   { id: 'morpion',    fichier: 'games/morpion/net.js',    place: 'state.you', helper: 'classement', source: 'state.winner' },
   { id: 'roquette',   fichier: 'games/roquette/app.js',   place: 'm.id',      helper: 'rangs',      source: 'm.ranking' },
   { id: 'croquis',    fichier: 'games/croquis/jeu.js',    place: 'm.id',      helper: 'rangs',      source: 'm.ranking',
+    garde: /if \(m\.complete && lien\.results\b/ },
+  { id: 'temoin',     fichier: 'games/temoin/jeu.js',     place: 'm.id',      helper: 'rangs',      source: 'm.ranking',
     garde: /if \(m\.complete && lien\.results\b/ },
 ];
 
@@ -157,6 +159,24 @@ for (const J of JEUX) {
       manifest.games.filter((x) => x.id === 'croquis').length === 1 && g.url === 'games/croquis/' && g.title === 'Croq.ios');
     continue;
   }
+  if (J.id === 'temoin') {
+    // Faux Témoin : comme Croq.ios, rang (ex æquo compris) et score du SERVEUR.
+    const C = (l) => f(l.map(([rank, score], i) => ({ id: 't' + i, name: 'n' + i, avatar: '🙂', rank, score, found: 1, left: false })));
+    const parPlace = (l) => Object.fromEntries(l.map((x) => [x.gamePlayerId, [x.rank, x.points]]).sort());
+    t('temoin : rangs ET scores du serveur recopiés (2/9, 1/14, 3/4 → tels quels)', same(parPlace(C([[2, 9], [1, 14], [3, 4]])), { t0: [2, 9], t1: [1, 14], t2: [3, 4] }));
+    t('temoin : ex æquo du serveur gardé (1 / 1 / 3)', same(parPlace(C([[1, 5], [1, 5], [3, 0]])), { t0: [1, 5], t1: [1, 5], t2: [3, 0] }));
+    t('temoin : lignes { gamePlayerId, rank, points }, rien d\'autre', C([[1, 10], [2, 5]]).every((l) => same(Object.keys(l).sort(), cles)));
+    const finT = code.slice(code.indexOf("NET.on('results'"), code.indexOf('function rangs('));
+    t('temoin : partie interrompue → pas de results, mais ended() quand même (hors de la garde)',
+      /if \(m\.complete && lien\.results\) lien\.results\(/.test(finT) && /\n\s*lien\.ended\(\);/.test(finT));
+    t('temoin : manifest — en ligne, 2 à 16 joueurs, 4 à 6 min', !!g && g.mode === 'online' && same(g.players, { min: 2, max: 16 }) && same(g.minutes, { min: 4, max: 6 }));
+    t('temoin : manifest — serveur et santé sur Render', !!g && g.server === 'wss://temoin-server.onrender.com' && g.health === 'https://temoin-server.onrender.com/');
+    t('temoin : manifest — join v1, content false, replay true, handoff true', !!g && g.join === 'v1' && g.content === false && g.replay === true && g.handoff === true);
+    t('temoin : manifest — catégories deduction + bluff, aucun besoin', !!g && same(g.categories, ['deduction', 'bluff']) && same(g.needs, []));
+    t('temoin : manifest — une seule entrée, URL games/temoin/, nom Faux Témoin',
+      manifest.games.filter((x) => x.id === 'temoin').length === 1 && g.url === 'games/temoin/' && g.title === 'Faux Témoin');
+    continue;
+  }
   if (J.id === 'roquette') {
     // Roquette ne compte pas de points : le SERVEUR envoie le rang (ordre
     // d'élimination). Le helper le recopie tel quel, sans le recalculer.
@@ -190,7 +210,7 @@ t('results : seulement l\'hôte du lancement, sur le bon tirage', /l\.hostId !==
 t('ended : une seule fois, et consomme le billet', /if \(fini\) return/.test(bloc('ended')) && /fini = true/.test(bloc('ended')) && /clear\(\)/.test(bloc('ended')));
 t('roomReady : transmet la place au Hub (launched / entered)', /hub\.launched\(t\.drawId, code, place\)/.test(bloc('roomReady')) && /hub\.entered\(t\.drawId, code, place\)/.test(bloc('roomReady')));
 t('failed : pas de nouvel essai pendant la partie (`stage !== \'playing\'`)', /if \(!l \|\| l\.stage !== 'playing'\) joint = false/.test(bloc('failed')));
-t('les neuf pages chargent la même version de hub-handoff.js',
+t('les dix pages chargent la même version de hub-handoff.js',
   new Set(JEUX.map((J) => (lire(`games/${J.id}/index.html`).match(/src="[^"]*hub-handoff\.js(\?v=\d+)?"/) || ['?'])[0])).size === 1);
 
 console.log(`\n${ko ? 'DES TESTS ÉCHOUENT' : 'TOUT PASSE'} — ${ok + ko} vérifications, ${ko} échec(s)`);

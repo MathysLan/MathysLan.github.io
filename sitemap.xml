@@ -3,7 +3,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://mathyslan.github.io/</loc>
-    <lastmod>2026-10-04</lastmod>
+    <lastmod>2026-10-06</lastmod>
   </url>
   <url>
     <loc>https://mathyslan.github.io/games/morpion/</loc>
@@ -11,7 +11,7 @@
   </url>
   <url>
     <loc>https://mathyslan.github.io/games/imitation/</loc>
-    <lastmod>2026-10-03</lastmod>
+    <lastmod>2026-10-06</lastmod>
   </url>
   <url>
     <loc>https://mathyslan.github.io/games/demicercle/</loc>
@@ -35,10 +35,14 @@
   </url>
   <url>
     <loc>https://mathyslan.github.io/games/roquette/</loc>
-    <lastmod>2026-10-03</lastmod>
+    <lastmod>2026-10-06</lastmod>
   </url>
   <url>
     <loc>https://mathyslan.github.io/games/croquis/</loc>
     <lastmod>2026-10-04</lastmod>
+  </url>
+  <url>
+    <loc>https://mathyslan.github.io/games/temoin/</loc>
+    <lastmod>2026-10-06</lastmod>
   </url>
 </urlset>
