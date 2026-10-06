@@ -468,6 +468,54 @@ const GAMES = [
     },
   },
   {
+    // Nom technique « temoin » (id, dossier games/temoin/, temoin-server).
+    id: 'temoin',
+    emoji: '🎭',
+    accent: 'amber',
+    title: 'Faux Témoin',
+    title_en: 'False Witness',
+    tagline: 'Tout le monde a vu un bout du coupable',
+    tagline_en: 'Everyone saw a piece of the culprit',
+    desc: "Jeu de déduction et de bluff. Un flash de trois secondes : chacun a vu un détail du coupable, le Faux Témoin l'a vu en entier et ment. Déclarations révélées d'un bloc, tapissage à rayer, et un verrou qui rapporte plus si on ose tôt.",
+    desc_en: "A deduction and bluffing game. A three-second flash: everyone saw one detail of the culprit, the False Witness saw all of it and lies. Statements revealed all at once, a line-up to cross out, and a lock that pays more the earlier you dare.",
+    tags: ['en ligne', 'multi', 'déduction'],
+    tags_en: ['online', 'multi', 'deduction'],
+    stack: ['WebSocket', 'Node.js', 'Moteur pur', 'SVG'],
+    code: 'https://github.com/MathysLan/temoin-server',
+    arch: [
+      "Serveur Node.js (ws) seul arbitre : le client n'envoie qu'une déclaration, un verrou, une désignation",
+      "Le coupable et les rôles ne partent que joueur par joueur ; aucun message de diffusion ne les contient avant l'audit",
+      "Les déclarations sont ramassées en silence puis révélées d'un bloc ; seul le NOMBRE de verrous est diffusé",
+      "Le Faux Témoin peut déclarer, verrouiller et désigner comme tout le monde : les compteurs ne trahissent jamais son rôle",
+      "Tapissage généré et vérifié côté serveur : les détails vus isolent un seul suspect, chaque leurre est plausible",
+    ],
+    arch_en: [
+      "A Node.js (ws) server is the only referee: the client only sends a statement, a lock, an accusation",
+      "The culprit and the roles go out player by player; no broadcast message holds them before the audit",
+      "Statements are collected silently then revealed all at once; only the NUMBER of locks is broadcast",
+      "The False Witness can state, lock and accuse like everyone else: the counters never give their role away",
+      "The line-up is generated and checked on the server: the details seen isolate a single suspect, every decoy is plausible",
+    ],
+    href: 'games/temoin/',
+    status: 'live',
+    hub: {
+      mode: 'online',
+      players: { min: 2, max: 16 },       // MIN_PLAYERS / MAX_PLAYERS vérifiés dans engine.js
+      // Réglage par défaut (5 affaires) : au plus ~62 s par affaire (flash 3,
+      // deux déclarations de 15, délibération 12, dernier appel 8, audit 9),
+      // moins quand tout le monde a déclaré ou verrouillé avant la fin.
+      minutes: { min: 4, max: 6 },
+      needs: [],
+      categories: ['deduction', 'bluff'],
+      server: 'wss://temoin-server.onrender.com',
+      health: 'https://temoin-server.onrender.com/',
+      join: 'v1',
+      content: false,
+      replay: true,                       // action: 'lobby' vérifiée dans server.js
+      handoff: true,                      // branché au Game Hub (games/shared/hub-handoff.js)
+    },
+  },
+  {
     id: 'soon',
     emoji: '🎮',
     accent: 'mint',

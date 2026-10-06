@@ -45,10 +45,11 @@ dans le journal.
 | **Qui Ment ?** | `games/quiment/` | `qui-ment-server` | Bluff : même mot pour tous sauf l'intrus (qui n'a que la catégorie). 2 tours d'indices en aveugle, vote, révélation, dernière chance. Le mot ne part JAMAIS en diffusion (joueur par joueur, `word: null` pour l'intrus) ; les indices sont ramassés en silence puis révélés d'un bloc ; la liste des mots de la catégorie ne part qu'à l'intrus démasqué. Le test WebSocket du serveur relit **tout le fil** chez l'intrus (seul moyen d'attraper une fuite par un message de progression). Catalogue `mots.js`. |
 | **Roquette Party** | `games/roquette/` | `roquette-server` | Jeu de mots en temps réel, 2 à 16 joueurs : des lettres s'affichent, un mot qui les contient avant l'explosion, chaque explosion coûte une vie. L'instant de l'explosion et le dictionnaire ne quittent jamais le serveur ; rang = ordre d'élimination, aucun point de partie. Jeu du Hub (`handoff: true`). Armes cosmétiques (skins : roquette, Pétoire, Grenade Launcher, Huntsman) : voir « Roquette Party : les armes ». |
 | **Croq.ios** (technique : `croquis`) | `games/croquis/` | `croquis-server` | Jeu de dessin, 2 à 16 joueurs : un dessinateur choisit un mot parmi trois (1 facile, 1 moyen, 1 difficile, catalogue V1 de 318 mots côté serveur), les autres devinent. Le mot ne part qu'au dessinateur jusqu'au `turn-end` ; traits validés et bornés par le serveur. Nom AFFICHÉ « Croq.ios » ; dossier, id, modules JS et serveur restent `croquis` (ne pas renommer). Jeu du Hub (`handoff: true`, 2 à 16 joueurs, 5–18 min, `creatif` + `ambiance`) : même montage que Roquette (`gameId: 'croquis'`, `roomReady` au `you`, `started` au premier `turn`, `results` (rang + score du serveur) puis `ended` à `results` — `ended` seul pour une partie interrompue —, « Lancer sans attendre », `#to-hub`) ; test `tests/handoff-croquis.mjs`. |
+| **Faux Témoin** (technique : `temoin`) | `games/temoin/` | `temoin-server` | Déduction et bluff, 2 à 16 joueurs, 3 / 5 / 7 affaires. Flash de 3 s : chaque témoin voit un ou deux attributs du coupable, le Faux Témoin le voit en entier et ment ; deux tours de déclarations révélées d'un bloc, verrou (5 / 3 / 1 points selon la phase) + désignation du Faux Témoin (+2), audit. À 2 joueurs, pas de Faux Témoin : l'« indic » du serveur donne une déclaration vraie et une fausse. Coupable et rôles seulement par `role`, joueur par joueur ; seul le NOMBRE de verrous est diffusé ; le Faux Témoin déclare et verrouille comme tout le monde (sans effet sur ses points) pour que les compteurs ne le trahissent pas. Tapissage dessiné par `suspects.js` (SVG maison). Jeu du Hub (`handoff: true`, 2 à 16, 4–6 min, `deduction` + `bluff`), même montage que Croq.ios (`gameId: 'temoin'`, `roomReady` au `you`, `started` à la 1re `case`, `results` (rang + score du serveur) puis `ended`) ; tests `tests/temoin-partie.mjs`, `tests/handoff-temoin.mjs`. |
 | **Puissance 4** | `js/connect4.js` (`launchConnect4`) | aucun | 100 % navigateur, canvas, bot gagner > bloquer > centre. Lancé par le carousel, INSERT COIN, Ctrl+K, Konami. |
 
-- Dépôts serveurs sur le poste de Mathys : `C:\perso\<nom>` (les sept
-  ci-dessus + `game-hub-server`). Chacun a ses tests (`npm test`, `test*.js`) :
+- Dépôts serveurs sur le poste de Mathys : `C:\perso\<nom>` (un par jeu en
+  ligne ci-dessus + `game-hub-server`). Chacun a ses tests (`npm test`, `test*.js`) :
   un client `ws` qui joue une partie complète et vérifie les règles.
 - URL de production utiles : Hub `wss://game-hub-server-qqdk.onrender.com`,
   Ban `wss://ban-server-68h9.onrender.com`, Précision
@@ -527,8 +528,8 @@ propre plafond dans le manifest : le tirage écarte seul un jeu trop petit
 
 ### Le manifest des jeux
 
-- **`data/games.js` est la source de vérité** (bloc `hub` par jeu jouable, 10 sur
-  11 — « La suite » n'en a pas).
+- **`data/games.js` est la source de vérité** (bloc `hub` par jeu jouable, 11 sur
+  12 — « La suite » n'en a pas).
   **`data/games.manifest.json` est GÉNÉRÉ** par `tools/build.mjs` ; le Hub le
   relit sur GitHub Pages (cache 5 min) : ajouter un jeu au portfolio l'ajoute au
   tirage sans redéployer le Hub.
@@ -545,12 +546,12 @@ propre plafond dans le manifest : le tirage écarte seul un jeu trop petit
   filtre que rien ne satisfait.
 - `minutes` = `{ min, max }` au réglage par défaut ; le filtre de durée compare
   le `max`. `content` / `replay` à `false` = « non supporté OU pas vérifié »
-  (`replay` est à `true` pour Le Passeur, Qui Ment ?, Roquette Party et Croq.ios — retour
+  (`replay` est à `true` pour Le Passeur, Qui Ment ?, Roquette Party, Croq.ios et Faux Témoin — retour
   au salon par `action: 'lobby'`, vérifié dans chaque `server.js`). Le Hub transporte
   l'historique de contenu sans l'interpréter ; limite connue : les serveurs
   rappellent `E.deal()` à chaque `start`, donc « rejouer » efface
   l'anti-répétition de contenu.
-  `handoff: true` pour les neuf jeux en ligne (Puissance 4 : `false`) ; le test
+  `handoff: true` pour les dix jeux en ligne (Puissance 4 : `false`) ; le test
   vérifie que la page charge vraiment `hub-handoff.js`.
 - ⚠️ **Le Hub ne teste JAMAIS une capacité** (aucun `getUserMedia`) : c'est le
   jeu qui demande le micro à l'entrée.
@@ -566,6 +567,7 @@ propre plafond dans le manifest : le tirage écarte seul un jeu trop petit
 | Qui Ment ? | **3** | 8 | `E.MIN_PLAYERS` — sous 3 le vote n'a aucun sens |
 | Roquette Party | 2 | **16** | `MIN_PLAYERS` / `MAX_PLAYERS` dans `engine.js` ; `minutes` 2–10 (au-delà de 10 joueurs une partie peut dépasser) |
 | Croq.ios | 2 | 16 | `MIN_PLAYERS` / `MAX_PLAYERS` dans `engine.js` de `croquis-server` ; `minutes` 5–18 |
+| Faux Témoin | 2 | 16 | `MIN_PLAYERS` / `MAX_PLAYERS` dans `engine.js` de `temoin-server` ; `minutes` 4–6 (5 affaires, ~62 s max chacune) |
 | Puissance 4 | 1 | 1 | local, sans serveur |
 
 `tests/manifest.mjs` compare l'URL `wss://` annoncée à celle du `net.js` du jeu,
@@ -689,7 +691,8 @@ Les sept jeux en ligne (Morpion, Imitation, Demi-Cercle, Ban, Précision, Le
 Passeur, Qui Ment ?) ont le **même montage**, et **Roquette Party** aussi
 (handoff, `results` par le rang du serveur avec `points: 0`, « Lancer sans
 attendre », `surPerte` ; test `tests/handoff-roquette.mjs`). **Croq.ios** a le même
-montage (`results` avec le rang ET le score du serveur ; test `tests/handoff-croquis.mjs`). Puissance 4, local, n'en a pas
+montage (`results` avec le rang ET le score du serveur ; test `tests/handoff-croquis.mjs`), **Faux Témoin** aussi (même
+`results`, test `tests/handoff-temoin.mjs`). Puissance 4, local, n'en a pas
 besoin. Aucun serveur de jeu ne connaît le Hub.
 
 ### Le principe : le Hub ne parle jamais au serveur du jeu
@@ -866,6 +869,7 @@ ne calcule aucun point. Aucun serveur de jeu n'a été modifié pour ça.
 | Précision | `room.you` | `placeDeclaree` | `rangs(podium)` | jouable seul (1 → 10 pts) |
 | Qui Ment ? | `you.id` | `placeDeclaree` | `rangs(ranking)` (sans avg/title) | « Rejouer » ne recompte rien |
 | Morpion | `state.you` ('X'/'O') | `placeDeclaree`, même room | `classement(winner)`, `points: 0` | victoire 1/2 (20/10), nul 1/1 (20/20) ; abandon → `ended` seul |
+| Faux Témoin | `you.id` | à chaque `you` | `rangs(ranking)` (rang ET score du serveur, comme Croq.ios) | partie interrompue (`complete: false`) → `ended` seul |
 
 Garde-fou statique : `node tests/hub-score-contract.mjs` (sans navigateur ni
 serveur) ; les vraies parties : `tests/hub-score*.mjs`.
@@ -991,7 +995,7 @@ indisponibles → Quitter / Terminer.**
   d'anneau sur ces titres. `showRecap` met de même le focus sur `#recap-title`.
 - **Score vide** : `#hub-score.is-empty`, une ligne ; les lignes restent
   calculées, masquées.
-- **Catalogue** : `#hub-games` contient TOUJOURS les 10 fiches : `#hub-games-ok`
+- **Catalogue** : `#hub-games` contient TOUJOURS les 11 fiches : `#hub-games-ok`
   puis `<details id="hub-out">` (`#hub-games-out`) avec les raisons et les ❤️ /
   🚫 (c'est là qu'on
   lève son veto) ; ouvert d'office s'il n'y a plus aucun jeu possible.

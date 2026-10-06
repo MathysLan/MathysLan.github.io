@@ -722,12 +722,18 @@
       // Score de soirée : le classement du SERVEUR, transmis au Hub (l'hôte du
       // lancement seulement, une fois — hub-handoff.js filtre), AVANT ended().
       // Une partie interrompue n'est pas classée : ended() seul.
-      if (m.complete && lien.results) lien.results(m.ranking.map((r) => ({ gamePlayerId: r.id, rank: r.rank, points: r.score })));
+      if (m.complete && lien.results) lien.results(rangs(m.ranking));
       lien.ended();
       if (HubHandoff.endActions) HubHandoff.endActions($('to-hub'), $('revanche'));
       else $('to-hub').hidden = false;
     }
   });
+
+  // Le classement tel que le SERVEUR l'a calculé (rang ex æquo compris, score
+  // de la partie) : rien n'est recalculé ici.
+  function rangs(ranking) {
+    return ranking.map((r) => ({ gamePlayerId: r.id, rank: r.rank, points: r.score }));
+  }
 
   // Un refus, à moi seul : on remet l'action à disposition et on dit pourquoi.
   NET.on('refused', (m) => {

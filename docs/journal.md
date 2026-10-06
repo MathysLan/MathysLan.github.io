@@ -604,3 +604,16 @@ l'historique.
   (`lastVote`) et l'état `room` redessine la ligne. `app.js?v=4`.
 - Preuve : `tests/imitation-vote.mjs` échoue sur l'ancien code (2 KO : le
   partant toujours nommé chez les deux restants), passe avec le correctif.
+
+## 2026-10-06 — Faux Témoin, lots 2 et 3 (page, puis Game Hub)
+
+- Lot 2 (PR #4, fusionnée) : `games/temoin/` contre `temoin-server` (Render).
+  `tests/temoin-partie.mjs` a attrapé deux défauts : au téléphone, la photo du
+  flash (3 s) était sous les 12 cartes (passée devant le tapissage pendant le
+  flash, sous 980 px) ; `--g-accent-ink` valait l'ENCRE étrange (texte sur fond
+  sombre) au lieu d'une encre foncée : boutons pleins orange sur orange (2,2:1).
+- Lot 3 : Faux Témoin au manifest (2 à 16, 4–6 min, `deduction` + `bluff`),
+  helper `rangs()` comme Croq.ios, `tests/handoff-temoin.mjs` (56 vérifications,
+  vrai Hub + vrai serveur). Défaut trouvé : en mode Hub, « Revanche (hors
+  score) » réduite à côté d'un « Retour au salon » pleine taille, rangée
+  décalée (contre-épreuve : 5,6 px d'écart de centre).
