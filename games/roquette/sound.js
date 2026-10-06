@@ -3,7 +3,8 @@
 // danger (plus rapide, plus aigu), la validation et l'explosion. Ceux d'une
 // arme (départ, impact — voir Rocket.info) : le whoosh et l'impact de la
 // roquette, le tir et le crépitement de la Pétoire, le « bloup » du Grenade
-// Launcher (qui reprend l'impact de la roquette). Bouton muet mémorisé ; le
+// Launcher (qui reprend l'impact de la roquette), la corde et le coup sourd du
+// Huntsman. Bouton muet mémorisé ; le
 // mouvement réduit ne coupe PAS le son (ce n'est pas la même préférence).
 //
 // Le contexte audio ne naît qu'après un geste (Créer / Rejoindre) : sans geste,
@@ -60,6 +61,11 @@
     // Le Grenade Launcher : le « bloup » creux du tube qui chasse la grenade
     // (son impact est celui de la roquette : son explosion n'a rien de propre).
     tube: function (t) { osc('sine', 150, t, 0.16, 0.5, 55); bruit(t, 0.1, 0.3, 1200, 300, 'lowpass'); osc('triangle', 420, t + 0.02, 0.05, 0.08, 200); },
+    // Le Huntsman : la corde qui claque (une note grave pincée, un « tchac »),
+    // puis le souffle bref de la flèche…
+    corde: function (t) { osc('triangle', 196, t, 0.16, 0.32, 150); bruit(t, 0.05, 0.3, 2600, 900, 'bandpass'); bruit(t + 0.04, 0.22, 0.1, 1400, 4800, 'highpass'); },
+    // … et, à l'impact, le coup sourd de la flèche qui se plante (pas d'explosion).
+    plante: function (t) { osc('sine', 230, t, 0.07, 0.45, 70); bruit(t, 0.05, 0.3, 900, 260, 'lowpass'); },
   };
 
   function play(nom) {

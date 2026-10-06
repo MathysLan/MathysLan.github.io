@@ -200,8 +200,8 @@
      MAIN qui relève le canon. Danger : lueur et fumée à la bouche, étincelles
      aux crans 2 et 3, vibration commune. Rien ne sort de l'enveloppe (EMPRISE).
      Sans .rocket : l'aperçu du salon porte aussi data-skin. */
-  :is([data-skin="petoire"], [data-skin="marmite"]) :is(.r-bob, .skin-apercu) { position: relative; }
-  :is([data-skin="petoire"], [data-skin="marmite"]) :is(.r-proj, .p-arme) { position: absolute; inset: 0; }
+  :is([data-skin="petoire"], [data-skin="marmite"], [data-skin="huntsman"]) :is(.r-bob, .skin-apercu) { position: relative; }
+  :is([data-skin="petoire"], [data-skin="marmite"], [data-skin="huntsman"]) :is(.r-proj, .p-arme) { position: absolute; inset: 0; }
   .r-proj { visibility: hidden; }
   .rocket.is-flying .r-proj { visibility: visible; }
   .rocket.is-shot .r-proj { visibility: hidden; }
@@ -214,10 +214,11 @@
   .rocket[data-skin="petoire"][data-danger="3"] .p-etinc { animation-duration: .14s; }
   .rocket.is-firing .p-eclair { opacity: 1; }
   .rocket.is-flying .p-fumee-vol { opacity: 1; transform: scaleX(1); transition: transform .34s cubic-bezier(.55, 0, .9, .35), opacity .06s; }
-  /* Visée vers la gauche (rocket.js, .is-gauche) : le pistolet se retourne autour
-     de son axe (y = 0, le milieu de la boîte), crosse toujours en bas. */
-  .rocket:is([data-skin="petoire"], [data-skin="marmite"]) .r-bob { transition: scale .15s; }
-  .rocket:is([data-skin="petoire"], [data-skin="marmite"]).is-gauche .r-bob { scale: 1 -1; }
+  /* Visée vers la gauche (rocket.js, .is-gauche) : l'arme se retourne autour
+     de son axe (y = 0, le milieu de la boîte) — crosse toujours en bas, et le
+     manchon de ruban de l'arc toujours sur sa branche du bas. */
+  .rocket:is([data-skin="petoire"], [data-skin="marmite"], [data-skin="huntsman"]) .r-bob { transition: scale .15s; }
+  .rocket:is([data-skin="petoire"], [data-skin="marmite"], [data-skin="huntsman"]).is-gauche .r-bob { scale: 1 -1; }
   /* L'aperçu du salon : le pistolet est plus court que la boîte du dessin et sa
      crosse pend sous l'axe — on le recentre et on le grossit ICI seulement (en
      jeu, sa taille reste celle de fit()). */
@@ -243,6 +244,25 @@
   /* Aperçu du salon : l'arme est décalée vers l'arrière de la boîte (crosse
      longue) — recentrée et grossie ici seulement. */
   .skin-pick[data-skin="marmite"] .skin-apercu { transform: translateX(10%) scale(1.15); }
+
+  /* Le Huntsman (rocket.js, id huntsman) : l'arc du Sniper, redessiné. Même
+     montage en deux calques (arc .p-arme + flèche .r-proj > svg .p-fleche), avec
+     UN écart déclaré : la flèche encochée est VISIBLE au repos (marqueur n° 4 du
+     dossier) ; elle ne disparaît qu'à l'impact (.is-shot). Le danger est la
+     tension de la corde (rocket.js, tendre()) : l'arc se bande sans trembler, et
+     ne tremble — finement — qu'à bande complète (cran 3). Ni lueur, ni fumée, ni
+     éclair. Le sursaut au tir se fait autour de la main (la poignée, x = -12). */
+  [data-skin="huntsman"] .r-proj { visibility: visible; }
+  /* En vol, la flèche file nue : ni traînée, ni la lueur rouge du verrouillage
+     (que l'arc, lui, garde jusqu'à l'impact). */
+  .rocket[data-skin="huntsman"].is-flying .p-fleche { filter: none; }
+  [data-skin="huntsman"] .p-arme { transform-origin: 46.4% 50%; }
+  .rocket[data-skin="huntsman"][data-danger="2"] .r-svg { animation: none; }
+  .rocket[data-skin="huntsman"][data-danger="3"] .r-svg { animation: h-trem .09s linear infinite; }
+  @keyframes h-trem { 0%, 100% { transform: none; } 25% { transform: translate(-.25%, .5%) rotate(-.3deg); } 75% { transform: translate(.25%, -.5%) rotate(.3deg); } }
+  /* Aperçu du salon : l'arc est plus haut que la boîte du dessin — ramené
+     dedans (et recentré sur l'arc et sa flèche) ici seulement. */
+  .skin-pick[data-skin="huntsman"] .skin-apercu { transform: translate(-3.4%, -6%) scale(.74); }
 
   /* La pile de texte se range SOUS le pivot : sans la marge de 1em que le
      navigateur donne à un <p> (77 px de vide), elle ne tient pas sans écraser --rk. */
@@ -281,6 +301,14 @@
   @keyframes si-flash { from { opacity: 1; } to { opacity: 0; } }
   @keyframes si-eclats { from { transform: scale(.4); opacity: 1; } to { transform: scale(1.3); opacity: 0; } }
   @keyframes si-boule { 0% { transform: scale(.6); opacity: 1; } 60% { opacity: 1; } 100% { transform: scale(.85); opacity: 0; } }
+  /* La couche d'impact du Huntsman (app.js) : la flèche PLANTÉE dans la carte,
+     pointe enfoncée, empennage dehors, dans l'axe du tir (--a) et à l'échelle de
+     l'arme (--w, la largeur de #rocket) ; l'impact au centre de la boîte. Elle
+     reste pendant l'étoile commune, puis s'efface. Aucune vibration (le dossier
+     ne l'établit pas). */
+  .huntsman-impact { position: absolute; width: calc(var(--w, 250px) * .8); aspect-ratio: 200 / 40; transform: translate(-50%, -50%) rotate(var(--a, 0deg)); animation: hi-plantee .9s linear forwards; }
+  .huntsman-impact svg { display: block; width: 100%; height: 100%; overflow: visible; }
+  @keyframes hi-plantee { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
 
   /* La saisie : toujours là, jamais désactivée (un champ désactivé ferme le
      clavier du téléphone) — hors de son tour, éteinte visuellement et muette. */
@@ -458,8 +486,8 @@
   <script src="../shared/hub-handoff.js?v=5"></script>
   <script src="../shared/game-net.js?v=1"></script>
   <script src="net.js?v=2"></script>
-  <script src="rocket.js?v=6"></script>
-  <script src="sound.js?v=3"></script>
-  <script src="app.js?v=10"></script>
+  <script src="rocket.js?v=7"></script>
+  <script src="sound.js?v=4"></script>
+  <script src="app.js?v=11"></script>
 </body>
 </html>

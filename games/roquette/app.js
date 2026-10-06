@@ -889,7 +889,13 @@
       + '<g class="si-boule"><circle r="14" fill="#d8301e"/><circle r="8" fill="#ff6a3a"/>'
       + '<circle r="17" fill="none" stroke="#ff9a6a" stroke-width="1.6" opacity=".75"/></g>'
       + '</svg>',
+    // Le Huntsman : pas d'explosion dans TF2, la flèche se PLANTE (dessin de
+    // rocket.js, l'impact au centre) ; l'étoile commune dit ensuite la vie perdue.
+    'huntsman-impact': '<svg viewBox="-100 -20 200 40">' + Rocket.PLANTEE + '</svg>',
   };
+  // Les couches posées DANS L'AXE DU TIR (angle de la visée) et à l'échelle de
+  // l'arme (largeur de #rocket) : la flèche plantée.
+  const ORIENTEES = new Set(['huntsman-impact']);
   const AVANT_ETOILE = 150;       // ms entre la couche d'impact de l'arme et l'étoile commune
   function poserFx(c, cls, html, vie) {
     if (!c.g) return;
@@ -898,13 +904,17 @@
     b.innerHTML = html;                          // gabarit fixe, aucune donnée réseau
     b.style.left = (r.left + r.width / 2 - ar.left) + 'px';
     b.style.top = (r.top + r.height / 2 - ar.top) + 'px';
+    if (ORIENTEES.has(cls)) {
+      b.style.setProperty('--a', rocket.angle.toFixed(1) + 'deg');
+      b.style.setProperty('--w', Math.round($('rocket').getBoundingClientRect().width) + 'px');
+    }
     $('fx').append(b);
     b.addEventListener('animationend', (e) => { if (e.target === b) b.remove(); });
     setTimeout(() => b.remove(), vie);
   }
   function eclat(c, arme) {
     if (!arme.couche || !COUCHES[arme.couche]) { poserFx(c, 'boum', ECLAT, 900); return; }
-    poserFx(c, arme.couche, COUCHES[arme.couche], 700);
+    poserFx(c, arme.couche, COUCHES[arme.couche], ORIENTEES.has(arme.couche) ? 1000 : 700);
     setTimeout(() => poserFx(c, 'boum', ECLAT, 900), AVANT_ETOILE);
   }
 

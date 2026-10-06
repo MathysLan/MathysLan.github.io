@@ -790,3 +790,37 @@ une animation CSS : elle ne touche pas la course (`tirer()`).
 Contre-épreuves : sans `projectile: true` (le Grenade Launcher vole entier,
 l'arme ne reste plus au centre) → 4 échecs ; sans l'animation de culbute →
 1 échec.
+
+Huntsman (2026-10-06, même suite, 140 vérifications, `--shots` ajoute
+`5-huntsman-A`, `5b-huntsman-vol-A`, `5c-huntsman-impact-A`). Référence
+unique : le Huntsman du Sniper (Dossier Huntsman validé) ; id `huntsman` (le
+serveur l'accepte depuis `6c99ec5`) ; dessin maison, aucun asset Valve. Un
+robot R4 entre au Huntsman par son join, muet : les QUATRE armes explosent
+chez A (cinq explosions, la 5e — celle de R3 — finit la partie). À l'arrêt,
+sur un hôte de 250 px : deux calques (arc `svg.p-arme`, flèche
+`.r-proj > svg.p-fleche`, dessous, même boîte) ; les 16 marqueurs `.h-*`
+présents et MESURÉS (arc de 151 u, pointes à −72 / +80 de l'axe, dos de la
+poignée à −8, profondeur ~22 %, embouts recourbés vers l'avant, ruban
+asymétrique — manchon ≥ 3 × la bande du haut, deux bandes de part et d'autre
+de la flèche —, flèche de 103 u pointe sur +60 dont 66 % devant, corde dans
+l'encoche, couleurs du dossier) ; flèche VISIBLE encochée ; tension 0 / 12 /
+33 / 60 u aux crans 0 à 3 puis retour, flèche qui suit la corde, pointe contre
+la poignée au cran 3, tremblement au cran 3 seulement ; visée dans six
+directions (manchon en bas, corde derrière, pointe vers la cible, retourné à
+gauche seulement, envergure constante) ; enveloppe POINT PAR POINT (arc,
+corde et flèche, trait compris : 91,7 u au repos, 104 u bandé ≤ EMPRISE ;
+méthode contrôlée sur la boîte du corps) et contre le VRAI `fit()` (disque de
+400 px, obstacle à 150 px : rien hors du cercle réservé, jamais l'obstacle
+touché, 4 visées). Pétoire et Grenade Launcher inchangés (empreintes de leurs
+dessins). Au salon : 4 armes, aperçu du Huntsman dans son bouton au-dessus du
+nom. En partie : flèche visible à chacun de ses tours ; au tir, l'arc se
+bande à 60 u AVANT le départ, la corde revient à 0 ; aucun éclair ; SEULE la
+flèche parcourt la course (l'arc au centre, `.r-fly` immobile), vue à chaque
+image, pointe devant, écart d'angle ≤ 3° (aucune culbute), rien d'autre dans
+son calque (aucune traînée), sans lueur ; flèche plantée dans l'axe du tir
+(±4°) et à l'échelle de l'arme, PUIS l'étoile commune (+150 ms), sons
+`corde` / `plante` / `explosion` ; impact au même instant que les trois
+autres armes ; en mouvement réduit, tension posée d'un coup, aucune animation.
+Contre-épreuves : sans `projectile: true` (l'arc vole entier) → 3 échecs ;
+flèche qui culbute (animation CSS sur `.h-fleche`) → 3 échecs ; traînée
+ajoutée au calque de la flèche → 3 échecs.

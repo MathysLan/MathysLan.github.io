@@ -19,12 +19,17 @@
 //   3. la partie : l'arme montrée est celle du joueur visé (décompte, chaque
 //      tour, chaque explosion), à taille constante ; la Pétoire met le feu à la
 //      carte AVANT l'étoile commune, avec ses sons ; le Grenade Launcher tire
-//      une grenade qui CULBUTE (halo, traînée) puis l'étoile commune seule ; la
-//      roquette garde les siens ; en mouvement réduit, ni vol, ni traînée, ni éclat.
+//      une grenade qui CULBUTE (halo, traînée) puis l'étoile commune seule ; le
+//      Huntsman lâche SA FLÈCHE (l'arc reste), pointe devant, sans culbute ni
+//      traînée, qui se plante dans la carte AVANT l'étoile commune ; la roquette
+//      garde les siens ; en mouvement réduit, ni vol, ni traînée, ni éclat.
 //
 // Le Grenade Launcher (id marmite) est aussi mesuré à l'arrêt : ses marqueurs
 // (Dossier Grenade Launcher), sa grenade cachée dans le canon, sa visée dans
-// six directions, son enveloppe.
+// six directions, son enveloppe. Le Huntsman (id huntsman) aussi (Dossier
+// Huntsman) : ses marqueurs et proportions, sa flèche VISIBLE encochée, la
+// tension de sa corde à chaque cran de danger, sa visée dans six directions
+// (ruban asymétrique), son enveloppe mesurée point par point contre le vrai fit().
 import { spawn } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -131,7 +136,9 @@ async function json(p) { for (let i = 0; i < 80; i++) { try { return await (awai
 // montre et sa taille. Plus : les éclats posés dans #fx, les vols (.is-flying),
 // les sons demandés, les erreurs JS.
 const SONDE = `(() => {
-  window.__recu = []; window.__envoye = []; window.__vu = []; window.__fx = []; window.__vol = []; window.__tirs = []; window.__sons = []; window.__err = [];
+  window.__recu = []; window.__envoye = []; window.__vu = []; window.__fx = []; window.__vol = []; window.__tirs = []; window.__sons = []; window.__err = []; window.__bandes = [];
+  // Le recul de la corde du Huntsman (lu dans sa polyligne : le point d'encoche, au milieu).
+  const recul = (r) => { const c = r.querySelector('.h-corde'); if (!c) return null; const p = c.getAttribute('points').trim().split(/\\s+/); return -40.8 - parseFloat(p[Math.floor(p.length / 2)]); };
   addEventListener('error', (e) => window.__err.push(String(e.message)));
   const W = window.WebSocket;
   window.WebSocket = function (u, p) {
@@ -139,6 +146,19 @@ const SONDE = `(() => {
     ws.addEventListener('message', (e) => {
       let m; try { m = JSON.parse(e.data); } catch (_) { return; }
       window.__recu.push(m);
+      // Chaque explosion d'un Huntsman : jusqu'où la corde s'est bandée AVANT le
+      // départ de la flèche, et où elle est revenue après.
+      if (m.type === 'boom') {
+        const t0 = performance.now(), b = { t: t0, max: 0, avantVol: 0, fin: null, skin: null };
+        window.__bandes.push(b);
+        const pas = () => {
+          const r = document.getElementById('rocket'), x = recul(r);
+          b.skin = r.dataset.skin;
+          if (x !== null) { b.max = Math.max(b.max, x); if (!r.classList.contains('is-flying') && !r.classList.contains('is-shot')) b.avantVol = Math.max(b.avantVol, x); b.fin = x; }
+          if (performance.now() - t0 < 1300) requestAnimationFrame(pas);
+        };
+        setTimeout(() => requestAnimationFrame(pas), 0);
+      }
       if (m.type === 'countdown' || m.type === 'turn' || m.type === 'boom') {
         const t = performance.now();
         setTimeout(() => {
@@ -157,8 +177,19 @@ const SONDE = `(() => {
   };
   window.WebSocket.prototype = W.prototype; Object.assign(window.WebSocket, { OPEN: 1, CLOSED: 3, CONNECTING: 0, CLOSING: 2 });
   addEventListener('DOMContentLoaded', () => {
-    new MutationObserver((l) => l.forEach((x) => x.addedNodes.forEach((n) => { if (n.className) window.__fx.push({ cls: String(n.className), t: performance.now() }); })))
-      .observe(document.getElementById('fx'), { childList: true });
+    // Chaque éclat posé dans #fx ; pour la flèche plantée, son orientation et sa
+    // taille, à comparer à la direction pivot → carte touchée et à l'arme.
+    new MutationObserver((l) => l.forEach((x) => x.addedNodes.forEach((n) => {
+      if (!n.className) return;
+      const f = { cls: String(n.className), t: performance.now() };
+      if (f.cls === 'huntsman-impact') {
+        const h = document.getElementById('rocket'), hb = h.getBoundingClientRect(), pv = [hb.left + hb.width * Rocket.PIVOT, hb.top + hb.height / 2];
+        const nb = n.getBoundingClientRect(), c = [parseFloat(n.style.left), parseFloat(n.style.top)], ar = document.getElementById('arena').getBoundingClientRect();
+        f.a = parseFloat(n.style.getPropertyValue('--a')); f.attendu = Math.atan2(c[1] + ar.top - pv[1], c[0] + ar.left - pv[0]) * 180 / Math.PI;
+        f.w = parseFloat(n.style.getPropertyValue('--w')); f.wRocket = hb.width; f.vue = !!n.querySelector('svg .hi-plume') && nb.width > 0;
+      }
+      window.__fx.push(f);
+    }))).observe(document.getElementById('fx'), { childList: true });
     // Chaque VOL (.is-flying) : image par image, jusqu'où se sont éloignés du
     // repère (.r-aim, qui ne bouge pas pendant le vol) le calque qui vole
     // (.r-fly : toute la roquette), le projectile (.r-proj) et l'arme (.p-arme) ;
@@ -181,14 +212,19 @@ const SONDE = `(() => {
           eclairVu: false, gerbe: false, bouffee: false, rotMax: 0, projVu: false, teteDevant: null, fumee: 0, fumeeRouge: false,
           // la grenade (Grenade Launcher) : rotation CUMULÉE du groupe qui culbute,
           // halo et traînée au plus fort, position le long du tir (départ, plus loin)
-          grenadeVu: false, tours: 0, angPrec: null, halo: 0, trainee: 0, depart: null, loin: 0 };
+          grenadeVu: false, tours: 0, angPrec: null, halo: 0, trainee: 0, depart: null, loin: 0,
+          // la flèche (Huntsman) : vue à chaque image, son plus grand écart d'angle
+          // (encoche → pointe) avec la direction du tir, rotation cumulée, pointe
+          // devant, éléments visibles du calque HORS de la flèche (une traînée)
+          flecheVu: false, flecheImages: 0, ecartMax: 0, flecheTours: 0, flecheAngPrec: null, pointeDevant: null, horsFleche: 0, flecheCachee: false, flecheLueur: false };
         const p = r.querySelector('.r-proj'), a = r.querySelector('.p-arme');
         rec.projSousArme = !!(p && a && (p.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING));
         const dir = av ? (() => { const c = ctr(av), n = dist(c, pivot) || 1; return [(c[0] - pivot[0]) / n, (c[1] - pivot[1]) / n]; })() : [1, 0];
         if (a) {
-          rec.eclairVu = getComputedStyle(a.querySelector('.p-eclair')).opacity === '1';
-          rec.gerbe = a.querySelector('.p-gerbe').getAnimations().length > 0;
-          rec.bouffee = a.querySelector('.p-bouffee').getAnimations().length > 0;
+          const ec = a.querySelector('.p-eclair'), ge = a.querySelector('.p-gerbe'), bo = a.querySelector('.p-bouffee');
+          rec.eclairVu = !!ec && getComputedStyle(ec).opacity === '1';
+          rec.gerbe = !!ge && ge.getAnimations().length > 0;
+          rec.bouffee = !!bo && bo.getAnimations().length > 0;
         }
         window.__vol.push(rec);
         const pas = () => {
@@ -220,6 +256,24 @@ const SONDE = `(() => {
               if (rec.depart === null) rec.depart = le;
               rec.loin = Math.max(rec.loin, le);
             }
+            const fl = pr.querySelector('.h-fleche');
+            if (fl) {
+              rec.flecheVu = true; rec.flecheImages++;
+              const po = ctr(pr.querySelector('.h-pointe')), en = ctr(pr.querySelector('.h-encoche-bout'));
+              const ang = Math.atan2(po[1] - en[1], po[0] - en[0]) * 180 / Math.PI, dang = Math.atan2(dir[1], dir[0]) * 180 / Math.PI;
+              rec.ecartMax = Math.max(rec.ecartMax, Math.abs(((ang - dang) % 360 + 540) % 360 - 180));
+              if (rec.flecheAngPrec !== null) rec.flecheTours += Math.abs(((ang - rec.flecheAngPrec) % 360 + 540) % 360 - 180);
+              rec.flecheAngPrec = ang;
+              const d = (po[0] - en[0]) * dir[0] + (po[1] - en[1]) * dir[1];
+              rec.pointeDevant = rec.pointeDevant === null ? d : Math.min(rec.pointeDevant, d);
+              // tout ce qui se dessine dans le calque de la flèche, hors de la flèche elle-même
+              const hors = [...pr.querySelectorAll('svg *')].filter((e) => e instanceof SVGGraphicsElement && e.tagName !== 'g' && !e.closest('defs, .h-encoche')
+                && getComputedStyle(e).visibility === 'visible' && +getComputedStyle(e).opacity > 0 && e.getBoundingClientRect().width > 0);
+              rec.horsFleche = Math.max(rec.horsFleche, hors.length);
+              if (getComputedStyle(pr.querySelector('svg.p-fleche')).filter !== 'none') rec.flecheLueur = true;
+            }
+          } else if (pr && pr.querySelector('.h-fleche')) {
+            rec.flecheCachee = true;
           }
           requestAnimationFrame(pas);
         };
@@ -315,18 +369,50 @@ const PORTEE = `(() => {
   return out;
 })()`;
 
+// La portée PRÉCISE d'une arme : chaque élément dessiné (arme ET projectile)
+// échantillonné le long de sa géométrie (getPointAtLength), ramené à l'écran
+// par sa matrice, plus la moitié de son trait. La boîte englobante ne suffit pas
+// pour la corde tendue du Huntsman : ses coins sont loin de tout trait. Les
+// éléments découpés (ruban, embouts : dans le corps) ne comptent pas.
+const ECHANTILLONS = `const echantillons = (racine, px, py) => {
+  let max = 0, pts = [], demiMax = 0;
+  racine.querySelectorAll('svg *').forEach((e) => {
+    if (!(e instanceof SVGGeometryElement) || e.closest('defs, clipPath, [clip-path]')) return;
+    const cs = getComputedStyle(e); if (cs.visibility !== 'visible' || cs.display === 'none') return;
+    const m = e.getScreenCTM(); if (!m) return;
+    const k = Math.hypot(m.a, m.b), demi = cs.stroke && cs.stroke !== 'none' ? parseFloat(cs.strokeWidth) * k / 2 : 0;
+    demiMax = Math.max(demiMax, demi);
+    const L = e.getTotalLength();
+    for (let i = 0; i <= 160; i++) {
+      const q = e.getPointAtLength(L * i / 160), s = new DOMPoint(q.x, q.y).matrixTransform(m);
+      pts.push([s.x, s.y]); max = Math.max(max, Math.hypot(s.x - px, s.y - py) + demi);
+    }
+  });
+  return { max, pts, demi: demiMax };
+};`;
+
 try {
   const A = await onglet('A');
   const B = await onglet('B', { reduit: true });
 
   // ======================================================= 1. la table des armes
-  t('table des armes : roquette, petoire et marmite, roquette par défaut', await A.ev(`JSON.stringify(Rocket.SKINS) === '["roquette","petoire","marmite"]' && Rocket.DEFAUT === 'roquette'`));
-  t('id inconnu, absent ou mal formé → roquette (disrupteur, Marmite, Petoire, __proto__, constructor, 42, null, objet)',
-    await A.ev(`['disrupteur', 'Marmite', ' marmite', 'Petoire', ' petoire', '__proto__', 'constructor', 'toString', 42, null, undefined, {}, ['petoire'], ['marmite']].every((v) => Rocket.skinId(v) === 'roquette') && Rocket.skinId('petoire') === 'petoire' && Rocket.skinId('marmite') === 'marmite'`));
+  t('table des armes : roquette, petoire, marmite et huntsman, roquette par défaut', await A.ev(`JSON.stringify(Rocket.SKINS) === '["roquette","petoire","marmite","huntsman"]' && Rocket.DEFAUT === 'roquette'`));
+  t('id inconnu, absent ou mal formé → roquette (disrupteur, Marmite, Huntsman, Petoire, __proto__, constructor, 42, null, objet)',
+    await A.ev(`['disrupteur', 'Marmite', ' marmite', 'Huntsman', 'huntsman ', 'Petoire', ' petoire', '__proto__', 'constructor', 'toString', 42, null, undefined, {}, ['petoire'], ['marmite'], ['huntsman']].every((v) => Rocket.skinId(v) === 'roquette') && Rocket.skinId('petoire') === 'petoire' && Rocket.skinId('marmite') === 'marmite' && Rocket.skinId('huntsman') === 'huntsman'`));
   t('Rocket.info d un id inconnu : la roquette (nom, sons, pas de feu)',
     await A.ev(`(() => { const i = Rocket.info('disrupteur'); return i.id === 'roquette' && i.depart === 'whoosh' && i.impact === 'impact' && i.couche === null; })()`));
   t('Rocket.info(marmite) : « Le Grenade Launcher », son tube au départ, impact de la roquette, AUCUNE couche d impact (étoile commune seule)',
     await A.ev(`(() => { const i = Rocket.info('marmite'); return i.id === 'marmite' && i.nom === 'Le Grenade Launcher' && i.court === 'Grenade Launcher' && i.depart === 'tube' && i.impact === 'impact' && i.couche === null; })()`));
+  t('Rocket.info(huntsman) : « Le Huntsman », la corde au départ, le coup sourd à l impact, la flèche plantée comme couche d impact',
+    await A.ev(`(() => { const i = Rocket.info('huntsman'); return i.id === 'huntsman' && i.nom === 'Le Huntsman' && i.court === 'Huntsman' && i.depart === 'corde' && i.impact === 'plante' && i.couche === 'huntsman-impact'; })()`));
+  // La Pétoire et le Grenade Launcher : leur dessin, à l'octet près, est celui
+  // d'avant le Huntsman (empreintes relevées sur le commit précédent).
+  t('Pétoire et Grenade Launcher inchangés (empreintes f5b2ef1f et bef33a64, mêmes fiches)', await A.ev(`(() => {
+    const h = (d) => { let x = 0x811c9dc5; for (let i = 0; i < d.length; i++) { x ^= d.charCodeAt(i); x = Math.imul(x, 0x01000193) >>> 0; } return x.toString(16) + '/' + d.length; };
+    const p = Rocket.info('petoire'), m = Rocket.info('marmite');
+    return h(Rocket.dessin('petoire', 'r')) === 'f5b2ef1f/9028' && h(Rocket.dessin('marmite', 'r')) === 'bef33a64/10143'
+      && p.depart === 'fusee' && p.impact === 'crepitement' && p.couche === 'scorch-impact' && m.couche === null;
+  })()`));
   // La Pétoire = une ARME + un PROJECTILE : deux éléments distincts, aucun ne
   // contient l'autre ; le projectile (.r-proj) est AVANT l'arme dans le DOM
   // (dessous à l'écran) ; la tête qui brûle est dans le projectile, l'éclair de
@@ -502,6 +588,180 @@ try {
   t('Grenade Launcher, visée : retournée à gauche seulement', viseeGL.gauche.gauche && viseeGL['bas-gauche'].gauche && viseeGL['haut-gauche'].gauche && !viseeGL.droite.gauche && !viseeGL['bas-droite'].gauche && !viseeGL['haut-droite'].gauche);
   t(`Grenade Launcher, visée : aucune déformation (canon → crosse : ${[...new Set(longueurs)].join(' / ')} px)`, Math.max(...longueurs) - Math.min(...longueurs) <= 1, JSON.stringify(longueurs));
 
+  // Le Huntsman (id huntsman) = l'arc du Sniper, d'après le Dossier Huntsman
+  // validé. Deux calques (l'arc, la flèche), puis ses marqueurs MESURÉS sur un
+  // hôte de 250 px (1 unité du dessin = 1 px) : arc de 151 u, pointes à -72 et
+  // +80 de l'axe (la flèche au-dessus du milieu), profondeur corde → dos de la
+  // poignée ~23 %, flèche de 103 u dont ~66 % devant la poignée, pointe sur +60 ;
+  // embouts recourbés vers l'avant ; ruban asymétrique (bande courte en haut,
+  // long manchon en bas, deux bandes à la poignée de part et d'autre de la
+  // flèche) ; flèche VISIBLE encochée ; couleurs du relevé.
+  const hu = await A.ev(`(() => {
+    const h = document.createElement('div'); h.style.cssText = 'position:fixed;left:300px;top:300px;width:250px;aspect-ratio:250/92'; document.body.append(h);
+    const r = Rocket.create(h); r.setSkin('huntsman');
+    h.getAnimations({ subtree: true }).forEach((x) => { x.pause(); x.currentTime = 0; });
+    const a = h.querySelector('svg.p-arme'), p = h.querySelector('.r-proj'), f = h.querySelector('.r-proj > svg.p-fleche');
+    const bb = (e) => e.getBoundingClientRect(), hb = bb(h), px = hb.left + 128, py = hb.top + 46;
+    const out = {
+      calques: !!a && !!p && !!f && h.querySelectorAll('svg.p-arme').length === 1 && h.querySelectorAll('.r-proj').length === 1
+        && !a.contains(p) && !p.contains(a) && a.parentNode === p.parentNode && !!(p.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING)
+        && !!f.querySelector('.h-encoche .h-fleche .h-pointe') && !a.querySelector('.h-fleche, .h-pointe') && !f.querySelector('.h-bois, .h-corde')
+        && getComputedStyle(p).position === 'absolute' && getComputedStyle(a).position === 'absolute'
+        && [bb(a).left, bb(a).top, bb(a).width, bb(a).height].join() === [bb(p).left, bb(p).top, bb(p).width, bb(p).height].join(),
+      manque: ['.h-bois', '.h-embout-haut', '.h-embout-bas', '.h-ruban-haut', '.h-ruban-bas', '.h-ruban-poignee', '.h-plaque-haut', '.h-plaque-bas', '.h-corde']
+        .filter((q) => !a.querySelector(q)).concat(['.h-pointe', '.h-ligature', '.h-fut', '.h-bague', '.h-plume-haut', '.h-plume-bas', '.h-encoche-bout'].filter((q) => !f.querySelector(q))),
+    };
+    if (out.manque.length) { h.remove(); return out; }
+    const q = (s) => h.querySelector(s), bois = bb(q('.h-bois'));
+    const geo = (s) => { const e = q(s), m = e.getScreenCTM(), L = e.getTotalLength(), pts = []; for (let i = 0; i <= 400; i++) { const z = e.getPointAtLength(L * i / 400), w = new DOMPoint(z.x, z.y).matrixTransform(m); pts.push([w.x - px, w.y - py]); } return pts; };
+    const corps = geo('.h-bois'), haut = corps.reduce((m, z) => z[1] < m[1] ? z : m), bas = corps.reduce((m, z) => z[1] > m[1] ? z : m);
+    // la gorge de chaque embout : le point du corps le plus à gauche (côté corde) sous la pointe
+    const gorgeH = corps.filter((z) => z[1] > -66 && z[1] < -50).reduce((m, z) => z[0] < m[0] ? z : m), gorgeB = corps.filter((z) => z[1] > 58 && z[1] < 74).reduce((m, z) => z[0] < m[0] ? z : m);
+    const corde = q('.h-corde').getAttribute('points').trim().split(/\\s+/).map((c) => c.split(',').map(Number)), encoche = corde[Math.floor(corde.length / 2)];
+    const fl = [bb(q('.h-pointe')), bb(q('.h-ligature')), bb(q('.h-fut')), bb(q('.h-encoche-bout')), bb(q('.h-plume-haut')), bb(q('.h-plume-bas'))];
+    const L = Math.max(...fl.map((b) => b.right)) - Math.min(...fl.map((b) => b.left)), pointe = bb(q('.h-pointe'));
+    const ctrY = (s) => { const b = bb(q(s)); return (b.top + b.bottom) / 2 - py; };
+    const longueur = (s) => q(s).getTotalLength();
+    const stops = (el) => { const id = ((el.getAttribute('fill') || '').match(/#([^)]+)/) || [])[1]; const gr = id && document.getElementById(id); return gr ? [...gr.querySelectorAll('stop')].map((x) => x.getAttribute('stop-color')) : []; };
+    const rgb = (c) => { const m = /^#(..)(..)(..)$/.exec(c || ''); return m ? m.slice(1).map((x) => parseInt(x, 16)) : [0, 0, 0]; };
+    const fil = rgb(h.querySelector('.h-corde-fil').getAttribute('stroke')), plume = rgb(q('.h-plume-haut').getAttribute('fill'));
+    const bandes = [...q('.h-ruban-poignee').querySelectorAll('rect')].map((x) => { const b = bb(x); return (b.top + b.bottom) / 2 - py; });
+    Object.assign(out, {
+      hauteur: +(bois.height).toFixed(1), pointeHaut: +haut[1].toFixed(1), pointeBas: +bas[1].toFixed(1),
+      recourbeH: +(haut[0] - gorgeH[0]).toFixed(1), recourbeB: +(bas[0] - gorgeB[0]).toFixed(1),
+      dos: +(bois.right - px).toFixed(1), profondeur: +((bois.right - px - encoche[0]) / bois.height).toFixed(3),
+      fleche: +L.toFixed(1), bout: +(pointe.right - px).toFixed(1), axe: +((pointe.top + pointe.bottom) / 2 - py).toFixed(1),
+      devant: +((pointe.right - bois.right) / L).toFixed(2), largeurPointe: +(pointe.height).toFixed(1), encocheCorde: +(encoche[0] - (bb(q('.h-encoche-bout')).left - px)).toFixed(1),
+      rubanHaut: +ctrY('.h-ruban-haut').toFixed(1), rubanBas: +ctrY('.h-ruban-bas').toFixed(1), asym: +(longueur('.h-ruban-bas') / longueur('.h-ruban-haut')).toFixed(2),
+      bandes: bandes.map((y) => +y.toFixed(1)),
+      bois: stops(q('.h-bois')).includes('#795e43'), ruban: q('.h-ruban-haut').getAttribute('stroke') === '#242424' && q('.h-ruban-bas').getAttribute('stroke') === '#242424',
+      embout: stops(q('.h-embout-haut')).includes('#454341'), pointeGrise: stops(q('.h-pointe')).includes('#41433f'), fut: stops(q('.h-fut')).includes('#675543'),
+      kaki: fil[0] > fil[2] + 20 && fil[1] > fil[2] + 20 && Math.abs(fil[0] - fil[1]) < 16, creme: plume[0] > 200 && plume[1] > 190 && plume[2] > 150 && plume[2] < plume[0],
+      bague: q('.h-bague').getAttribute('fill') === '#1d1d1d', ligatureNoire: q('.h-ligature').getAttribute('fill') === '#222',
+      encocheeVisible: getComputedStyle(p).visibility === 'visible' && getComputedStyle(q('.h-pointe')).visibility === 'visible',
+      tension: r.tension,
+      interdits: /r-flamme|r-fumee|r-chaleur|p-eclair|p-gerbe|p-bouffee|trainee|p-fumee-vol|m-halo|<text/i.test(h.innerHTML),
+    });
+    h.remove(); return out;
+  })()`);
+  t('Huntsman : l arc et la flèche sont deux calques distincts (svg.p-arme, .r-proj > svg.p-fleche), flèche dessous, même boîte', hu.calques, JSON.stringify(hu));
+  t(`Huntsman : les 16 marqueurs dessinés (bois, 2 embouts, 3 rubans, 2 plaques, corde ; pointe, ligature, fût, bague, 2 plumes, encoche)`, hu.manque.length === 0, hu.manque.join());
+  t(`Huntsman : arc de 151 u (${hu.hauteur}), pointes à ${hu.pointeHaut} et +${hu.pointeBas} de l axe (la flèche au-dessus du milieu, 47 %)`,
+    Math.abs(hu.hauteur - 151) <= 3 && Math.abs(hu.pointeHaut + 72) <= 2 && Math.abs(hu.pointeBas - 80) <= 2 && -hu.pointeHaut < hu.pointeBas);
+  t(`Huntsman : « D » en bois, profondeur corde → dos de la poignée ${Math.round(hu.profondeur * 100)} % (dossier : 23 %), dos à ${hu.dos} (dossier : -8)`,
+    hu.profondeur >= .2 && hu.profondeur <= .25 && Math.abs(hu.dos + 8) <= 1.5);
+  t(`Huntsman : embouts recourbés vers l AVANT, à l opposé de la corde (haut +${hu.recourbeH} u, bas +${hu.recourbeB} u)`, hu.recourbeH >= 3 && hu.recourbeB >= 3);
+  t(`Huntsman : ruban ASYMÉTRIQUE — bande courte en haut (${hu.rubanHaut}), long manchon en bas (${hu.rubanBas}, ${hu.asym} × plus long), deux bandes à la poignée de part et d autre de la flèche (${hu.bandes.join(' / ')})`,
+    hu.rubanHaut < -25 && hu.rubanBas > 25 && hu.asym >= 3 && hu.bandes.length === 2 && hu.bandes[0] < 0 && hu.bandes[1] > 0 && hu.bandes.every((y) => Math.abs(y) < 12));
+  t(`Huntsman : flèche de 103 u (${hu.fleche}), pointe sur +60 (${hu.bout}) dans l axe (${hu.axe}), ${Math.round(hu.devant * 100)} % devant la poignée (dossier : 66 %), pointe large de ${hu.largeurPointe} u`,
+    Math.abs(hu.fleche - 103.2) <= 2.5 && Math.abs(hu.bout - 60) <= 1.5 && Math.abs(hu.axe) <= .6 && hu.devant >= .62 && hu.devant <= .70 && hu.largeurPointe >= 7 && hu.largeurPointe <= 10);
+  t(`Huntsman : la corde passe dans l encoche (${hu.encocheCorde} u derrière le bout de la flèche), au repos (tension ${hu.tension})`, hu.encocheCorde > 0 && hu.encocheCorde <= 3.2 && hu.tension === 0);
+  t('Huntsman : au repos, la flèche est VISIBLE, encochée sur l arc', hu.encocheeVisible);
+  t('Huntsman : couleurs du relevé — bois #795e43, ruban #242424, embouts #454341, corde kaki, pointe #41433f, ligature et bague noires, fût #675543, plumes crème',
+    hu.bois && hu.ruban && hu.embout && hu.kaki && hu.pointeGrise && hu.ligatureNoire && hu.bague && hu.fut && hu.creme, JSON.stringify(hu));
+  t('Huntsman : rien d une arme à feu (ni éclair, ni gerbe, ni fumée, ni flamme, ni traînée, ni halo)', !hu.interdits);
+
+  // La tension de la corde à chaque cran de danger (habillage : le danger reste
+  // celui du jeu) : le recul de l'encoche, la flèche qui suit, la pointe contre
+  // la poignée au cran 3, et le tremblement du cran 3 seulement.
+  const tension = await A.ev(`(async () => {
+    const h = document.createElement('div'); h.style.cssText = 'position:fixed;left:300px;top:300px;width:250px;aspect-ratio:250/92'; document.body.append(h);
+    const r = Rocket.create(h); r.setSkin('huntsman');
+    const hb = h.getBoundingClientRect(), px = hb.left + 128, out = [];
+    for (const n of [0, 1, 2, 3, 2, 0]) {
+      r.setDanger(n); await new Promise((f) => setTimeout(f, 520));
+      const c = h.querySelector('.h-corde').getAttribute('points').trim().split(/\\s+/), x = parseFloat(c[Math.floor(c.length / 2)].split(',')[0]);
+      const po = h.querySelector('.h-pointe').getBoundingClientRect(), en = h.querySelector('.h-encoche-bout').getBoundingClientRect(), dos = h.querySelector('.h-bois').getBoundingClientRect().right - px;
+      const anims = [...h.querySelectorAll('svg.r-svg')].map((s) => s.getAnimations().map((a) => a.animationName).join()).join('|');
+      out.push({ n, tension: r.tension, encoche: +x.toFixed(1), pointe: +(po.right - px).toFixed(1), suit: +(x - (en.left - px)).toFixed(1), collet: +(po.left - px).toFixed(1), dos: +dos.toFixed(1), anims });
+    }
+    h.remove(); return out;
+  })()`);
+  const tn = tension.map((x) => x.tension);
+  t(`Huntsman : la corde se tend avec le danger (recul ${tension.slice(0, 4).map((x) => x.tension).join(' → ')} u aux crans 0 à 3), et se détend (${tn.slice(3).join(' → ')})`,
+    JSON.stringify(tn) === JSON.stringify([0, 12, 33, 60, 33, 0]), JSON.stringify(tension));
+  t('Huntsman : la flèche recule AVEC la corde (l encoche reste sur la corde à chaque cran)', tension.every((x) => x.suit > 0 && x.suit <= 3.2 && Math.abs(x.encoche + 40.8 + x.tension) < .2), JSON.stringify(tension));
+  // « contre la poignée » : le dos de la poignée tombe DANS la pointe (entre son
+  // collet et son bout), et plus de 5 u de pointe dépassent encore devant.
+  t(`Huntsman : à bande complète, la pointe vient contre la poignée (pointe de ${tension[3].collet} à ${tension[3].pointe}, dos de la poignée à ${tension[3].dos})`,
+    Math.abs(tension[3].pointe) <= 1.5 && tension[3].collet <= tension[3].dos && tension[3].dos <= tension[3].pointe - 5, JSON.stringify(tension[3]));
+  t(`Huntsman : tremblement fin au cran 3 SEULEMENT, aucun aux crans 0 à 2 (${tension.slice(0, 4).map((x) => x.n + ':' + (x.anims.replace(/\|/g, '/') || '—')).join(' ')})`,
+    tension.every((x) => x.n === 3 ? x.anims.split('|').every((a) => a === 'h-trem') : x.anims.split('|').every((a) => a === '')), JSON.stringify(tension.map((x) => x.anims)));
+
+  // La visée : à droite comme à gauche, le MANCHON reste sur la branche du BAS
+  // de l'écran et la bande courte en haut (ruban asymétrique : retournée à
+  // gauche), la corde reste DERRIÈRE, la pointe vers la cible, rien déformé.
+  const viseeHU = await A.ev(`(async () => {
+    const h = document.createElement('div'); h.style.cssText = 'position:fixed;left:400px;top:300px;width:250px;aspect-ratio:250/92'; document.body.append(h);
+    const r = Rocket.create(h); r.setSkin('huntsman');
+    const out = {};
+    const ctr = (s) => { const b = h.querySelector(s).getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; };
+    for (const [nom, dx, dy] of [['droite', 300, 0], ['gauche', -300, 0], ['bas-gauche', -200, 150], ['haut-gauche', -200, -150], ['bas-droite', 200, 150], ['haut-droite', 200, -150]]) {
+      const c = document.createElement('div'); const b = h.getBoundingClientRect(), px = b.left + b.width * Rocket.PIVOT, py = b.top + b.height / 2;
+      c.style.cssText = 'position:fixed;width:10px;height:10px;left:' + (px + dx - 5) + 'px;top:' + (py + dy - 5) + 'px'; document.body.append(c);
+      r.aimAt(c, { instant: true }); await new Promise((f) => setTimeout(f, 250));
+      const ang = Math.atan2(dy, dx), nx = -Math.sin(ang), ny = Math.cos(ang), sens = ny >= 0 ? 1 : -1, ux = Math.cos(ang), uy = Math.sin(ang);
+      const cote = (p) => ((p[0] - px) * nx + (p[1] - py) * ny) * sens, long = (p) => (p[0] - px) * ux + (p[1] - py) * uy;
+      const mb = ctr('.h-ruban-bas'), mh = ctr('.h-ruban-haut'), po = ctr('.h-pointe'), co = ctr('.h-corde'), eh = ctr('.h-embout-haut'), eb = ctr('.h-embout-bas');
+      out[nom] = { manchonBas: cote(mb) > 0, bandeHaut: cote(mh) < 0, pointeVers: long(po) > 40, cordeDerriere: long(co) < -20,
+        gauche: h.classList.contains('is-gauche'), envergure: Math.round(Math.hypot(eh[0] - eb[0], eh[1] - eb[1]) * 10) / 10 };
+      c.remove();
+    }
+    h.remove(); return out;
+  })()`);
+  const env = Object.values(viseeHU).map((v) => v.envergure);
+  t(`Huntsman, visée : manchon en bas, bande courte en haut, corde derrière, pointe vers la cible dans les 6 directions (${Object.entries(viseeHU).map(([k, v]) => k + (v.manchonBas && v.bandeHaut && v.cordeDerriere && v.pointeVers ? ' ✓' : ' ✗') + (v.gauche ? ' (retourné)' : '')).join(', ')})`,
+    Object.values(viseeHU).every((v) => v.manchonBas && v.bandeHaut && v.cordeDerriere && v.pointeVers), JSON.stringify(viseeHU));
+  t('Huntsman, visée : retourné à gauche seulement', viseeHU.gauche.gauche && viseeHU['bas-gauche'].gauche && viseeHU['haut-gauche'].gauche && !viseeHU.droite.gauche && !viseeHU['bas-droite'].gauche && !viseeHU['haut-droite'].gauche);
+  t(`Huntsman, visée : aucune déformation (embout → embout : ${[...new Set(env)].join(' / ')} px)`, Math.max(...env) - Math.min(...env) <= 1, JSON.stringify(env));
+
+  // L'enveloppe du Huntsman, point par point (arc, corde ET flèche encochée) :
+  // au repos et à bande complète, puis contre le VRAI fit() — un disque, un
+  // obstacle, la taille que fit() pose : rien de l'arc tendu n'approche
+  // l'obstacle plus près que la marge (6 px).
+  const envHU = await A.ev(`(async () => {
+    ${ECHANTILLONS}
+    const out = {};
+    for (const n of [0, 3]) {
+      const h = document.createElement('div'); h.style.cssText = 'position:fixed;left:300px;top:300px;width:250px;aspect-ratio:250/92'; document.body.append(h);
+      const r = Rocket.create(h); r.setSkin('huntsman'); r.setDanger(n); await new Promise((f) => setTimeout(f, 520));
+      h.getAnimations({ subtree: true }).forEach((x) => { x.pause(); x.currentTime = 0; });
+      const hb = h.getBoundingClientRect(), px = hb.left + 128, py = hb.top + 46, e = echantillons(h, px, py);
+      out['d' + n] = Math.round(e.max * 10) / 10;
+      if (n === 0) {   // contrôle de la méthode : l'échantillonnage du corps retrouve sa boîte
+        const c = h.querySelector('.h-bois'), b = c.getBoundingClientRect(), m = c.getScreenCTM(), L = c.getTotalLength(), xs = [], ys = [];
+        for (let i = 0; i <= 600; i++) { const z = c.getPointAtLength(L * i / 600), w = new DOMPoint(z.x, z.y).matrixTransform(m); xs.push(w.x); ys.push(w.y); }
+        out.controle = Math.max(Math.abs(Math.min(...xs) - b.left), Math.abs(Math.max(...xs) - b.right), Math.abs(Math.min(...ys) - b.top), Math.abs(Math.max(...ys) - b.bottom));
+      }
+      h.remove();
+    }
+    // le vrai fit() : un disque de 400 px, un obstacle à 150 px du centre
+    const d = document.createElement('div'); d.style.cssText = 'position:fixed;left:200px;top:100px;width:400px;height:400px;display:grid;place-items:center'; document.body.append(d);
+    const h = document.createElement('div'); h.style.cssText = 'aspect-ratio:250/92'; d.append(h);
+    const o = document.createElement('div'); o.style.cssText = 'position:fixed;left:550px;top:290px;width:20px;height:20px'; document.body.append(o);
+    const r = Rocket.create(h); r.setSkin('huntsman'); r.fit([o]);
+    const db = d.getBoundingClientRect(), cx = db.left + 200, cy = db.top + 200, place = 550 - cx;
+    out.largeur = parseFloat(h.style.width); out.rayon = Math.round(Rocket.EMPRISE * out.largeur * 10) / 10; out.place = place;
+    for (const [nom, dx, dy] of [['droite', 1, 0], ['gauche', -1, 0], ['haut', 0, -1], ['bas-gauche', -1, 1]]) {
+      const c = document.createElement('div'); c.style.cssText = 'position:fixed;width:4px;height:4px;left:' + (cx + dx * 120) + 'px;top:' + (cy + dy * 120) + 'px'; document.body.append(c);
+      r.aimAt(c, { instant: true }); r.setDanger(3); await new Promise((f) => setTimeout(f, 520));
+      h.getAnimations({ subtree: true }).forEach((x) => { x.pause(); x.currentTime = 0; });
+      const hb = h.getBoundingClientRect(), pvx = hb.left + hb.width * Rocket.PIVOT, pvy = hb.top + hb.height / 2;
+      const e = echantillons(h, pvx, pvy);
+      // le jeu : la plus petite distance d'un point dessiné (trait compris) à l'obstacle
+      const jeu = Math.min(...e.pts.map(([x, y]) => Math.hypot(Math.max(550 - x, 0, x - 570), Math.max(290 - y, 0, y - 310)))) - e.demi;
+      out['fit-' + nom] = { r: Math.round(e.max * 10) / 10, jeu: Math.round(jeu * 10) / 10 };
+      r.setDanger(0); c.remove();
+    }
+    d.remove(); o.remove(); return out;
+  })()`);
+  const emprise = await A.ev('Rocket.EMPRISE * 250');
+  t(`enveloppe : le Huntsman, point par point, tient dans EMPRISE (repos ${envHU.d0} u, bande complète ${envHU.d3} u ≤ ${Math.round(emprise * 10) / 10} u ; contrôle de la méthode ${envHU.controle.toFixed(2)} px)`,
+    envHU.d3 <= emprise && envHU.d0 <= emprise && envHU.d3 > envHU.d0 && envHU.d3 > 95 && envHU.controle < .6, JSON.stringify(envHU));
+  const dirsFit = ['droite', 'gauche', 'haut', 'bas-gauche'];
+  t(`enveloppe : contre le VRAI fit() (largeur ${envHU.largeur} px, rayon réservé ${envHU.rayon} px), l arc tendu reste dans le cercle (${dirsFit.map((k) => envHU['fit-' + k].r).join(' / ')} px) et ne touche jamais l obstacle (jeu ${dirsFit.map((k) => envHU['fit-' + k].jeu).join(' / ')} px)`,
+    dirsFit.every((k) => envHU['fit-' + k].r <= envHU.rayon + .5 && envHU['fit-' + k].jeu > 0) && envHU.largeur > 240 && envHU.largeur < 360, JSON.stringify(envHU));
+
   const portee = await A.ev(PORTEE);
   t(`enveloppe : la Pétoire ne va pas plus loin du pivot que la roquette (danger 3 : ${portee.petoire3} ≤ ${portee.roquette3} ; danger 0 : ${portee.petoire0})`,
     portee.petoire3 <= portee.roquette3 && portee.petoire0 <= portee.roquette3 && portee.petoire3 > 50, JSON.stringify(portee));
@@ -512,15 +772,16 @@ try {
     document.body.append(h);
     const r = Rocket.create(h), mesure = () => { const b = h.getBoundingClientRect(); return [b.width, b.height, h.style.width].join(); };
     const avant = mesure(); r.setSkin('petoire'); const apres = mesure(); const skin = h.dataset.skin;
-    r.setSkin('marmite'); const gl = mesure(); const skin2 = h.dataset.skin; r.setSkin('roquette'); const retour = mesure();
-    h.remove(); return avant === apres && apres === gl && gl === retour && skin === 'petoire' && skin2 === 'marmite' && h.dataset.skin === 'roquette';
+    r.setSkin('marmite'); const gl = mesure(); const skin2 = h.dataset.skin; r.setSkin('huntsman'); const hu = mesure(); const skin3 = h.dataset.skin;
+    r.setSkin('roquette'); const retour = mesure();
+    h.remove(); return avant === apres && apres === gl && gl === hu && hu === retour && skin === 'petoire' && skin2 === 'marmite' && skin3 === 'huntsman' && h.dataset.skin === 'roquette';
   })()`));
   t('enveloppe : la roquette tient dans EMPRISE (le rayon que fit() lui réserve)',
     await A.ev(`${portee.roquette3} <= Rocket.EMPRISE * 250 + 4`), `${portee.roquette3} vs ${await A.ev('Rocket.EMPRISE * 250')}`);
 
   // ============================================================== 2. le salon
   t('A, sans préférence : la roquette est choisie (aria-pressed), seule',
-    await A.ev(`localStorage.getItem('roquette_skin') === null && ${choixEst('roquette')} && document.querySelectorAll('.skin-pick').length === 3`));
+    await A.ev(`localStorage.getItem('roquette_skin') === null && ${choixEst('roquette')} && document.querySelectorAll('.skin-pick').length === 4`));
   await A.clic('#name-input'); await A.taper('Alice');
   await A.clic('#host');
   await A.until(`!document.getElementById('lobby').hidden && /^[A-Z]{4}$/.test(document.getElementById('room-code').textContent)`);
@@ -528,10 +789,18 @@ try {
   const idA = await A.ev(`window.__recu.find((m) => m.type === 'you').id`);
   const joinA = (await envoyes(A, 'join'))[0];
   t('join de A : skin « roquette » (aucune préférence)', joinA && joinA.skin === 'roquette', JSON.stringify(joinA));
-  t('salon : le sélecteur est visible, trois armes avec aperçu et nom',
+  t('salon : le sélecteur est visible, quatre armes avec aperçu et nom',
     await A.ev(`document.getElementById('skin-choix').checkVisibility() && [...document.querySelectorAll('.skin-pick')].every((b) => b.querySelector('svg.r-svg') && b.textContent.trim().length > 4)`)
-    && await A.ev(`[...document.querySelectorAll('.skin-pick')].map((b) => b.querySelector('.skin-nom').textContent).join('|') === 'La Roquette|La Pétoire de Secours|Le Grenade Launcher'`)
+    && await A.ev(`[...document.querySelectorAll('.skin-pick')].map((b) => b.querySelector('.skin-nom').textContent).join('|') === 'La Roquette|La Pétoire de Secours|Le Grenade Launcher|Le Huntsman'`)
     && await A.ev(`[...document.querySelectorAll('.skin-apercu svg')].every((s) => s.getAttribute('aria-hidden') === 'true')`));
+  const apercuHU = await A.ev(`(() => {
+    const b = document.querySelector('.skin-pick[data-skin="huntsman"]'), bb = b.getBoundingClientRect(), nom = b.querySelector('.skin-nom').getBoundingClientRect();
+    const arc = b.querySelector('.h-bois').getBoundingClientRect(), fl = b.querySelector('.h-pointe').getBoundingClientRect(), ap = b.querySelector('.skin-apercu');
+    return { dedans: arc.top >= bb.top + 1 && arc.bottom <= nom.top + 1 && arc.left >= bb.left && fl.right <= bb.right, hauteur: Math.round(arc.height),
+      flecheVue: getComputedStyle(b.querySelector('.r-proj')).visibility === 'visible', ids: ap.querySelectorAll('[id^="apercu-huntsman-"]').length };
+  })()`);
+  t(`salon : l aperçu du Huntsman tient dans son bouton, au-dessus du nom (arc de ${apercuHU.hauteur} px), flèche encochée visible, dégradés préfixés`,
+    apercuHU.dedans && apercuHU.hauteur >= 40 && apercuHU.flecheVue && apercuHU.ids >= 5, JSON.stringify(apercuHU));
   t('salon : chaque arme est un bouton à bascule (aria-pressed), nommé par son texte',
     await A.ev(`[...document.querySelectorAll('#skin-row > button')].every((b) => b.type === 'button' && b.hasAttribute('aria-pressed'))`));
   t('salon : aucun id en double dans la page (aperçus et arène ont leurs propres dégradés)',
@@ -603,18 +872,22 @@ try {
   // R2 : nouveau client, roquette explicite ; il tape à chaque tour (il gagne).
   const R2 = robot('Robot2', code, { mode: 'answer', skin: 'roquette' });
   await R2.attend((m) => m.type === 'you');
-  // R3 : tape tant que les trois « muets » n'ont pas explosé, puis se tait — c'est
+  // R3 : tape tant que les quatre « muets » n'ont pas explosé, puis se tait — c'est
   // lui qui prend la DERNIÈRE explosion (celle que la fin de partie interrompt :
-  // `end` arrive avec elle). Les trois explosions étudiées ont ainsi leur effet entier.
-  const R3 = robot('Robot3', code, { skin: 'roquette', mode: (b) => b.msgs.filter((m) => m.type === 'boom').length < 3 });
+  // `end` arrive avec elle). Les quatre explosions étudiées ont ainsi leur effet entier.
+  const R3 = robot('Robot3', code, { skin: 'roquette', mode: (b) => b.msgs.filter((m) => m.type === 'boom').length < 4 });
   await R3.attend((m) => m.type === 'you');
-  await A.until(`document.getElementById('lobby-count').textContent === '5 / 16'`);
-  t('salon à 5 : A Pétoire, R1 Roquette, B Grenade Launcher, R2 et R3 Roquette (chez A)',
-    (await A.ev(`[${[idA, R1.id, idB, R2.id, R3.id].map(tagDe).join(',')}].join()`)) === 'Pétoire,Roquette,Grenade Launcher,Roquette,Roquette');
+  // R4 : nouveau client au Huntsman (dans son join), muet : son explosion est celle de l'arc.
+  const R4 = robot('Robot4', code, { mode: 'silent', skin: 'huntsman' });
+  await R4.attend((m) => m.type === 'you');
+  await A.until(`document.getElementById('lobby-count').textContent === '6 / 16'`);
+  t('salon à 6 : A Pétoire, R1 Roquette, B Grenade Launcher, R2 et R3 Roquette, R4 Huntsman (chez A)',
+    (await A.ev(`[${[idA, R1.id, idB, R2.id, R3.id, R4.id].map(tagDe).join(',')}].join()`)) === 'Pétoire,Roquette,Grenade Launcher,Roquette,Roquette,Huntsman');
+  t('le serveur relaie le Huntsman du join de R4 (lobby : skin « huntsman »)', await A.ev(`window.__recu.some((m) => m.type === 'lobby' && m.players.some((p) => p.id === ${JSON.stringify(R4.id)} && p.skin === 'huntsman'))`));
   await A.shot('1-salon-A');
 
   // ============================================================= 3. la partie
-  const attendu = { [idA]: 'petoire', [R1.id]: 'roquette', [idB]: 'marmite', [R2.id]: 'roquette', [R3.id]: 'roquette' };
+  const attendu = { [idA]: 'petoire', [R1.id]: 'roquette', [idB]: 'marmite', [R2.id]: 'roquette', [R3.id]: 'roquette', [R4.id]: 'huntsman' };
   await A.ev(`document.getElementById('vies-select').value = '1'`);
   await A.clic('#start');
   t('lancement : plus de sélecteur pendant la partie',
@@ -624,25 +897,30 @@ try {
   // partie les amène : la Pétoire en jeu et l'impact du Scorch Shot ; le
   // Grenade Launcher en jeu, en vol (la grenade à mi-course) et à l'impact.
   let petJeu = !SHOTS, feuCapture = !SHOTS, glJeu = !SHOTS, glVol = !SHOTS, glImpact = !SHOTS, glVise = false;
+  let huJeu = !SHOTS, huVol = !SHOTS, huImpact = !SHOTS;
   const guetteur = (async () => {
-    while (!petJeu || !feuCapture || !glJeu || !glVol || !glImpact) {
+    while (!petJeu || !feuCapture || !glJeu || !glVol || !glImpact || !huJeu || !huVol || !huImpact) {
       if (!petJeu && await A.ev(`document.getElementById('rocket').dataset.skin === 'petoire' && document.getElementById('play').dataset.phase === 'turn'`)) {
         await sleep(200); await A.shot('2-petoire-A'); petJeu = true;
       }
       const e = await A.ev(`(() => { const r = document.getElementById('rocket'), p = r.querySelector('.r-proj'), a = p && p.getAnimations().find((x) => !(x instanceof CSSAnimation));
         return { feu: !!document.querySelector('#fx .scorch-impact'), fin: !document.getElementById('end').hidden, phase: document.getElementById('play').dataset.phase,
-          gl: r.dataset.skin === 'marmite', vol: r.classList.contains('is-flying'), t: a ? a.currentTime : 0, boum: !!document.querySelector('#fx .boum') }; })()`);
+          gl: r.dataset.skin === 'marmite', hu: r.dataset.skin === 'huntsman', vol: r.classList.contains('is-flying'), t: a ? a.currentTime : 0,
+          boum: !!document.querySelector('#fx .boum'), plantee: !!document.querySelector('#fx .huntsman-impact') }; })()`);
       if (e.fin) break;
       if (!feuCapture && e.feu) { await sleep(40); await A.shot('2b-impact-A'); feuCapture = true; }
       if (!glJeu && e.gl && e.phase === 'turn') { await sleep(300); await A.shot('4-grenade-launcher-A'); glJeu = true; }
       if (!glVol && e.gl && e.vol && e.t > 150) { await A.shot('4b-grenade-vol-A'); glVol = true; glVise = true; }
       if (!glImpact && glVise && e.boum) { await A.shot('4c-grenade-impact-A'); glImpact = true; }
+      if (!huJeu && e.hu && e.phase === 'turn') { await sleep(300); await A.shot('5-huntsman-A'); huJeu = true; }
+      if (!huVol && e.hu && e.vol && e.t > 150) { await A.shot('5b-huntsman-vol-A'); huVol = true; }
+      if (!huImpact && e.plantee) { await sleep(60); await A.shot('5c-huntsman-impact-A'); huImpact = true; }
       await sleep(15);
     }
   })();
   const fini = await A.until(`!document.getElementById('end').hidden`, 90000);
   await guetteur;
-  t('la partie va au bout (quatre explosions, R2 gagne)', fini && await A.ev(`/Robot2/.test(document.getElementById('end-title').textContent)`));
+  t('la partie va au bout (cinq explosions, R2 gagne)', fini && await A.ev(`/Robot2/.test(document.getElementById('end-title').textContent)`));
   await A.shot('3-fin-A');
   await sleep(1600);              // le filet d'impact (1,3 s) de la dernière explosion
 
@@ -651,26 +929,28 @@ try {
     const faux = vu.filter((v) => v.skin !== attendu[v.cible]);
     const types = vu.reduce((o, v) => ((o[v.type] = (o[v.type] || 0) + 1), o), {});
     t(`${P.nom} : l arme montrée est celle du joueur visé, à chaque countdown / turn / boom (${JSON.stringify(types)})`,
-      faux.length === 0 && types.countdown === 1 && types.turn >= 4 && types.boom === 4, JSON.stringify(faux.slice(0, 3)));
+      faux.length === 0 && types.countdown === 1 && types.turn >= 5 && types.boom === 5, JSON.stringify(faux.slice(0, 3)));
     const skinsVus = new Set(vu.map((v) => v.skin));
-    t(`${P.nom} : les trois armes ont été montrées`, skinsVus.has('petoire') && skinsVus.has('roquette') && skinsVus.has('marmite'));
+    t(`${P.nom} : les quatre armes ont été montrées`, skinsVus.has('petoire') && skinsVus.has('roquette') && skinsVus.has('marmite') && skinsVus.has('huntsman'));
     t(`${P.nom} : la fumée de vol n existe que dans la Pétoire, l ancien dessin (traînée rose, flamme arrière, pochoir) nulle part`,
       vu.every((v) => v.fumeeVol === (v.skin === 'petoire') && !v.anciens));
-    t(`${P.nom} : chargé, le projectile (fusée, grenade) est INVISIBLE (à chaque décompte et chaque tour)`, vu.filter((v) => v.type !== 'boom').every((v) => !v.projVisible));
+    t(`${P.nom} : chargé, le projectile (fusée, grenade) est INVISIBLE (à chaque décompte et chaque tour)`, vu.filter((v) => v.type !== 'boom' && v.skin !== 'huntsman').every((v) => !v.projVisible));
+    const tirsHU = vu.filter((v) => v.type !== 'boom' && v.skin === 'huntsman');
+    t(`${P.nom} : la flèche du Huntsman est VISIBLE, encochée, à chacun de ses tours (${tirsHU.length})`, tirsHU.length >= 1 && tirsHU.every((v) => v.projVisible));
     t(`${P.nom} : aucun sélecteur pendant la partie`, vu.every((v) => !v.choix));
     const booms = vu.filter((v) => v.type === 'boom');
     t(`${P.nom} : les explosions utilisent l arme du joueur touché (${booms.map((b) => b.skin).join(', ')})`,
-      booms.length === 4 && booms.every((b) => b.skin === attendu[b.cible]) && booms.filter((b) => b.skin === 'petoire').length === 1 && booms.filter((b) => b.skin === 'marmite').length === 1);
+      booms.length === 5 && booms.every((b) => b.skin === attendu[b.cible]) && ['petoire', 'marmite', 'huntsman'].every((k) => booms.filter((b) => b.skin === k).length === 1));
   }
 
   // L'impact, en mouvement normal (A) : la Pétoire pose l'impact du Scorch Shot PUIS l'étoile commune ; la roquette, l'étoile seule.
   const vuA = await A.ev('window.__vu'), fxA = await A.ev('window.__fx'), sonsA = await A.ev('window.__sons'), volA = await A.ev('window.__vol');
-  const tirsA = await A.ev('window.__tirs');
-  const impacts = { petoire: [], marmite: [], roquette: [] };
+  const tirsA = await A.ev('window.__tirs'), bandesA = await A.ev('window.__bandes');
+  const impacts = { petoire: [], marmite: [], roquette: [], huntsman: [] };
   const boomsA = vuA.filter((v) => v.type === 'boom');
-  // Les trois premières (la 4e, celle de R3, finit la partie : `end` coupe son vol, comme avant ce lot).
-  t('A : trois explosions étudiées, une par arme (Pétoire, Grenade Launcher, roquette)', boomsA.length === 4 && ['petoire', 'marmite', 'roquette'].every((k) => boomsA.slice(0, 3).filter((b) => b.skin === k).length === 1), boomsA.map((b) => b.skin).join());
-  boomsA.slice(0, 3).forEach((b, i) => {
+  // Les quatre premières (la 5e, celle de R3, finit la partie : `end` coupe son vol, comme avant).
+  t('A : quatre explosions étudiées, une par arme (Pétoire, Grenade Launcher, Huntsman, roquette)', boomsA.length === 5 && ['petoire', 'marmite', 'roquette', 'huntsman'].every((k) => boomsA.slice(0, 4).filter((b) => b.skin === k).length === 1), boomsA.map((b) => b.skin).join());
+  boomsA.slice(0, 4).forEach((b, i) => {
     const finFenetre = boomsA[i + 1].t;
     const fx = fxA.filter((f) => f.t >= b.t && f.t < finFenetre);
     const sons = sonsA.filter((s) => s.t >= b.t && s.t < finFenetre).map((s) => s.n);
@@ -720,26 +1000,55 @@ try {
       t('A, impact Grenade Launcher : la grenade disparaît, l arme reste visible au centre',
         !!tir && tir.proj === 'hidden' && tir.arme === '1' && tir.fly === '1' && !tir.gone, JSON.stringify(tir));
       if (etoile) impacts.marmite.push(etoile.t - b.t);
+    } else if (b.skin === 'huntsman') {
+      // Le Huntsman : l'arc se bande, la corde claque, SEULE la flèche part —
+      // pointe devant, sans culbute ni traînée ni éclair — puis elle se plante
+      // dans la carte, dans l'axe du tir, AVANT l'étoile commune.
+      const vol = volA.find((v) => v.t >= b.t && v.t < finFenetre);
+      const tir = tirsA.find((x) => x.t >= b.t && x.t < finFenetre);
+      const bande = bandesA.find((x) => x.t >= b.t - 1 && x.t < finFenetre);
+      const plantee = fx.find((f) => f.cls === 'huntsman-impact');
+      const j = vol ? JSON.stringify(vol) : 'pas de vol';
+      t(`A, explosion Huntsman : la flèche PLANTÉE dans la carte, PUIS l étoile commune (+${plantee && etoile ? Math.round(etoile.t - plantee.t) : '?'} ms)`,
+        !!plantee && !!etoile && etoile.t - plantee.t >= 100 && plantee.vue && fx.every((f) => f.cls === 'boum' || f.cls === 'huntsman-impact'), JSON.stringify(fx));
+      t(`A, flèche plantée : dans l axe du tir (${plantee ? Math.round(plantee.a) : '?'}° pour ${plantee ? Math.round(plantee.attendu) : '?'}°) et à l échelle de l arme (${plantee ? plantee.w : '?'} px pour ${plantee ? Math.round(plantee.wRocket) : '?'})`,
+        !!plantee && Math.abs(((plantee.a - plantee.attendu) % 360 + 540) % 360 - 180) <= 4 && Math.abs(plantee.w - plantee.wRocket) <= 1, JSON.stringify(plantee));
+      t(`A, explosion Huntsman : sons corde, plante, explosion (${sons.join(' ')})`,
+        ['corde', 'plante', 'explosion'].every((n) => sons.includes(n)) && !['whoosh', 'fusee', 'crepitement', 'tube', 'impact'].some((n) => sons.includes(n))
+        && sons.indexOf('plante') < sons.indexOf('explosion'));
+      t(`A, tir Huntsman : l arc se bande à fond avant le départ (recul ${bande ? Math.round(bande.avantVol) : '?'} u), la corde claque et revient au repos (${bande && bande.fin !== null ? bande.fin.toFixed(1) : '?'} u)`,
+        !!bande && bande.avantVol >= 55 && bande.fin !== null && Math.abs(bande.fin) < .5, JSON.stringify(bande));
+      t('A, tir Huntsman : AUCUN éclair, ni gerbe, ni bouffée ; la flèche est SOUS l arc', !!vol && !vol.eclairVu && !vol.gerbe && !vol.bouffee && vol.projSousArme, j);
+      t(`A, vol Huntsman : SEULE la flèche parcourt la trajectoire (${vol ? Math.round(vol.proj) : '?'} px sur ${vol ? Math.round(vol.course) : '?'}), l ARC reste au centre (${vol ? Math.round(vol.arme) : '?'} px), .r-fly immobile`,
+        !!vol && vol.course > 40 && vol.proj >= 0.5 * vol.course && vol.arme <= 0.25 * vol.w && vol.fly < 1, j);
+      t(`A, vol Huntsman : la flèche est vue à chaque image du vol (${vol ? vol.flecheImages : 0}), pointe DEVANT (${vol && vol.pointeDevant !== null ? Math.round(vol.pointeDevant) : '?'} px)`,
+        !!vol && vol.flecheVu && !vol.flecheCachee && vol.flecheImages >= 5 && vol.pointeDevant > 20, j);
+      t(`A, vol Huntsman : aucune culbute — la flèche reste dans l axe du tir (écart max ${vol ? vol.ecartMax.toFixed(1) : '?'}°, rotation cumulée ${vol ? vol.flecheTours.toFixed(1) : '?'}°)`,
+        !!vol && vol.ecartMax <= 3 && vol.flecheTours <= 6, j);
+      t(`A, vol Huntsman : aucune traînée — rien ne se dessine dans le calque hors de la flèche (${vol ? vol.horsFleche : '?'} élément), ni halo, ni lueur`, !!vol && vol.horsFleche === 0 && vol.halo === 0 && vol.trainee === 0 && vol.fumee === 0 && !vol.flecheLueur, j);
+      t('A, impact Huntsman : la flèche disparaît de l arc (plantée), l arc reste visible au centre',
+        !!tir && tir.proj === 'hidden' && tir.arme === '1' && tir.fly === '1' && !tir.gone, JSON.stringify(tir));
+      if (plantee) impacts.huntsman.push(plantee.t - b.t);
     } else {
       t('A, explosion roquette : l étoile commune seule, sans l impact du Scorch Shot', !!etoile && !feu, JSON.stringify(fx));
       t(`A, explosion roquette : ses sons d avant (${sons.join(' ')})`,
-        ['whoosh', 'impact', 'explosion'].every((n) => sons.includes(n)) && !sons.includes('fusee') && !sons.includes('crepitement') && !sons.includes('tube'));
+        ['whoosh', 'impact', 'explosion'].every((n) => sons.includes(n)) && !sons.includes('fusee') && !sons.includes('crepitement') && !sons.includes('tube') && !sons.includes('corde'));
       const vol = volA.find((v) => v.t >= b.t && v.t < finFenetre);
       t(`A, vol roquette : comme avant, c est TOUTE la roquette qui part (${vol ? Math.round(vol.fly) : '?'} px), sans éclair ni projectile`,
         !!vol && !vol.eclair && vol.fly >= 0.5 * vol.course && vol.proj === 0 && vol.arme === 0 && !tirsA.some((x) => x.t >= b.t && x.t < finFenetre), JSON.stringify(vol));
       if (etoile) impacts.roquette.push(etoile.t - b.t);
     }
   });
-  t(`A : même instant d impact pour les trois armes (Pétoire ${impacts.petoire.map(Math.round).join(' / ')} ms, Grenade Launcher ${impacts.marmite.map(Math.round).join(' / ')} ms, roquette ${impacts.roquette.map(Math.round).join(' / ')} ms après boom)`,
-    impacts.petoire.length === 1 && impacts.marmite.length === 1 && impacts.roquette.length === 1
-    && [...impacts.petoire, ...impacts.marmite].every((x) => Math.abs(x - impacts.roquette[0]) < 120));
+  t(`A : même instant d impact pour les quatre armes (Pétoire ${impacts.petoire.map(Math.round).join(' / ')} ms, Grenade Launcher ${impacts.marmite.map(Math.round).join(' / ')} ms, Huntsman ${impacts.huntsman.map(Math.round).join(' / ')} ms, roquette ${impacts.roquette.map(Math.round).join(' / ')} ms après boom)`,
+    impacts.petoire.length === 1 && impacts.marmite.length === 1 && impacts.huntsman.length === 1 && impacts.roquette.length === 1
+    && [...impacts.petoire, ...impacts.marmite, ...impacts.huntsman].every((x) => Math.abs(x - impacts.roquette[0]) < 120));
   t('A : sons communs gardés (validation du mot de R2)', sonsA.some((s) => s.n === 'valide'));
 
   // Mouvement réduit (B) : version fixe — ni vol, ni traînée, ni éclat ; les sons restent.
   const fxB = await B.ev('window.__fx'), volB = await B.ev('window.__vol'), sonsB = await B.ev('window.__sons');
   t('B (mouvement réduit) : aucun éclat posé (ni feu, ni étoile)', fxB.length === 0, JSON.stringify(fxB));
   t('B (mouvement réduit) : aucun vol, donc aucune traînée', volB.length === 0);
-  t('B (mouvement réduit) : les sons d impact restent (crepitement et impact)', sonsB.some((s) => s.n === 'crepitement') && sonsB.some((s) => s.n === 'impact'));
+  t('B (mouvement réduit) : les sons d impact restent (crepitement, impact, plante)', sonsB.some((s) => s.n === 'crepitement') && sonsB.some((s) => s.n === 'impact') && sonsB.some((s) => s.n === 'plante'));
   t('B (mouvement réduit) : la Pétoire est figée (étincelles de danger, fumée de vol)', await B.ev(`(() => { const h = document.createElement('div'); h.style.width = '250px'; document.body.append(h);
     const r = Rocket.create(h); r.setSkin('petoire'); h.dataset.danger = '3'; h.classList.add('is-flying');
     const n = ['.p-etinc', '.p-fumee-vol'].reduce((s, q) => s + h.querySelector(q).getAnimations().length, 0); h.remove(); return n === 0; })()`));
@@ -747,6 +1056,12 @@ try {
     const r = Rocket.create(h); r.setSkin('marmite'); h.dataset.danger = '3'; h.classList.add('is-flying');
     const n = ['.m-tourne', '.m-trainee', '.m-halo'].reduce((s, q) => s + h.querySelector(q).getAnimations().length, 0); h.remove(); return n === 0; })()`));
   t('B (mouvement réduit) : arme fixe — jamais de tir animé (ni .is-firing, ni .is-shot)', (await B.ev('window.__tirs')).length === 0);
+  const huB = await B.ev(`(() => { const h = document.createElement('div'); h.style.width = '250px'; document.body.append(h);
+    const r = Rocket.create(h); r.setSkin('huntsman'); r.setDanger(3); h.classList.add('is-flying');
+    const out = { tension: r.tension, anims: h.getAnimations({ subtree: true }).length, fleche: getComputedStyle(h.querySelector('.r-proj')).visibility };
+    r.setDanger(1); out.tension1 = r.tension; h.remove(); return out; })()`);
+  t(`B (mouvement réduit) : le Huntsman est figé (aucune animation, même au cran 3 « en vol »), la tension posée d un coup (${huB.tension} puis ${huB.tension1} u), flèche visible`,
+    huB.anims === 0 && huB.tension === 60 && huB.tension1 === 12 && huB.fleche === 'visible', JSON.stringify(huB));
 
   // Le fil : aucun message nouveau hors du contrat.
   for (const P of [A, B]) {

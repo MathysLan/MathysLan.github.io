@@ -43,7 +43,7 @@ dans le journal.
 | **Morpion** | `games/morpion/` | `morpion-server` | Duel strict (X/O). Le serveur ne reçoit AUCUNE identité et ferme la room dès qu'un joueur part. `net.js` est toute l'appli. |
 | **Le Passeur** | `games/passeur/` | `passeur-server` | Une situation de volley, cinq passes, cinq secondes. Points = pertinence × vitesse. Barèmes et `why` seulement au `results`. Catalogue `situations.js` + règles `rules.js` côté serveur. |
 | **Qui Ment ?** | `games/quiment/` | `qui-ment-server` | Bluff : même mot pour tous sauf l'intrus (qui n'a que la catégorie). 2 tours d'indices en aveugle, vote, révélation, dernière chance. Le mot ne part JAMAIS en diffusion (joueur par joueur, `word: null` pour l'intrus) ; les indices sont ramassés en silence puis révélés d'un bloc ; la liste des mots de la catégorie ne part qu'à l'intrus démasqué. Le test WebSocket du serveur relit **tout le fil** chez l'intrus (seul moyen d'attraper une fuite par un message de progression). Catalogue `mots.js`. |
-| **Roquette Party** | `games/roquette/` | `roquette-server` | Jeu de mots en temps réel, 2 à 16 joueurs : des lettres s'affichent, un mot qui les contient avant l'explosion, chaque explosion coûte une vie. L'instant de l'explosion et le dictionnaire ne quittent jamais le serveur ; rang = ordre d'élimination, aucun point de partie. Jeu du Hub (`handoff: true`). Armes cosmétiques (skins) : voir « Roquette Party : les armes ». |
+| **Roquette Party** | `games/roquette/` | `roquette-server` | Jeu de mots en temps réel, 2 à 16 joueurs : des lettres s'affichent, un mot qui les contient avant l'explosion, chaque explosion coûte une vie. L'instant de l'explosion et le dictionnaire ne quittent jamais le serveur ; rang = ordre d'élimination, aucun point de partie. Jeu du Hub (`handoff: true`). Armes cosmétiques (skins : roquette, Pétoire, Grenade Launcher, Huntsman) : voir « Roquette Party : les armes ». |
 | **Croq.ios** (technique : `croquis`) | `games/croquis/` | `croquis-server` | Jeu de dessin, 2 à 16 joueurs : un dessinateur choisit un mot parmi trois (1 facile, 1 moyen, 1 difficile, catalogue V1 de 318 mots côté serveur), les autres devinent. Le mot ne part qu'au dessinateur jusqu'au `turn-end` ; traits validés et bornés par le serveur. Nom AFFICHÉ « Croq.ios » ; dossier, id, modules JS et serveur restent `croquis` (ne pas renommer). Jeu du Hub (`handoff: true`, 2 à 16 joueurs, 5–18 min, `creatif` + `ambiance`) : même montage que Roquette (`gameId: 'croquis'`, `roomReady` au `you`, `started` au premier `turn`, `results` (rang + score du serveur) puis `ended` à `results` — `ended` seul pour une partie interrompue —, « Lancer sans attendre », `#to-hub`) ; test `tests/handoff-croquis.mjs`. |
 | **Puissance 4** | `js/connect4.js` (`launchConnect4`) | aucun | 100 % navigateur, canvas, bot gagner > bloquer > centre. Lancé par le carousel, INSERT COIN, Ctrl+K, Konami. |
 
@@ -1206,8 +1206,9 @@ ids) :
 
 Purement cosmétiques : aucun effet sur la partie, aucun inventaire, aucun
 déblocage, rien au Hub. Aujourd'hui `roquette` (défaut), `petoire` (« La
-Pétoire de Secours », le Scorch Shot du Pyro) et `marmite` (« Le Grenade
-Launcher », le lance-grenades du Demoman) ; V1 prévue : + `disrupteur`.
+Pétoire de Secours », le Scorch Shot du Pyro), `marmite` (« Le Grenade
+Launcher », le lance-grenades du Demoman) et `huntsman` (« Le Huntsman »,
+l'arc du Sniper) ; `disrupteur` reste libre pour une future arme à énergie.
 
 - ⚠️⚠️ **Règle de DA : FIDÉLITÉ TF2 > ORIGINALITÉ > BLAGUE** (depuis le
   2026-10-05). Chaque skin adapte UNE arme de TF2 précise (référence unique,
@@ -1217,10 +1218,12 @@ Launcher », le lance-grenades du Demoman) ; V1 prévue : + `disrupteur`.
   projectile observé EN MOUVEMENT, ce qui reste propre à Roquette). Dessin
   **maison** en SVG/CSS : aucun asset de Valve (modèle, texture, sprite,
   icône), aucune géométrie de modèle reprise. Le nom affiché reste celui de
-  Roquette Party (jamais le nom TF2 dans le jeu) — exception décidée par
-  Mathys : « Le Grenade Launcher », nom PROVISOIRE (2026-10-05). Les blagues
-  passent après la reconnaissance. Dossiers : artifacts « Dossier Scorch Shot »
-  et « Dossier Grenade Launcher » (sources wiki et vidéos horodatées).
+  Roquette Party (jamais le nom TF2 dans le jeu) — exceptions décidées par
+  Mathys : « Le Grenade Launcher », nom PROVISOIRE (2026-10-05), et « Le
+  Huntsman » (2026-10-06). Les blagues passent après la reconnaissance.
+  Dossiers : artifacts « Dossier Scorch Shot », « Dossier Grenade Launcher »
+  et « Dossier Huntsman » (sources wiki et vidéos horodatées ; celui du
+  Huntsman sans vidéo, ses réserves de mouvement acceptées).
 
 - **Contrat** (`roquette-server`, README) : un id FERMÉ par joueur (`SKINS`
   dans `server.js`) ; `skin` dans `join`, dans les joueurs de `lobby` et de
@@ -1243,13 +1246,16 @@ Launcher », le lance-grenades du Demoman) ; V1 prévue : + `disrupteur`.
   tout id inconnu → la roquette (`Rocket.skinId`, avec `hasOwnProperty`).
 - **Table** `Rocket.SKINS` (`rocket.js`) : dessin, nom, sons propres
   (`depart` / `impact`, `sound.js`), `couche` (classe de sa couche d'impact,
-  `COUCHES` dans `app.js`, ou `null`), `projectile`. Tic, validation,
-  verrouillage (lueur rouge) et explosion restent COMMUNS ; l'étoile orange
-  aussi, une arme la fait précéder de sa couche (la Pétoire :
-  `.scorch-impact`, éclair orange à rayons puis boule rouge qui s'éteint,
-  l'étoile 150 ms après).
-- ⚠️ **Arme ≠ projectile** (`projectile: true`, la Pétoire et le Grenade
-  Launcher) : le dessin est DEUX calques superposés dans la même boîte,
+  `COUCHES` dans `app.js`, ou `null`), `projectile`, `recul`, `calee` (mise
+  en place avant le tir, sinon `CALEE`), `corde` (le danger tend une corde).
+  Tic, validation, verrouillage (lueur rouge) et explosion restent COMMUNS ;
+  l'étoile orange aussi, une arme la fait précéder de sa couche (la Pétoire :
+  `.scorch-impact`, éclair orange à rayons puis boule rouge qui s'éteint ; le
+  Huntsman : `.huntsman-impact`, sa flèche plantée ; l'étoile 150 ms après).
+  Une couche listée dans `ORIENTEES` (`app.js`) est posée dans l'axe du tir
+  (`--a` = l'angle de la visée) et à l'échelle de l'arme (`--w`).
+- ⚠️ **Arme ≠ projectile** (`projectile: true`, la Pétoire, le Grenade
+  Launcher et le Huntsman) : le dessin est DEUX calques superposés dans la même boîte,
   `.r-proj > svg.p-fusee` (`svg.p-grenade` pour le Grenade Launcher ; le
   projectile, AVANT dans le DOM, donc dessous : la bouche du canon couvre sa
   queue) puis `svg.p-arme`. `boom()` passe alors par `tirer()` : l'arme reste
@@ -1268,8 +1274,9 @@ Launcher », le lance-grenades du Demoman) ; V1 prévue : + `disrupteur`.
   `.r-bob` : elle se compose avec les `transform` du balancement et des
   animations au lieu de les écraser). ⚠️ Le montage en calques et le
   retournement sont des règles CSS qui LISTENT les armes à projectile
-  (`:is([data-skin="petoire"], [data-skin="marmite"])`) : une nouvelle arme à
-  projectile s'y ajoute, sinon ses calques s'empilent l'un sous l'autre.
+  (`:is([data-skin="petoire"], [data-skin="marmite"], [data-skin="huntsman"])`) :
+  une nouvelle arme à projectile s'y ajoute, sinon ses calques s'empilent l'un
+  sous l'autre.
 - **Le Grenade Launcher** (`marmite`, référence unique : le Grenade Launcher
   du Demoman ; dossier validé) : profil du modèle mesuré colonne par colonne
   puis ramené au repère du jeu — canon de 17 u sur l'axe, bouche à +60, talon
@@ -1286,10 +1293,51 @@ Launcher », le lance-grenades du Demoman) ; V1 prévue : + `disrupteur`.
   Impact : l'explosion standard de TF2, donc `couche: null` (étoile commune
   seule) ; sons `tube` puis l'`impact` de la roquette. Contre-épreuves :
   arme qui vole entière → 4 échecs ; plus de rotation → 1 échec.
+- **Le Huntsman** (`huntsman`, référence unique : le Huntsman du Sniper ;
+  Dossier Huntsman validé) : profil de l'arc et de la flèche mesurés sur les
+  planches 3D du wiki, ramenés au repère à 0,58 u/px ; l'arc est tracé en
+  courbes par les points relevés (`HU_CORPS`), pas recopié. La première arme
+  plus HAUTE que longue : arc de 151 u (pointes à −72 et +80 de l'axe : la
+  flèche passe au-dessus du milieu), dos de la poignée à −8, profondeur corde →
+  poignée ~22 %, flèche de 103 u (pointe sur +60, encoche à −43,2, 66 %
+  devant la poignée). Marqueurs MESURÉS (classes `.h-*`) : bois brun, embouts
+  gris très foncé recourbés vers l'AVANT, ruban noir ASYMÉTRIQUE (bande courte
+  en haut, long manchon en bas, deux bandes à la poignée de part et d'autre de
+  la flèche), plaques grises à vis, corde kaki (`#9a9378`, éclaircie depuis
+  le relevé `#7b7560` pour se lire sur l'arène sombre) ; flèche : pointe large
+  grise, ligature et bague noires, fût brun, plumes crème. Contour 3,6 (un
+  contour de 7 noircissait des branches de 4 à 6 u).
+  ⚠️ **L'écart au montage** : la flèche (`.r-proj > svg.p-fleche`) est
+  VISIBLE encochée au repos (marqueur n° 4 du dossier), cachée seulement à
+  l'impact (`.is-shot`) ; nouvelle flèche encochée au rechargement.
+  ⚠️ **Le danger est la CORDE** (`corde: true`) : sa tension est un pur
+  habillage, aucun calcul ne change. `rocket.js` recalcule la polyligne
+  `.h-corde` (bouclée sur les embouts, droite jusqu'à l'encoche) et recule le
+  groupe `.h-encoche` de la flèche : `tendre(recul, ms)` (rAF, décélération ;
+  d'un coup en mouvement réduit), recul `Rocket.BANDE` = 0 / 12 / 33 / 60 u aux
+  crans 0 à 3 — à 60 la pointe vient contre le dos de la poignée (choisi
+  plutôt que les ~68 u estimés au dossier : la pointe reste visible).
+  `setDanger` ne commande plus la corde pendant un tir (`tir`) ; `annuler()`
+  la rend au danger suivant. Pas de vibration aux crans 1 et 2 (l'arc se bande
+  sans trembler), tremblement fin `h-trem` au cran 3 seulement (les 5 s de
+  TF2). Ni lueur, ni fumée, ni étincelles. Tir : l'arc se bande à fond pendant
+  verrouillage + mise en place (420 ms, `calee: 'none'`), la corde claque en
+  60 ms, sursaut minimal vers l'avant (`RECUL_HUNTSMAN`), aucun éclair. Vol :
+  la flèche seule, pointe devant, ni culbute ni traînée, et sans la lueur du
+  verrouillage (`.is-flying .p-fleche { filter: none }` ; l'arc la garde).
+  Impact : flèche plantée (`Rocket.PLANTEE`, aplats sans id, pointe enfoncée,
+  empennage dehors, 0,9 s) puis étoile commune ; sons `corde` et `plante`.
+  Au plus loin : l'encoche à bande complète, ~104 u (point par point, trait
+  compris), sous EMPRISE. Aperçu du salon réduit (× 0,74) pour tenir au-dessus
+  du nom. Contre-épreuves : l'arc qui vole entier → 3 échecs ; la flèche qui
+  culbute → 3 ; une traînée ajoutée → 3.
 - ⚠️ **L'enveloppe** : même viewBox, même pivot (0, 0), nez à +60 (`NEZ`),
   rien plus loin du pivot que la flamme arrière de la roquette (`EMPRISE`) —
   `fit()` ne connaît qu'elle, la taille ne dépend jamais de l'arme.
-  `roquette-skins.mjs` mesure la portée de chaque arme au danger 3.
+  `roquette-skins.mjs` mesure la portée de chaque arme au danger 3 (boîtes
+  englobantes ; le Huntsman, point par point le long de chaque tracé — les
+  coins de la boîte d'une corde tendue sont loin de tout trait — et contre le
+  vrai `fit()` avec un obstacle).
 - ⚠️ **Id de dégradés préfixés** (`{p}` dans chaque dessin : `r` dans
   l'arène, `apercu-<id>` au salon). Un même id dans un sous-arbre
   `display: none` (le salon pendant la partie, l'arène au salon) passerait
@@ -1320,4 +1368,7 @@ Launcher », le lance-grenades du Demoman) ; V1 prévue : + `disrupteur`.
   antérieur à elles. Revu au lot du Grenade Launcher : plus fréquent ce
   jour-là (3 sur 3 après le lot, 1 sur 2 sur le code d'avant), même géométrie
   au pixel près des deux côtés (`scrollY` 0, 13 ou 101 selon le passage) — le
-  téléphone de cette suite ne montre que la roquette.
+  téléphone de cette suite ne montre que la roquette. Revu au lot du Huntsman
+  (2 sur 3 après le lot, 1 sur 2 sur le code d'avant, `--reduced` vert). Au
+  même lot, le parcours au Tab du salon de cette suite avance jusqu'à
+  « Lancer » (au plus 10 Tab) : il comptait 6 arrêts, un par arme compris.

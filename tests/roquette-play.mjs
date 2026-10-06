@@ -275,7 +275,8 @@ try {
   // Clavier : Tab parcourt les réglages puis « Lancer ».
   await A.ev(`document.activeElement.blur(); document.getElementById('room-code').focus()`);
   const vus = [];
-  for (let i = 0; i < 6; i++) { await A.tab(); vus.push(await A.ev(`document.activeElement.id`)); }
+  // (jusqu'à « Lancer » : avant les réglages, un arrêt par bouton d'arme du sélecteur)
+  for (let i = 0; i < 10 && vus[vus.length - 1] !== 'start'; i++) { await A.tab(); vus.push(await A.ev(`document.activeElement.id`)); }
   t(`clavier : Tab → ${vus.join(' → ')}`, ['vies-select', 'rythme-select', 'start'].every((x) => vus.includes(x))
     && vus.indexOf('vies-select') < vus.indexOf('rythme-select') && vus.indexOf('rythme-select') < vus.indexOf('start'));
   const anneau = await A.ev(`(() => { document.getElementById('start').focus(); const s = getComputedStyle(document.getElementById('start')); return s.boxShadow.includes('255, 215, 0') || s.outlineStyle !== 'none'; })()`);

@@ -538,3 +538,37 @@ l'historique.
 - Vu à la capture : les vues du Grenade Launcher manquaient dans `--shots` —
   son explosion arrivait avant que le guetteur ne démarre (il attendait
   d'abord la Pétoire) ; un seul guetteur pour toutes les captures.
+
+## 2026-10-06 — Troisième arme : le Huntsman (`huntsman`)
+
+- Dossier de référence d'abord (artifact « Dossier Huntsman », validé) : cinq
+  candidats notés (Huntsman 8,7, Loose Cannon en réserve), puis l'arc et la
+  flèche mesurés sur les planches 3D du wiki (profil au pixel, 0,58 u/px),
+  couleurs relevées, silhouette testée à 38 et 83 px. Pas de vidéo (YouTube a
+  demandé une vérification anti-robot) : tout le MOUVEMENT repose sur le texte
+  du wiki et des images fixes — réserves acceptées.
+- Serveur d'abord (`roquette-server` `6c99ec5`) : `huntsman` entre dans la
+  liste fermée `SKINS`, rien d'autre ne change (57/57 à `test-skin.js`).
+- Front : l'arc tracé en courbes de Catmull-Rom par les points relevés
+  (bords dos et ventre, rangée par rangée), comparé à l'œil au masque du
+  dossier superposé en rouge : il colle. Embouts et ruban découpés dans le
+  corps (`clipPath`), corde en polyligne recalculée par `rocket.js`. Un seul
+  écart au montage des armes à projectile : la flèche est VISIBLE encochée.
+  Le danger devient la tension de la corde (0 / 12 / 33 / 60 u) ; la bande
+  complète est arrêtée pointe contre le dos de la poignée (60 u, pointe
+  visible) plutôt qu'aux ~68 u estimés. Impact : une couche « flèche
+  plantée » orientée dans l'axe du tir, puis l'étoile commune.
+- Vu à la capture : le contour de 5 noircissait l'arc aux petites tailles et
+  dans l'aperçu du salon → 3,6 ; l'aperçu (arc plus haut que la boîte)
+  débordait sur le nom → × 0,74. En vol, la flèche gardait la lueur rouge du
+  verrouillage (règle commune `.is-locked .r-svg`) → retirée de la flèche en
+  vol, test ajouté.
+- Vu au test : la portée par boîte englobante surestime une corde tendue (le
+  coin de sa boîte est à ~129 u alors qu'aucun trait ne dépasse 104 u) →
+  mesure point par point (`getPointAtLength` + `getScreenCTM`, contrôlée sur
+  la boîte du corps), et contre le vrai `fit()` avec un obstacle.
+- `roquette-play.mjs` : le Tab du salon s'arrêtait avant « Lancer » (6 Tab
+  comptés pour 3 armes) → avance jusqu'à « Lancer ». Son échec intermittent
+  connu (« clavier ouvert … carte visée ») s'est reproduit sur le code d'avant.
+- Contre-épreuves : arc qui vole entier → 3 échecs ; flèche qui culbute → 3 ;
+  traînée ajoutée → 3.

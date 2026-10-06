@@ -419,6 +419,158 @@
   // Le dessin du Grenade Launcher : la grenade d'abord (dessous), l'arme par-dessus.
   var MARMITE = '<div class="r-proj">' + GRENADE + '</div>' + GL_ARME;
 
+  // « Le Huntsman » (id huntsman) : l'arc du SNIPER (référence unique, Dossier
+  // Huntsman validé : profil de l'arc et de la flèche mesurés sur les planches du
+  // wiki, puis ramenés au repère du jeu à 0,58 u par pixel). Dessin maison :
+  // aucun asset, des courbes tracées par les points relevés, des aplats et le
+  // contour du jeu. La première arme plus HAUTE que longue : arc de 151 u
+  // (pointes à -72 et +80 de l'axe : la flèche passe au-dessus du milieu), flèche
+  // de 103 u, profondeur corde → dos de la poignée 23 %. Deux calques :
+  //   - l'ARC (svg .p-arme), de profil, corde à gauche : le « D » en bois brun
+  //     (.h-bois) ; les EMBOUTS gris très foncé recourbés vers l'avant
+  //     (.h-embout-haut, .h-embout-bas), la corde bouclée dessus ; le RUBAN
+  //     noir ASYMÉTRIQUE — une bande courte en haut (.h-ruban-haut), un long
+  //     manchon en bas (.h-ruban-bas), deux bandes serrées à la poignée, de part
+  //     et d'autre de la flèche (.h-ruban-poignee) ; la poignée en bloc et ses
+  //     deux plaques grises à vis (.h-plaque) ; la CORDE fine kaki (.h-corde),
+  //     dessinée par rocket.js (sa tension suit le danger, voir tendre()).
+  //   - le PROJECTILE (.r-proj > svg .p-fleche) : la flèche, VISIBLE encochée au
+  //     repos (marqueur n° 4 du dossier : c'est l'écart déclaré au montage des
+  //     autres armes) — pointe de chasse grise (.h-pointe), ligature noire
+  //     (.h-ligature), fût brun (.h-fut), bague noire (.h-bague), plumes crème
+  //     (.h-plume), encoche (.h-encoche-bout). Le groupe .h-encoche recule avec
+  //     la corde. En vol : pointe devant, ni culbute, ni traînée, ni flamme.
+  // Le danger est la TENSION de la corde (pur habillage : aucun calcul ne
+  // change) : repos, peu tendue, mi-bande, bande complète (pointe contre la
+  // poignée) et, au cran 3 seulement, un tremblement fin (les 5 s de TF2).
+  // Ni lueur, ni fumée, ni étincelles : rien de tout ça n'existe sur un arc.
+  // Tir : la corde claque, la flèche part, l'arc ne fait qu'un sursaut ; aucun
+  // éclair. Impact : la flèche se plante dans la carte (couche huntsman-impact,
+  // app.js), puis l'étoile commune. Au plus loin, à bande complète : l'encoche,
+  // ~104 u du pivot contour compris, sous EMPRISE (120,4).
+  var HU_CORPS = 'M-31.6,-71.8 C-31,-71.7 -30,-71.1 -29.6,-70.4 C-29.2,-69.7 -29.2,-68.4 -29.3,-67.6 C-29.4,-66.8 -30.1,-66.4 -30.5,-65.8 '
+    + 'C-30.9,-65.2 -31.3,-64.7 -31.8,-64.1 C-32.3,-63.5 -33.3,-62.7 -33.6,-62 C-33.9,-61.3 -33.5,-60.8 -33.6,-60 C-33.7,-59.2 -34,-58.2 -34.1,-57.1 '
+    + 'C-34.2,-56 -34.5,-54.8 -34.4,-53.6 C-34.3,-52.5 -34,-51.4 -33.4,-50.2 C-32.8,-49.1 -31.5,-47.9 -30.5,-46.7 C-29.5,-45.5 -28.8,-44.6 -27.6,-43.2 '
+    + 'C-26.4,-41.9 -24.8,-40.2 -23.5,-38.6 C-22.2,-37 -21.1,-35.4 -20,-33.9 C-18.9,-32.4 -18.1,-30.9 -17.1,-29.3 C-16.1,-27.8 -15.1,-26.2 -14.2,-24.6 '
+    + 'C-13.3,-23.1 -12.5,-21.4 -11.9,-20 C-11.3,-18.6 -10.9,-17.4 -10.4,-16 C-9.9,-14.6 -9.5,-13.2 -9.2,-11.5 C-8.8,-9.8 -8.5,-7.9 -8.3,-6 '
+    + 'C-8.1,-4.1 -8,-2.3 -7.9,0 C-7.8,2.3 -7.8,5.6 -7.9,8 C-8,10.4 -8.4,12.5 -8.7,14.5 C-9,16.5 -9.4,18 -9.8,20 C-10.2,22 -10.8,24.6 -11.4,26.4 '
+    + 'C-12.1,28.2 -12.9,29.4 -13.7,31 C-14.5,32.5 -15.1,34.2 -16,35.7 C-16.9,37.2 -17.8,38.8 -18.9,40.3 C-20,41.8 -21.6,43.3 -22.9,44.9 '
+    + 'C-24.1,46.5 -25,48 -26.4,49.6 C-27.8,51.2 -29.6,52.7 -31.1,54.2 C-32.6,55.7 -34.4,57.3 -35.4,58.6 C-36.4,59.9 -36.6,60.6 -36.9,62 '
+    + 'C-37.2,63.4 -37,65.6 -37,67 C-37,68.4 -37.1,69.6 -36.8,70.6 C-36.5,71.6 -35.9,72.2 -35.4,73 C-34.9,73.8 -34.3,74.5 -34,75.3 '
+    + 'C-33.7,76.1 -33.5,76.9 -33.6,77.6 C-33.7,78.3 -34.1,79.2 -34.5,79.7 C-34.9,80.2 -35.4,80.4 -35.9,80.4 C-36.4,80.4 -37.1,80.1 -37.7,79.6 '
+    + 'C-38.3,79.1 -39,78.2 -39.5,77.4 C-40,76.6 -40.4,75.6 -40.7,74.6 C-41,73.6 -41.3,72.8 -41.5,71.4 C-41.7,70 -41.7,67.7 -41.7,66 '
+    + 'C-41.7,64.3 -41.5,62.7 -41.3,61.4 C-41.1,60.1 -40.8,59.4 -40.3,58.4 C-39.8,57.4 -39.3,56.2 -38.5,55.2 C-37.7,54.2 -36.4,53 -35.4,52.1 '
+    + 'C-34.4,51.2 -33.9,50.8 -32.8,49.6 C-31.7,48.4 -30,46.5 -28.7,44.9 C-27.4,43.3 -25.9,41.8 -24.7,40.3 C-23.4,38.8 -22.3,37.2 -21.2,35.7 '
+    + 'C-20.1,34.2 -19.2,32.5 -18.3,31 C-17.4,29.4 -16.6,27.9 -16,26.4 C-15.3,24.9 -14.7,23.4 -14.4,21.8 C-14.1,20.2 -13.9,18.7 -14,17.1 '
+    + 'C-14.1,15.5 -14.5,13.8 -14.7,12 C-14.9,10.2 -15.2,8 -15.3,6 C-15.4,4 -15.4,2 -15.4,0 C-15.4,-2 -15.3,-4 -15.2,-6 C-15.1,-8 -14.8,-10.1 -14.7,-12 '
+    + 'C-14.5,-13.9 -14.2,-16.3 -14.3,-17.6 C-14.4,-18.9 -14.7,-18.8 -15.4,-20 C-16.1,-21.2 -17.2,-23.1 -18.3,-24.6 C-19.4,-26.2 -20.6,-27.8 -21.8,-29.3 '
+    + 'C-23,-30.9 -24.1,-32.4 -25.3,-33.9 C-26.6,-35.4 -28,-37 -29.3,-38.6 C-30.6,-40.2 -32.1,-41.9 -33.4,-43.2 C-34.6,-44.5 -36,-45.5 -36.8,-46.6 '
+    + 'C-37.6,-47.7 -38,-48.5 -38.3,-49.6 C-38.6,-50.7 -38.5,-51.8 -38.6,-53 C-38.7,-54.2 -38.6,-55.8 -38.6,-57.1 C-38.6,-58.4 -38.6,-59.5 -38.5,-60.6 '
+    + 'C-38.4,-61.7 -38.2,-62.6 -37.9,-63.6 C-37.5,-64.6 -36.9,-65.6 -36.4,-66.6 C-35.9,-67.6 -35.3,-68.6 -34.8,-69.4 C-34.3,-70.2 -33.8,-70.9 -33.3,-71.3 '
+    + 'C-32.8,-71.7 -32.2,-71.9 -31.6,-71.8 Z';
+  // Les embouts : ce qui, du corps, est au-delà d'une coupe biaise (perpendiculaire à la branche).
+  var HU_EMBOUT_HAUT = 'M-50,-80 H-20 V-53 L-33.2,-50.6 L-38.2,-47.5 L-50,-43.5 Z';
+  var HU_EMBOUT_BAS = 'M-20,50 L-30.4,53 L-39.9,56.7 L-50,60 V90 H-20 Z';
+  // Les plaques de la poignée, côté corde : plus larges que le bois, une en haut, une en bas.
+  var HU_PLAQUE_HAUT = 'M-16,-16.2 L-11,-16.2 L-10,-15.6 L-9.4,-13 L-9.1,-10.7 L-18.4,-10.7 L-19.6,-12.6 L-19.3,-14.2 L-17.8,-15.6 Z';
+  var HU_PLAQUE_BAS = 'M-17.8,7.6 L-8.1,7.6 L-8.1,12 L-8.6,15.4 L-9.2,16.9 L-14.8,16.9 L-17.6,16.2 L-19.6,14.8 L-20.2,13.2 L-19.6,10.4 L-18.6,8.6 Z';
+  // La corde : bouclée sur chaque embout (parties fixes), puis droite jusqu'à
+  // l'encoche, en x = HU_ENCOCHE - recul. Au repos, presque droite (léger biais
+  // du relevé). Le recul par cran de danger : repos, peu tendue, mi-bande, bande
+  // complète — la pointe de la flèche vient alors contre le dos de la poignée.
+  var HU_CORDE_HAUT = '-33.9,-71.4 -36.9,-67 -38.5,-61.5 -39.3,-56 -39.6,-50.6';
+  var HU_CORDE_BAS = '-42.1,58.6 -42.3,64 -41.7,70 -40,75.4 -37.6,79.8';
+  var HU_ENCOCHE = -40.8;
+  var HU_BANDE = [0, 12, 33, 60];
+  var cordePoints = function (recul) { return HU_CORDE_HAUT + ' ' + (HU_ENCOCHE - recul).toFixed(2) + ',0 ' + HU_CORDE_BAS; };
+  var HU_ARC = ''
+    + '<svg class="r-svg p-arme" viewBox="-128 -46 250 92" aria-hidden="true" focusable="false">'
+    + '<defs>'
+    + '<linearGradient id="{p}-hu-bois" x1="0" y1="-72" x2="0" y2="80" gradientUnits="userSpaceOnUse">'
+    + '<stop offset="0" stop-color="#8a6b4c"/><stop offset=".3" stop-color="#795e43"/><stop offset=".7" stop-color="#6a523b"/><stop offset="1" stop-color="#5c4937"/></linearGradient>'
+    + '<linearGradient id="{p}-hu-embout" x1="-43" y1="0" x2="-29" y2="0" gradientUnits="userSpaceOnUse">'
+    + '<stop offset="0" stop-color="#2f2e2c"/><stop offset=".45" stop-color="#55534f"/><stop offset=".7" stop-color="#454341"/><stop offset="1" stop-color="#2f2e2c"/></linearGradient>'
+    + '<linearGradient id="{p}-hu-plaque" x1="0" y1="0" x2="0" y2="1">'
+    + '<stop offset="0" stop-color="#2a2928"/><stop offset=".35" stop-color="#4a4946"/><stop offset=".6" stop-color="#393836"/><stop offset="1" stop-color="#262524"/></linearGradient>'
+    + '<clipPath id="{p}-hu-corps"><path d="' + HU_CORPS + '"/></clipPath>'
+    + '<clipPath id="{p}-hu-poignee"><path d="' + HU_CORPS + '"/><path d="' + HU_PLAQUE_HAUT + '"/><path d="' + HU_PLAQUE_BAS + '"/></clipPath>'
+    + '</defs>'
+    // le contour noir : corps et plaques, plus fin que celui des armes à feu
+    // (les branches ne font que 4 à 6 u de large : un contour de 7 les noircirait)
+    + '<g class="r-ink" stroke-width="3.6"><path d="' + HU_CORPS + '"/><path d="' + HU_PLAQUE_HAUT + '"/><path d="' + HU_PLAQUE_BAS + '"/></g>'
+    // le bois, et un reflet le long du dos de la branche du haut
+    + '<path class="h-bois" d="' + HU_CORPS + '" fill="url(#{p}-hu-bois)"/>'
+    + '<path d="M-30.4,-47.2 C-25,-41.5 -18.6,-33 -14.6,-25.4 C-12.4,-21.4 -10.6,-16 -9.6,-11" fill="none" stroke="#a8865f" stroke-width="1.3" stroke-linecap="round" opacity=".7"/>'
+    // embouts et ruban, découpés dans le corps
+    + '<g clip-path="url(#{p}-hu-corps)">'
+    + '<path class="h-embout h-embout-haut" d="' + HU_EMBOUT_HAUT + '" fill="url(#{p}-hu-embout)"/>'
+    + '<path class="h-embout h-embout-bas" d="' + HU_EMBOUT_BAS + '" fill="url(#{p}-hu-embout)"/>'
+    + '<path class="h-ruban h-ruban-haut" d="M-26.5,-38.7 L-22.6,-33.8" fill="none" stroke="#242424" stroke-width="22"/>'
+    + '<path class="h-ruban h-ruban-bas" d="M-12.8,24.4 L-15.9,30.8 L-18.6,35.7 L-21.8,40.3 L-25.4,44.1" fill="none" stroke="#242424" stroke-width="22" stroke-linejoin="bevel"/>'
+    + '</g>'
+    // les plaques de la poignée et leurs vis, puis les deux bandes, de part et d'autre de la flèche
+    + '<path class="h-plaque h-plaque-haut" d="' + HU_PLAQUE_HAUT + '" fill="url(#{p}-hu-plaque)"/>'
+    + '<path class="h-plaque h-plaque-bas" d="' + HU_PLAQUE_BAS + '" fill="url(#{p}-hu-plaque)"/>'
+    + '<g fill="#8a8781" stroke="#000" stroke-width=".6"><circle cx="-16.8" cy="-13.4" r="1.1"/><circle cx="-12" cy="-13.4" r="1.1"/>'
+    + '<circle cx="-17" cy="12.4" r="1.1"/><circle cx="-11.8" cy="12.4" r="1.1"/></g>'
+    + '<g class="h-ruban h-ruban-poignee" clip-path="url(#{p}-hu-poignee)" fill="#242424">'
+    + '<rect x="-22" y="-10.7" width="15" height="4.6"/><rect x="-22" y="2.6" width="15" height="4.7"/></g>'
+    + '<path d="M-14.6,-2.8 V-6.1 M-14.6,2.6 V5.6" stroke="#000" stroke-width="1" opacity=".5"/>'
+    // la corde, par-dessus tout : un trait sombre, puis le fil kaki
+    + '<polyline class="h-corde h-corde-trait" points="' + cordePoints(0) + '" fill="none" stroke="#000" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>'
+    + '<polyline class="h-corde h-corde-fil" points="' + cordePoints(0) + '" fill="none" stroke="#9a9378" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>'
+    + '</svg>';
+
+  // La flèche (103,2 u), pointe sur +60 (NEZ), encoche à -43,2 : la corde passe
+  // dans son encoche. Proportions du relevé : pointe 11 % (large de 8 u, plus
+  // large à l'arrière), ligature noire jusqu'à 20 %, fût de 2,2 u, bague à 82 %,
+  // plumes de 83 à 97 %, coupées droit. Contour fin (un contour de 7 en ferait
+  // un bâton). Aucune traînée : elle n'existe, dans TF2, que pour les critiques.
+  var HU_PLUME_HAUT = 'M-39.6,-1.1 L-39.6,-5.3 L-30.6,-5.3 L-26.9,-1.1 Z';
+  var HU_PLUME_BAS = 'M-39.6,1.1 L-39.6,4.9 L-31,4.9 L-27.3,1.1 Z';
+  var HU_LIGATURE = 'M40.2,-1.6 H49.6 V1.6 H40.2 Z M46,-1.6 L47.6,-2.9 L48.6,-1.6 Z M46,1.6 L47.6,2.9 L48.6,1.6 Z';
+  var HU_POINTE = 'M49.4,-1.6 L51.2,-4 L60,0 L51.2,4 L49.4,1.6 Z';
+  var HU_FLECHE = ''
+    + '<svg class="r-svg p-fleche" viewBox="-128 -46 250 92" aria-hidden="true" focusable="false">'
+    + '<defs>'
+    + '<linearGradient id="{p}-hu-fut" x1="0" y1="-1.1" x2="0" y2="1.1" gradientUnits="userSpaceOnUse">'
+    + '<stop offset="0" stop-color="#8a735a"/><stop offset=".45" stop-color="#675543"/><stop offset="1" stop-color="#463a2d"/></linearGradient>'
+    + '<linearGradient id="{p}-hu-pointe" x1="0" y1="-4" x2="0" y2="4" gradientUnits="userSpaceOnUse">'
+    + '<stop offset="0" stop-color="#6a6c66"/><stop offset=".5" stop-color="#41433f"/><stop offset=".52" stop-color="#363834"/><stop offset="1" stop-color="#2a2b28"/></linearGradient>'
+    + '</defs>'
+    + '<g class="h-encoche" transform="translate(0 0)"><g class="h-fleche">'
+    + '<g fill="#000" stroke="#000" stroke-width="1.6" stroke-linejoin="round">'
+    + '<rect x="-43.2" y="-1.2" width="83.6" height="2.4"/><path d="' + HU_PLUME_HAUT + '"/><path d="' + HU_PLUME_BAS + '"/>'
+    + '<path d="' + HU_LIGATURE + '"/><path d="' + HU_POINTE + '"/></g>'
+    + '<path class="h-plume h-plume-haut" d="' + HU_PLUME_HAUT + '" fill="#ddd3b3"/>'
+    + '<path class="h-plume h-plume-bas" d="' + HU_PLUME_BAS + '" fill="#b3ab92"/>'
+    + '<path d="M-38.6,-3.2 H-31.4 M-38.6,3 H-31.6" stroke="#888375" stroke-width=".6"/>'
+    + '<rect class="h-fut" x="-40.2" y="-1.1" width="80.6" height="2.2" fill="url(#{p}-hu-fut)"/>'
+    + '<rect class="h-encoche-bout" x="-43.2" y="-1.2" width="3" height="2.4" fill="#5c4937"/>'
+    + '<rect class="h-bague" x="-26.4" y="-1.6" width="1.6" height="3.2" fill="#1d1d1d"/>'
+    + '<path class="h-ligature" d="' + HU_LIGATURE + '" fill="#222"/>'
+    + '<path class="h-pointe" d="' + HU_POINTE + '" fill="url(#{p}-hu-pointe)"/>'
+    + '</g></g>'
+    + '</svg>';
+
+  // Le dessin du Huntsman : la flèche d'abord (dessous : la poignée la couvre),
+  // l'arc par-dessus (la corde passe dans l'encoche).
+  var HUNTSMAN = '<div class="r-proj">' + HU_FLECHE + '</div>' + HU_ARC;
+
+  // La flèche PLANTÉE (couche d'impact du Huntsman, app.js) : la même flèche,
+  // pointe enfoncée (non dessinée), empennage dehors, l'impact en (0, 0) ; app.js
+  // l'oriente dans l'axe du tir. Aplats seuls : aucun id (plusieurs couches
+  // peuvent coexister dans la page).
+  var PLANTEE = '<g transform="translate(-52 0)">'
+    + '<g fill="#000" stroke="#000" stroke-width="1.6" stroke-linejoin="round">'
+    + '<rect x="-43.2" y="-1.2" width="85" height="2.4"/><path d="' + HU_PLUME_HAUT + '"/><path d="' + HU_PLUME_BAS + '"/>'
+    + '<path d="M40.2,-1.6 H50 V1.6 H40.2 Z M46,-1.6 L47.6,-2.9 L48.6,-1.6 Z M46,1.6 L47.6,2.9 L48.6,1.6 Z"/></g>'
+    + '<path class="hi-plume" d="' + HU_PLUME_HAUT + '" fill="#ddd3b3"/><path d="' + HU_PLUME_BAS + '" fill="#b3ab92"/>'
+    + '<rect class="hi-fut" x="-40.2" y="-1.1" width="80.6" height="2.2" fill="#675543"/>'
+    + '<rect x="-43.2" y="-1.2" width="3" height="2.4" fill="#5c4937"/><rect x="-26.4" y="-1.6" width="1.6" height="3.2" fill="#1d1d1d"/>'
+    + '<path class="hi-ligature" d="M40.2,-1.6 H50 V1.6 H40.2 Z M46,-1.6 L47.6,-2.9 L48.6,-1.6 Z M46,1.6 L47.6,2.9 L48.6,1.6 Z" fill="#222"/>'
+    + '</g>';
+
   // Le recul au tir d'une arme à projectile (depuis la position calée) : la
   // Pétoire part en arrière et relève franchement le canon ; le Grenade
   // Launcher, plus lourd, recule court et ne se relève que de quelques degrés
@@ -431,6 +583,12 @@
     { transform: 'translateX(-4%) rotate(-7deg)', offset: .18 },
     { transform: 'translateX(-1%) rotate(-2deg)', offset: .55 },
   ] };
+  // Le Huntsman : pas de recul d'arme à feu, un sursaut minimal de l'arc vers
+  // l'avant quand la corde claque (le dossier ne relève pas mieux).
+  var RECUL_HUNTSMAN = { ms: 300, images: [
+    { transform: 'translateX(1.2%)', offset: .2 },
+    { transform: 'translateX(-.3%)', offset: .6 },
+  ] };
 
   // La table des armes. `depart` / `impact` : leurs sons propres (sound.js) —
   // tic, validation et explosion restent communs. `couche` : la classe de la
@@ -438,12 +596,15 @@
   // commune (app.js) ; null = l'étoile seule. `projectile` : l'arme
   // reste au centre et c'est son projectile (.r-proj) qui part (tirer()) ;
   // sans, c'est toute l'arme qui vole (la roquette). `recul` : le recul de
-  // l'arme au tir (une arme à projectile).
+  // l'arme au tir (une arme à projectile). `calee` : sa mise en place avant le
+  // tir (sinon CALEE). `corde` : une corde dont la tension montre le danger.
   var SKINS = {
     roquette: { nom: 'La Roquette', court: 'Roquette', dessin: ROQUETTE, depart: 'whoosh', impact: 'impact', couche: null },
     petoire: { nom: 'La Pétoire de Secours', court: 'Pétoire', dessin: PETOIRE, depart: 'fusee', impact: 'crepitement', couche: 'scorch-impact', projectile: true, recul: RECUL_PETOIRE },
     // Nom affiché PROVISOIRE, choisi par Mathys (2026-10-05).
     marmite: { nom: 'Le Grenade Launcher', court: 'Grenade Launcher', dessin: MARMITE, depart: 'tube', impact: 'impact', couche: null, projectile: true, recul: RECUL_MARMITE },
+    // Nom affiché choisi par Mathys (2026-10-06), comme celui du Grenade Launcher.
+    huntsman: { nom: 'Le Huntsman', court: 'Huntsman', dessin: HUNTSMAN, depart: 'corde', impact: 'plante', couche: 'huntsman-impact', projectile: true, corde: true, calee: 'none', recul: RECUL_HUNTSMAN },
   };
   var DEFAUT = 'roquette';
   // Le seul filtre côté page : un id inconnu, absent ou mal formé → la roquette.
@@ -459,6 +620,7 @@
   };
   // Le pivot (x = 0 du dessin) est à 128/250 de la largeur : le nez n'est pas au
   // milieu. Toute visée se calcule depuis CE point, sur la boîte non tournée.
+  var CALEE = 'translateX(-3%) rotate(3deg)';     // l'arme à feu se cale avant le tir
   var PIVOT = 128 / 250;
   var NEZ = 60 / 250;            // distance pivot → nez, en largeur de roquette
   var pivot = function (host) {
@@ -486,14 +648,19 @@
     var angle = 0;          // angle CUMULÉ (pas modulo 360 : sinon un 350° → 10° ferait le tour)
     var cible = null;
     var gen = 0;            // une explosion en cours est annulée par un nouveau tour
+    // La corde d'une arme qui en a une (le Huntsman) : son recul actuel (en
+    // unités du dessin), celui qu'elle vise, l'image en cours, et le tir en
+    // cours (pendant lequel le danger ne la commande plus).
+    var tension = 0, visee = 0, raf = 0, tir = false;
 
     function poser(a, instant) {
       aim.classList.toggle('is-instant', !!instant || reduit());
       aim.style.transform = 'rotate(' + a.toFixed(2) + 'deg)';
-      // Visée vers la GAUCHE : une arme qui n'est pas symétrique (la Pétoire)
-      // se retourne pour garder la crosse en bas (CSS, `scale` : il se compose
-      // avec les transform du balancement, du recul et du vol). La roquette,
-      // symétrique, n'a pas de règle pour cette classe.
+      // Visée vers la GAUCHE : une arme qui n'est pas symétrique (la Pétoire,
+      // le Grenade Launcher, le Huntsman et son ruban asymétrique) se retourne
+      // pour garder la crosse — le manchon de l'arc — en bas (CSS, `scale` : il
+      // se compose avec les transform du balancement, du recul et du vol). La
+      // roquette, symétrique, n'a pas de règle pour cette classe.
       var n = ((a % 360) + 360) % 360;
       host.classList.toggle('is-gauche', n > 90 && n < 270);
     }
@@ -530,7 +697,34 @@
     // Après un redimensionnement : même cible, nouvel angle, sans animation.
     function refit() { if (cible) aimAt(cible, { instant: true }); }
 
-    function setDanger(n) { host.dataset.danger = String(Math.max(0, Math.min(3, n | 0))); }
+    // La corde : la polyligne (trait et fil) et la flèche encochée, reculées de `d`.
+    function poserTension(d) {
+      tension = d;
+      bob.querySelectorAll('.h-corde').forEach(function (c) { c.setAttribute('points', cordePoints(d)); });
+      var e = bob.querySelector('.h-encoche');
+      if (e) e.setAttribute('transform', 'translate(' + (-d).toFixed(2) + ' 0)');
+    }
+    // Amène la corde au recul `vers` en `ms` (décélération) ; en mouvement
+    // réduit, ou sans durée, tout de suite.
+    function tendre(vers, ms) {
+      visee = vers;
+      cancelAnimationFrame(raf);
+      if (!SKINS[skin].corde) return;
+      if (!ms || reduit()) { poserTension(vers); return; }
+      var de = tension, t0 = performance.now();
+      (function pas(now) {
+        var k = Math.max(0, Math.min(1, (now - t0) / ms));
+        poserTension(de + (vers - de) * (1 - Math.pow(1 - k, 3)));
+        if (k < 1) raf = requestAnimationFrame(pas);
+      })(t0);
+    }
+
+    // Le danger (0 à 3). Pour une arme à corde, il la tend — sauf pendant un tir.
+    function setDanger(n) {
+      n = Math.max(0, Math.min(3, n | 0));
+      host.dataset.danger = String(n);
+      if (SKINS[skin].corde && !tir && visee !== HU_BANDE[n]) tendre(HU_BANDE[n], 380);
+    }
 
     // L'arme montrée (celle du joueur visé). Seul le DESSIN change : visée,
     // taille, danger et animation en cours restent ceux du moment.
@@ -540,6 +734,10 @@
       skin = id;
       bob.innerHTML = dessin(id, 'r');      // gabarit fixe, aucune donnée réseau (l'id est filtré)
       host.dataset.skin = id;
+      cancelAnimationFrame(raf);
+      tension = 0;
+      visee = SKINS[id].corde ? HU_BANDE[+host.dataset.danger || 0] : 0;
+      if (SKINS[id].corde) poserTension(visee);
     }
 
     function annuler() {
@@ -552,6 +750,9 @@
       });
       host.classList.remove('is-locked', 'is-gone', 'is-flying', 'is-firing', 'is-shot');
       fly.style.transform = '';
+      // La corde n'est plus tenue par le tir : le prochain danger la reprend.
+      tir = false;
+      visee = null;
     }
 
     // Mot validé : recul le long de l'axe et retour (réarmement).
@@ -565,41 +766,47 @@
       ], { duration: 320, easing: 'ease-out' });
     }
 
-    // Le tir d'une arme à PROJECTILE (la Pétoire, le Grenade Launcher). L'arme
-    // reste au centre ; seul le projectile (.r-proj, calque à part) part, droit
-    // sur la cible, dans le MÊME minutage que la roquette — l'impact tombe au
-    // même instant :
-    //   1. verrouillage (160 ms) ;  2. l'arme se cale (260 ms) ;
-    //   3. le tir : son, éclair de bouche (.is-firing, 140 ms), gerbe
-    //      d'étincelles, bouffée (fumée rouge, brume claire), recul de l'arme
-    //      (SKINS[].recul) ;
-    //   4. le vol du projectile (340 ms) : il n'est VISIBLE que pendant
-    //      .is-flying (la fusée : tête devant, fumée rouge ; la grenade :
-    //      elle culbute, halo et traînée rouges — CSS seulement) ;
+    // Le tir d'une arme à PROJECTILE (la Pétoire, le Grenade Launcher, le
+    // Huntsman). L'arme reste au centre ; seul le projectile (.r-proj, calque à
+    // part) part, droit sur la cible, dans le MÊME minutage que la roquette —
+    // l'impact tombe au même instant :
+    //   1. verrouillage (160 ms) ;  2. l'arme se cale (260 ms) — l'arc, lui, se
+    //      bande à fond pendant ces 420 ms ;
+    //   3. le tir : son, éclair de bouche (.is-firing, 140 ms : une arme à feu
+    //      seulement, l'arc n'en a pas), gerbe d'étincelles, bouffée (fumée
+    //      rouge, brume claire), recul de l'arme (SKINS[].recul) ; la corde de
+    //      l'arc claque (60 ms) ;
+    //   4. le vol du projectile (340 ms) : la fusée et la grenade ne sont
+    //      VISIBLES que pendant .is-flying (la fusée : tête devant, fumée rouge ;
+    //      la grenade : elle culbute, halo et traînée rouges — CSS seulement) ;
+    //      la flèche, déjà visible, file pointe devant, sans rien derrière ;
     //   5. l'impact : le projectile disparaît (.is-shot), l'arme reste ;
-    //   6. 420 ms plus tard, l'arme est de nouveau chargée (projectile invisible).
+    //   6. 420 ms plus tard, l'arme est de nouveau chargée (projectile invisible ;
+    //      une nouvelle flèche encochée sur l'arc).
     function tirer(el, onImpact, g) {
       var arme = bob.querySelector('.p-arme'), proj = bob.querySelector('.r-proj');
-      var recul = SKINS[skin].recul || RECUL_PETOIRE;
+      var s = SKINS[skin], recul = s.recul || RECUL_PETOIRE, calee = s.calee || CALEE;
       aimAt(el, { instant: false });
       host.classList.add('is-locked');                                    // 1. verrouillage
+      tir = true;
+      if (s.corde) tendre(HU_BANDE[3], 420);                              // 1-2. l'arc se bande
       var p = pivot(host), q = centre(el);
       var portee = Math.hypot(q.x - p.x, q.y - p.y);
       var largeur = host.getBoundingClientRect().width || 1;      // boîte NON tournée
       // Le calque du projectile a la largeur de l'arme : même calcul que la
       // roquette, son nez (+60) arrive sur l'avatar (un peu dedans).
       var pct = Math.max(0, (portee - largeur * NEZ + largeur * .04) / largeur * 100);
-      var CALEE = 'translateX(-3%) rotate(3deg)';
-      var prep = arme.animate([{ transform: 'none' }, { transform: CALEE }],     // 2. l'arme se cale
+      var prep = arme.animate([{ transform: 'none' }, { transform: calee }],     // 2. l'arme se cale
         { duration: 260, delay: 160, easing: 'ease-out', fill: 'forwards' });
       return prep.finished.then(function () {
         if (g !== gen) return;
         host.dispatchEvent(new CustomEvent('rocket:whoosh'));            // 3. le tir
         host.classList.add('is-firing', 'is-flying');
         setTimeout(function () { if (g === gen) host.classList.remove('is-firing'); }, 140);
+        if (s.corde) tendre(0, 60);                                        // la corde claque
         // Le recul : l'arme part en arrière et le canon se relève (rotation
         // autour de la main, voir le CSS), puis revient.
-        arme.animate([{ transform: CALEE }].concat(recul.images, [{ transform: 'none' }]), { duration: recul.ms, easing: 'ease-out' });
+        arme.animate([{ transform: calee }].concat(recul.images, [{ transform: 'none' }]), { duration: recul.ms, easing: 'ease-out' });
         prep.cancel();
         // La gerbe d'étincelles et la bouffée (de fumée, de brume), à la bouche.
         var gerbe = arme.querySelector('.p-gerbe'), bouffee = arme.querySelector('.p-bouffee');
@@ -620,6 +827,7 @@
         }).then(function () {
           if (g !== gen) return;
           host.classList.remove('is-shot');                                // 6. rechargée : à nouveau invisible
+          tir = false;
         });
       }).catch(function () { /* tir annulé par un nouveau tour */ });
     }
@@ -678,6 +886,7 @@
     return {
       aimAt: aimAt, fit: fit, refit: refit, setDanger: setDanger, setSkin: setSkin, validate: validate, boom: boom, annuler: annuler,
       get angle() { return angle; },
+      get tension() { return tension; },
       get cible() { return cible; },
       get skin() { return skin; },
     };
@@ -686,5 +895,6 @@
   window.Rocket = {
     create: create, ecart: ecart, PIVOT: PIVOT, NEZ: NEZ, EMPRISE: EMPRISE,
     SKINS: Object.keys(SKINS), DEFAUT: DEFAUT, skinId: skinId, dessin: dessin, info: info,
+    BANDE: HU_BANDE.slice(), PLANTEE: PLANTEE,
   };
 })();
