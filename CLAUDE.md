@@ -371,9 +371,11 @@ gameplay et accent propres.
   carte de l'accueil) — contrôles, forçages de sens d'écriture (U+202A–202E,
   U+2066–2069, LRM/RLM/ALM), espaces invisibles retirés, espaces réduits, 16
   unités sans couper un emoji en deux. Le ZWJ reste. Affichage en
-  `textContent` partout. ⚠️ Seul NOTRE client filtre : un client forgé peut
-  encore envoyer ces caractères au Hub (`identity.js` ne filtre que la
-  longueur) — c'est au serveur de les retirer le jour où ça compte.
+  `textContent` partout. Le Hub applique les MÊMES règles côté serveur
+  (`cleanName()` dans `game-hub-server/src/identity.js`, tests dans
+  `test-session.js`) : un client forgé ne les diffuse plus à la session. Les
+  deux copies se tiennent à la main : changer l'une, c'est changer l'autre.
+  ⚠️ Les serveurs de jeu, eux, ne bornent encore que la longueur.
 - **Trois niveaux, qui ne se mélangent pas** : profil local = préférence, dans
   ce navigateur ; identité de session = ce que le Hub a reçu au `join` (reprise
   comprise : `hub.js` remplace nom et avatar) et montre à tous ; serveur =

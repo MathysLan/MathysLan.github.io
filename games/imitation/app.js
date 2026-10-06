@@ -17,6 +17,7 @@ let lastTakeUrl = null;   // blob URL de la dernière prise envoyée (pour la r�
 let myReady = false;
 let myAvatar = null;
 let lastPlayers = [];     // dernier état connu des joueurs (pour nommer qui on attend)
+let lastVote = { ids: [], owner: undefined }; // derniers votes reçus sur la prise en cours
 
 // Le catalogue (videos/videos.json) ne donne QUE l'id : le front construit
 // l'URL du bucket R2, comme le Jeu du Ban. Convention : <id>.mp4 à la racine.
@@ -485,6 +486,7 @@ NET.on('room', (msg) => {
     lien.roomReady(msg.code, msg.you);
   }
   lastPlayers = msg.players;
+  renderVoteWait(lastVote.ids, lastVote.owner); // un votant parti n'est plus attendu
   const me = msg.players.find((p) => p.id === you);
   isHost = !!(me && me.host);
   if (me) myReady = !!me.ready;
@@ -573,7 +575,10 @@ $('relisten-btn').addEventListener('click', () => { if (listenUrl) playCurrentLi
 // Qui n'a pas encore voté ? Affiché DÈS l'arrivée de la prise (personne n'a
 // voté à ce moment-là) puis à chaque vote reçu. Le propriétaire ne vote pas
 // sur sa propre imitation : il ne compte jamais parmi ceux qu'on attend.
+// Les derniers votes reçus sont gardés (lastVote) : un départ (état `room`)
+// redessine la ligne sans attendre le vote suivant.
 function renderVoteWait(votedIds, ownerId) {
+  lastVote = { ids: votedIds || [], owner: ownerId };
   if (!lastListen) return;
   const owner = ownerId !== undefined ? ownerId : lastListen.player;
   const late = (lastPlayers || [])

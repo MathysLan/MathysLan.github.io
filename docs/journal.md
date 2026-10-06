@@ -593,3 +593,14 @@ l'historique.
   `--reduced` vert ; mutation « plus de recadrage au `scrollend` » dans
   `app.js` → le cas échoue (2 sur 2), donc l'attente ne masque pas un vrai
   défaut.
+## 2026-10-06 — Imitation : un votant parti n'est plus attendu
+
+- Vérification du vote de bout en bout (front `renderVoteWait` du 26/09 et
+  message `rated { ids, owner }` d'imitation-server, tous deux sur main) :
+  `hub-score-imitation.mjs` 27/27, tests d'imitation-server verts.
+- Défaut trouvé à la lecture : « on attend … » n'était recalculé qu'à chaque
+  `rated`. Un votant qui quittait la partie pendant le vote restait nommé
+  jusqu'au vote suivant. Correctif : `renderVoteWait` garde les derniers votes
+  (`lastVote`) et l'état `room` redessine la ligne. `app.js?v=4`.
+- Preuve : `tests/imitation-vote.mjs` échoue sur l'ancien code (2 KO : le
+  partant toujours nommé chez les deux restants), passe avec le correctif.
