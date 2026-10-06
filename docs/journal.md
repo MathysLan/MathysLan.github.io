@@ -573,6 +573,26 @@ l'historique.
 - Contre-épreuves : arc qui vole entier → 3 échecs ; flèche qui culbute → 3 ;
   traînée ajoutée → 3.
 
+## 2026-10-06 — `roquette-play.mjs` : l'échec « clavier ouvert … carte visée »
+
+- Cause : le TEST, pas le jeu. Au `focus()` du champ (téléphone, 430 px), le
+  navigateur amène le champ à l'écran en défilement DOUX (`scroll-behavior`
+  du socle) : il part 250 à 500 ms après le focus, descend jusqu'en bas
+  (`scrollY` 260), puis `cadrer()` remonte au `scrollend` (`scrollY` 13).
+  L'ancien `sleep(500)` mesurait parfois pendant ce va-et-vient : géométrie
+  identique, `scrollY` « au hasard » (0, 13, 101…), carte du haut hors écran.
+  Hasard en plus : le défilement n'a lieu que si le champ n'avait pas déjà le
+  focus, donc seulement quand B n'avait été visé dans aucun des 6 tours.
+- Relevé image par image (Chromium Linux) : `scrollY` 0 → 260 → 13 entre
+  ~260 et ~700 ms après le focus selon le passage.
+- Correctif (test seul) : champ rendu au repos avant le cas (toujours le même
+  parcours), puis attente d'au moins 1,2 s et de 400 ms sans aucun `scroll`
+  (plafond 5 s) au lieu du délai fixe.
+- Preuves : ancienne attente (champ au repos) → 1 échec sur 6, même
+  signature (`arene` 364 × 293, `scrollY 260`) ; nouvelle → 6 sur 6 verts,
+  `--reduced` vert ; mutation « plus de recadrage au `scrollend` » dans
+  `app.js` → le cas échoue (2 sur 2), donc l'attente ne masque pas un vrai
+  défaut.
 ## 2026-10-06 — Imitation : un votant parti n'est plus attendu
 
 - Vérification du vote de bout en bout (front `renderVoteWait` du 26/09 et

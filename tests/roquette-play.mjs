@@ -420,9 +420,19 @@ try {
     await A.shot(`6-partie-${N}`); await B.shot(`6-partie-${N}-mobile`);
     if (N === 16) {
       // Clavier du téléphone ouvert : la fenêtre visible rétrécit (~430 px).
+      // Le champ est d'abord rendu au repos : sinon le cas dépendait du hasard
+      // des tours (B déjà visé = champ déjà au focus = aucun défilement).
+      await B.ev(`document.activeElement && document.activeElement.blur()`);
       await B.c.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 430, deviceScaleFactor: 1, mobile: true });
+      await B.ev(`(() => { window.__defile = performance.now(); addEventListener('scroll', () => { window.__defile = performance.now(); }, true); })()`);
       await B.ev(`document.getElementById('mot').focus()`);
-      await sleep(500);
+      // ⚠️ Pas de délai fixe : au focus, le navigateur amène le champ à l'écran
+      // en défilement DOUX (il part 250 à 500 ms après le focus et descend
+      // jusqu'en bas), puis cadrer() remonte au scrollend. Mesurée pendant ce
+      // va-et-vient (l'ancien `sleep(500)`), la carte visée du haut de
+      // l'ellipse était hors écran (le « scrollY 101 » intermittent). On
+      // attend donc au moins 1,2 s, puis 400 ms sans le moindre défilement.
+      { const t0 = Date.now(); while (Date.now() - t0 < 5000 && !(Date.now() - t0 >= 1200 && await B.ev('performance.now() - window.__defile > 400'))) await sleep(50); }
       const vise = (await B.dernier('turn')).holder;
       t('téléphone, clavier ouvert (430 px visibles) : prompt, roquette, champ ET carte visée à l écran',
         await B.ev(dansEcran('#prompt')) && await B.ev(dansEcran('#rocket')) && await B.ev(dansEcran('#mot')) && await B.ev(dansEcran(`.card[data-id="${vise}"]`)),

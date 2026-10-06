@@ -1364,13 +1364,8 @@ l'arc du Sniper) ; `disrupteur` reste libre pour une future arme à énergie.
 - `tests/keyboard.mjs` : échec intermittent sur le Ban (« Retour au Game Hub » :
   le focus tombe sur `#tw-check`), ~1 passage sur 3 ou 4 sur ce poste, vu aux
   lots G et H, jamais reproduit sur commande.
-- `tests/roquette-play.mjs` (normal ou `--reduced`) : échec intermittent
-  « téléphone, clavier ouvert : … carte visée à l'écran » (`scrollY 101`),
-  ~1 passage sur 3 ; vu avec le front d'avant les armes (2026-10-05), donc
-  antérieur à elles. Revu au lot du Grenade Launcher : plus fréquent ce
-  jour-là (3 sur 3 après le lot, 1 sur 2 sur le code d'avant), même géométrie
-  au pixel près des deux côtés (`scrollY` 0, 13 ou 101 selon le passage) — le
-  téléphone de cette suite ne montre que la roquette. Revu au lot du Huntsman
-  (2 sur 3 après le lot, 1 sur 2 sur le code d'avant, `--reduced` vert). Au
-  même lot, le parcours au Tab du salon de cette suite avance jusqu'à
-  « Lancer » (au plus 10 Tab) : il comptait 6 arrêts, un par arme compris.
+- `tests/roquette-play.mjs` : l'ancien échec « clavier ouvert … carte visée »
+  (`scrollY 101`) venait du test (mesure pendant le défilement doux du focus,
+  corrigé le 2026-10-06, voir le journal). ⚠️ Au téléphone, ne jamais mesurer
+  après un délai fixe suivant un `focus()` : attendre que la page ne défile
+  plus. S'il revient, c'est un vrai défaut de `cadrer()`.
