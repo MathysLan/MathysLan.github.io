@@ -29,7 +29,7 @@ L'habillage reprend le langage graphique de **Team Fortress 2** (interface Sourc
 | **Projets** | Un « sac à dos » : une case par projet, et une fiche qui dit l'objectif, ma part, le résultat, l'équipe, la stack, avec les liens et les captures. |
 | **Parcours** | Bac, BUT Informatique, stage, alternance, CDI chez AgiLab, en « contrats » dépliables. |
 | **Assos** | Vice-président des Jeunes Capucins. |
-| **Passions** | Volley, karaté (vice-champion de France full contact), régie de stream maison, concerts. |
+| **Passions** | Volley, karaté (10 ans en compétition), régie de stream maison, concerts. |
 | **Jeux** | Six jeux jouables dans le navigateur, avec pour chacun un lien vers son code et sa fiche d'architecture. |
 | **Contact** | Un formulaire qui prépare un mail dans ton client mail (rien ne transite par un service tiers), et l'adresse à copier. |
 
@@ -148,6 +148,6 @@ Je ne le cache pas : une grande partie du code de ce site et des serveurs de jeu
 
 ## Contact
 
-[mathys.langiny@gmail.com](mailto:mathys.langiny@gmail.com) · [LinkedIn](https://www.linkedin.com/in/mathys-langiny) · [GitHub](https://github.com/MathysLan) · [Twitch](https://www.twitch.tv/nimu_08) · [Steam](https://steamcommunity.com/id/mathys08)
+[portfolio.tremor198@slmail.me](mailto:portfolio.tremor198@slmail.me) · [LinkedIn](https://www.linkedin.com/in/mathys-langiny) · [GitHub](https://github.com/MathysLan) · [Twitch](https://www.twitch.tv/nimu_08) · [Steam](https://steamcommunity.com/id/mathys08)
 
 <sub>Not affiliated with Valve Corporation. Team Fortress 2 est une marque de Valve.</sub>

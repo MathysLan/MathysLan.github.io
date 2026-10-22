@@ -68,7 +68,8 @@ document.getElementById('f').addEventListener('load', function () {
       t('fiche AgiLab : objectif, ma part, resultat (' + facts0.length + ' lignes)',
         facts0.length >= 3 && im.querySelector('.im-facts .facts-row.is-role') !== null);
       t('fiche : recit complet garde sous « En detail »',
-        !im.querySelector('.im-desc-label').hidden && im.querySelector('.im-desc').textContent.length > 200);
+        // Fiche AgiLab volontairement courte (confidentiel) : on vérifie la présence, pas la longueur.
+        !im.querySelector('.im-desc-label').hidden && im.querySelector('.im-desc').textContent.trim().length > 40);
       d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
       cells[1].click();
       t('« Ma part » renseignee pour les 8 projets',
@@ -199,7 +200,7 @@ document.getElementById('f').addEventListener('load', function () {
       d.querySelector('#projects-grid .bp-cell').click();
       t('fiche projet en anglais (My part / Goal)',
         /My part/.test(d.querySelector('#item-modal .im-facts').textContent) && /Goal/.test(d.querySelector('#item-modal .im-facts').textContent)
-        && /Designed and industrialized/.test(d.querySelector('#item-modal .im-facts').textContent));
+        && /Designed the tooling/.test(d.querySelector('#item-modal .im-facts').textContent));
       d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
       t('aria-label traduits en EN [' + d.getElementById('lightbox-close').getAttribute('aria-label') + ']',
         d.getElementById('lightbox-close').getAttribute('aria-label') === 'Close'
@@ -420,7 +421,7 @@ document.getElementById('f').addEventListener('load', function () {
         t('fin : annonce du client mail (lecteurs d ecran)', hint.textContent.length > 0 && !/Signal/i.test(hint.textContent));
         t('fin : bouton rendu', !sub.disabled);
         t('fin : mailto compose (objet + message + nom)',
-          /^mailto:mathys\.langiny@gmail\.com\?subject=Objet&body=Message%0A%0A--%20Test$/.test(mailto || ''));
+          /^mailto:portfolio\.tremor198@slmail\.me\?subject=Objet&body=Message%0A%0A--%20Test$/.test(mailto || ''));
         cfm.elements.name.value = '';
         cfm.dispatchEvent(new w.Event('submit', { cancelable: true, bubbles: true }));
         t('un champ vide masque la barre', cap.hidden);

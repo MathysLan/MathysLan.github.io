@@ -83,7 +83,7 @@
   const mono = 'font-family:monospace';
   console.log("%cSQL> %cSELECT * FROM opportunites WHERE profil = 'data' AND bullshit = 0;",
     'color:#8cbb96;' + mono, 'color:#e8913f;' + mono);
-  console.log('%c1 row selected. → mathys.langiny@gmail.com', 'color:#c6b99b;' + mono);
+  console.log('%c1 row selected. → portfolio.tremor198@slmail.me', 'color:#c6b99b;' + mono);
   console.log('%cIndices : Ctrl+K ouvre la palette. Le vieux code des salles d\'arcade ouvre autre chose. Et un Spy se cache en bas de page.',
     'color:#a99c7f;font-size:11px;' + mono);
 })();
