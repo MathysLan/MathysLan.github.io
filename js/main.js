@@ -200,7 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
       hint.classList.remove('ac-red');
       hint.textContent = '';
       const body = `${message}\n\n-- ${name}`;
-      const url = 'mailto:mathys.langiny@gmail.com'
+      const url = 'mailto:portfolio.tremor198@slmail.me'
         + `?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
       // La barre de capture, PUIS le client mail. Le texte ne prétend pas que
@@ -234,7 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const copyBtn = document.getElementById('copy-mail');
   const copyStatus = document.getElementById('copy-mail-status');
   {
-    const ADDRESS = 'mathys.langiny@gmail.com';
+    const ADDRESS = 'portfolio.tremor198@slmail.me';
     const legacyCopy = () => {
       const ta = document.createElement('textarea');
       ta.value = ADDRESS;

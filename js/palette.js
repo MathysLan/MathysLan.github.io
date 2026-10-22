@@ -126,7 +126,7 @@
     const done = (ok) => {
       open();
       input.placeholder = ok ? t('email copié ✔', 'email copied ✔')
-                             : 'mathys.langiny@gmail.com — ' + t('copie impossible', 'copy failed');
+                             : 'portfolio.tremor198@slmail.me — ' + t('copie impossible', 'copy failed');
     };
     if (window.copyEmailAddress) window.copyEmailAddress(done);
     else done(false);

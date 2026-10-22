@@ -48,7 +48,7 @@ dans le journal.
 | **Faux Témoin** (technique : `temoin`) | `games/temoin/` | `temoin-server` | **« L'Interrogatoire »** (refonte du 2026-10-06, l'ancien tapissage était un prototype), 3 à 16 joueurs EN VOCAL (Discord) : une scène s'affiche 5/8/10 s (réglage du salon), le Faux Témoin n'a que le nom du lieu ; questions à l'écran SANS bonne réponse, réponses à voix haute à tour de rôle (« J'ai répondu »), débat, vote, verdict, dernière chance (retrouver la vraie scène parmi 4), révélation. La scène part joueur par joueur au flash (`null` au Faux Témoin) et la page l'OUBLIE après ; votes secrets jusqu'à la révélation. Dessin des scènes : `scene.js` (vocabulaire fermé `KINDS` du serveur, `POSES` par lieu ; nouvel élément = serveur ET dessin). HORS du Hub (`hub: false`) tant que Mathys ne le demande pas. Test : `tests/temoin-partie.mjs`. |
 | **Puissance 4** | `js/connect4.js` (`launchConnect4`) | aucun | 100 % navigateur, canvas, bot gagner > bloquer > centre. Lancé par le carousel, INSERT COIN, Ctrl+K, Konami. |
 
-- Dépôts serveurs sur le poste de Mathys : `C:\perso\<nom>` (un par jeu en
+- Dépôts serveurs sur le poste de Mathys : un dossier par dépôt (un par jeu en
   ligne ci-dessus + `game-hub-server`). Chacun a ses tests (`npm test`, `test*.js`) :
   un client `ws` qui joue une partie complète et vérifie les règles.
 - URL de production utiles : Hub `wss://game-hub-server-qqdk.onrender.com`,
